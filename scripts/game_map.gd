@@ -6,8 +6,24 @@ const BUILD_BUTTON_TEXTURE: Texture2D = preload("res://assets/ui/buttons/circula
 const BUILD_BUTTON_HIGHLIGHT_TEXTURE: Texture2D = preload(
 	"res://assets/ui/buttons/circular_button_highlighted.png"
 )
+const BUILD_BUTTON_PRESSED_TEXTURE: Texture2D = preload(
+	"res://assets/ui/buttons/circular_button_pressed.png"
+)
+const BUILD_BUTTON_SELECTED_TEXTURE: Texture2D = preload(
+	"res://assets/ui/buttons/circular_button_selected.png"
+)
+const BUILD_ICON_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/ui/icons/red_square.png"),
+	preload("res://assets/ui/icons/blue_square.png"),
+	preload("res://assets/ui/icons/green_square.png"),
+]
+const COMPACT_MODAL_PANEL: StyleBoxTexture = preload(
+	"res://assets/ui/panels/compact_panel_nine_patch.tres"
+)
 const BOLD_GAME_FONT: FontFile = preload("res://assets/fonts/GameFont_bold.ttf")
 
+var build_buttons: Array[TextureButton] = []
+var selected_build_button_index := -1
 var deploy_button: Button
 var graph_modal: Control
 var graph_view: GraphView
@@ -117,22 +133,49 @@ func _build_upper_area(layout: VBoxContainer) -> void:
 
 
 func _build_build_buttons(build_page: Control) -> void:
-	var button_column := VBoxContainer.new()
-	button_column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	button_column.add_theme_constant_override("separation", 8)
-	build_page.add_child(button_column)
+	var button_row := HBoxContainer.new()
+	button_row.anchor_left = 0.04
+	button_row.anchor_top = 0.05
+	button_row.anchor_right = 0.58
+	button_row.anchor_bottom = 0.42
+	button_row.add_theme_constant_override("separation", 8)
+	build_page.add_child(button_row)
 
-	for _index in range(3):
+	for button_index in range(3):
 		var build_button := TextureButton.new()
 		build_button.ignore_texture_size = true
 		build_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		build_button.texture_normal = BUILD_BUTTON_TEXTURE
 		build_button.texture_hover = BUILD_BUTTON_HIGHLIGHT_TEXTURE
-		build_button.texture_pressed = BUILD_BUTTON_TEXTURE
-		build_button.custom_minimum_size = Vector2(64, 64)
-		build_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		build_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		button_column.add_child(build_button)
+		build_button.texture_pressed = BUILD_BUTTON_PRESSED_TEXTURE
+		build_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		build_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		build_button.pressed.connect(_on_build_button_pressed.bind(button_index))
+		build_buttons.append(build_button)
+		button_row.add_child(build_button)
+
+		var icon := TextureRect.new()
+		icon.texture = BUILD_ICON_TEXTURES[button_index]
+		icon.anchor_left = 0.3
+		icon.anchor_top = 0.3
+		icon.anchor_right = 0.7
+		icon.anchor_bottom = 0.7
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		build_button.add_child(icon)
+
+
+func _on_build_button_pressed(button_index: int) -> void:
+	selected_build_button_index = button_index
+	for index in range(build_buttons.size()):
+		var build_button := build_buttons[index]
+		if index == selected_build_button_index:
+			build_button.texture_normal = BUILD_BUTTON_SELECTED_TEXTURE
+			build_button.texture_hover = BUILD_BUTTON_SELECTED_TEXTURE
+		else:
+			build_button.texture_normal = BUILD_BUTTON_TEXTURE
+			build_button.texture_hover = BUILD_BUTTON_HIGHLIGHT_TEXTURE
 
 
 func _build_graph_modal() -> void:
@@ -154,7 +197,7 @@ func _build_graph_modal() -> void:
 	graph_modal.add_child(center_container)
 
 	var graph_panel := PanelContainer.new()
-	graph_panel.custom_minimum_size = Vector2(960, 360)
+	graph_panel.custom_minimum_size = get_viewport_rect().size * Vector2(0.75, 0.5)
 	center_container.add_child(graph_panel)
 
 	graph_view = GraphView.new()
@@ -170,13 +213,15 @@ func _build_dialogs() -> void:
 		"How to Play",
 		"Press Deploy, then select a reachable node.",
 		"OK",
-		Vector2i(460, 220)
+		Vector2i(460, 110),
+		true
 	)
 	victory_dialog = _create_modal(
 		"Victory",
 		"",
 		"Accept",
 		Vector2i(360, 180),
+		false,
 		_on_victory_accepted
 	)
 
@@ -186,6 +231,7 @@ func _create_modal(
 	body_text: String,
 	button_text: String,
 	popup_size: Vector2i,
+	compact_layout: bool = false,
 	accept_callback: Callable = Callable()
 ) -> PopupPanel:
 	var modal := PopupPanel.new()
@@ -193,11 +239,15 @@ func _create_modal(
 	modal.transient = true
 	modal.exclusive = true
 	modal.unresizable = true
-	modal.size = popup_size
+	if compact_layout:
+		modal.add_theme_stylebox_override("panel", COMPACT_MODAL_PANEL)
+	modal.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	modal.content_scale_size = popup_size
+	modal.size = popup_size * 2
 	add_child(modal)
 
 	var contents := VBoxContainer.new()
-	contents.add_theme_constant_override("separation", 8)
+	contents.add_theme_constant_override("separation", 4 if compact_layout else 8)
 	modal.add_child(contents)
 
 	var title_label := Label.new()
@@ -225,7 +275,7 @@ func _create_modal(
 
 	var modal_button := Button.new()
 	modal_button.text = button_text
-	modal_button.custom_minimum_size = Vector2(100, 44)
+	modal_button.custom_minimum_size = Vector2(100, 32 if compact_layout else 44)
 	modal_button.pressed.connect(_on_modal_action_pressed.bind(modal, accept_callback))
 	button_center.add_child(modal_button)
 

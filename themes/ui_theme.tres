@@ -6,6 +6,7 @@
 [ext_resource type="FontFile" uid="uid://bdpxy5fp552rb" path="res://assets/fonts/GameFont.ttf" id="4_font_regular"]
 [ext_resource type="FontFile" uid="uid://6t21fxg7c4q4" path="res://assets/fonts/GameFont_bold.ttf" id="5_font_bold"]
 [ext_resource type="Texture2D" path="res://assets/ui/buttons/button_highlighted.png" id="6_button_highlighted"]
+[ext_resource type="Texture2D" uid="uid://ceuy7glfq4gtg" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
 content_margin_left = 14.0
@@ -68,45 +69,52 @@ texture_margin_top = 10.0
 texture_margin_right = 32.0
 texture_margin_bottom = 10.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_disabled"]
-content_margin_left = 12.0
-content_margin_top = 7.0
-content_margin_right = 12.0
-content_margin_bottom = 7.0
-bg_color = Color(0.035, 0.04, 0.05, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_tab_disabled"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+modulate_color = Color(0.45, 0.5, 0.55, 1)
+texture = ExtResource("7_tab_panel")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_hovered"]
-content_margin_left = 12.0
-content_margin_top = 7.0
-content_margin_right = 12.0
-content_margin_bottom = 7.0
-bg_color = Color(0.07, 0.11, 0.12, 1)
-border_width_bottom = 1
-border_color = Color(0.29, 0.53, 0.58, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_tab_hovered"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+modulate_color = Color(0.85, 0.95, 1, 1)
+texture = ExtResource("7_tab_panel")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_selected"]
-content_margin_left = 12.0
-content_margin_top = 7.0
-content_margin_right = 12.0
-content_margin_bottom = 7.0
-bg_color = Color(0.08, 0.17, 0.19, 1)
-border_width_bottom = 2
-border_color = Color(0.37, 0.73, 0.78, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_tab_selected"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("7_tab_panel")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_unselected"]
-content_margin_left = 12.0
-content_margin_top = 7.0
-content_margin_right = 12.0
-content_margin_bottom = 7.0
-bg_color = Color(0.045, 0.055, 0.065, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_tab_unselected"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+modulate_color = Color(0.65, 0.71, 0.75, 1)
+texture = ExtResource("7_tab_panel")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_panel"]
 content_margin_left = 8.0
@@ -138,9 +146,9 @@ TabBar/colors/font_disabled_color = Color(0.38, 0.41, 0.43, 1)
 TabBar/colors/font_hovered_color = Color(0.84, 0.93, 0.94, 1)
 TabBar/colors/font_selected_color = Color(0.92, 0.96, 0.97, 1)
 TabBar/colors/font_unselected_color = Color(0.62, 0.68, 0.71, 1)
-TabBar/styles/tab_disabled = SubResource("StyleBoxFlat_tab_disabled")
-TabBar/styles/tab_hovered = SubResource("StyleBoxFlat_tab_hovered")
-TabBar/styles/tab_selected = SubResource("StyleBoxFlat_tab_selected")
-TabBar/styles/tab_unselected = SubResource("StyleBoxFlat_tab_unselected")
+TabBar/styles/tab_disabled = SubResource("StyleBoxTexture_tab_disabled")
+TabBar/styles/tab_hovered = SubResource("StyleBoxTexture_tab_hovered")
+TabBar/styles/tab_selected = SubResource("StyleBoxTexture_tab_selected")
+TabBar/styles/tab_unselected = SubResource("StyleBoxTexture_tab_unselected")
 TabContainer/styles/panel = SubResource("StyleBoxFlat_tab_panel")
 Window/styles/panel = ExtResource("1_panel")

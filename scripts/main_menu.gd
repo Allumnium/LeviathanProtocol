@@ -70,7 +70,9 @@ func _create_modal(
 	modal.transient = true
 	modal.exclusive = true
 	modal.unresizable = true
-	modal.size = popup_size
+	modal.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	modal.content_scale_size = popup_size
+	modal.size = popup_size * 2
 	add_child(modal)
 
 	var contents := VBoxContainer.new()
