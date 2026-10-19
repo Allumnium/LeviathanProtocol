@@ -1,0 +1,6 @@
+res://scenes/main_menu.tscn
+res://styles/panel_nine_patch.tres
+res://themes/ui_theme.tres
+res://scripts/game_map.gd
+res://scripts/main_menu.gd
+res://assets/ui/icons/green_square.png

@@ -2,6 +2,7 @@ extends Control
 
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
+const AUDIO_SETTINGS_DIALOG_SCRIPT := preload("res://scripts/audio_settings_dialog.gd")
 const BUILD_BUTTON_TEXTURE: Texture2D = preload("res://assets/ui/buttons/circular_button.png")
 const BUILD_BUTTON_HIGHLIGHT_TEXTURE: Texture2D = preload(
 	"res://assets/ui/buttons/circular_button_highlighted.png"
@@ -12,6 +13,8 @@ const BUILD_BUTTON_PRESSED_TEXTURE: Texture2D = preload(
 const BUILD_BUTTON_SELECTED_TEXTURE: Texture2D = preload(
 	"res://assets/ui/buttons/circular_button_selected.png"
 )
+const BUILD_GRID_TEXTURE: Texture2D = preload("res://assets/ui/build_grid.png")
+const UNSELECTED_BUILD_ICON_MODULATE := Color(0.8, 0.8, 0.8, 1.0)
 const BUILD_ICON_TEXTURES: Array[Texture2D] = [
 	preload("res://assets/ui/icons/red_square.png"),
 	preload("res://assets/ui/icons/blue_square.png"),
@@ -23,6 +26,7 @@ const COMPACT_MODAL_PANEL: StyleBoxTexture = preload(
 const BOLD_GAME_FONT: FontFile = preload("res://assets/fonts/GameFont_bold.ttf")
 
 var build_buttons: Array[TextureButton] = []
+var build_button_icons: Array[TextureRect] = []
 var selected_build_button_index := -1
 var deploy_button: Button
 var graph_modal: Control
@@ -71,11 +75,13 @@ func _build_top_bar(layout: VBoxContainer) -> void:
 
 	var how_to_play_button := Button.new()
 	how_to_play_button.text = "How to Play"
+	how_to_play_button.custom_minimum_size = Vector2(148, 48)
 	how_to_play_button.pressed.connect(_on_how_to_play_pressed)
 	bar_contents.add_child(how_to_play_button)
 
 	var settings_button := Button.new()
 	settings_button.text = "Settings"
+	settings_button.custom_minimum_size = Vector2(120, 48)
 	settings_button.pressed.connect(_on_settings_pressed)
 	bar_contents.add_child(settings_button)
 
@@ -133,6 +139,14 @@ func _build_upper_area(layout: VBoxContainer) -> void:
 
 
 func _build_build_buttons(build_page: Control) -> void:
+	var build_grid := TextureRect.new()
+	build_grid.texture = BUILD_GRID_TEXTURE
+	build_grid.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	build_grid.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	build_grid.stretch_mode = TextureRect.STRETCH_TILE
+	build_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	build_page.add_child(build_grid)
+
 	var button_row := HBoxContainer.new()
 	button_row.anchor_left = 0.04
 	button_row.anchor_top = 0.05
@@ -163,6 +177,8 @@ func _build_build_buttons(build_page: Control) -> void:
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.modulate = UNSELECTED_BUILD_ICON_MODULATE
+		build_button_icons.append(icon)
 		build_button.add_child(icon)
 
 
@@ -173,9 +189,11 @@ func _on_build_button_pressed(button_index: int) -> void:
 		if index == selected_build_button_index:
 			build_button.texture_normal = BUILD_BUTTON_SELECTED_TEXTURE
 			build_button.texture_hover = BUILD_BUTTON_SELECTED_TEXTURE
+			build_button_icons[index].modulate = Color.WHITE
 		else:
 			build_button.texture_normal = BUILD_BUTTON_TEXTURE
 			build_button.texture_hover = BUILD_BUTTON_HIGHLIGHT_TEXTURE
+			build_button_icons[index].modulate = UNSELECTED_BUILD_ICON_MODULATE
 
 
 func _build_graph_modal() -> void:
@@ -208,7 +226,8 @@ func _build_graph_modal() -> void:
 
 
 func _build_dialogs() -> void:
-	settings_dialog = _create_modal("Settings", "", "OK", Vector2i(360, 180))
+	settings_dialog = AUDIO_SETTINGS_DIALOG_SCRIPT.create_dialog()
+	add_child(settings_dialog)
 	how_to_play_dialog = _create_modal(
 		"How to Play",
 		"Press Deploy, then select a reachable node.",

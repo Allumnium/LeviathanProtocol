@@ -1,7 +1,7 @@
 extends Control
 
 const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
-const BOLD_GAME_FONT: FontFile = preload("res://assets/fonts/GameFont_bold.ttf")
+const AUDIO_SETTINGS_DIALOG_SCRIPT := preload("res://scripts/audio_settings_dialog.gd")
 
 var settings_dialog: PopupPanel
 
@@ -41,7 +41,8 @@ func _ready() -> void:
 	quit_button.pressed.connect(_on_quit_pressed)
 	menu_buttons.add_child(quit_button)
 
-	settings_dialog = _create_modal("Settings", "", "OK", Vector2i(360, 180))
+	settings_dialog = AUDIO_SETTINGS_DIALOG_SCRIPT.create_dialog()
+	add_child(settings_dialog)
 
 
 func _on_play_pressed() -> void:
@@ -57,55 +58,3 @@ func _on_settings_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
-
-
-func _create_modal(
-	title_text: String,
-	body_text: String,
-	button_text: String,
-	popup_size: Vector2i
-) -> PopupPanel:
-	var modal := PopupPanel.new()
-	modal.borderless = true
-	modal.transient = true
-	modal.exclusive = true
-	modal.unresizable = true
-	modal.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-	modal.content_scale_size = popup_size
-	modal.size = popup_size * 2
-	add_child(modal)
-
-	var contents := VBoxContainer.new()
-	contents.add_theme_constant_override("separation", 8)
-	modal.add_child(contents)
-
-	var title_label := Label.new()
-	title_label.text = title_text
-	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_override("font", BOLD_GAME_FONT)
-	contents.add_child(title_label)
-
-	if body_text.is_empty():
-		var spacer := Control.new()
-		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		contents.add_child(spacer)
-	else:
-		var body_label := Label.new()
-		body_label.text = body_text
-		body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		body_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		contents.add_child(body_label)
-
-	var button_center := CenterContainer.new()
-	button_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	contents.add_child(button_center)
-
-	var modal_button := Button.new()
-	modal_button.text = button_text
-	modal_button.custom_minimum_size = Vector2(100, 44)
-	modal_button.pressed.connect(modal.hide)
-	button_center.add_child(modal_button)
-
-	return modal

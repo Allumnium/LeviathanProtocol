@@ -14,9 +14,14 @@ config/name="Leviathan"
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
+[audio]
+
+default_bus_layout="res://assets/audio/default_bus_layout.tres"
+
 [autoload]
 
 GameState="*res://scripts/game_state.gd"
+AudioManager="*res://scripts/audio_manager.gd"
 
 [display]
 
@@ -34,5 +39,5 @@ theme/custom="res://themes/ui_theme.tres"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"

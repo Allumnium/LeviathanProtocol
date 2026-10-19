@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bnfbbcr8xrkds"
-path="res://.godot/imported/pixellab-green-square-resource-made-of--1792388312280.png-8ff8854ab73475b7ab045e8bcee4943d.ctex"
+uid="uid://dlbus4g2mt7kw"
+path="res://.godot/imported/build_grid.png-49d44816fd21598c9d3136eaf2bb84ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/pixellab-green-square-resource-made-of--1792388312280.png"
-dest_files=["res://.godot/imported/pixellab-green-square-resource-made-of--1792388312280.png-8ff8854ab73475b7ab045e8bcee4943d.ctex"]
+source_file="res://assets/ui/build_grid.png"
+dest_files=["res://.godot/imported/build_grid.png-49d44816fd21598c9d3136eaf2bb84ec.ctex"]
 
 [params]
 
