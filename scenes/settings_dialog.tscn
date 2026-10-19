@@ -1,0 +1,59 @@
+[gd_scene load_steps=3 format=3 uid="uid://bdifmeulvjpoc"]
+
+[ext_resource type="PackedScene" path="res://scenes/modal_dialog.tscn" id="1_modal"]
+[ext_resource type="Script" uid="uid://f1o1rko5ghnl" path="res://scripts/settings_dialog.gd" id="2_script"]
+
+[node name="SettingsDialog" instance=ExtResource("1_modal")]
+size = Vector2i(502, 682)
+script = ExtResource("2_script")
+
+[node name="Title" parent="Contents" index="0"]
+text = "Settings"
+
+[node name="MusicRow" type="HBoxContainer" parent="Contents/ContentArea" index="0"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MusicLabel" type="Label" parent="Contents/ContentArea/MusicRow" index="0"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Music"
+vertical_alignment = 1
+
+[node name="MusicSlider" type="HSlider" parent="Contents/ContentArea/MusicRow" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+value = 50.0
+
+[node name="AmbienceRow" type="HBoxContainer" parent="Contents/ContentArea" index="1"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AmbienceLabel" type="Label" parent="Contents/ContentArea/AmbienceRow" index="0"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Ambience"
+vertical_alignment = 1
+
+[node name="AmbienceSlider" type="HSlider" parent="Contents/ContentArea/AmbienceRow" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+value = 50.0
+
+[node name="EffectsRow" type="HBoxContainer" parent="Contents/ContentArea" index="2"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EffectsLabel" type="Label" parent="Contents/ContentArea/EffectsRow" index="0"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Effects"
+vertical_alignment = 1
+
+[node name="EffectsSlider" type="HSlider" parent="Contents/ContentArea/EffectsRow" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+value = 50.0

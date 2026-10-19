@@ -4,3 +4,17 @@ res://themes/ui_theme.tres
 res://scripts/game_map.gd
 res://scripts/main_menu.gd
 res://assets/ui/icons/green_square.png
+res://scripts/auto_battle.gd
+res://scripts/build_selector_button.gd
+res://scenes/settings_dialog.tscn
+res://scenes/how_to_play_dialog.tscn
+res://assets/ui/panels/compact_panel_nine_patch.tres
+res://scenes/game_map.tscn
+res://scripts/build_tilemap_area.gd
+res://assets/ui/panels/panel_nine_patch.tres
+res://scripts/audio_manager.gd
+res://scenes/build_tilemap_area.tscn
+res://scripts/_scene_diagnostics.gd
+res://scripts/settings_dialog.gd
+res://scenes/modal_dialog.tscn
+res://scenes/victory_dialog.tscn

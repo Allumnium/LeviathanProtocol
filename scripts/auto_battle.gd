@@ -4,14 +4,6 @@ const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 
 
 func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	var background := ColorRect.new()
-	background.color = Color.BLACK
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(background)
-
 	_resolve_battle()
 
 

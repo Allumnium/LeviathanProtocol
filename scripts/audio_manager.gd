@@ -4,6 +4,7 @@ const MUSIC_BUS: StringName = &"Music"
 const AMBIENCE_BUS: StringName = &"Ambience"
 const SFX_BUS: StringName = &"SFX"
 const BUILD_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/build1.mp3")
+const DEFAULT_VOLUME_PERCENT := 50.0
 
 var _music_player: AudioStreamPlayer
 
@@ -12,6 +13,9 @@ func _ready() -> void:
 	_ensure_bus(MUSIC_BUS)
 	_ensure_bus(AMBIENCE_BUS)
 	_ensure_bus(SFX_BUS)
+	set_bus_volume_percent(MUSIC_BUS, DEFAULT_VOLUME_PERCENT)
+	set_bus_volume_percent(AMBIENCE_BUS, DEFAULT_VOLUME_PERCENT)
+	set_bus_volume_percent(SFX_BUS, DEFAULT_VOLUME_PERCENT)
 	_start_build_music()
 
 

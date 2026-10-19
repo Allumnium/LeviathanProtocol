@@ -1,6 +1,175 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bc8c2dkat3syl"]
 
-[ext_resource type="Script" path="res://scripts/game_map.gd" id="1"]
+[ext_resource type="Script" uid="uid://b5bsj2qhnw6rb" path="res://scripts/game_map.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/build_tilemap_area.tscn" id="2"]
+[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="4_kqil0"]
+[ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="6_kqil0"]
+[ext_resource type="PackedScene" uid="uid://bdifmeulvjpoc" path="res://scenes/settings_dialog.tscn" id="7"]
+[ext_resource type="PackedScene" uid="uid://yojn4otwqbnx" path="res://scenes/how_to_play_dialog.tscn" id="8"]
+[ext_resource type="PackedScene" uid="uid://cq30vongxvgsa" path="res://scenes/victory_dialog.tscn" id="9"]
+[ext_resource type="Script" uid="uid://cveoehe7moy2l" path="res://scripts/graph_view.gd" id="10"]
 
-[node name="GameMap" type="Control"]
+[node name="GameMap" type="Control" unique_id=1888779315]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("4_kqil0")
 script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1486499972]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Layout" type="VBoxContainer" parent="." unique_id=1201955421]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TopBar" type="PanelContainer" parent="Layout" unique_id=965312031]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BarContents" type="HBoxContainer" parent="Layout/TopBar" unique_id=1264857275]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StatsSpace" type="Control" parent="Layout/TopBar/BarContents" unique_id=650711298]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HowToPlayButton" type="Button" parent="Layout/TopBar/BarContents" unique_id=1004545367]
+custom_minimum_size = Vector2(148, 48)
+layout_mode = 2
+theme = ExtResource("4_kqil0")
+text = "How to Play"
+
+[node name="SettingsButton" type="Button" parent="Layout/TopBar/BarContents" unique_id=1518485851]
+custom_minimum_size = Vector2(120, 48)
+layout_mode = 2
+theme = ExtResource("4_kqil0")
+text = "Settings"
+
+[node name="UpperArea" type="HBoxContainer" parent="Layout" unique_id=277411845]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.0
+theme_override_constants/separation = 8
+
+[node name="LeftPanel" type="PanelContainer" parent="Layout/UpperArea" unique_id=573898942]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PanelContents" type="VBoxContainer" parent="Layout/UpperArea/LeftPanel" unique_id=1025909576]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Tabs" type="TabContainer" parent="Layout/UpperArea/LeftPanel/PanelContents" unique_id=1538854626]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("4_kqil0")
+current_tab = 0
+
+[node name="Build" type="Control" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs" unique_id=1569980205]
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="BuildTilemapArea" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs/Build" unique_id=1121969865 instance=ExtResource("2")]
+
+[node name="Upgrades" type="Control" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs" unique_id=2131063558]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 1
+
+[node name="Archive" type="Control" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs" unique_id=1899242874]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 2
+
+[node name="DetailsPanel" type="PanelContainer" parent="Layout/UpperArea" unique_id=2056260239]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="DetailsContents" type="VBoxContainer" parent="Layout/UpperArea/DetailsPanel" unique_id=8957397]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DetailsSpace" type="Control" parent="Layout/UpperArea/DetailsPanel/DetailsContents" unique_id=1460107185]
+layout_mode = 2
+size_flags_vertical = 3
+theme = ExtResource("4_kqil0")
+
+[node name="DeployButton" type="Button" parent="Layout/UpperArea/DetailsPanel/DetailsContents" unique_id=2001398976]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme = ExtResource("4_kqil0")
+text = "Deploy"
+
+[node name="GraphModal" type="Control" parent="." unique_id=213025514]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="GraphModal" unique_id=926328139]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.72)
+
+[node name="CenterContainer" type="CenterContainer" parent="GraphModal" unique_id=364878455]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="GraphPanel" type="PanelContainer" parent="GraphModal/CenterContainer" unique_id=2075394125]
+custom_minimum_size = Vector2(480, 180)
+layout_mode = 2
+
+[node name="GraphView" type="Control" parent="GraphModal/CenterContainer/GraphPanel" unique_id=1513686605]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("10")
+
+[node name="SettingsDialog" parent="." unique_id=826228226 instance=ExtResource("7")]
+visible = false
+content_scale_factor = 1.0
+theme_override_styles/panel = ExtResource("6_kqil0")
+
+[node name="HowToPlayDialog" parent="." unique_id=575426634 instance=ExtResource("8")]
+visible = false
+content_scale_factor = 1.0
+theme_override_styles/panel = ExtResource("6_kqil0")
+
+[node name="VictoryDialog" parent="." unique_id=425094024 instance=ExtResource("9")]
+visible = false
+layout_mode = 1

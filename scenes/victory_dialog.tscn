@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://cq30vongxvgsa"]
+
+[ext_resource type="FontFile" uid="uid://6t21fxg7c4q4" path="res://assets/fonts/GameFont_bold.ttf" id="1_font"]
+[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="2_theme"]
+
+[node name="VictoryDialog" type="Control" unique_id=1607653952]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Backdrop" type="ColorRect" parent="." unique_id=1620301900]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1492881036]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -280.0
+offset_bottom = -180.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer" unique_id=1615161804]
+custom_minimum_size = Vector2(360, 180)
+layout_mode = 2
+
+[node name="Contents" type="VBoxContainer" parent="CenterContainer/Panel" unique_id=871080694]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="CenterContainer/Panel/Contents" unique_id=1149340815]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("1_font")
+text = "Victory"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="CenterContainer/Panel/Contents" unique_id=1977773128]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ButtonCenter" type="CenterContainer" parent="CenterContainer/Panel/Contents" unique_id=2023254067]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AcceptButton" type="Button" parent="CenterContainer/Panel/Contents/ButtonCenter" unique_id=1811432443]
+custom_minimum_size = Vector2(100, 44)
+layout_mode = 2
+text = "Accept"
