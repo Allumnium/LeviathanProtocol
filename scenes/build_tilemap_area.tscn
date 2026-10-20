@@ -31,6 +31,8 @@ snap_2d_vertices_to_pixel = true
 
 [node name="PlacedLayer" type="TileMapLayer" parent="PanRoot"]
 
+[node name="PartsLayer" type="Node2D" parent="PanRoot"]
+
 [node name="PreviewLayer" type="TileMapLayer" parent="PanRoot"]
 modulate = Color(1, 1, 1, 0.5)
 

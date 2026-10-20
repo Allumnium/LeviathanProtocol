@@ -18,3 +18,5 @@ res://scripts/_scene_diagnostics.gd
 res://scripts/settings_dialog.gd
 res://scenes/modal_dialog.tscn
 res://scenes/victory_dialog.tscn
+res://scripts/game_state.gd
+res://scenes/build_selector_button.tscn

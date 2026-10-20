@@ -6,6 +6,7 @@ const BLUE_SOURCE_ID := 2
 const GREEN_SOURCE_ID := 3
 const NO_SOURCE_ID := -1
 const ERASE_SOURCE_ID := -2
+const NO_CATEGORY := -1
 const INVALID_CELL := Vector2i(-1, -1)
 const MIN_ZOOM := 0.5
 const MAX_ZOOM := 3.0
@@ -21,12 +22,19 @@ const ZOOM_STEP := 0.5
 @onready var pan_root: Node2D = $PanRoot
 @onready var grid_layer: TileMapLayer = $PanRoot/GridLayer
 @onready var placed_layer: TileMapLayer = $PanRoot/PlacedLayer
+@onready var parts_layer: Node2D = $PanRoot/PartsLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
 @onready var selector_row: HBoxContainer = $SelectorRow
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
 @onready var erase_build_button: TextureButton = $SelectorRow/EraseBuildButton
+@onready var red_count_badge: PanelContainer = $SelectorRow/RedBuildButton/CountBadge
+@onready var red_count_label: Label = $SelectorRow/RedBuildButton/CountBadge/CountLabel
+@onready var blue_count_badge: PanelContainer = $SelectorRow/BlueBuildButton/CountBadge
+@onready var blue_count_label: Label = $SelectorRow/BlueBuildButton/CountBadge/CountLabel
+@onready var green_count_badge: PanelContainer = $SelectorRow/GreenBuildButton/CountBadge
+@onready var green_count_label: Label = $SelectorRow/GreenBuildButton/CountBadge/CountLabel
 
 var _selected_source_id := NO_SOURCE_ID
 var _preview_cell := INVALID_CELL
@@ -38,6 +46,8 @@ var _pan_buttons_held: Array[int] = []
 var _last_pan_mouse_position := Vector2.ZERO
 var _last_placed_cell := INVALID_CELL
 var _initial_pan_position_set := false
+var _part_patterns: Array[ShipPartPattern] = []
+var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
 
 
 func _ready() -> void:
@@ -60,6 +70,10 @@ func _ready() -> void:
 	placed_layer.tile_set = _tile_set
 	preview_layer.tile_set = _tile_set
 	_fill_grid()
+	_part_patterns = _create_part_patterns()
+	_rebuild_part_placeholders()
+	GameState.tile_inventory_changed.connect(_refresh_tile_counts)
+	_refresh_tile_counts()
 
 	var selector_group := ButtonGroup.new()
 	selector_group.allow_unpress = false
@@ -130,8 +144,8 @@ func _fit_texture_to_cell(texture: Texture2D, texture_name: String) -> Texture2D
 	var cell_image := Image.create(tile_size.x, tile_size.y, false, Image.FORMAT_RGBA8)
 	cell_image.fill(Color.TRANSPARENT)
 	var offset := Vector2i(
-		(tile_size.x - source_image.get_width()) / 2,
-		(tile_size.y - source_image.get_height()) / 2
+		floori(float(tile_size.x - source_image.get_width()) / 2.0),
+		floori(float(tile_size.y - source_image.get_height()) / 2.0)
 	)
 	cell_image.blit_rect(
 		source_image,
@@ -274,10 +288,215 @@ func _paint_line(start_cell: Vector2i, end_cell: Vector2i) -> void:
 
 
 func _apply_selected_tool(cell: Vector2i) -> void:
+	var existing_source_id := placed_layer.get_cell_source_id(cell)
 	if _selected_source_id == ERASE_SOURCE_ID:
+		if existing_source_id != NO_SOURCE_ID:
+			var existing_category := _get_category_for_source_id(existing_source_id)
+			if existing_category != NO_CATEGORY:
+				GameState.refund_tile(existing_category)
 		placed_layer.erase_cell(cell)
+		_remove_ship_part_at(cell)
 	else:
+		var category := _get_category_for_source_id(_selected_source_id)
+		if category == NO_CATEGORY:
+			return
+		if existing_source_id == _selected_source_id:
+			_evaluate_part_patterns()
+			return
+		if not GameState.try_consume_tile(category):
+			return
+		if existing_source_id != NO_SOURCE_ID:
+			var existing_category := _get_category_for_source_id(existing_source_id)
+			if existing_category != NO_CATEGORY:
+				GameState.refund_tile(existing_category)
+		_remove_ship_part_at(cell)
 		placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
+	_evaluate_part_patterns()
+
+
+func _refresh_tile_counts() -> void:
+	_set_tile_count(
+		red_count_badge,
+		red_count_label,
+		GameState.get_available_tile_count(ShipPart.Category.OFFENSE)
+	)
+	_set_tile_count(
+		blue_count_badge,
+		blue_count_label,
+		GameState.get_available_tile_count(ShipPart.Category.DEFENSE)
+	)
+	_set_tile_count(
+		green_count_badge,
+		green_count_label,
+		GameState.get_available_tile_count(ShipPart.Category.SPECIAL)
+	)
+
+
+func _set_tile_count(badge: PanelContainer, label: Label, count: int) -> void:
+	label.text = str(count)
+	badge.show()
+
+
+func _create_part_patterns() -> Array[ShipPartPattern]:
+	var patterns: Array[ShipPartPattern] = []
+	patterns.append(
+		ShipPartPattern.new(
+			ShipPart.Type.ARMOR_BLOCK,
+			ShipPart.Category.DEFENSE,
+			[
+				Vector2i(0, 0),
+				Vector2i(1, 0),
+				Vector2i(0, 1),
+				Vector2i(1, 1),
+			]
+		)
+	)
+	patterns.append(
+		ShipPartPattern.new(
+			ShipPart.Type.LASER,
+			ShipPart.Category.OFFENSE,
+			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)]
+		)
+	)
+	return patterns
+
+
+func _evaluate_part_patterns() -> void:
+	for pattern in _part_patterns:
+		var source_id := _get_source_id_for_category(pattern.category)
+		if source_id == NO_SOURCE_ID:
+			continue
+		for y in range(map_dimensions.y):
+			for x in range(map_dimensions.x):
+				_try_morph_pattern(Vector2i(x, y), pattern, source_id)
+
+
+func _try_morph_pattern(
+	origin: Vector2i,
+	pattern: ShipPartPattern,
+	source_id: int
+) -> bool:
+	var rotation_count := 4 if pattern.can_rotate else 1
+	for quarter_turns in range(rotation_count):
+		var cell_offsets := pattern.get_offsets_for_rotation(quarter_turns)
+		if not _matches_pattern(origin, cell_offsets, source_id):
+			continue
+
+		var part := ShipPart.new(pattern.part_type, pattern.category, origin, cell_offsets)
+		if not GameState.ship.add_part(part):
+			push_error("Could not add a matched part to the ship.")
+			return false
+		for cell in part.get_occupied_cells():
+			placed_layer.erase_cell(cell)
+		_add_part_placeholder(part)
+		return true
+	return false
+
+
+func _matches_pattern(
+	origin: Vector2i,
+	cell_offsets: Array[Vector2i],
+	source_id: int
+) -> bool:
+	for offset in cell_offsets:
+		var cell := origin + offset
+		if (
+			cell.x < 0
+			or cell.y < 0
+			or cell.x >= map_dimensions.x
+			or cell.y >= map_dimensions.y
+			or placed_layer.get_cell_source_id(cell) != source_id
+		):
+			return false
+	return true
+
+
+func _get_source_id_for_category(category: int) -> int:
+	match category:
+		ShipPart.Category.OFFENSE:
+			return RED_SOURCE_ID
+		ShipPart.Category.DEFENSE:
+			return BLUE_SOURCE_ID
+		ShipPart.Category.SPECIAL:
+			return GREEN_SOURCE_ID
+		_:
+			push_error("Unknown ship part category: %s" % category)
+			return NO_SOURCE_ID
+
+
+func _get_category_for_source_id(source_id: int) -> int:
+	match source_id:
+		RED_SOURCE_ID:
+			return ShipPart.Category.OFFENSE
+		BLUE_SOURCE_ID:
+			return ShipPart.Category.DEFENSE
+		GREEN_SOURCE_ID:
+			return ShipPart.Category.SPECIAL
+		_:
+			push_error("Unknown build tile source ID: %s" % source_id)
+			return NO_CATEGORY
+
+
+func _get_texture_for_category(category: int) -> Texture2D:
+	match category:
+		ShipPart.Category.OFFENSE:
+			return red_tile_texture
+		ShipPart.Category.DEFENSE:
+			return blue_tile_texture
+		ShipPart.Category.SPECIAL:
+			return green_tile_texture
+		_:
+			push_error("Unknown ship part category: %s" % category)
+			return null
+
+
+func _rebuild_part_placeholders() -> void:
+	for part in GameState.ship.parts:
+		_add_part_placeholder(part)
+
+
+func _add_part_placeholder(part: ShipPart) -> void:
+	var texture := _get_texture_for_category(part.category)
+	if texture == null:
+		return
+
+	var cells := part.get_occupied_cells()
+	if cells.is_empty():
+		push_error("Cannot display a ship part with no occupied cells.")
+		return
+
+	var minimum_x := cells[0].x
+	var minimum_y := cells[0].y
+	var maximum_x := cells[0].x
+	var maximum_y := cells[0].y
+	for cell in cells:
+		minimum_x = mini(minimum_x, cell.x)
+		minimum_y = mini(minimum_y, cell.y)
+		maximum_x = maxi(maximum_x, cell.x)
+		maximum_y = maxi(maximum_y, cell.y)
+
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.centered = true
+	sprite.position = (
+		grid_layer.map_to_local(Vector2i(minimum_x, minimum_y))
+		+ grid_layer.map_to_local(Vector2i(maximum_x, maximum_y))
+	) * 0.5
+	sprite.scale = Vector2(
+		float((maximum_x - minimum_x + 1) * tile_size.x) / texture.get_width(),
+		float((maximum_y - minimum_y + 1) * tile_size.y) / texture.get_height()
+	)
+	parts_layer.add_child(sprite)
+	_part_sprites[part] = sprite
+
+
+func _remove_ship_part_at(cell: Vector2i) -> void:
+	var part := GameState.ship.remove_part_at(cell)
+	if part == null:
+		return
+	if _part_sprites.has(part):
+		_part_sprites[part].queue_free()
+		_part_sprites.erase(part)
 
 
 func _zoom_at(local_mouse_position: Vector2, zoom_delta: float) -> void:
