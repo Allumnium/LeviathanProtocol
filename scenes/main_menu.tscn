@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://d1v2vdiffx2o5"]
+[gd_scene format=3 uid="uid://d1v2vdiffx2o5"]
 
 [ext_resource type="Script" uid="uid://bcff6c8gb6kac" path="res://scripts/main_menu.gd" id="1"]
-[ext_resource type="PackedScene" path="res://scenes/settings_dialog.tscn" id="2"]
+[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="1_bqqt6"]
+[ext_resource type="PackedScene" uid="uid://bdifmeulvjpoc" path="res://scenes/settings_dialog.tscn" id="2"]
 
 [node name="MainMenu" type="Control" unique_id=513972528]
 layout_mode = 3
@@ -10,19 +11,20 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("1_bqqt6")
 script = ExtResource("1")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=2045683143]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 1)
 mouse_filter = 2
+color = Color(0, 0, 0, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1957707850]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -30,23 +32,24 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MenuButtons" type="VBoxContainer" parent="CenterContainer"]
+[node name="MenuButtons" type="VBoxContainer" parent="CenterContainer" unique_id=927102462]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="PlayButton" type="Button" parent="CenterContainer/MenuButtons"]
-layout_mode = 2
+[node name="PlayButton" type="Button" parent="CenterContainer/MenuButtons" unique_id=1455338528]
 custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
 text = "Play"
 
-[node name="SettingsButton" type="Button" parent="CenterContainer/MenuButtons"]
-layout_mode = 2
+[node name="SettingsButton" type="Button" parent="CenterContainer/MenuButtons" unique_id=431812827]
 custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
 text = "Settings"
 
-[node name="QuitButton" type="Button" parent="CenterContainer/MenuButtons"]
-layout_mode = 2
+[node name="QuitButton" type="Button" parent="CenterContainer/MenuButtons" unique_id=74552834]
 custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
 text = "Quit"
 
-[node name="SettingsDialog" parent="." instance=ExtResource("2")]
+[node name="SettingsDialog" parent="." unique_id=1725069118 instance=ExtResource("2")]
+visible = false

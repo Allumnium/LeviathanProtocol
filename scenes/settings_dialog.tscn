@@ -1,59 +1,61 @@
-[gd_scene load_steps=3 format=3 uid="uid://bdifmeulvjpoc"]
+[gd_scene format=3 uid="uid://bdifmeulvjpoc"]
 
-[ext_resource type="PackedScene" path="res://scenes/modal_dialog.tscn" id="1_modal"]
+[ext_resource type="PackedScene" uid="uid://tpx12myxr54h" path="res://scenes/modal_dialog.tscn" id="1_modal"]
 [ext_resource type="Script" uid="uid://f1o1rko5ghnl" path="res://scripts/settings_dialog.gd" id="2_script"]
 
-[node name="SettingsDialog" instance=ExtResource("1_modal")]
-size = Vector2i(502, 682)
+[node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
+initial_position = 1
+size = Vector2i(500, 250)
+content_scale_factor = 1.0
 script = ExtResource("2_script")
 
-[node name="Title" parent="Contents" index="0"]
+[node name="Title" parent="Contents" parent_id_path=PackedInt32Array(569822189) index="0" unique_id=253182740]
 text = "Settings"
 
-[node name="MusicRow" type="HBoxContainer" parent="Contents/ContentArea" index="0"]
+[node name="MusicRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="0" unique_id=1817432263]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="MusicLabel" type="Label" parent="Contents/ContentArea/MusicRow" index="0"]
+[node name="MusicLabel" type="Label" parent="Contents/ContentArea/MusicRow" index="0" unique_id=1063485514]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Music"
 vertical_alignment = 1
 
-[node name="MusicSlider" type="HSlider" parent="Contents/ContentArea/MusicRow" index="1"]
+[node name="MusicSlider" type="HSlider" parent="Contents/ContentArea/MusicRow" index="1" unique_id=222398829]
 layout_mode = 2
 size_flags_horizontal = 3
 value = 50.0
 
-[node name="AmbienceRow" type="HBoxContainer" parent="Contents/ContentArea" index="1"]
+[node name="AmbienceRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="1" unique_id=830423329]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="AmbienceLabel" type="Label" parent="Contents/ContentArea/AmbienceRow" index="0"]
+[node name="AmbienceLabel" type="Label" parent="Contents/ContentArea/AmbienceRow" index="0" unique_id=843397593]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Ambience"
 vertical_alignment = 1
 
-[node name="AmbienceSlider" type="HSlider" parent="Contents/ContentArea/AmbienceRow" index="1"]
+[node name="AmbienceSlider" type="HSlider" parent="Contents/ContentArea/AmbienceRow" index="1" unique_id=2115774007]
 layout_mode = 2
 size_flags_horizontal = 3
 value = 50.0
 
-[node name="EffectsRow" type="HBoxContainer" parent="Contents/ContentArea" index="2"]
+[node name="EffectsRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="2" unique_id=709174921]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="EffectsLabel" type="Label" parent="Contents/ContentArea/EffectsRow" index="0"]
+[node name="EffectsLabel" type="Label" parent="Contents/ContentArea/EffectsRow" index="0" unique_id=896158980]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Effects"
 vertical_alignment = 1
 
-[node name="EffectsSlider" type="HSlider" parent="Contents/ContentArea/EffectsRow" index="1"]
+[node name="EffectsSlider" type="HSlider" parent="Contents/ContentArea/EffectsRow" index="1" unique_id=1484295371]
 layout_mode = 2
 size_flags_horizontal = 3
 value = 50.0
