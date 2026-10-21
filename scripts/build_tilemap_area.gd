@@ -66,6 +66,7 @@ var _zoom_anchor_map_position := Vector2.ZERO
 var _zoom_anchor_active := false
 var _part_patterns: Array[ShipPartPattern] = []
 var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
+var _part_cell_tints: Array[ColorRect] = []
 var _locked_cells: Dictionary[Vector2i, bool] = {}
 var _active_morph_count := 0
 
@@ -473,6 +474,7 @@ func _set_tile_count(badge: PanelContainer, label: Label, count: int) -> void:
 
 func _evaluate_part_patterns() -> void:
 	_clear_part_placeholders()
+	_restore_ship_tiles()
 	GameState.ship.clear_parts()
 	for pattern in _part_patterns:
 		if pattern.tile_categories.size() != pattern.cell_offsets.size():
@@ -497,7 +499,7 @@ func _try_morph_pattern(
 			if not GameState.ship.add_part(part):
 				push_error("Could not add a matched part to the ship.")
 				return false
-			_add_part_placeholder(part)
+			_add_part_placeholder(part, pattern, quarter_turns)
 		else:
 			_begin_part_transformation(part)
 		return true
@@ -580,23 +582,46 @@ func _clear_part_placeholders() -> void:
 	for sprite in _part_sprites.values():
 		sprite.queue_free()
 	_part_sprites.clear()
+	for cell_tint in _part_cell_tints:
+		cell_tint.queue_free()
+	_part_cell_tints.clear()
 
 
-func _add_part_placeholder(part: ShipPart) -> void:
+func _add_part_placeholder(
+	part: ShipPart,
+	pattern: ShipPartPattern,
+	quarter_turns: int
+) -> void:
 	var texture := _get_texture_for_part(part)
 	if texture == null:
 		return
 
-	var cells := part.get_occupied_cells()
-	if cells.is_empty():
-		push_error("Cannot display a ship part with no occupied cells.")
+	var visual_cells: Array[Vector2i] = []
+	for offset in pattern.get_visual_offsets_for_rotation(quarter_turns):
+		visual_cells.append(part.origin + offset)
+	if visual_cells.is_empty():
+		push_error("Cannot display a ship part with no visual cells.")
 		return
 
-	var minimum_x := cells[0].x
-	var minimum_y := cells[0].y
-	var maximum_x := cells[0].x
-	var maximum_y := cells[0].y
-	for cell in cells:
+	for offset in pattern.get_hidden_tile_offsets_for_rotation(quarter_turns):
+		var cell := part.origin + offset
+		placed_layer.erase_cell(cell)
+		if is_zero_approx(pattern.hidden_tile_tint.a):
+			continue
+
+		var cell_tint := ColorRect.new()
+		cell_tint.position = grid_layer.map_to_local(cell) - Vector2(tile_size) * 0.5
+		cell_tint.size = Vector2(tile_size)
+		cell_tint.color = pattern.hidden_tile_tint
+		cell_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parts_layer.add_child(cell_tint)
+		_part_cell_tints.append(cell_tint)
+
+	var minimum_x := visual_cells[0].x
+	var minimum_y := visual_cells[0].y
+	var maximum_x := visual_cells[0].x
+	var maximum_y := visual_cells[0].y
+	for cell in visual_cells:
 		minimum_x = mini(minimum_x, cell.x)
 		minimum_y = mini(minimum_y, cell.y)
 		maximum_x = maxi(maximum_x, cell.x)

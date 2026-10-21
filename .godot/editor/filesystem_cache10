@@ -1,11 +1,12 @@
 78098b89c88a74ebe8c20117b8754620
 ::res://::1792393275
-::res://assets/::1792552708
+::res://assets/::1792553340
 armor_m.png::CompressedTexture2D::3834720320891863420::1792544142::1792544192::1::::<><><>0<>0<>88a6ca1b5c926b4947466257f6e10c94<>res://.godot/imported/armor_m.png-9cfba395867d8234f216ceaa81b307b6.ctex::
 laser.png::CompressedTexture2D::1079439899891277110::1792540464::1792540547::1::::<><><>0<>0<>59a37cf7e6d88846da8565fbc3bc0baf<>res://.godot/imported/laser.png-af9ca9427a51d96a36a733a4aa4be8b2.ctex::
 mini-turret.png::CompressedTexture2D::3112197961526222678::1792552616::1792552708::1::::<><><>0<>0<>9b79654897073d1f9fd8f540691ff868<>res://.godot/imported/mini-turret.png-392276b23ecf2fd053b3b30df37fd489.ctex::
 plate.png::CompressedTexture2D::5565255903197373842::1792549111::1792549224::1::::<><><>0<>0<>dd223544702eab6d90b3ee0a5e27797f<>res://.godot/imported/plate.png-d8b0090c07c56f6e63275d92dce5cd17.ctex::
 shield.png::CompressedTexture2D::3235869970527667388::1792549545::1792550078::1::::<><><>0<>0<>d21e4b1de4cf9006ed9a3ec95aad55a4<>res://.godot/imported/shield.png-46d74908b0ac118b50397d7021ae31f8.ctex::
+thruster_s.png::CompressedTexture2D::8555687727216905449::1792553340::1792553435::1::::<><><>0<>0<>7b6c37de0a4f1431957ce517d43ddaf4<>res://.godot/imported/thruster_s.png-660a62f76e54b5958f0a22016c6489bc.ctex::
 ::res://assets/audio/::1792389580
 default_bus_layout.tres::AudioBusLayout::-1::1792392490::0::1::::<><><>0<>0<><>::
 ::res://assets/audio/music/::1792551847
@@ -14,7 +15,7 @@ build1.mp3::AudioStreamMP3::5145383100081343087::1792271827::1792389262::1::::<>
 Phalanx Signal.mp3::AudioStreamMP3::8135761114559103373::1792551819::1792551847::1::::<><><>0<>0<>eada02e7acc0348eb7679ea1416a914d<>res://.godot/imported/Phalanx Signal.mp3-1fb206646a9d17d0a5085369737197d6.mp3str::
 Quantum Wrench Bay.mp3::AudioStreamMP3::6934875514823976008::1792550540::1792550594::1::::<><><>0<>0<>f12e9bf319639bd538135222bdc854f4<>res://.godot/imported/Quantum Wrench Bay.mp3-745021f759fbc86ddca9f8e13f78aabf.mp3str::
 Turbo Wrench Loop.mp3::AudioStreamMP3::2406659866918412068::1792550883::1792550976::1::::<><><>0<>0<>3a0a4b0894ff83b7cd72923efc82917d<>res://.godot/imported/Turbo Wrench Loop.mp3-6c01b02a5a50c838c251b737e6372245.mp3str::
-::res://assets/audio/sfx/::1792553076
+::res://assets/audio/sfx/::1792553088
 dialogue_type.mp3::AudioStreamMP3::2511832373304670640::1792393471::1792393489::1::::<><><>0<>0<>bcf64cbe4a1e91d3e851f21c2998d0ba<>res://.godot/imported/dialogue_type.mp3-1542f3ea20a55e2eb7e01221a070ecf1.mp3str::
 morph.mp3::AudioStreamMP3::5860256213177460299::1792552843::1792552871::1::::<><><>0<>0<>37bf9768db948dc5e054524e13d8da90<>res://.godot/imported/morph.mp3-a98209498f01a1d06e14b23aa4076990.mp3str::
 notification.mp3::AudioStreamMP3::5110593680018938191::1771365886::1792393251::1::::<><><>0<>0<>fecc263ccb3b0fa928617ff17b876a0c<>res://.godot/imported/notification.mp3-ce6d3591cce62cd02a8cfbdf0fa73f44.mp3str::
@@ -57,7 +58,7 @@ archive_tab.gd::GDScript::8235263830509742978::1792552752::0::1::::<>Control<><>
 audio_manager.gd::GDScript::3212756527198988516::1792552916::0::1::::<>Node<><>0<>0<><>::
 auto_battle.gd::GDScript::4190985707995589048::1792390800::0::1::::<>Control<><>0<>0<><>::
 build_selector_button.gd::GDScript::562306567188138696::1792540138::0::1::::<>TextureButton<><>0<>0<><>::
-build_tilemap_area.gd::GDScript::8384620326435759678::1792553004::0::1::::<>Control<><>0<>0<><>::
+build_tilemap_area.gd::GDScript::8384620326435759678::1792553105::0::1::::<>Control<><>0<>0<><>::
 game_map.gd::GDScript::4495260791786718751::1792552641::0::1::::<>Control<><>0<>0<><>::
 game_state.gd::GDScript::6077380003634046097::1792552641::0::1::::<>Node<><>0<>0<><>::
 graph_view.gd::GDScript::6255922151188688561::1792382624::0::1::::GraphView<>Control<><>0<>0<><>::

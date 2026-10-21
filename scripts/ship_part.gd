@@ -8,6 +8,7 @@ enum Type {
 	SINGLE_PLATE,
 	SHIELD,
 	MINI_TURRET,
+	THRUSTER,
 }
 
 enum Category {

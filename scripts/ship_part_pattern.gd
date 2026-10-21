@@ -6,10 +6,14 @@ const LASER_TEXTURE = preload("res://assets/laser.png")
 const ARMOR_TEXTURE = preload("res://assets/armor_m.png")
 const PLATE_TEXTURE = preload("res://assets/plate.png")
 const MINI_TURRET_TEXTURE = preload("res://assets/mini-turret.png")
+const THRUSTER_TEXTURE = preload("res://assets/thruster_s.png")
 
 var part_type: int
 var category: int
 var cell_offsets: Array[Vector2i] = []
+var visual_cell_offsets: Array[Vector2i] = []
+var hidden_tile_offsets: Array[Vector2i] = []
+var hidden_tile_tint := Color.TRANSPARENT
 var tile_categories: Array[int] = []
 var can_rotate: bool
 var display_name: String
@@ -23,11 +27,21 @@ func _init(
 	pattern_display_name: String,
 	pattern_preview_texture: Texture2D,
 	pattern_can_rotate: bool = false,
-	pattern_tile_categories: Array[int] = []
+	pattern_tile_categories: Array[int] = [],
+	pattern_visual_cell_offsets: Array[Vector2i] = [],
+	pattern_hidden_tile_offsets: Array[Vector2i] = [],
+	pattern_hidden_tile_tint: Color = Color.TRANSPARENT
 ) -> void:
 	part_type = pattern_part_type
 	category = pattern_category
 	cell_offsets = pattern_cell_offsets.duplicate()
+	visual_cell_offsets = (
+		pattern_visual_cell_offsets.duplicate()
+		if not pattern_visual_cell_offsets.is_empty()
+		else cell_offsets.duplicate()
+	)
+	hidden_tile_offsets = pattern_hidden_tile_offsets.duplicate()
+	hidden_tile_tint = pattern_hidden_tile_tint
 	can_rotate = pattern_can_rotate
 	display_name = pattern_display_name
 	preview_texture = pattern_preview_texture
@@ -123,6 +137,24 @@ static func get_catalog() -> Array[ShipPartPattern]:
 	)
 	patterns.append(
 		ShipPartPattern.new(
+			ShipPart.Type.THRUSTER,
+			ShipPart.Category.SPECIAL,
+			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
+			"Thruster",
+			THRUSTER_TEXTURE,
+			false,
+			[
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.SPECIAL,
+			],
+			[Vector2i(2, 0)],
+			[Vector2i(0, 0), Vector2i(1, 0)],
+			Color(0.9, 0.12, 0.12, 0.75)
+		)
+	)
+	patterns.append(
+		ShipPartPattern.new(
 			ShipPart.Type.MINI_TURRET,
 			ShipPart.Category.OFFENSE,
 			[Vector2i(0, 0)],
@@ -134,20 +166,43 @@ static func get_catalog() -> Array[ShipPartPattern]:
 
 
 func get_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
-	var rotated_offsets: Array[Vector2i] = []
-	for offset in cell_offsets:
-		var rotated_offset := offset
-		for _turn in range(quarter_turns):
-			rotated_offset = Vector2i(-rotated_offset.y, rotated_offset.x)
-		rotated_offsets.append(rotated_offset)
+	return _get_offsets_for_rotation(cell_offsets, quarter_turns)
 
-	var minimum_x := rotated_offsets[0].x
-	var minimum_y := rotated_offsets[0].y
-	for offset in rotated_offsets:
-		minimum_x = mini(minimum_x, offset.x)
-		minimum_y = mini(minimum_y, offset.y)
+
+func get_visual_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
+	return _get_offsets_for_rotation(visual_cell_offsets, quarter_turns)
+
+
+func get_hidden_tile_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
+	return _get_offsets_for_rotation(hidden_tile_offsets, quarter_turns)
+
+
+func _get_offsets_for_rotation(
+	offsets: Array[Vector2i],
+	quarter_turns: int
+) -> Array[Vector2i]:
+	if offsets.is_empty() or cell_offsets.is_empty():
+		return []
+
+	var first_rotated_cell := _rotate_offset(cell_offsets[0], quarter_turns)
+	var minimum_x := first_rotated_cell.x
+	var minimum_y := first_rotated_cell.y
+	for offset in cell_offsets:
+		var rotated_offset := _rotate_offset(offset, quarter_turns)
+		minimum_x = mini(minimum_x, rotated_offset.x)
+		minimum_y = mini(minimum_y, rotated_offset.y)
 
 	var normalized_offsets: Array[Vector2i] = []
-	for offset in rotated_offsets:
-		normalized_offsets.append(offset - Vector2i(minimum_x, minimum_y))
+	var normalization_offset := Vector2i(minimum_x, minimum_y)
+	for offset in offsets:
+		normalized_offsets.append(
+			_rotate_offset(offset, quarter_turns) - normalization_offset
+		)
 	return normalized_offsets
+
+
+func _rotate_offset(offset: Vector2i, quarter_turns: int) -> Vector2i:
+	var rotated_offset := offset
+	for _turn in range(quarter_turns):
+		rotated_offset = Vector2i(-rotated_offset.y, rotated_offset.x)
+	return rotated_offset
