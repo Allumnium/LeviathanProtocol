@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://yojn4otwqbnx" path="res://scenes/how_to_play_dialog.tscn" id="8"]
 [ext_resource type="PackedScene" uid="uid://cq30vongxvgsa" path="res://scenes/victory_dialog.tscn" id="9"]
 [ext_resource type="Script" uid="uid://cveoehe7moy2l" path="res://scripts/graph_view.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/archive_tab.gd" id="11_archive"]
 
 [node name="GameMap" type="Control" unique_id=1888779315]
 layout_mode = 3
@@ -106,6 +107,21 @@ metadata/_tab_index = 1
 [node name="Archive" type="Control" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs" unique_id=1899242874]
 visible = false
 layout_mode = 2
+script = ExtResource("11_archive")
+
+[node name="ArchiveScroll" type="ScrollContainer" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs/Archive"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 3
+
+[node name="ArchiveRows" type="VBoxContainer" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs/Archive/ArchiveScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
 metadata/_tab_index = 2
 
 [node name="DetailsPanel" type="PanelContainer" parent="Layout/UpperArea" unique_id=2056260239]
@@ -131,6 +147,7 @@ text = "Deploy"
 
 [node name="GraphModal" type="Control" parent="." unique_id=213025514]
 visible = false
+z_index = 10
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

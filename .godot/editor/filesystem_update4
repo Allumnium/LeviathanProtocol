@@ -20,3 +20,6 @@ res://scenes/modal_dialog.tscn
 res://scenes/victory_dialog.tscn
 res://scripts/game_state.gd
 res://scenes/build_selector_button.tscn
+res://scripts/ship.gd
+res://scripts/ship_part.gd
+res://scripts/ship_part_pattern.gd

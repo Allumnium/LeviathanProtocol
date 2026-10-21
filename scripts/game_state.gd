@@ -1,6 +1,7 @@
 extends Node
 
 signal tile_inventory_changed
+signal discovered_parts_changed
 
 const NODE_POSITIONS: Array[Vector2] = [
 	Vector2(0.08, 0.5),
@@ -21,15 +22,16 @@ const GRAPH_EDGES: Array[Vector2i] = [
 	Vector2i(4, 5),
 ]
 const FINAL_NODE_ID := 5
-const STARTING_RED_TILE_COUNT := 6
-const STARTING_BLUE_TILE_COUNT := 4
-const STARTING_GREEN_TILE_COUNT := 2
+const STARTING_RED_TILE_COUNT := 18
+const STARTING_BLUE_TILE_COUNT := 12
+const STARTING_GREEN_TILE_COUNT := 6
 
 var current_node_id := 0
 var destination_node_id := -1
 var visited_nodes: Array[int] = [0]
 var battle_pending := false
 var ship := Ship.new()
+var discovered_part_types: Array[int] = []
 var red_tiles_available := STARTING_RED_TILE_COUNT
 var blue_tiles_available := STARTING_BLUE_TILE_COUNT
 var green_tiles_available := STARTING_GREEN_TILE_COUNT
@@ -58,6 +60,18 @@ func get_available_tile_count(category: int) -> int:
 		_:
 			push_error("Unknown ship part category: %s" % category)
 			return 0
+
+
+func discover_part(part_type: int) -> void:
+	if discovered_part_types.has(part_type):
+		return
+
+	discovered_part_types.append(part_type)
+	discovered_parts_changed.emit()
+
+
+func has_discovered_part(part_type: int) -> bool:
+	return discovered_part_types.has(part_type)
 
 
 func try_consume_tile(category: int) -> bool:

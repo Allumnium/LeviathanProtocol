@@ -5,15 +5,17 @@ const RED_SOURCE_ID := 1
 const BLUE_SOURCE_ID := 2
 const GREEN_SOURCE_ID := 3
 const NO_SOURCE_ID := -1
-const ERASE_SOURCE_ID := -2
 const NO_CATEGORY := -1
 const INVALID_CELL := Vector2i(-1, -1)
-const MIN_ZOOM := 0.5
+const MAX_MAP_DIMENSIONS := Vector2i(30, 30)
+const MIN_ZOOM := 0.25
 const MAX_ZOOM := 3.0
-const ZOOM_STEP := 0.5
+const ZOOM_STEP := 0.1
+const ZOOM_SMOOTHING := 12.0
+const KEYBOARD_PAN_SPEED := 420.0
 
 @export var tile_size := Vector2i(26, 26)
-@export var map_dimensions := Vector2i(50, 50)
+@export var map_dimensions := MAX_MAP_DIMENSIONS
 @export var grid_texture: Texture2D
 @export var red_tile_texture: Texture2D
 @export var blue_tile_texture: Texture2D
@@ -28,7 +30,6 @@ const ZOOM_STEP := 0.5
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
-@onready var erase_build_button: TextureButton = $SelectorRow/EraseBuildButton
 @onready var red_count_badge: PanelContainer = $SelectorRow/RedBuildButton/CountBadge
 @onready var red_count_label: Label = $SelectorRow/RedBuildButton/CountBadge/CountLabel
 @onready var blue_count_badge: PanelContainer = $SelectorRow/BlueBuildButton/CountBadge
@@ -40,12 +41,15 @@ var _selected_source_id := NO_SOURCE_ID
 var _preview_cell := INVALID_CELL
 var _preview_source_id := NO_SOURCE_ID
 var _tile_set: TileSet
-var _is_panning := false
 var _is_placing := false
-var _pan_buttons_held: Array[int] = []
-var _last_pan_mouse_position := Vector2.ZERO
+var _is_erasing := false
 var _last_placed_cell := INVALID_CELL
+var _last_erased_cell := INVALID_CELL
 var _initial_pan_position_set := false
+var _target_zoom := 1.0
+var _zoom_anchor_position := Vector2.ZERO
+var _zoom_anchor_map_position := Vector2.ZERO
+var _zoom_anchor_active := false
 var _part_patterns: Array[ShipPartPattern] = []
 var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
 
@@ -61,6 +65,14 @@ func _ready() -> void:
 		set_process(false)
 		set_process_input(false)
 		return
+	if (
+		map_dimensions.x > MAX_MAP_DIMENSIONS.x
+		or map_dimensions.y > MAX_MAP_DIMENSIONS.y
+	):
+		push_error("Build map dimensions cannot exceed 30 by 30.")
+		set_process(false)
+		set_process_input(false)
+		return
 	if not _create_tile_set():
 		set_process(false)
 		set_process_input(false)
@@ -70,8 +82,9 @@ func _ready() -> void:
 	placed_layer.tile_set = _tile_set
 	preview_layer.tile_set = _tile_set
 	_fill_grid()
-	_part_patterns = _create_part_patterns()
-	_rebuild_part_placeholders()
+	_part_patterns = ShipPartPattern.get_catalog()
+	_restore_ship_tiles()
+	_evaluate_part_patterns()
 	GameState.tile_inventory_changed.connect(_refresh_tile_counts)
 	_refresh_tile_counts()
 
@@ -80,12 +93,10 @@ func _ready() -> void:
 	red_build_button.button_group = selector_group
 	blue_build_button.button_group = selector_group
 	green_build_button.button_group = selector_group
-	erase_build_button.button_group = selector_group
 
 	red_build_button.toggled.connect(_on_build_button_toggled.bind(RED_SOURCE_ID))
 	blue_build_button.toggled.connect(_on_build_button_toggled.bind(BLUE_SOURCE_ID))
 	green_build_button.toggled.connect(_on_build_button_toggled.bind(GREEN_SOURCE_ID))
-	erase_build_button.toggled.connect(_on_build_button_toggled.bind(ERASE_SOURCE_ID))
 
 	resized.connect(_on_resized)
 	call_deferred("_set_initial_pan_position")
@@ -162,7 +173,10 @@ func _fill_grid() -> void:
 			grid_layer.set_cell(Vector2i(x, y), GRID_SOURCE_ID, Vector2i.ZERO)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if is_visible_in_tree():
+		_pan_with_keyboard(delta)
+		_update_zoom(delta)
 	_update_preview()
 
 
@@ -173,13 +187,10 @@ func _input(event: InputEvent) -> void:
 		if local_motion_event == null:
 			return
 		var local_mouse_position := local_motion_event.position
-		if _is_panning:
-			pan_root.position += local_mouse_position - _last_pan_mouse_position
-			_last_pan_mouse_position = local_mouse_position
-			_clamp_pan_position()
-			get_viewport().set_input_as_handled()
-		elif _is_placing:
+		if _is_placing:
 			_place_at_local_position(local_mouse_position)
+		elif _is_erasing:
+			_erase_at_local_position(local_mouse_position)
 		_update_preview_at(local_mouse_position)
 		return
 
@@ -189,12 +200,9 @@ func _input(event: InputEvent) -> void:
 	if mouse_button_event.button_index == MOUSE_BUTTON_LEFT:
 		_is_placing = false
 		_last_placed_cell = INVALID_CELL
-	if (
-		mouse_button_event.button_index == MOUSE_BUTTON_RIGHT
-		or mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE
-	):
-		_pan_buttons_held.erase(mouse_button_event.button_index)
-		_is_panning = not _pan_buttons_held.is_empty()
+	elif mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
+		_is_erasing = false
+		_last_erased_cell = INVALID_CELL
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -219,15 +227,19 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		return
 
-	if (
-		mouse_button_event.button_index == MOUSE_BUTTON_RIGHT
-		or mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE
-	):
+	if mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
 		if _is_mouse_over_build_area(local_mouse_position):
-			if not _pan_buttons_held.has(mouse_button_event.button_index):
-				_pan_buttons_held.append(mouse_button_event.button_index)
-			_is_panning = true
-			_last_pan_mouse_position = local_mouse_position
+			_is_placing = false
+			_last_placed_cell = INVALID_CELL
+			_is_erasing = true
+			_last_erased_cell = INVALID_CELL
+			_erase_at_local_position(local_mouse_position)
+			accept_event()
+		return
+
+	if mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE:
+		if _is_mouse_over_build_area(local_mouse_position):
+			_pick_tile_at(_get_cell_at_local_position(local_mouse_position))
 			accept_event()
 		return
 
@@ -260,11 +272,29 @@ func _paint_to_cell(target_cell: Vector2i) -> void:
 	if _last_placed_cell == INVALID_CELL:
 		_apply_selected_tool(target_cell)
 	else:
-		_paint_line(_last_placed_cell, target_cell)
+		_apply_line(_last_placed_cell, target_cell, false)
 	_last_placed_cell = target_cell
 
 
-func _paint_line(start_cell: Vector2i, end_cell: Vector2i) -> void:
+func _erase_at_local_position(local_mouse_position: Vector2) -> void:
+	var cell := _get_cell_at_local_position(local_mouse_position)
+	if cell == INVALID_CELL:
+		_last_erased_cell = INVALID_CELL
+		return
+	_erase_to_cell(cell)
+
+
+func _erase_to_cell(target_cell: Vector2i) -> void:
+	if target_cell == _last_erased_cell:
+		return
+	if _last_erased_cell == INVALID_CELL:
+		_remove_tile_at(target_cell)
+	else:
+		_apply_line(_last_erased_cell, target_cell, true)
+	_last_erased_cell = target_cell
+
+
+func _apply_line(start_cell: Vector2i, end_cell: Vector2i, erase_tiles: bool) -> void:
 	var x := start_cell.x
 	var y := start_cell.y
 	var delta_x := absi(end_cell.x - start_cell.x)
@@ -274,7 +304,11 @@ func _paint_line(start_cell: Vector2i, end_cell: Vector2i) -> void:
 	var line_error := delta_x - delta_y
 
 	while true:
-		_apply_selected_tool(Vector2i(x, y))
+		var cell := Vector2i(x, y)
+		if erase_tiles:
+			_remove_tile_at(cell)
+		else:
+			_apply_selected_tool(cell)
 		if x == end_cell.x and y == end_cell.y:
 			break
 
@@ -288,30 +322,59 @@ func _paint_line(start_cell: Vector2i, end_cell: Vector2i) -> void:
 
 
 func _apply_selected_tool(cell: Vector2i) -> void:
-	var existing_source_id := placed_layer.get_cell_source_id(cell)
-	if _selected_source_id == ERASE_SOURCE_ID:
-		if existing_source_id != NO_SOURCE_ID:
-			var existing_category := _get_category_for_source_id(existing_source_id)
-			if existing_category != NO_CATEGORY:
-				GameState.refund_tile(existing_category)
-		placed_layer.erase_cell(cell)
-		_remove_ship_part_at(cell)
-	else:
-		var category := _get_category_for_source_id(_selected_source_id)
-		if category == NO_CATEGORY:
-			return
-		if existing_source_id == _selected_source_id:
-			_evaluate_part_patterns()
-			return
-		if not GameState.try_consume_tile(category):
-			return
-		if existing_source_id != NO_SOURCE_ID:
-			var existing_category := _get_category_for_source_id(existing_source_id)
-			if existing_category != NO_CATEGORY:
-				GameState.refund_tile(existing_category)
-		_remove_ship_part_at(cell)
-		placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
+	var existing_category := GameState.ship.get_tile_category_at(cell)
+	var category := _get_category_for_source_id(_selected_source_id)
+	if category == NO_CATEGORY:
+		return
+	if existing_category == category:
+		return
+	if not GameState.try_consume_tile(category):
+		return
+	if existing_category != NO_CATEGORY:
+		GameState.refund_tile(existing_category)
+	GameState.ship.set_tile_at(cell, category)
+	placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
 	_evaluate_part_patterns()
+
+
+func _remove_tile_at(cell: Vector2i) -> void:
+	if cell == INVALID_CELL:
+		return
+
+	var category := GameState.ship.get_tile_category_at(cell)
+	if category == NO_CATEGORY:
+		return
+
+	GameState.ship.remove_tile_at(cell)
+	GameState.refund_tile(category)
+	placed_layer.erase_cell(cell)
+	_evaluate_part_patterns()
+
+
+func _pick_tile_at(cell: Vector2i) -> void:
+	if cell == INVALID_CELL:
+		return
+
+	var category := GameState.ship.get_tile_category_at(cell)
+	if category == NO_CATEGORY:
+		return
+	var source_id := _get_source_id_for_category(category)
+	if source_id == NO_SOURCE_ID:
+		return
+
+	_is_placing = false
+	_last_placed_cell = INVALID_CELL
+	match source_id:
+		RED_SOURCE_ID:
+			red_build_button.button_pressed = true
+		BLUE_SOURCE_ID:
+			blue_build_button.button_pressed = true
+		GREEN_SOURCE_ID:
+			green_build_button.button_pressed = true
+		_:
+			return
+	_selected_source_id = source_id
+	_update_preview()
 
 
 func _refresh_tile_counts() -> void:
@@ -337,57 +400,32 @@ func _set_tile_count(badge: PanelContainer, label: Label, count: int) -> void:
 	badge.show()
 
 
-func _create_part_patterns() -> Array[ShipPartPattern]:
-	var patterns: Array[ShipPartPattern] = []
-	patterns.append(
-		ShipPartPattern.new(
-			ShipPart.Type.ARMOR_BLOCK,
-			ShipPart.Category.DEFENSE,
-			[
-				Vector2i(0, 0),
-				Vector2i(1, 0),
-				Vector2i(0, 1),
-				Vector2i(1, 1),
-			]
-		)
-	)
-	patterns.append(
-		ShipPartPattern.new(
-			ShipPart.Type.LASER,
-			ShipPart.Category.OFFENSE,
-			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)]
-		)
-	)
-	return patterns
-
-
 func _evaluate_part_patterns() -> void:
+	_clear_part_placeholders()
+	GameState.ship.clear_parts()
 	for pattern in _part_patterns:
-		var source_id := _get_source_id_for_category(pattern.category)
-		if source_id == NO_SOURCE_ID:
+		if pattern.tile_categories.size() != pattern.cell_offsets.size():
 			continue
 		for y in range(map_dimensions.y):
 			for x in range(map_dimensions.x):
-				_try_morph_pattern(Vector2i(x, y), pattern, source_id)
+				_try_morph_pattern(Vector2i(x, y), pattern)
 
 
 func _try_morph_pattern(
 	origin: Vector2i,
-	pattern: ShipPartPattern,
-	source_id: int
+	pattern: ShipPartPattern
 ) -> bool:
 	var rotation_count := 4 if pattern.can_rotate else 1
 	for quarter_turns in range(rotation_count):
 		var cell_offsets := pattern.get_offsets_for_rotation(quarter_turns)
-		if not _matches_pattern(origin, cell_offsets, source_id):
+		if not _matches_pattern(origin, pattern, cell_offsets):
 			continue
 
 		var part := ShipPart.new(pattern.part_type, pattern.category, origin, cell_offsets)
 		if not GameState.ship.add_part(part):
 			push_error("Could not add a matched part to the ship.")
 			return false
-		for cell in part.get_occupied_cells():
-			placed_layer.erase_cell(cell)
+		GameState.discover_part(part.type)
 		_add_part_placeholder(part)
 		return true
 	return false
@@ -395,17 +433,21 @@ func _try_morph_pattern(
 
 func _matches_pattern(
 	origin: Vector2i,
-	cell_offsets: Array[Vector2i],
-	source_id: int
+	pattern: ShipPartPattern,
+	cell_offsets: Array[Vector2i]
 ) -> bool:
-	for offset in cell_offsets:
+	for index in range(cell_offsets.size()):
+		var offset := cell_offsets[index]
 		var cell := origin + offset
+		var source_id := _get_source_id_for_category(pattern.tile_categories[index])
 		if (
 			cell.x < 0
 			or cell.y < 0
 			or cell.x >= map_dimensions.x
 			or cell.y >= map_dimensions.y
+			or source_id == NO_SOURCE_ID
 			or placed_layer.get_cell_source_id(cell) != source_id
+			or GameState.ship.get_part_at(cell) != null
 		):
 			return false
 	return true
@@ -450,13 +492,24 @@ func _get_texture_for_category(category: int) -> Texture2D:
 			return null
 
 
-func _rebuild_part_placeholders() -> void:
-	for part in GameState.ship.parts:
-		_add_part_placeholder(part)
+func _restore_ship_tiles() -> void:
+	placed_layer.clear()
+	for cell in GameState.ship.get_tile_cells():
+		var category := GameState.ship.get_tile_category_at(cell)
+		var source_id := _get_source_id_for_category(category)
+		if source_id == NO_SOURCE_ID:
+			continue
+		placed_layer.set_cell(cell, source_id, Vector2i.ZERO)
+
+
+func _clear_part_placeholders() -> void:
+	for sprite in _part_sprites.values():
+		sprite.queue_free()
+	_part_sprites.clear()
 
 
 func _add_part_placeholder(part: ShipPart) -> void:
-	var texture := _get_texture_for_category(part.category)
+	var texture := _get_texture_for_part(part)
 	if texture == null:
 		return
 
@@ -490,26 +543,71 @@ func _add_part_placeholder(part: ShipPart) -> void:
 	_part_sprites[part] = sprite
 
 
-func _remove_ship_part_at(cell: Vector2i) -> void:
-	var part := GameState.ship.remove_part_at(cell)
-	if part == null:
-		return
-	if _part_sprites.has(part):
-		_part_sprites[part].queue_free()
-		_part_sprites.erase(part)
+func _get_texture_for_part(part: ShipPart) -> Texture2D:
+	for pattern in _part_patterns:
+		if pattern.part_type != part.type:
+			continue
+		if pattern.preview_texture == null:
+			push_error("No preview texture is assigned for %s." % pattern.display_name)
+			return null
+		return pattern.preview_texture
+
+	push_error("Unknown ship part type: %s" % part.type)
+	return null
+
+
 
 
 func _zoom_at(local_mouse_position: Vector2, zoom_delta: float) -> void:
-	var current_zoom := pan_root.scale.x
-	var next_zoom := clampf(current_zoom + zoom_delta, MIN_ZOOM, MAX_ZOOM)
-	if is_equal_approx(current_zoom, next_zoom):
+	var next_zoom := clampf(_target_zoom + zoom_delta, MIN_ZOOM, MAX_ZOOM)
+	if is_equal_approx(_target_zoom, next_zoom):
 		return
 
-	var map_position := (local_mouse_position - pan_root.position) / current_zoom
+	_zoom_anchor_position = local_mouse_position
+	_zoom_anchor_map_position = (
+		local_mouse_position - pan_root.position
+	) / pan_root.scale.x
+	_target_zoom = next_zoom
+	_zoom_anchor_active = true
+
+
+func _update_zoom(delta: float) -> void:
+	var current_zoom := pan_root.scale.x
+	if is_equal_approx(current_zoom, _target_zoom):
+		_zoom_anchor_active = false
+		return
+
+	var interpolation := 1.0 - exp(-ZOOM_SMOOTHING * delta)
+	var next_zoom := lerpf(current_zoom, _target_zoom, interpolation)
+	if absf(next_zoom - _target_zoom) < 0.001:
+		next_zoom = _target_zoom
+
 	pan_root.scale = Vector2.ONE * next_zoom
-	pan_root.position = local_mouse_position - map_position * next_zoom
+	if _zoom_anchor_active:
+		pan_root.position = _zoom_anchor_position - _zoom_anchor_map_position * next_zoom
 	_clamp_pan_position()
-	_update_preview_at(local_mouse_position)
+	if is_equal_approx(next_zoom, _target_zoom):
+		_zoom_anchor_active = false
+
+
+func _pan_with_keyboard(delta: float) -> void:
+	var direction := Vector2.ZERO
+	if Input.is_key_pressed(KEY_A):
+		direction.x += 1.0
+	if Input.is_key_pressed(KEY_D):
+		direction.x -= 1.0
+	if Input.is_key_pressed(KEY_W):
+		direction.y += 1.0
+	if Input.is_key_pressed(KEY_S):
+		direction.y -= 1.0
+	if direction.is_zero_approx():
+		return
+
+	var previous_position := pan_root.position
+	pan_root.position += direction.normalized() * KEYBOARD_PAN_SPEED * delta
+	_clamp_pan_position()
+	if _zoom_anchor_active:
+		_zoom_anchor_position += pan_root.position - previous_position
 
 
 func _on_build_button_toggled(is_selected: bool, source_id: int) -> void:
@@ -520,10 +618,6 @@ func _on_build_button_toggled(is_selected: bool, source_id: int) -> void:
 	elif _selected_source_id == source_id:
 		_selected_source_id = NO_SOURCE_ID
 	_update_preview()
-
-
-func _get_cell_under_mouse() -> Vector2i:
-	return _get_cell_at_local_position(get_local_mouse_position())
 
 
 func _get_cell_at_local_position(local_mouse_position: Vector2) -> Vector2i:
@@ -566,7 +660,7 @@ func _update_preview() -> void:
 func _update_preview_at(local_mouse_position: Vector2) -> void:
 	if (
 		_selected_source_id == NO_SOURCE_ID
-		or _selected_source_id == ERASE_SOURCE_ID
+		or _is_erasing
 		or not is_visible_in_tree()
 	):
 		_clear_preview()

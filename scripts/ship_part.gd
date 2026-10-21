@@ -4,6 +4,9 @@ extends RefCounted
 enum Type {
 	ARMOR_BLOCK,
 	LASER,
+	DOUBLE_LASER,
+	SINGLE_PLATE,
+	SHIELD,
 }
 
 enum Category {

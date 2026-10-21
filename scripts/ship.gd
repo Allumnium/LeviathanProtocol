@@ -1,7 +1,36 @@
 class_name Ship
 extends RefCounted
 
+const NO_TILE_CATEGORY := -1
+
+var tiles: Dictionary[Vector2i, int] = {}
 var parts: Array[ShipPart] = []
+
+
+func set_tile_at(cell: Vector2i, category: int) -> void:
+	tiles[cell] = category
+
+
+func get_tile_category_at(cell: Vector2i) -> int:
+	if not tiles.has(cell):
+		return NO_TILE_CATEGORY
+	return tiles[cell]
+
+
+func remove_tile_at(cell: Vector2i) -> int:
+	var category := get_tile_category_at(cell)
+	if category == NO_TILE_CATEGORY:
+		return NO_TILE_CATEGORY
+
+	tiles.erase(cell)
+	return category
+
+
+func get_tile_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for cell: Vector2i in tiles:
+		cells.append(cell)
+	return cells
 
 
 func add_part(part: ShipPart) -> bool:
@@ -27,14 +56,10 @@ func get_part_at(cell: Vector2i) -> ShipPart:
 	return null
 
 
-func remove_part_at(cell: Vector2i) -> ShipPart:
-	var part := get_part_at(cell)
-	if part == null:
-		return null
-
-	parts.erase(part)
-	return part
+func clear_parts() -> void:
+	parts.clear()
 
 
 func clear() -> void:
+	tiles.clear()
 	parts.clear()

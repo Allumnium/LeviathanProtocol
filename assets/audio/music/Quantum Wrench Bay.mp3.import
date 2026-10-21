@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://c52kne3hrb10w"
+path="res://.godot/imported/Quantum Wrench Bay.mp3-745021f759fbc86ddca9f8e13f78aabf.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/Quantum Wrench Bay.mp3"
+dest_files=["res://.godot/imported/Quantum Wrench Bay.mp3-745021f759fbc86ddca9f8e13f78aabf.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
