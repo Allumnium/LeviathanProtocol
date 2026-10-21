@@ -22,6 +22,7 @@ const MORPH_SFX: AudioStream = preload("res://assets/audio/sfx/morph.mp3")
 const PART_FLASH_PURPLE := Color(0.72, 0.2, 1.0, 0.85)
 const PART_FLASH_YELLOW := Color(1.0, 0.88, 0.0, 0.85)
 const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
+const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 
 @export var tile_size := Vector2i(26, 26)
 @export var map_dimensions := MAX_MAP_DIMENSIONS
@@ -32,11 +33,12 @@ const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 
 @onready var pan_root: Node2D = $PanRoot
 @onready var grid_layer: TileMapLayer = $PanRoot/GridLayer
+@onready var hull_polygon: Polygon2D = $PanRoot/HullPolygon
 @onready var placed_layer: TileMapLayer = $PanRoot/PlacedLayer
 @onready var parts_layer: Node2D = $PanRoot/PartsLayer
 @onready var animation_layer: Node2D = $PanRoot/AnimationLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
-@onready var selector_row: VBoxContainer = $SelectorRow
+@onready var selector_background: ColorRect = $SelectorBackground
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
@@ -66,7 +68,7 @@ var _zoom_anchor_map_position := Vector2.ZERO
 var _zoom_anchor_active := false
 var _part_patterns: Array[ShipPartPattern] = []
 var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
-var _part_cell_tints: Array[ColorRect] = []
+var _part_cell_outlines: Array[Panel] = []
 var _locked_cells: Dictionary[Vector2i, bool] = {}
 var _active_morph_count := 0
 
@@ -120,6 +122,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _active_morph_count > 0:
+		GameState.ship.clear_transitioning_parts()
 	while _active_morph_count > 0:
 		_active_morph_count -= 1
 		GameState.end_part_transformation()
@@ -246,7 +250,7 @@ func _input(event: InputEvent) -> void:
 			if (
 				not is_visible_in_tree()
 				or not _is_mouse_over_build_area(local_mouse_position)
-				or _is_mouse_over_selector_row(local_mouse_position)
+				or _is_mouse_over_selector_area(local_mouse_position)
 			):
 				return
 			_is_placing = false
@@ -264,7 +268,7 @@ func _input(event: InputEvent) -> void:
 			if (
 				not _middle_pan_moved
 				and _is_mouse_over_build_area(local_mouse_position)
-				and not _is_mouse_over_selector_row(local_mouse_position)
+				and not _is_mouse_over_selector_area(local_mouse_position)
 			):
 				_pick_tile_at(_get_cell_at_local_position(local_mouse_position))
 			accept_event()
@@ -287,7 +291,7 @@ func _gui_input(event: InputEvent) -> void:
 	if mouse_button_event == null or not mouse_button_event.pressed:
 		return
 	var local_mouse_position := mouse_button_event.position
-	if _is_mouse_over_selector_row(local_mouse_position):
+	if _is_mouse_over_selector_area(local_mouse_position):
 		return
 
 	if mouse_button_event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -475,6 +479,7 @@ func _set_tile_count(badge: PanelContainer, label: Label, count: int) -> void:
 func _evaluate_part_patterns() -> void:
 	_clear_part_placeholders()
 	_restore_ship_tiles()
+	_refresh_ship_hull()
 	GameState.ship.clear_parts()
 	for pattern in _part_patterns:
 		if pattern.tile_categories.size() != pattern.cell_offsets.size():
@@ -482,6 +487,7 @@ func _evaluate_part_patterns() -> void:
 		for y in range(map_dimensions.y):
 			for x in range(map_dimensions.x):
 				_try_morph_pattern(Vector2i(x, y), pattern)
+	GameState.ship_stats_changed.emit()
 
 
 func _try_morph_pattern(
@@ -494,7 +500,13 @@ func _try_morph_pattern(
 		if not _matches_pattern(origin, pattern, cell_offsets):
 			continue
 
-		var part := ShipPart.new(pattern.part_type, pattern.category, origin, cell_offsets)
+		var part := ShipPart.new(
+			pattern.part_type,
+			pattern.category,
+			origin,
+			cell_offsets,
+			pattern.stats
+		)
 		if GameState.has_discovered_part(part.type):
 			if not GameState.ship.add_part(part):
 				push_error("Could not add a matched part to the ship.")
@@ -578,13 +590,26 @@ func _restore_ship_tiles() -> void:
 		placed_layer.set_cell(cell, source_id, Vector2i.ZERO)
 
 
+func _refresh_ship_hull() -> void:
+	var points := PackedVector2Array()
+	var half_tile_size := Vector2(tile_size) * 0.5
+	for cell in GameState.ship.get_tile_cells():
+		var center := grid_layer.map_to_local(cell)
+		points.append(center - half_tile_size)
+		points.append(Vector2(center.x + half_tile_size.x, center.y - half_tile_size.y))
+		points.append(center + half_tile_size)
+		points.append(Vector2(center.x - half_tile_size.x, center.y + half_tile_size.y))
+
+	hull_polygon.polygon = Geometry2D.convex_hull(points)
+
+
 func _clear_part_placeholders() -> void:
 	for sprite in _part_sprites.values():
 		sprite.queue_free()
 	_part_sprites.clear()
-	for cell_tint in _part_cell_tints:
-		cell_tint.queue_free()
-	_part_cell_tints.clear()
+	for cell_outline in _part_cell_outlines:
+		cell_outline.queue_free()
+	_part_cell_outlines.clear()
 
 
 func _add_part_placeholder(
@@ -606,16 +631,21 @@ func _add_part_placeholder(
 	for offset in pattern.get_hidden_tile_offsets_for_rotation(quarter_turns):
 		var cell := part.origin + offset
 		placed_layer.erase_cell(cell)
-		if is_zero_approx(pattern.hidden_tile_tint.a):
+		if is_zero_approx(pattern.hidden_tile_outline_color.a):
 			continue
 
-		var cell_tint := ColorRect.new()
-		cell_tint.position = grid_layer.map_to_local(cell) - Vector2(tile_size) * 0.5
-		cell_tint.size = Vector2(tile_size)
-		cell_tint.color = pattern.hidden_tile_tint
-		cell_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		parts_layer.add_child(cell_tint)
-		_part_cell_tints.append(cell_tint)
+		var cell_outline := Panel.new()
+		cell_outline.position = grid_layer.map_to_local(cell) - Vector2(tile_size) * 0.5
+		cell_outline.size = Vector2(tile_size)
+		cell_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var outline_style := StyleBoxFlat.new()
+		outline_style.bg_color = BUILD_AREA_BACKGROUND_COLOR
+		outline_style.draw_center = true
+		outline_style.border_color = pattern.hidden_tile_outline_color
+		outline_style.set_border_width_all(2)
+		cell_outline.add_theme_stylebox_override("panel", outline_style)
+		parts_layer.add_child(cell_outline)
+		_part_cell_outlines.append(cell_outline)
 
 	var minimum_x := visual_cells[0].x
 	var minimum_y := visual_cells[0].y
@@ -643,6 +673,10 @@ func _add_part_placeholder(
 
 
 func _begin_part_transformation(part: ShipPart) -> void:
+	if not GameState.ship.add_transitioning_part(part):
+		push_error("Could not track the transitioning ship part.")
+		return
+
 	var cells := part.get_occupied_cells()
 	var highlights: Array[ColorRect] = []
 	_clear_preview()
@@ -683,7 +717,7 @@ func _begin_part_transformation(part: ShipPart) -> void:
 		tween.tween_interval(phase_duration)
 		elapsed += phase_duration
 		flash_index += 1
-	tween.tween_callback(_complete_part_transformation.bind(cells, highlights))
+	tween.tween_callback(_complete_part_transformation.bind(part, cells, highlights))
 
 
 func _set_morph_highlights_color(highlights: Array[ColorRect], color: Color) -> void:
@@ -693,6 +727,7 @@ func _set_morph_highlights_color(highlights: Array[ColorRect], color: Color) -> 
 
 
 func _complete_part_transformation(
+	part: ShipPart,
 	cells: Array[Vector2i],
 	highlights: Array[ColorRect]
 ) -> void:
@@ -703,6 +738,7 @@ func _complete_part_transformation(
 	for cell in cells:
 		_locked_cells.erase(cell)
 
+	GameState.ship.remove_transitioning_part(part)
 	_evaluate_part_patterns()
 	_active_morph_count -= 1
 	GameState.end_part_transformation()
@@ -792,7 +828,7 @@ func _on_build_button_toggled(is_selected: bool, source_id: int) -> void:
 func _get_cell_at_local_position(local_mouse_position: Vector2) -> Vector2i:
 	if not Rect2(Vector2.ZERO, size).has_point(local_mouse_position):
 		return INVALID_CELL
-	if _is_mouse_over_selector_row(local_mouse_position):
+	if _is_mouse_over_selector_area(local_mouse_position):
 		return INVALID_CELL
 
 	var canvas_mouse_position := get_global_transform_with_canvas() * local_mouse_position
@@ -814,12 +850,13 @@ func _is_mouse_over_build_area(local_mouse_position: Vector2) -> bool:
 	return Rect2(Vector2.ZERO, size).has_point(local_mouse_position)
 
 
-func _is_mouse_over_selector_row(local_mouse_position: Vector2) -> bool:
+func _is_mouse_over_selector_area(local_mouse_position: Vector2) -> bool:
 	var canvas_mouse_position := get_global_transform_with_canvas() * local_mouse_position
-	var row_mouse_position := (
-		selector_row.get_global_transform_with_canvas().affine_inverse() * canvas_mouse_position
+	var background_mouse_position := (
+		selector_background.get_global_transform_with_canvas().affine_inverse()
+		* canvas_mouse_position
 	)
-	return Rect2(Vector2.ZERO, selector_row.size).has_point(row_mouse_position)
+	return Rect2(Vector2.ZERO, selector_background.size).has_point(background_mouse_position)
 
 
 func _update_preview() -> void:

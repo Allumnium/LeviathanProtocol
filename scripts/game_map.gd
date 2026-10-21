@@ -5,6 +5,27 @@ const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
 const ARCHIVE_TAB_INDEX := 2
 
 @onready var deploy_button: Button = $Layout/UpperArea/DetailsPanel/DetailsContents/DeployButton
+@onready var shields_stat_label: Label = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/ShieldsStat
+)
+@onready var integrity_stat_label: Label = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/IntegrityStat
+)
+@onready var weight_stat_label: Label = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/WeightStat
+)
+@onready var thrust_stat_label: Label = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/ThrustStat
+)
+@onready var dps_stat_label: Label = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/DPSStat
+)
+@onready var weapon_rows: VBoxContainer = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/WeaponRows
+)
+@onready var no_weapons_label: Label = (
+	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/WeaponRows/NoWeaponsLabel
+)
 @onready var how_to_play_button: Button = $Layout/TopBar/BarContents/HowToPlayButton
 @onready var settings_button: Button = $Layout/TopBar/BarContents/SettingsButton
 @onready var panel_tabs: TabContainer = $Layout/UpperArea/LeftPanel/PanelContents/Tabs
@@ -26,10 +47,13 @@ const ARCHIVE_TAB_INDEX := 2
 
 
 func _ready() -> void:
+	AudioManager.play_build_music()
 	GameState.unviewed_discoveries_changed.connect(_refresh_archive_unread_badge)
 	GameState.part_transformations_changed.connect(_refresh_deploy_button)
+	GameState.ship_stats_changed.connect(_refresh_ship_stats)
 	_refresh_archive_unread_badge()
 	_refresh_deploy_button()
+	_refresh_ship_stats()
 	_setup_panel_tabs()
 	deploy_button.pressed.connect(_on_deploy_pressed)
 	how_to_play_button.pressed.connect(_on_how_to_play_pressed)
@@ -111,6 +135,50 @@ func _refresh_archive_unread_badge() -> void:
 
 func _refresh_deploy_button() -> void:
 	deploy_button.disabled = GameState.active_part_transformations > 0
+
+
+func _refresh_ship_stats() -> void:
+	var stats := GameState.ship.get_stats()
+	shields_stat_label.text = "Shields: %s" % _format_stat_value(stats.shields)
+	integrity_stat_label.text = "Integrity: %s" % _format_stat_value(stats.integrity)
+	weight_stat_label.text = "Weight: %s" % _format_stat_value(stats.weight)
+	thrust_stat_label.text = "Thrust: %s" % _format_stat_value(stats.thrust)
+	dps_stat_label.text = "DPS: %.2f" % stats.dps
+
+	for child in weapon_rows.get_children():
+		if child == no_weapons_label:
+			continue
+		weapon_rows.remove_child(child)
+		child.queue_free()
+
+	no_weapons_label.visible = stats.weapons.is_empty()
+	for index in range(stats.weapons.size()):
+		var weapon := stats.weapons[index]
+		var weapon_label := Label.new()
+		weapon_label.name = "Weapon%d" % (index + 1)
+		weapon_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		weapon_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		weapon_label.add_theme_font_size_override("font_size", 11)
+		weapon_label.text = (
+			(
+				"Weapon %d\nFire rate: %.2f shots/sec\nDamage per shot: %s\n"
+				+ "Shots per activation: %d\nDPS: %.2f"
+			)
+			% [
+					index + 1,
+					weapon.get_fire_rate_per_second(),
+					_format_stat_value(weapon.damage_per_shot),
+					weapon.projectiles_per_activation,
+					weapon.get_dps(),
+				]
+		)
+		weapon_rows.add_child(weapon_label)
+
+
+func _format_stat_value(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return str(roundi(value))
+	return "%.2f" % value
 
 
 func _on_destination_selected(node_id: int) -> void:

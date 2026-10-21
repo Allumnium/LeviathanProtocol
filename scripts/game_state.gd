@@ -1,6 +1,7 @@
 extends Node
 
 signal tile_inventory_changed
+signal ship_stats_changed
 signal discovered_parts_changed
 signal unviewed_discoveries_changed
 signal part_transformations_changed
@@ -51,6 +52,7 @@ func start_new_run() -> void:
 	blue_tiles_available = STARTING_BLUE_TILE_COUNT
 	green_tiles_available = STARTING_GREEN_TILE_COUNT
 	tile_inventory_changed.emit()
+	ship_stats_changed.emit()
 
 
 func get_available_tile_count(category: int) -> int:

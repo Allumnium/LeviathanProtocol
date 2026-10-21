@@ -9,6 +9,7 @@ const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 
 
 func _ready() -> void:
+	AudioManager.play_menu_music()
 	play_button.pressed.connect(_on_play_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)

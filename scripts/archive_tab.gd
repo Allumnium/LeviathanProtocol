@@ -79,7 +79,7 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	details.add_child(name_label)
 
 	var description_label := Label.new()
-	description_label.text = "TODO"
+	description_label.text = _get_stats_description(pattern)
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	description_label.add_theme_font_size_override("font_size", 10)
@@ -91,6 +91,69 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	_part_description_labels.append(description_label)
 	_part_pattern_grids.append(pattern_grid)
 	return row
+
+
+func _get_stats_description(pattern: ShipPartPattern) -> String:
+	var description_lines: Array[String] = []
+	_append_stat_contribution(description_lines, "Shields", pattern.stats.shields)
+	_append_stat_contribution(description_lines, "Integrity", pattern.stats.integrity)
+	_append_stat_contribution(description_lines, "Weight", pattern.stats.weight)
+	_append_stat_contribution(description_lines, "Thrust", pattern.stats.thrust)
+
+	for index in range(pattern.stats.weapons.size()):
+		var weapon := pattern.stats.weapons[index]
+		var weapon_details: Array[String] = []
+		var fire_rate := weapon.get_fire_rate_per_second()
+		if not is_zero_approx(fire_rate):
+			weapon_details.append("Fire rate: %.2f shots/sec" % fire_rate)
+		if not is_zero_approx(weapon.damage_per_shot):
+			weapon_details.append(
+				"Damage/shot: %s" % _format_stat_value(weapon.damage_per_shot)
+			)
+		if weapon.projectiles_per_activation != 0:
+			var shot_word := "shot" if weapon.projectiles_per_activation == 1 else "shots"
+			weapon_details.append(
+				"Shots/activation: %d %s"
+				% [weapon.projectiles_per_activation, shot_word]
+			)
+		var weapon_dps := weapon.get_dps()
+		if not is_zero_approx(weapon_dps):
+			weapon_details.append("DPS: %s" % _format_signed_stat_value(weapon_dps))
+
+		if not weapon_details.is_empty():
+			var weapon_description := ""
+			for detail in weapon_details:
+				if not weapon_description.is_empty():
+					weapon_description += ", "
+				weapon_description += detail
+			description_lines.append("Weapon %d: %s" % [index + 1, weapon_description])
+
+	return "\n".join(description_lines)
+
+
+func _append_stat_contribution(
+	description_lines: Array[String],
+	stat_name: String,
+	value: float
+) -> void:
+	if is_zero_approx(value):
+		return
+	description_lines.append(
+		"%s: %s" % [stat_name, _format_signed_stat_value(value)]
+	)
+
+
+func _format_signed_stat_value(value: float) -> String:
+	var formatted_value := _format_stat_value(value)
+	if value > 0.0:
+		return "+" + formatted_value
+	return formatted_value
+
+
+func _format_stat_value(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return str(roundi(value))
+	return "%.2f" % value
 
 
 func _create_pattern_grid(pattern: ShipPartPattern) -> GridContainer:

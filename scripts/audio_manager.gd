@@ -3,10 +3,12 @@ extends Node
 const MUSIC_BUS: StringName = &"Music"
 const AMBIENCE_BUS: StringName = &"Ambience"
 const SFX_BUS: StringName = &"SFX"
-const BUILD_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/build1.mp3")
+const MENU_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Orbital Cartridge.mp3")
+const BUILD_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Star Cartridge.mp3")
 const DEFAULT_VOLUME_PERCENT := 50.0
 
 var _music_player: AudioStreamPlayer
+var _current_music_track: StringName = &""
 
 
 func _ready() -> void:
@@ -16,7 +18,6 @@ func _ready() -> void:
 	set_bus_volume_percent(MUSIC_BUS, DEFAULT_VOLUME_PERCENT)
 	set_bus_volume_percent(AMBIENCE_BUS, DEFAULT_VOLUME_PERCENT)
 	set_bus_volume_percent(SFX_BUS, DEFAULT_VOLUME_PERCENT)
-	_start_build_music()
 
 
 func get_bus_volume_percent(bus_name: StringName) -> float:
@@ -53,6 +54,14 @@ func play_sfx(stream: AudioStream) -> void:
 	player.play()
 
 
+func play_menu_music() -> void:
+	_play_music(MENU_MUSIC, &"menu")
+
+
+func play_build_music() -> void:
+	_play_music(BUILD_MUSIC, &"build")
+
+
 func _ensure_bus(bus_name: StringName) -> void:
 	if AudioServer.get_bus_index(bus_name) != -1:
 		return
@@ -63,16 +72,28 @@ func _ensure_bus(bus_name: StringName) -> void:
 	AudioServer.set_bus_send(bus_index, &"Master")
 
 
-func _start_build_music() -> void:
-	var music_stream := BUILD_MUSIC.duplicate() as AudioStreamMP3
+func _play_music(stream: AudioStreamMP3, track_id: StringName) -> void:
+	if (
+		_current_music_track == track_id
+		and is_instance_valid(_music_player)
+		and _music_player.playing
+	):
+		return
+
+	var music_stream := stream.duplicate() as AudioStreamMP3
 	if music_stream == null:
-		push_error("Could not load the build music stream.")
+		push_error("Could not duplicate the music stream.")
 		return
 
 	music_stream.loop = true
+	if is_instance_valid(_music_player):
+		_music_player.stop()
+		_music_player.queue_free()
+
 	_music_player = AudioStreamPlayer.new()
 	_music_player.name = "MusicPlayer"
 	_music_player.bus = MUSIC_BUS
 	_music_player.stream = music_stream
 	add_child(_music_player)
 	_music_player.play()
+	_current_music_track = track_id

@@ -9,6 +9,7 @@ enum Type {
 	SHIELD,
 	MINI_TURRET,
 	THRUSTER,
+	LARGE_THRUSTER,
 }
 
 enum Category {
@@ -21,18 +22,25 @@ var type: int
 var category: int
 var origin: Vector2i
 var cell_offsets: Array[Vector2i] = []
+var stats: ShipPartStats
 
 
 func _init(
 	part_type: int,
 	part_category: int,
 	part_origin: Vector2i,
-	part_cell_offsets: Array[Vector2i]
+	part_cell_offsets: Array[Vector2i],
+	part_stats: ShipPartStats
 ) -> void:
+	if part_stats == null:
+		push_error("A ship part must have stat values.")
+		return
+
 	type = part_type
 	category = part_category
 	origin = part_origin
 	cell_offsets = part_cell_offsets.duplicate()
+	stats = part_stats.copy()
 
 
 func get_occupied_cells() -> Array[Vector2i]:

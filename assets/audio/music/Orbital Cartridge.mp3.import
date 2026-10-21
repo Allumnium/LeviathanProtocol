@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://b18jyc1btv2jo"
+path="res://.godot/imported/Orbital Cartridge.mp3-e092fef56dff0b5545b7b67c09a0429e.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/Orbital Cartridge.mp3"
+dest_files=["res://.godot/imported/Orbital Cartridge.mp3-e092fef56dff0b5545b7b67c09a0429e.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

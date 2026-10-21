@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://rkalarnxwg6t"
+path="res://.godot/imported/Star Cartridge.mp3-7d85a5f14700ede429e70448cbb6dd57.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/Star Cartridge.mp3"
+dest_files=["res://.godot/imported/Star Cartridge.mp3-7d85a5f14700ede429e70448cbb6dd57.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

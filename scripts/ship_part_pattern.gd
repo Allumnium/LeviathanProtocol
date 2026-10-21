@@ -3,18 +3,21 @@ extends RefCounted
 
 const SHIELD_TEXTURE = preload("res://assets/shield.png")
 const LASER_TEXTURE = preload("res://assets/laser.png")
+const LARGE_LASER_TEXTURE = preload("res://assets/laser_m.png")
 const ARMOR_TEXTURE = preload("res://assets/armor_m.png")
 const PLATE_TEXTURE = preload("res://assets/plate.png")
 const MINI_TURRET_TEXTURE = preload("res://assets/mini-turret.png")
 const THRUSTER_TEXTURE = preload("res://assets/thruster_s.png")
+const LARGE_THRUSTER_TEXTURE = preload("res://assets/thruster_l.png")
 
 var part_type: int
 var category: int
 var cell_offsets: Array[Vector2i] = []
 var visual_cell_offsets: Array[Vector2i] = []
 var hidden_tile_offsets: Array[Vector2i] = []
-var hidden_tile_tint := Color.TRANSPARENT
+var hidden_tile_outline_color := Color.TRANSPARENT
 var tile_categories: Array[int] = []
+var stats: ShipPartStats
 var can_rotate: bool
 var display_name: String
 var preview_texture: Texture2D
@@ -26,11 +29,12 @@ func _init(
 	pattern_cell_offsets: Array[Vector2i],
 	pattern_display_name: String,
 	pattern_preview_texture: Texture2D,
+	pattern_stats: ShipPartStats,
 	pattern_can_rotate: bool = false,
 	pattern_tile_categories: Array[int] = [],
 	pattern_visual_cell_offsets: Array[Vector2i] = [],
 	pattern_hidden_tile_offsets: Array[Vector2i] = [],
-	pattern_hidden_tile_tint: Color = Color.TRANSPARENT
+	pattern_hidden_tile_outline_color: Color = Color.TRANSPARENT
 ) -> void:
 	part_type = pattern_part_type
 	category = pattern_category
@@ -41,7 +45,8 @@ func _init(
 		else cell_offsets.duplicate()
 	)
 	hidden_tile_offsets = pattern_hidden_tile_offsets.duplicate()
-	hidden_tile_tint = pattern_hidden_tile_tint
+	hidden_tile_outline_color = pattern_hidden_tile_outline_color
+	stats = pattern_stats
 	can_rotate = pattern_can_rotate
 	display_name = pattern_display_name
 	preview_texture = pattern_preview_texture
@@ -56,6 +61,55 @@ func _init(
 
 static func get_catalog() -> Array[ShipPartPattern]:
 	var patterns: Array[ShipPartPattern] = []
+	patterns.append(
+		ShipPartPattern.new(
+			ShipPart.Type.LARGE_THRUSTER,
+			ShipPart.Category.SPECIAL,
+			[
+				Vector2i(0, 0),
+				Vector2i(1, 0),
+				Vector2i(2, 0),
+				Vector2i(3, 0),
+				Vector2i(4, 0),
+				Vector2i(0, 1),
+				Vector2i(1, 1),
+				Vector2i(2, 1),
+				Vector2i(3, 1),
+				Vector2i(4, 1),
+			],
+			"Large Thruster",
+			LARGE_THRUSTER_TEXTURE,
+			ShipPartStats.new(0.0, 0.0, 10.0, 30.0),
+			false,
+			[
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.SPECIAL,
+				ShipPart.Category.SPECIAL,
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.OFFENSE,
+				ShipPart.Category.SPECIAL,
+				ShipPart.Category.SPECIAL,
+			],
+			[
+				Vector2i(2, 0),
+				Vector2i(3, 0),
+				Vector2i(4, 0),
+				Vector2i(2, 1),
+				Vector2i(3, 1),
+				Vector2i(4, 1),
+			],
+			[
+				Vector2i(0, 0),
+				Vector2i(1, 0),
+				Vector2i(0, 1),
+				Vector2i(1, 1),
+			],
+			Color(1.0, 0.15, 0.15, 1.0)
+		)
+	)
 	patterns.append(
 		ShipPartPattern.new(
 			ShipPart.Type.SHIELD,
@@ -73,6 +127,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			],
 			"Shield",
 			SHIELD_TEXTURE,
+			ShipPartStats.new(100.0, 0.0, 9.0, 0.0),
 			false,
 			[
 				ShipPart.Category.DEFENSE,
@@ -100,7 +155,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				Vector2i(2, 1),
 			],
 			"Double Laser",
-			LASER_TEXTURE
+			LARGE_LASER_TEXTURE,
+			ShipPartStats.with_weapon(6.0, 4.0, 12.0, 2)
 		)
 	)
 	patterns.append(
@@ -114,7 +170,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				Vector2i(1, 1),
 			],
 			"Armor Block",
-			ARMOR_TEXTURE
+			ARMOR_TEXTURE,
+			ShipPartStats.new(0.0, 50.0, 4.0, 0.0)
 		)
 	)
 	patterns.append(
@@ -123,7 +180,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			ShipPart.Category.DEFENSE,
 			[Vector2i(0, 0)],
 			"Single Plate",
-			PLATE_TEXTURE
+			PLATE_TEXTURE,
+			ShipPartStats.new(0.0, 5.0, 1.0, 0.0)
 		)
 	)
 	patterns.append(
@@ -132,7 +190,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			ShipPart.Category.OFFENSE,
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Laser",
-			LASER_TEXTURE
+			LASER_TEXTURE,
+			ShipPartStats.with_weapon(3.0, 5.0, 12.0, 1)
 		)
 	)
 	patterns.append(
@@ -142,6 +201,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Thruster",
 			THRUSTER_TEXTURE,
+			ShipPartStats.new(0.0, 0.0, 3.0, 15.0),
 			false,
 			[
 				ShipPart.Category.OFFENSE,
@@ -150,7 +210,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			],
 			[Vector2i(2, 0)],
 			[Vector2i(0, 0), Vector2i(1, 0)],
-			Color(0.9, 0.12, 0.12, 0.75)
+			Color(1.0, 0.15, 0.15, 1.0)
 		)
 	)
 	patterns.append(
@@ -159,7 +219,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			ShipPart.Category.OFFENSE,
 			[Vector2i(0, 0)],
 			"Mini Turret",
-			MINI_TURRET_TEXTURE
+			MINI_TURRET_TEXTURE,
+			ShipPartStats.with_weapon(1.0, 1.0, 1.0, 1)
 		)
 	)
 	return patterns

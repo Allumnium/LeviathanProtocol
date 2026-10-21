@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://n7l1dm67fxql"
+path="res://.godot/imported/Phalanx Runner.mp3-82befb7b46086cdbd62577967afc615f.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/Phalanx Runner.mp3"
+dest_files=["res://.godot/imported/Phalanx Runner.mp3-82befb7b46086cdbd62577967afc615f.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

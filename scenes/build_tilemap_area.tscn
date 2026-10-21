@@ -29,6 +29,9 @@ snap_2d_vertices_to_pixel = true
 
 [node name="GridLayer" type="TileMapLayer" parent="PanRoot"]
 
+[node name="HullPolygon" type="Polygon2D" parent="PanRoot"]
+color = Color(0.38, 0.38, 0.4, 1)
+
 [node name="PlacedLayer" type="TileMapLayer" parent="PanRoot"]
 
 [node name="PartsLayer" type="Node2D" parent="PanRoot"]
@@ -37,6 +40,14 @@ snap_2d_vertices_to_pixel = true
 
 [node name="PreviewLayer" type="TileMapLayer" parent="PanRoot"]
 modulate = Color(1, 1, 1, 0.5)
+
+[node name="SelectorBackground" type="ColorRect" parent="."]
+layout_mode = 1
+anchor_right = 0.17
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.12, 0.13, 0.15, 1)
 
 [node name="SelectorRow" type="VBoxContainer" parent="."]
 layout_mode = 1
