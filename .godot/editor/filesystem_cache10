@@ -31,7 +31,7 @@ Phalanx Signal.mp3::AudioStreamMP3::8135761114559103373::1792551819::1792551847:
 Quantum Wrench Bay.mp3::AudioStreamMP3::6934875514823976008::1792550540::1792550594::1::::<><><>0<>0<>f12e9bf319639bd538135222bdc854f4<>res://.godot/imported/Quantum Wrench Bay.mp3-745021f759fbc86ddca9f8e13f78aabf.mp3str::
 Star Cartridge.mp3::AudioStreamMP3::1213873790004046153::1792554375::1792554522::1::::<><><>0<>0<>7959e83b95242d363007ade643874a0e<>res://.godot/imported/Star Cartridge.mp3-7d85a5f14700ede429e70448cbb6dd57.mp3str::
 Turbo Wrench Loop.mp3::AudioStreamMP3::2406659866918412068::1792550883::1792550976::1::::<><><>0<>0<>3a0a4b0894ff83b7cd72923efc82917d<>res://.godot/imported/Turbo Wrench Loop.mp3-6c01b02a5a50c838c251b737e6372245.mp3str::
-::res://assets/audio/sfx/::1792562023
+::res://assets/audio/sfx/::1792562084
 alien_explode.wav::AudioStreamWAV::4137993499799414772::1766989444::1792562084::1::::<><><>0<>0<>5c569ed21d6599f6c8c78dc76e9d2961<>res://.godot/imported/alien_explode.wav-484b0d5d0f9705292d62624acdd353bf.sample::
 dialogue_type.mp3::AudioStreamMP3::2511832373304670640::1792393471::1792393489::1::::<><><>0<>0<>bcf64cbe4a1e91d3e851f21c2998d0ba<>res://.godot/imported/dialogue_type.mp3-1542f3ea20a55e2eb7e01221a070ecf1.mp3str::
 morph.mp3::AudioStreamMP3::5860256213177460299::1792552843::1792552871::1::::<><><>0<>0<>37bf9768db948dc5e054524e13d8da90<>res://.godot/imported/morph.mp3-a98209498f01a1d06e14b23aa4076990.mp3str::
@@ -73,21 +73,21 @@ simple_panel_3x.png::CompressedTexture2D::3436914593644789613::1792386899::17923
 ::res://scenes/::1792560775
 auto_battle.tscn::PackedScene::-1::1792561719::0::1::::<><><>0<>0<><>::res://scripts/auto_battle.gd
 build_selector_button.tscn::PackedScene::-1::1792540156::0::1::::<><><>0<>0<><>::res://scripts/build_selector_button.gd<>res://assets/ui/buttons/circular_button.png<>res://assets/ui/buttons/circular_button_highlighted.png<>res://assets/ui/buttons/circular_button_pressed.png<>res://assets/ui/buttons/circular_button_selected.png<>res://assets/ui/icons/red_square.png
-build_tilemap_area.tscn::PackedScene::-1::1792561058::0::1::::<><><>0<>0<><>::res://scripts/build_tilemap_area.gd<>res://assets/ui/build_grid.png<>res://assets/ui/icons/red_square.png<>res://assets/ui/icons/blue_square.png<>res://assets/ui/icons/green_square.png<>res://scenes/build_selector_button.tscn
+build_tilemap_area.tscn::PackedScene::-1::1792561058::0::1::::<><><>0<>0<><>::res://scripts/build_tilemap_area.gd<>res://assets/ui/build_grid.png<>res://assets/ui/icons/red_square.png<>res://assets/ui/icons/blue_square.png<>res://assets/ui/icons/green_square.png<>res://scenes/build_selector_button.tscn<>res://scripts/build_viewport_starfield.gd
 circular_icon_button.tscn::PackedScene::-1::1792556914::0::1::::<><><>0<>0<><>::
-game_map.tscn::PackedScene::2595092660318710675::1792558471::0::1::::<><><>0<>0<><>::uid://b5bsj2qhnw6rb::::res://scripts/game_map.gd<>res://scenes/build_tilemap_area.tscn<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn<>uid://yojn4otwqbnx::::res://scenes/how_to_play_dialog.tscn<>uid://cq30vongxvgsa::::res://scenes/victory_dialog.tscn<>uid://cveoehe7moy2l::::res://scripts/graph_view.gd
+game_map.tscn::PackedScene::2595092660318710675::1792558471::0::1::::<><><>0<>0<><>::uid://b5bsj2qhnw6rb::::res://scripts/game_map.gd<>res://scenes/build_tilemap_area.tscn<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn<>uid://yojn4otwqbnx::::res://scenes/how_to_play_dialog.tscn<>uid://cq30vongxvgsa::::res://scenes/victory_dialog.tscn<>uid://cveoehe7moy2l::::res://scripts/graph_view.gd<>res://scripts/archive_tab.gd<>res://scenes/circular_icon_button.tscn<>res://assets/help.png<>uid://bcgalexdne6gv::::res://assets/fonts/mechanical_animals/Mechanical Animals.ttf
 game_setup.tscn::PackedScene::-1::1792560775::0::1::::<><><>0<>0<><>::
-how_to_play_dialog.tscn::PackedScene::1714004749822994837::1792561719::0::1::::<><><>0<>0<><>::res://scenes/modal_dialog.tscn
-main_menu.tscn::PackedScene::9029200949143378062::1792559459::0::1::::<><><>0<>0<><>::uid://bcff6c8gb6kac::::res://scripts/main_menu.gd<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn
+how_to_play_dialog.tscn::PackedScene::1714004749822994837::1792562154::0::1::::<><><>0<>0<><>::res://scenes/modal_dialog.tscn
+main_menu.tscn::PackedScene::9029200949143378062::1792559459::0::1::::<><><>0<>0<><>::uid://bcff6c8gb6kac::::res://scripts/main_menu.gd<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn<>res://scripts/main_menu_starfield.gd<>res://scenes/circular_icon_button.tscn<>res://assets/fonts/mechanical_animals/Mechanical Animals.ttf
 modal_dialog.tscn::PackedScene::1365998054698664529::1792557974::0::1::::<><><>0<>0<><>::uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://bcgalexdne6gv::::res://assets/fonts/mechanical_animals/Mechanical Animals.ttf
-settings_dialog.tscn::PackedScene::2613827492648080658::1792558471::0::1::::<><><>0<>0<><>::uid://tpx12myxr54h::::res://scenes/modal_dialog.tscn<>uid://f1o1rko5ghnl::::res://scripts/settings_dialog.gd
-victory_dialog.tscn::PackedScene::5955221624913099028::1792558471::0::1::::<><><>0<>0<><>::uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf<>uid://dda4r57psoolt::::res://themes/ui_theme.tres
+settings_dialog.tscn::PackedScene::2613827492648080658::1792558471::0::1::::<><><>0<>0<><>::uid://tpx12myxr54h::::res://scenes/modal_dialog.tscn<>uid://f1o1rko5ghnl::::res://scripts/settings_dialog.gd<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres
+victory_dialog.tscn::PackedScene::5955221624913099028::1792558471::0::1::::<><><>0<>0<><>::uid://bcgalexdne6gv::::res://assets/fonts/mechanical_animals/Mechanical Animals.ttf<>uid://dda4r57psoolt::::res://themes/ui_theme.tres
 ::res://scripts/::1792561441
 alien_ship.gd::GDScript::239583269646182900::1792561903::0::1::::AlienShip<>RefCounted<><>0<>0<><>::
 archive_tab.gd::GDScript::8235263830509742978::1792559285::0::1::::<>Control<><>0<>0<><>::
 audio_manager.gd::GDScript::3212756527198988516::1792559364::0::1::::<>Node<><>0<>0<><>::
-auto_battle.gd::GDScript::4190985707995589048::1792561719::0::1::::<>Control<><>0<>0<><>::
-battle_simulation.gd::GDScript::3298938886605560134::1792561779::0::1::::BattleSimulation<>RefCounted<><>0<>0<><>::
+auto_battle.gd::GDScript::4190985707995589048::1792562154::0::1::::<>Control<><>0<>0<><>::
+battle_simulation.gd::GDScript::3298938886605560134::1792562153::0::1::::BattleSimulation<>RefCounted<><>0<>0<><>::
 battle_visuals.gd::GDScript::3187230952497242906::1792561960::0::1::::BattleVisuals<>Control<><>0<>0<><>::
 build_selector_button.gd::GDScript::562306567188138696::1792540138::0::1::::<>TextureButton<><>0<>0<><>::
 build_tilemap_area.gd::GDScript::8384620326435759678::1792559883::0::1::::<>Control<><>0<>0<><>::
@@ -108,6 +108,6 @@ ship_weapon_stats.gd::GDScript::3671429612489468479::1792561378::0::1::::ShipWea
 stat_display_row.gd::GDScript::8667810644450149048::1792556982::0::1::::StatDisplayRow<>VBoxContainer<><>0<>0<><>::
 ::res://styles/::1792387631
 ::res://tests/::1792561859
-test_battle.gd::GDScript::7378119478052628735::1792561960::0::1::::<>SceneTree<><>0<>0<><>::
+test_battle.gd::GDScript::7378119478052628735::1792562154::0::1::::<>SceneTree<><>0<>0<><>::
 ::res://themes/::1792395226
 ui_theme.tres::Theme::7371621359120408881::1792558268::0::1::::<><><>0<>0<><>::uid://bqn2tsvmxlmkl::::res://assets/ui/panels/panel_nine_patch.tres<>uid://cuo4815jnqj5h::::res://assets/ui/buttons/button.png<>uid://cdj7cxq56vqxq::::res://assets/ui/buttons/button_pressed.png<>uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf<>uid://bcgalexdne6gv::::res://assets/fonts/mechanical_animals/Mechanical Animals.ttf<>uid://dvjqfo0psdmk5::::res://assets/ui/buttons/button_highlighted.png<>uid://ceuy7glfq4gtg::::res://assets/ui/panels/simple_panel.png<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres

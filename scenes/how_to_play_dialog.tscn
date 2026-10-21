@@ -18,7 +18,7 @@ Ships keep weapon range, focus weak targets, and retreat on low shields.
 Drag or use WASD / arrows to pan. Mouse wheel zooms. Space follows your ship.
 Salvage: blue = common, red = uncommon, green = rare.
 Each alien has a 60% drop chance (65% blue, 25% red, 10% green).
-Collected squares are added to your build inventory.
+Squares enter your inventory; rest 1 second after collection, then return.
 Ships are repaired between deployments; defeat does not advance the map."
 autowrap_mode = 2
 horizontal_alignment = 1

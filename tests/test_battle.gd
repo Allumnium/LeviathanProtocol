@@ -36,6 +36,7 @@ func _run() -> void:
 	_test_drop_distribution()
 	_test_salvage()
 	_test_defeat()
+	_test_combat_events()
 	_test_balance()
 	await _test_scene()
 	for child in root.get_node("AudioManager").get_children():
@@ -58,6 +59,72 @@ func _test_weapon_range() -> void:
 	simulation.aliens[0].position = Vector2(700.0, 0.0)
 	simulation.advance(1.0 / 60.0)
 	_check(simulation.beams.is_empty(), "Lasers must not fire outside range.")
+
+
+func _test_combat_events() -> void:
+	var simulation := BattleSimulation.new()
+	simulation.setup(_basic_stats(10.0), _fleet(3), 8)
+	var events := {"shots": 0, "shield_hits": 0, "alien_deaths": 0, "player_deaths": 0}
+	simulation.weapon_fired.connect(func(): events.shots += 1)
+	simulation.shield_hit.connect(func(): events.shield_hits += 1)
+	simulation.ship_destroyed.connect(func(is_player: bool):
+		if is_player:
+			events.player_deaths += 1
+		else:
+			events.alien_deaths += 1)
+	var enemy := simulation.aliens[0]
+	enemy.position = simulation.player.position + Vector2(180.0, 0.0)
+	enemy.integrity = 100.0
+	enemy.shields = 10.0
+	for other in simulation.aliens:
+		other.cooldowns[0] = 100.0
+		if other != enemy:
+			other.position = Vector2(700.0, 0.0)
+	simulation.advance(1.0 / 60.0)
+	_check(events.shots == 1 and events.shield_hits == 1,
+		"A laser activation must emit firing and shield-impact events.")
+	simulation.player.cooldowns[0] = 100.0
+	enemy.cooldowns[0] = 0.0
+	simulation.advance(1.0 / 60.0)
+	_check(events.shots == 2 and events.shield_hits == 1,
+		"Alien firing must emit a shot event, but shield impact must wait for projectile arrival.")
+	enemy.cooldowns[0] = 100.0
+	for tick in range(120):
+		simulation.advance(1.0 / 60.0)
+	_check(events.shield_hits == 2, "A homing projectile must emit a shield event when it connects.")
+	enemy.shields = 0.0
+	simulation._damage(enemy, 1.0)
+	_check(events.shield_hits == 2, "Hull-only damage must not emit a shield-hit sound.")
+	simulation._damage(enemy, 200.0)
+	simulation._damage(enemy, 200.0)
+	_check(events.alien_deaths == 1 and events.player_deaths == 0,
+		"Alien destruction must emit exactly one alien explosion event.")
+	simulation._damage(simulation.player, 200.0)
+	_check(events.player_deaths == 1, "Player destruction must emit a distinct player explosion event.")
+
+
+func _check_last_sound(expected_path: String, previous_count: int) -> void:
+	var audio := root.get_node("AudioManager")
+	_check(audio.get_child_count() == previous_count + 1, "Combat event must start an audio player.")
+	var player := audio.get_child(audio.get_child_count() - 1) as AudioStreamPlayer
+	_check(player != null and player.stream.resource_path == expected_path and player.bus == &"SFX",
+		"Combat event must play %s on the SFX bus." % expected_path)
+
+
+func _test_battle_sounds(battle: Node) -> void:
+	var audio := root.get_node("AudioManager")
+	var count := audio.get_child_count()
+	battle.simulation.weapon_fired.emit()
+	_check_last_sound("res://assets/audio/sfx/shoot-weapon.wav", count)
+	count = audio.get_child_count()
+	battle.simulation.shield_hit.emit()
+	_check_last_sound("res://assets/audio/sfx/shieldHit.wav", count)
+	count = audio.get_child_count()
+	battle.simulation.ship_destroyed.emit(false)
+	_check_last_sound("res://assets/audio/sfx/alien_explode.wav", count)
+	count = audio.get_child_count()
+	battle.simulation.ship_destroyed.emit(true)
+	_check_last_sound("res://assets/audio/sfx/ship_explosion.mp3", count)
 
 
 func _test_guaranteed_hits() -> void:
@@ -234,6 +301,7 @@ func _test_scene() -> void:
 	await process_frame
 	battle.set_physics_process(false)
 	_check(battle.simulation.player != null, "Battle scene must initialize live combat.")
+	_test_battle_sounds(battle)
 	var zoom_before: float = battle.visuals.camera_zoom
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
@@ -283,9 +351,19 @@ func _test_scene() -> void:
 		and state.blue_tiles_available == blue_before + collected[ShipPart.Category.DEFENSE]
 		and state.green_tiles_available == green_before + collected[ShipPart.Category.SPECIAL],
 		"Collected salvage must be credited to the correct inventory exactly once.")
-	await create_timer(2.2).timeout
+	var victory_at := Time.get_ticks_msec()
+	var returned_at: Array[int] = []
+	scene_changed.connect(func(): returned_at.append(Time.get_ticks_msec()), CONNECT_ONE_SHOT)
+	var resting_position: Vector2 = battle.simulation.player.position
+	await create_timer(0.7).timeout
+	_check(current_scene == battle and battle.simulation.player.position == resting_position,
+		"After collecting all resources the ship must hang out before returning.")
+	await create_timer(0.5).timeout
 	_check(current_scene != null and current_scene.scene_file_path == "res://scenes/game_map.tscn",
 		"A completed victory must automatically return to the build/map scene.")
+	_check(returned_at.size() == 1 and returned_at[0] - victory_at >= 900
+		and returned_at[0] - victory_at <= 1300,
+		"The post-collection pause must last one second.")
 	_check(state.set_destination(3), "A victorious ship should be able to deploy again.")
 	_check(change_scene_to_packed(scene) == OK, "Could not open a second battle.")
 	await scene_changed

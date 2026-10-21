@@ -1,6 +1,10 @@
 class_name BattleSimulation
 extends RefCounted
 
+signal weapon_fired
+signal shield_hit
+signal ship_destroyed(is_player: bool)
+
 enum Phase { COMBAT, SALVAGE, VICTORY, DEFEAT }
 
 const ARENA_RADIUS := 800.0
@@ -231,6 +235,8 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 				break
 			if ship.position.distance_to(ship.target.position) > weapon.range_units:
 				break
+			if shot_index == 0:
+				weapon_fired.emit()
 			if ship == player:
 				var beam := Beam.new()
 				beam.source = ship
@@ -259,16 +265,21 @@ func _update_projectiles(delta: float) -> void:
 
 
 func _damage(target: Combatant, damage: float) -> void:
+	if not target.is_alive():
+		return
 	var absorbed := minf(target.shields, damage)
 	target.shields -= absorbed
 	target.integrity = maxf(0.0, target.integrity - (damage - absorbed))
 	target.since_damage = 0.0
 	target.hit_flash = 0.12
+	if absorbed > 0.0:
+		shield_hit.emit()
 	if target.is_alive():
 		return
 	var explosion := Explosion.new()
 	explosion.position = target.position
 	explosions.append(explosion)
+	ship_destroyed.emit(target == player)
 	if target != player and random.randf() < DROP_CHANCE:
 		var drop := Drop.new()
 		drop.position = target.position

@@ -1,6 +1,10 @@
 extends Control
 
 const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
+const SHOOT_SOUND: AudioStream = preload("res://assets/audio/sfx/shoot-weapon.wav")
+const SHIELD_HIT_SOUND: AudioStream = preload("res://assets/audio/sfx/shieldHit.wav")
+const ALIEN_EXPLOSION_SOUND: AudioStream = preload("res://assets/audio/sfx/alien_explode.wav")
+const SHIP_EXPLOSION_SOUND: AudioStream = preload("res://assets/audio/sfx/ship_explosion.mp3")
 
 @onready var visuals: BattleVisuals = $BattleVisuals
 @onready var status_label: Label = $Status
@@ -22,6 +26,9 @@ func _ready() -> void:
 		set_physics_process(false)
 		call_deferred("_return_to_map")
 		return
+	simulation.weapon_fired.connect(AudioManager.play_sfx.bind(SHOOT_SOUND))
+	simulation.shield_hit.connect(AudioManager.play_sfx.bind(SHIELD_HIT_SOUND))
+	simulation.ship_destroyed.connect(_on_ship_destroyed)
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
 
@@ -83,6 +90,10 @@ func _input(event: InputEvent) -> void:
 		_follow_player = not _follow_player
 
 
+func _on_ship_destroyed(is_player: bool) -> void:
+	AudioManager.play_sfx(SHIP_EXPLOSION_SOUND if is_player else ALIEN_EXPLOSION_SOUND)
+
+
 func _finish_battle(won: bool) -> void:
 	_finished = true
 	if won:
@@ -91,7 +102,7 @@ func _finish_battle(won: bool) -> void:
 			return
 	else:
 		GameState.cancel_battle()
-	await get_tree().create_timer(2.0).timeout
+	await get_tree().create_timer(1.0 if won else 2.0).timeout
 	_return_to_map()
 
 
