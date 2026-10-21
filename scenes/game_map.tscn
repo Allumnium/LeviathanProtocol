@@ -111,6 +111,22 @@ size_flags_horizontal = 3
 toggle_mode = true
 text = "Archive"
 
+[node name="UnreadCount" type="Label" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton"]
+visible = false
+layout_mode = 1
+anchor_left = 0.78
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -3.0
+theme_override_colors/font_color = Color(1, 0.86, 0, 1)
+theme_override_font_sizes/font_size = 12
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+mouse_filter = 2
+z_index = 1
+
 [node name="Tabs" type="TabContainer" parent="Layout/UpperArea/LeftPanel/PanelContents" unique_id=1538854626]
 layout_mode = 2
 size_flags_horizontal = 3

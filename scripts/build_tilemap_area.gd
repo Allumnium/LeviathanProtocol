@@ -14,6 +14,14 @@ const ZOOM_STEP := 0.1
 const ZOOM_SMOOTHING := 12.0
 const KEYBOARD_PAN_SPEED := 420.0
 const MIDDLE_PAN_DRAG_THRESHOLD := 4.0
+const PART_TRANSFORM_DURATION := 0.75
+const PART_FLASH_START_INTERVAL := 0.15
+const PART_FLASH_END_INTERVAL := 0.02
+const PLACE_SFX: AudioStream = preload("res://assets/audio/sfx/place.wav")
+const MORPH_SFX: AudioStream = preload("res://assets/audio/sfx/morph.mp3")
+const PART_FLASH_PURPLE := Color(0.72, 0.2, 1.0, 0.85)
+const PART_FLASH_YELLOW := Color(1.0, 0.88, 0.0, 0.85)
+const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 
 @export var tile_size := Vector2i(26, 26)
 @export var map_dimensions := MAX_MAP_DIMENSIONS
@@ -26,6 +34,7 @@ const MIDDLE_PAN_DRAG_THRESHOLD := 4.0
 @onready var grid_layer: TileMapLayer = $PanRoot/GridLayer
 @onready var placed_layer: TileMapLayer = $PanRoot/PlacedLayer
 @onready var parts_layer: Node2D = $PanRoot/PartsLayer
+@onready var animation_layer: Node2D = $PanRoot/AnimationLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
 @onready var selector_row: VBoxContainer = $SelectorRow
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
@@ -57,6 +66,8 @@ var _zoom_anchor_map_position := Vector2.ZERO
 var _zoom_anchor_active := false
 var _part_patterns: Array[ShipPartPattern] = []
 var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
+var _locked_cells: Dictionary[Vector2i, bool] = {}
+var _active_morph_count := 0
 
 
 func _ready() -> void:
@@ -105,6 +116,12 @@ func _ready() -> void:
 
 	resized.connect(_on_resized)
 	call_deferred("_set_initial_pan_position")
+
+
+func _exit_tree() -> void:
+	while _active_morph_count > 0:
+		_active_morph_count -= 1
+		GameState.end_part_transformation()
 
 
 func _create_tile_set() -> bool:
@@ -372,6 +389,9 @@ func _apply_line(start_cell: Vector2i, end_cell: Vector2i, erase_tiles: bool) ->
 
 
 func _apply_selected_tool(cell: Vector2i) -> void:
+	if _locked_cells.has(cell):
+		return
+
 	var existing_category := GameState.ship.get_tile_category_at(cell)
 	var category := _get_category_for_source_id(_selected_source_id)
 	if category == NO_CATEGORY:
@@ -384,11 +404,12 @@ func _apply_selected_tool(cell: Vector2i) -> void:
 		GameState.refund_tile(existing_category)
 	GameState.ship.set_tile_at(cell, category)
 	placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
+	AudioManager.play_sfx(PLACE_SFX)
 	_evaluate_part_patterns()
 
 
 func _remove_tile_at(cell: Vector2i) -> void:
-	if cell == INVALID_CELL:
+	if cell == INVALID_CELL or _locked_cells.has(cell):
 		return
 
 	var category := GameState.ship.get_tile_category_at(cell)
@@ -472,11 +493,13 @@ func _try_morph_pattern(
 			continue
 
 		var part := ShipPart.new(pattern.part_type, pattern.category, origin, cell_offsets)
-		if not GameState.ship.add_part(part):
-			push_error("Could not add a matched part to the ship.")
-			return false
-		GameState.discover_part(part.type)
-		_add_part_placeholder(part)
+		if GameState.has_discovered_part(part.type):
+			if not GameState.ship.add_part(part):
+				push_error("Could not add a matched part to the ship.")
+				return false
+			_add_part_placeholder(part)
+		else:
+			_begin_part_transformation(part)
 		return true
 	return false
 
@@ -496,6 +519,7 @@ func _matches_pattern(
 			or cell.x >= map_dimensions.x
 			or cell.y >= map_dimensions.y
 			or source_id == NO_SOURCE_ID
+			or _locked_cells.has(cell)
 			or placed_layer.get_cell_source_id(cell) != source_id
 			or GameState.ship.get_part_at(cell) != null
 		):
@@ -591,6 +615,72 @@ func _add_part_placeholder(part: ShipPart) -> void:
 	)
 	parts_layer.add_child(sprite)
 	_part_sprites[part] = sprite
+
+
+func _begin_part_transformation(part: ShipPart) -> void:
+	var cells := part.get_occupied_cells()
+	var highlights: Array[ColorRect] = []
+	_clear_preview()
+	for cell in cells:
+		_locked_cells[cell] = true
+		var highlight := ColorRect.new()
+		highlight.position = grid_layer.map_to_local(cell) - Vector2(tile_size) * 0.5
+		highlight.size = Vector2(tile_size)
+		highlight.color = PART_FLASH_PURPLE
+		highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		animation_layer.add_child(highlight)
+		highlights.append(highlight)
+
+	_active_morph_count += 1
+	GameState.begin_part_transformation()
+	GameState.discover_part(part.type)
+	AudioManager.play_sfx(MORPH_SFX)
+
+	var tween := create_tween()
+	var elapsed := 0.0
+	var flash_index := 0
+	while elapsed < PART_TRANSFORM_DURATION:
+		var interval := lerpf(
+			PART_FLASH_START_INTERVAL,
+			PART_FLASH_END_INTERVAL,
+			elapsed / PART_TRANSFORM_DURATION
+		)
+		var phase_duration := minf(interval, PART_TRANSFORM_DURATION - elapsed)
+		var flash_color: Color
+		match flash_index % 3:
+			0:
+				flash_color = PART_FLASH_PURPLE
+			1:
+				flash_color = PART_FLASH_YELLOW
+			_:
+				flash_color = PART_FLASH_WHITE
+		tween.tween_callback(_set_morph_highlights_color.bind(highlights, flash_color))
+		tween.tween_interval(phase_duration)
+		elapsed += phase_duration
+		flash_index += 1
+	tween.tween_callback(_complete_part_transformation.bind(cells, highlights))
+
+
+func _set_morph_highlights_color(highlights: Array[ColorRect], color: Color) -> void:
+	for highlight in highlights:
+		if is_instance_valid(highlight):
+			highlight.color = color
+
+
+func _complete_part_transformation(
+	cells: Array[Vector2i],
+	highlights: Array[ColorRect]
+) -> void:
+	for highlight in highlights:
+		if is_instance_valid(highlight):
+			highlight.hide()
+			highlight.queue_free()
+	for cell in cells:
+		_locked_cells.erase(cell)
+
+	_evaluate_part_patterns()
+	_active_morph_count -= 1
+	GameState.end_part_transformation()
 
 
 func _get_texture_for_part(part: ShipPart) -> Texture2D:
@@ -722,7 +812,7 @@ func _update_preview_at(local_mouse_position: Vector2) -> void:
 		return
 
 	var cell := _get_cell_at_local_position(local_mouse_position)
-	if cell == INVALID_CELL:
+	if cell == INVALID_CELL or _locked_cells.has(cell):
 		_clear_preview()
 		return
 	if cell == _preview_cell and _selected_source_id == _preview_source_id:

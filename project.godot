@@ -27,11 +27,12 @@ AudioManager="*res://scripts/audio_manager.gd"
 
 window/size/viewport_width=640
 window/size/viewport_height=360
+window/size/mode=2
 window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-window/stretch/scale_mode="integer"
+window/stretch/scale_mode="fractional"
 
 [gui]
 

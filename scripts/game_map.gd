@@ -2,6 +2,7 @@ extends Control
 
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
+const ARCHIVE_TAB_INDEX := 2
 
 @onready var deploy_button: Button = $Layout/UpperArea/DetailsPanel/DetailsContents/DeployButton
 @onready var how_to_play_button: Button = $Layout/TopBar/BarContents/HowToPlayButton
@@ -12,6 +13,9 @@ const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
 	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/UpgradesTabButton,
 	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton,
 ]
+@onready var archive_unread_badge: Label = (
+	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton/UnreadCount
+)
 @onready var graph_modal: Control = $GraphModal
 @onready var graph_backdrop: ColorRect = $GraphModal/Backdrop
 @onready var graph_view: GraphView = $GraphModal/CenterContainer/GraphPanel/GraphView
@@ -22,6 +26,10 @@ const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
 
 
 func _ready() -> void:
+	GameState.unviewed_discoveries_changed.connect(_refresh_archive_unread_badge)
+	GameState.part_transformations_changed.connect(_refresh_deploy_button)
+	_refresh_archive_unread_badge()
+	_refresh_deploy_button()
 	_setup_panel_tabs()
 	deploy_button.pressed.connect(_on_deploy_pressed)
 	how_to_play_button.pressed.connect(_on_how_to_play_pressed)
@@ -91,6 +99,18 @@ func _on_panel_tab_button_pressed(tab_index: int) -> void:
 func _on_panel_tab_changed(tab_index: int) -> void:
 	for index in range(panel_tab_buttons.size()):
 		panel_tab_buttons[index].button_pressed = index == tab_index
+	if tab_index == ARCHIVE_TAB_INDEX:
+		GameState.mark_discoveries_viewed()
+
+
+func _refresh_archive_unread_badge() -> void:
+	var unread_count := GameState.get_unviewed_discovery_count()
+	archive_unread_badge.visible = unread_count > 0
+	archive_unread_badge.text = str(unread_count)
+
+
+func _refresh_deploy_button() -> void:
+	deploy_button.disabled = GameState.active_part_transformations > 0
 
 
 func _on_destination_selected(node_id: int) -> void:
@@ -107,6 +127,8 @@ func _on_destination_selected(node_id: int) -> void:
 
 
 func _on_deploy_pressed() -> void:
+	if GameState.active_part_transformations > 0:
+		return
 	graph_view.set_current_node(GameState.current_node_id)
 	graph_modal.show()
 

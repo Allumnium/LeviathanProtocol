@@ -2,6 +2,8 @@ extends Node
 
 signal tile_inventory_changed
 signal discovered_parts_changed
+signal unviewed_discoveries_changed
+signal part_transformations_changed
 
 const NODE_POSITIONS: Array[Vector2] = [
 	Vector2(0.08, 0.5),
@@ -32,6 +34,8 @@ var visited_nodes: Array[int] = [0]
 var battle_pending := false
 var ship := Ship.new()
 var discovered_part_types: Array[int] = []
+var unviewed_discovered_part_types: Array[int] = []
+var active_part_transformations := 0
 var red_tiles_available := STARTING_RED_TILE_COUNT
 var blue_tiles_available := STARTING_BLUE_TILE_COUNT
 var green_tiles_available := STARTING_GREEN_TILE_COUNT
@@ -67,11 +71,39 @@ func discover_part(part_type: int) -> void:
 		return
 
 	discovered_part_types.append(part_type)
+	unviewed_discovered_part_types.append(part_type)
 	discovered_parts_changed.emit()
+	unviewed_discoveries_changed.emit()
 
 
 func has_discovered_part(part_type: int) -> bool:
 	return discovered_part_types.has(part_type)
+
+
+func get_unviewed_discovery_count() -> int:
+	return unviewed_discovered_part_types.size()
+
+
+func mark_discoveries_viewed() -> void:
+	if unviewed_discovered_part_types.is_empty():
+		return
+
+	unviewed_discovered_part_types.clear()
+	unviewed_discoveries_changed.emit()
+
+
+func begin_part_transformation() -> void:
+	active_part_transformations += 1
+	part_transformations_changed.emit()
+
+
+func end_part_transformation() -> void:
+	if active_part_transformations <= 0:
+		push_error("Finished a ship-part transformation when none was active.")
+		return
+
+	active_part_transformations -= 1
+	part_transformations_changed.emit()
 
 
 func try_consume_tile(category: int) -> bool:

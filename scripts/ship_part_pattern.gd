@@ -5,6 +5,7 @@ const SHIELD_TEXTURE = preload("res://assets/shield.png")
 const LASER_TEXTURE = preload("res://assets/laser.png")
 const ARMOR_TEXTURE = preload("res://assets/armor_m.png")
 const PLATE_TEXTURE = preload("res://assets/plate.png")
+const MINI_TURRET_TEXTURE = preload("res://assets/mini-turret.png")
 
 var part_type: int
 var category: int
@@ -118,6 +119,15 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Laser",
 			LASER_TEXTURE
+		)
+	)
+	patterns.append(
+		ShipPartPattern.new(
+			ShipPart.Type.MINI_TURRET,
+			ShipPart.Category.OFFENSE,
+			[Vector2i(0, 0)],
+			"Mini Turret",
+			MINI_TURRET_TEXTURE
 		)
 	)
 	return patterns

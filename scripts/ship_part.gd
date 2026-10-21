@@ -7,6 +7,7 @@ enum Type {
 	DOUBLE_LASER,
 	SINGLE_PLATE,
 	SHIELD,
+	MINI_TURRET,
 }
 
 enum Category {

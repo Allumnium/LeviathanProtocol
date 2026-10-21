@@ -40,6 +40,19 @@ func set_bus_volume_percent(bus_name: StringName, volume_percent: float) -> void
 	AudioServer.set_bus_mute(bus_index, is_zero_approx(linear_volume))
 
 
+func play_sfx(stream: AudioStream) -> void:
+	if stream == null:
+		push_error("Cannot play a sound effect without an audio stream.")
+		return
+
+	var player := AudioStreamPlayer.new()
+	player.bus = SFX_BUS
+	player.stream = stream
+	player.finished.connect(player.queue_free)
+	add_child(player)
+	player.play()
+
+
 func _ensure_bus(bus_name: StringName) -> void:
 	if AudioServer.get_bus_index(bus_name) != -1:
 		return
