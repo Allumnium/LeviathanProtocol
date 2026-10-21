@@ -79,7 +79,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			],
 			"Large Thruster",
 			LARGE_THRUSTER_TEXTURE,
-			ShipPartStats.new(0.0, 0.0, 10.0, 30.0),
+			ShipPartStats.new(0.0, 0.0, 10.0, 150.0),
 			false,
 			[
 				ShipPart.Category.OFFENSE,
@@ -201,7 +201,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Thruster",
 			THRUSTER_TEXTURE,
-			ShipPartStats.new(0.0, 0.0, 3.0, 15.0),
+			ShipPartStats.new(0.0, 0.0, 3.0, 25.0),
 			false,
 			[
 				ShipPart.Category.OFFENSE,

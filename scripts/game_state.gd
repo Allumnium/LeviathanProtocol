@@ -6,6 +6,10 @@ signal discovered_parts_changed
 signal unviewed_discoveries_changed
 signal part_transformations_changed
 
+const AlienShipType = preload("res://scripts/alien_ship.gd")
+
+enum Difficulty { EASY, MEDIUM, HARD }
+
 const NODE_POSITIONS: Array[Vector2] = [
 	Vector2(0.08, 0.5),
 	Vector2(0.31, 0.23),
@@ -25,6 +29,7 @@ const GRAPH_EDGES: Array[Vector2i] = [
 	Vector2i(4, 5),
 ]
 const FINAL_NODE_ID := 5
+const ALIEN_FLEET_SIZE := 10
 const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
@@ -33,6 +38,8 @@ var current_node_id := 0
 var destination_node_id := -1
 var visited_nodes: Array[int] = [0]
 var battle_pending := false
+var difficulty := Difficulty.MEDIUM
+var battle_aliens: Array[RefCounted] = []
 var ship := Ship.new()
 var discovered_part_types: Array[int] = []
 var unviewed_discovered_part_types: Array[int] = []
@@ -42,17 +49,41 @@ var blue_tiles_available := STARTING_BLUE_TILE_COUNT
 var green_tiles_available := STARTING_GREEN_TILE_COUNT
 
 
-func start_new_run() -> void:
+func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
+	if not [
+		Difficulty.EASY,
+		Difficulty.MEDIUM,
+		Difficulty.HARD,
+	].has(selected_difficulty):
+		push_error("Cannot start a run with an unknown difficulty.")
+		return false
+
 	current_node_id = 0
 	destination_node_id = -1
 	visited_nodes = [0]
 	battle_pending = false
+	difficulty = selected_difficulty as Difficulty
+	battle_aliens.clear()
 	ship.clear()
 	red_tiles_available = STARTING_RED_TILE_COUNT
 	blue_tiles_available = STARTING_BLUE_TILE_COUNT
 	green_tiles_available = STARTING_GREEN_TILE_COUNT
 	tile_inventory_changed.emit()
 	ship_stats_changed.emit()
+	return true
+
+
+func get_difficulty_multiplier() -> float:
+	match difficulty:
+		Difficulty.EASY:
+			return 0.75
+		Difficulty.MEDIUM:
+			return 1.0
+		Difficulty.HARD:
+			return 1.5
+		_:
+			push_error("Unknown game difficulty: %s" % difficulty)
+			return 0.0
 
 
 func get_available_tile_count(category: int) -> int:
@@ -156,8 +187,22 @@ func get_reachable_nodes(from_node_id: int) -> Array[int]:
 func set_destination(node_id: int) -> bool:
 	if not get_reachable_nodes(current_node_id).has(node_id):
 		return false
+	var difficulty_multiplier := get_difficulty_multiplier()
+	if difficulty_multiplier <= 0.0:
+		return false
+	var next_battle_aliens: Array[AlienShipType] = AlienShipType.create_random_fleet(
+		ALIEN_FLEET_SIZE,
+		difficulty_multiplier
+	)
+	if next_battle_aliens.size() != ALIEN_FLEET_SIZE:
+		push_error("Could not create the alien fleet for the selected destination.")
+		return false
+
 	destination_node_id = node_id
 	battle_pending = true
+	battle_aliens.clear()
+	for alien in next_battle_aliens:
+		battle_aliens.append(alien)
 	return true
 
 
@@ -174,9 +219,11 @@ func complete_battle() -> bool:
 		visited_nodes.append(current_node_id)
 	destination_node_id = -1
 	battle_pending = false
+	battle_aliens.clear()
 	return true
 
 
 func cancel_battle() -> void:
 	destination_node_id = -1
 	battle_pending = false
+	battle_aliens.clear()

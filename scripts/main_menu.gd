@@ -1,6 +1,6 @@
 extends Control
 
-const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
+const GAME_SETUP_SCENE_PATH := "res://scenes/game_setup.tscn"
 const PLAY_TRANSITION_DURATION := 4.0
 const GAME_TITLE_TEXT := "LEVIATHAN PROTOCOL"
 const WARP_SFX: AudioStreamMP3 = preload("res://assets/audio/sfx/warp.mp3")
@@ -60,12 +60,11 @@ func _on_play_pressed() -> void:
 	)
 	await transition_tween.finished
 
-	var error := get_tree().change_scene_to_file(MAP_SCENE_PATH)
+	var error := get_tree().change_scene_to_file(GAME_SETUP_SCENE_PATH)
 	if error != OK:
-		push_error("Could not open the game map scene. Error code: %s" % error)
+		push_error("Could not open the game setup scene. Error code: %s" % error)
 		await _restore_menu_after_failed_transition()
 		return
-	GameState.start_new_run()
 
 
 func _restore_menu_after_failed_transition() -> void:

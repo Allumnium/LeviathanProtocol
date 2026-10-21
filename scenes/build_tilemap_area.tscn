@@ -32,6 +32,7 @@ snap_2d_transforms_to_pixel = true
 snap_2d_vertices_to_pixel = true
 
 [node name="GridLayer" type="TileMapLayer" parent="PanRoot"]
+modulate = Color(1, 1, 1, 0.5)
 
 [node name="HullPolygon" type="Polygon2D" parent="PanRoot"]
 color = Color(0.38, 0.38, 0.4, 1)
