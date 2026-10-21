@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://bdifmeulvjpoc" path="res://scenes/settings_dialog.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/main_menu_starfield.gd" id="3_starfield"]
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="4_icon_button"]
+[ext_resource type="FontFile" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="5_title_font"]
 
 [node name="MainMenu" type="Control" unique_id=513972528]
 layout_mode = 3
@@ -52,12 +53,12 @@ theme_override_constants/separation = 12
 [node name="PlayButton" type="Button" parent="CenterContainer/MenuButtons" unique_id=1455338528]
 custom_minimum_size = Vector2(180, 48)
 layout_mode = 2
-text = "Play"
+text = "PLAY"
 
 [node name="QuitButton" type="Button" parent="CenterContainer/MenuButtons" unique_id=74552834]
 custom_minimum_size = Vector2(180, 48)
 layout_mode = 2
-text = "Quit"
+text = "QUIT"
 
 [node name="SettingsButton" parent="." unique_id=431812827 instance=ExtResource("4_icon_button")]
 custom_minimum_size = Vector2(48, 48)
@@ -77,6 +78,27 @@ tooltip_text = "Settings"
 
 [node name="SettingsDialog" parent="." unique_id=1725069118 instance=ExtResource("2")]
 visible = false
+
+[node name="GameTitle" type="Label" parent="."]
+z_index = 2
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 36.0
+offset_right = -24.0
+offset_bottom = 92.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.82, 0.94, 1, 1)
+theme_override_colors/font_outline_color = Color(0.12, 0.55, 0.78, 1)
+theme_override_colors/font_shadow_color = Color(0.12, 0.65, 0.9, 0.7)
+theme_override_constants/outline_size = 2
+theme_override_constants/shadow_offset_y = 4
+theme_override_fonts/font = ExtResource("5_title_font")
+theme_override_font_sizes/font_size = 40
+text = "LEVIATHAN PROTOCOL"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="WhiteFade" type="ColorRect" parent="."]
 visible = false

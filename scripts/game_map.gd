@@ -145,34 +145,51 @@ func _refresh_ship_stats() -> void:
 		child.queue_free()
 
 	no_weapons_label.visible = stats.weapons.is_empty()
-	var visible_weapon_index := 0
+	var grouped_weapons: Array[ShipWeaponStats] = []
+	var weapon_counts: Array[int] = []
 	for weapon in stats.weapons:
+		var group_index := -1
+		for index in range(grouped_weapons.size()):
+			if grouped_weapons[index].weapon_name == weapon.weapon_name:
+				group_index = index
+				break
+		if group_index < 0:
+			grouped_weapons.append(weapon)
+			weapon_counts.append(1)
+		else:
+			weapon_counts[group_index] = weapon_counts[group_index] + 1
+
+	for group_index in range(grouped_weapons.size()):
+		var weapon := grouped_weapons[group_index]
 		var weapon_details: Array[String] = []
 		var fire_rate := weapon.get_fire_rate_per_second()
 		if not is_zero_approx(fire_rate):
-			weapon_details.append("Fire rate: %.2f shots/sec" % fire_rate)
+			weapon_details.append("Fire rate: %.2f per sec" % fire_rate)
 		if not is_zero_approx(weapon.damage_per_shot):
 			weapon_details.append(
 				"Damage per shot: %s" % _format_stat_value(weapon.damage_per_shot)
 			)
 		if weapon.projectiles_per_activation != 0:
 			weapon_details.append(
-				"Shots per activation: %d" % weapon.projectiles_per_activation
+				"Shots: %d" % weapon.projectiles_per_activation
 			)
 		var weapon_dps := weapon.get_dps()
 		if not is_zero_approx(weapon_dps):
-			weapon_details.append("DPS: %.2f" % weapon_dps)
+			var group_dps := weapon_dps * weapon_counts[group_index]
+			weapon_details.append("DPS: %.2f (%.2f)" % [weapon_dps, group_dps])
 		if weapon_details.is_empty():
 			continue
 
-		visible_weapon_index += 1
 		var weapon_label := Label.new()
-		weapon_label.name = "Weapon%d" % visible_weapon_index
+		weapon_label.name = "WeaponGroup%d" % (group_index + 1)
 		weapon_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		weapon_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		weapon_label.add_theme_font_size_override("font_size", 11)
-		weapon_label.text = "Weapon %d\n%s" % [
-			visible_weapon_index,
+		var weapon_display_name := weapon.weapon_name
+		if weapon_counts[group_index] > 1:
+			weapon_display_name += " (x%d)" % weapon_counts[group_index]
+		weapon_label.text = "%s\n%s" % [
+			weapon_display_name,
 			"\n".join(weapon_details),
 		]
 		weapon_rows.add_child(weapon_label)

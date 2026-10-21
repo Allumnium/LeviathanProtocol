@@ -47,7 +47,7 @@ func get_stats() -> ShipStats:
 			stats.weight += 1.0
 
 	var filled_hull_area := get_filled_hull_area()
-	stats.integrity += filled_hull_area
+	stats.integrity += filled_hull_area * ShipStats.INTEGRITY_MULTIPLIER
 	stats.weight += filled_hull_area
 	return stats
 

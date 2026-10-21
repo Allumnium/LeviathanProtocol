@@ -1,16 +1,19 @@
 class_name ShipWeaponStats
 extends RefCounted
 
+var weapon_name: String
 var fire_interval_seconds: float
 var damage_per_shot: float
 var projectiles_per_activation: int
 
 
 func _init(
+	p_weapon_name: String,
 	p_fire_interval_seconds: float,
 	p_damage_per_shot: float,
 	p_projectiles_per_activation: int
 ) -> void:
+	weapon_name = p_weapon_name
 	fire_interval_seconds = p_fire_interval_seconds
 	damage_per_shot = p_damage_per_shot
 	projectiles_per_activation = p_projectiles_per_activation
@@ -33,6 +36,7 @@ func get_dps() -> float:
 
 func copy() -> ShipWeaponStats:
 	return ShipWeaponStats.new(
+		weapon_name,
 		fire_interval_seconds,
 		damage_per_shot,
 		projectiles_per_activation

@@ -1,6 +1,6 @@
 extends Control
 
-const BOLD_FONT = preload("res://assets/fonts/GameFont_bold.ttf")
+const HEADER_FONT = preload("res://assets/fonts/mechanical_animals/Mechanical Animals.ttf")
 const ROW_PANEL_STYLE = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const PATTERN_DIAGRAM_SIZE := 20.0
 const PATTERN_CELL_GAP := 1
@@ -72,9 +72,9 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	contents.add_child(details)
 
 	var name_label := Label.new()
-	name_label.text = pattern.display_name
+	name_label.text = pattern.display_name.to_upper()
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.add_theme_font_override("font", BOLD_FONT)
+	name_label.add_theme_font_override("font", HEADER_FONT)
 	name_label.add_theme_font_size_override("font_size", 12)
 	details.add_child(name_label)
 
@@ -94,25 +94,26 @@ func _create_stats_description(pattern: ShipPartPattern) -> VBoxContainer:
 	var description := VBoxContainer.new()
 	description.add_theme_constant_override("separation", 2)
 	_append_stat_contribution(description, "Shields", pattern.stats.shields)
-	_append_stat_contribution(description, "Integrity", pattern.stats.integrity)
+	_append_stat_contribution(
+		description,
+		"Integrity",
+		pattern.stats.integrity * ShipStats.INTEGRITY_MULTIPLIER
+	)
 	_append_stat_contribution(description, "Weight", pattern.stats.weight)
 	_append_stat_contribution(description, "Thrust", pattern.stats.thrust)
 
-	for index in range(pattern.stats.weapons.size()):
-		var weapon := pattern.stats.weapons[index]
+	for weapon in pattern.stats.weapons:
 		var weapon_details: Array[String] = []
 		var fire_rate := weapon.get_fire_rate_per_second()
 		if not is_zero_approx(fire_rate):
-			weapon_details.append("Fire rate: %.2f shots/sec" % fire_rate)
+			weapon_details.append("Fire rate: %.2f per sec" % fire_rate)
 		if not is_zero_approx(weapon.damage_per_shot):
 			weapon_details.append(
 				"Damage/shot: %s" % _format_stat_value(weapon.damage_per_shot)
 			)
 		if weapon.projectiles_per_activation != 0:
-			var shot_word := "shot" if weapon.projectiles_per_activation == 1 else "shots"
 			weapon_details.append(
-				"Shots/activation: %d %s"
-				% [weapon.projectiles_per_activation, shot_word]
+				"Shots: %d" % weapon.projectiles_per_activation
 			)
 		var weapon_dps := weapon.get_dps()
 		if not is_zero_approx(weapon_dps):
@@ -120,8 +121,8 @@ func _create_stats_description(pattern: ShipPartPattern) -> VBoxContainer:
 
 		if not weapon_details.is_empty():
 			var weapon_description := Label.new()
-			weapon_description.text = "Weapon %d: %s" % [
-				index + 1,
+			weapon_description.text = "%s: %s" % [
+				weapon.weapon_name,
 				", ".join(weapon_details),
 			]
 			weapon_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -235,7 +236,7 @@ func _refresh_discovery_masks() -> void:
 		var is_discovered := GameState.has_discovered_part(_part_patterns[index].part_type)
 		_part_images[index].modulate = Color.WHITE if is_discovered else Color.BLACK
 		_part_name_labels[index].text = (
-			_part_patterns[index].display_name if is_discovered else "???"
+			_part_patterns[index].display_name.to_upper() if is_discovered else "???"
 		)
 		_part_description_containers[index].visible = is_discovered
 		_part_pattern_grids[index].visible = is_discovered

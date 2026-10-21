@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/build_tilemap_area.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/ui/build_grid.png" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/icons/blue_square.png" id="4"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/green_square.png" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/build_selector_button.tscn" id="6"]
+[ext_resource type="Script" path="res://scripts/build_viewport_starfield.gd" id="7_starfield"]
 
 [node name="BuildTilemapArea" type="Control"]
 layout_mode = 1
@@ -22,6 +23,9 @@ grid_texture = ExtResource("2")
 red_tile_texture = ExtResource("3")
 blue_tile_texture = ExtResource("4")
 green_tile_texture = ExtResource("5")
+
+[node name="BackgroundStars" type="Node2D" parent="."]
+script = ExtResource("7_starfield")
 
 [node name="PanRoot" type="Node2D" parent="."]
 snap_2d_transforms_to_pixel = true

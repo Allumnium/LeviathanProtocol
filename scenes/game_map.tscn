@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/archive_tab.gd" id="11_archive"]
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="12_icon_button"]
 [ext_resource type="Texture2D" path="res://assets/help.png" id="13_help_icon"]
+[ext_resource type="FontFile" uid="uid://bcgalexdne6gv" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="14_header_font"]
 
 [node name="GameMap" type="Control" unique_id=1888779315]
 layout_mode = 3
@@ -99,21 +100,21 @@ custom_minimum_size = Vector2(90, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-text = "Build"
+text = "BUILD"
 
 [node name="UpgradesTabButton" type="Button" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons"]
 custom_minimum_size = Vector2(90, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-text = "Upgrades"
+text = "UPGRADES"
 
 [node name="ArchiveTabButton" type="Button" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons"]
 custom_minimum_size = Vector2(90, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-text = "Archive"
+text = "ARCHIVE"
 
 [node name="UnreadCount" type="Label" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton"]
 visible = false
@@ -193,8 +194,9 @@ theme_override_constants/separation = 4
 
 [node name="StatsHeader" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("14_header_font")
 theme_override_font_sizes/font_size = 14
-text = "Ship Stats"
+text = "SHIP STATS"
 
 [node name="StatRows" type="VBoxContainer" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2
@@ -207,8 +209,9 @@ size_flags_horizontal = 3
 
 [node name="WeaponsHeader" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("14_header_font")
 theme_override_font_sizes/font_size = 13
-text = "Weapons"
+text = "WEAPONS"
 
 [node name="WeaponRows" type="VBoxContainer" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2
@@ -225,7 +228,7 @@ custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 theme = ExtResource("4_kqil0")
-text = "Deploy"
+text = "DEPLOY"
 
 [node name="GraphModal" type="Control" parent="." unique_id=213025514]
 visible = false

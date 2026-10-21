@@ -1,7 +1,13 @@
 78098b89c88a74ebe8c20117b8754620
 ::res://::1792393275
-::res://assets/::1792557503
+::res://assets/::1792560188
 armor_m.png::CompressedTexture2D::3834720320891863420::1792544142::1792544192::1::::<><><>0<>0<>88a6ca1b5c926b4947466257f6e10c94<>res://.godot/imported/armor_m.png-9cfba395867d8234f216ceaa81b307b6.ctex::
+drones_large.png::CompressedTexture2D::8295796739712500548::1792560188::1792560203::1::::<><><>0<>0<>227f4146823a20108730adf65395bf2e<>res://.godot/imported/drones_large.png-7066163855ca909cb8dc9a299f247363.ctex::
+drone_chrysalis.png::CompressedTexture2D::5938256605759681628::1792559978::1792560203::1::::<><><>0<>0<>ad14b1f01881619e0de6a46309da4a37<>res://.godot/imported/drone_chrysalis.png-55d8189ada18e8227339e2c5f568ac25.ctex::
+drone_fighter.png::CompressedTexture2D::5685585863960658794::1792559955::1792560203::1::::<><><>0<>0<>35f7323d30b64157eca08a260bf9f50d<>res://.godot/imported/drone_fighter.png-5899013089c4a0e028a3fbde9a88cb71.ctex::
+drone_scout.png::CompressedTexture2D::7534085067715566745::1792559905::1792560203::1::::<><><>0<>0<>715f586a4ea55a6e24f6baedcbe626c2<>res://.godot/imported/drone_scout.png-9f4dc8746590b7a3d745e3648200d221.ctex::
+drone_sentinel.png::CompressedTexture2D::4022268790481336453::1792559997::1792560203::1::::<><><>0<>0<>427a0a275aa1a6ec3451175f11158abc<>res://.godot/imported/drone_sentinel.png-598900c4364cabbdf5a6d30853b6755d.ctex::
+drone_support.png::CompressedTexture2D::5034923496914788367::1792559937::1792560203::1::::<><><>0<>0<>5c2513097970a43ea8e7f47be3829bd9<>res://.godot/imported/drone_support.png-50f89d682f385c6a5cd7cf3ddc1904c5.ctex::
 help.png::CompressedTexture2D::6000287928241254341::1792556717::1792556747::1::::<><><>0<>0<>72bb6a8765cf40777f59a82621e43df6<>res://.godot/imported/help.png-69191651314d24a1460914055b301d5a.ctex::
 laser.png::CompressedTexture2D::1079439899891277110::1792540464::1792540547::1::::<><><>0<>0<>59a37cf7e6d88846da8565fbc3bc0baf<>res://.godot/imported/laser.png-af9ca9427a51d96a36a733a4aa4be8b2.ctex::
 laser_m.png::CompressedTexture2D::3940787861282998897::1792555750::1792555778::1::::<><><>0<>0<>eb1a2010d773d6ce1b3dc437a57ff70d<>res://.godot/imported/laser_m.png-3a6c1b238a13c76db9fd7d1fb86468ad.ctex::
@@ -15,30 +21,31 @@ thruster_l.png::CompressedTexture2D::5107071253035950152::1792554103::1792554257
 thruster_s.png::CompressedTexture2D::8555687727216905449::1792553340::1792553435::1::::<><><>0<>0<>7b6c37de0a4f1431957ce517d43ddaf4<>res://.godot/imported/thruster_s.png-660a62f76e54b5958f0a22016c6489bc.ctex::
 ::res://assets/audio/::1792389580
 default_bus_layout.tres::AudioBusLayout::-1::1792392490::0::1::::<><><>0<>0<><>::
-::res://assets/audio/music/::1792554522
+::res://assets/audio/music/::1792558668
 ambient_space.mp3::AudioStreamMP3::2904825613310912876::1792271077::1792389260::1::::<><><>0<>0<>8efd460a9ac9d5b0ee6eb27987cb96c4<>res://.godot/imported/ambient_space.mp3-12f644e57256f8e73193dc06774508cd.mp3str::
 build1.mp3::AudioStreamMP3::5145383100081343087::1792271827::1792389262::1::::<><><>0<>0<>2a978176a3063eafa3380f5b71af7c93<>res://.godot/imported/build1.mp3-f4e2450bee7cef042f7485cd9ff5095d.mp3str::
+cometbustersmusic.mp3::AudioStreamMP3::5568675544132108019::1766990879::1792558668::1::::<><><>0<>0<>7a25ee0af597ec3d16f558f98a955c75<>res://.godot/imported/cometbustersmusic.mp3-fb0384f214211b9deae9e40abb0d0466.mp3str::
 Orbital Cartridge.mp3::AudioStreamMP3::4280044541437829156::1792554381::1792554522::1::::<><><>0<>0<>cc9de21c70e399b40c56ac6503e6db0f<>res://.godot/imported/Orbital Cartridge.mp3-e092fef56dff0b5545b7b67c09a0429e.mp3str::
 Phalanx Runner.mp3::AudioStreamMP3::979229550545480207::1792554390::1792554522::1::::<><><>0<>0<>5345c838787d1c97e901bc8c7abca4eb<>res://.godot/imported/Phalanx Runner.mp3-82befb7b46086cdbd62577967afc615f.mp3str::
 Phalanx Signal.mp3::AudioStreamMP3::8135761114559103373::1792551819::1792551847::1::::<><><>0<>0<>eada02e7acc0348eb7679ea1416a914d<>res://.godot/imported/Phalanx Signal.mp3-1fb206646a9d17d0a5085369737197d6.mp3str::
 Quantum Wrench Bay.mp3::AudioStreamMP3::6934875514823976008::1792550540::1792550594::1::::<><><>0<>0<>f12e9bf319639bd538135222bdc854f4<>res://.godot/imported/Quantum Wrench Bay.mp3-745021f759fbc86ddca9f8e13f78aabf.mp3str::
 Star Cartridge.mp3::AudioStreamMP3::1213873790004046153::1792554375::1792554522::1::::<><><>0<>0<>7959e83b95242d363007ade643874a0e<>res://.godot/imported/Star Cartridge.mp3-7d85a5f14700ede429e70448cbb6dd57.mp3str::
 Turbo Wrench Loop.mp3::AudioStreamMP3::2406659866918412068::1792550883::1792550976::1::::<><><>0<>0<>3a0a4b0894ff83b7cd72923efc82917d<>res://.godot/imported/Turbo Wrench Loop.mp3-6c01b02a5a50c838c251b737e6372245.mp3str::
-::res://assets/audio/sfx/::1792553088
+::res://assets/audio/sfx/::1792559320
 dialogue_type.mp3::AudioStreamMP3::2511832373304670640::1792393471::1792393489::1::::<><><>0<>0<>bcf64cbe4a1e91d3e851f21c2998d0ba<>res://.godot/imported/dialogue_type.mp3-1542f3ea20a55e2eb7e01221a070ecf1.mp3str::
 morph.mp3::AudioStreamMP3::5860256213177460299::1792552843::1792552871::1::::<><><>0<>0<>37bf9768db948dc5e054524e13d8da90<>res://.godot/imported/morph.mp3-a98209498f01a1d06e14b23aa4076990.mp3str::
 notification.mp3::AudioStreamMP3::5110593680018938191::1771365886::1792393251::1::::<><><>0<>0<>fecc263ccb3b0fa928617ff17b876a0c<>res://.godot/imported/notification.mp3-ce6d3591cce62cd02a8cfbdf0fa73f44.mp3str::
 place.wav::AudioStreamWAV::6208830450375807773::1767315397::1792553088::1::::<><><>0<>0<>97d3f55819f40655f8c655aade075721<>res://.godot/imported/place.wav-a10188ae742fbf402cf915ec19b36e7a.sample::
-::res://assets/fonts/::1792557850
+thrust-large-loop.mp3::AudioStreamMP3::4439196781467884713::1773639922::1792559320::1::::<><><>0<>0<>9b8d6ea5341b2f3f63af32821dab8a69<>res://.godot/imported/thrust-large-loop.mp3-5b31d69ec566062f5ddfff01565664ee.mp3str::
+thruster_low_loop.mp3::AudioStreamMP3::7994072093302601552::1773639660::1792559320::1::::<><><>0<>0<>08782a33b2fd3174b9d08910a6cc7aed<>res://.godot/imported/thruster_low_loop.mp3-6072b8a6a3fbd44021e941360c7abb6c.mp3str::
+warp.mp3::AudioStreamMP3::5610113461597721365::1768762987::1792558115::1::::<><><>0<>0<>5f3615582f33ce270bef389531128a1c<>res://.godot/imported/warp.mp3-7b106ffb97a320228f7f127e1264c9fd.mp3str::
+::res://assets/fonts/::1792558212
 GameFont.ttf::FontFile::2629393814952799775::1767002422::1792387648::1::::<><><>0<>0<>0cd3415200ce967f4f4d9d89b34c362e<>res://.godot/imported/GameFont.ttf-08537cfa755367dfaf93220f42b1c929.fontdata::
 GameFont_bold.ttf::FontFile::2216763418015101761::1767002243::1792387648::1::::<><><>0<>0<>4251cf42adc0fd5feef1803915d01d70<>res://.godot/imported/GameFont_bold.ttf-3e5e844ede0c635c33c2ca565e6a717f.fontdata::
-::res://assets/fonts/mechanica/::1792557836
+::res://assets/fonts/mechanica/::1792557889
 Mechanica.ttf::FontFile::5281506143301402902::1792557836::1792557889::1::::<><><>0<>0<>f01dc4fe3e8d198e870850609d18c126<>res://.godot/imported/Mechanica.ttf-bfce7851b1acc72c1629a80242a48e1a.fontdata::
-::res://assets/fonts/mechanical_animals/::1792557841
+::res://assets/fonts/mechanical_animals/::1792557889
 Mechanical Animals.ttf::FontFile::2539204527004252397::1792557841::1792557889::1::::<><><>0<>0<>47056e789b222534def526ed2a39e36b<>res://.godot/imported/Mechanical Animals.ttf-d1f68a53053e012365a3dedf1bc0585c.fontdata::
-::res://assets/fonts/robot_4/::1792557846
-README.txt::TextFile::-1::1792557846::0::1::::<><><>0<>0<><>::
-Robot Personal Use.otf::FontFile::2064268652856842383::1792557846::1792557889::1::::<><><>0<>0<>3eac4893a0c96835f44fd15bd91e526e<>res://.godot/imported/Robot Personal Use.otf-23b3865d47b939cefc4611df8a16c693.fontdata::
 ::res://assets/ui/::1792390162
 build_grid.png::CompressedTexture2D::7934651726686893858::1792390076::1792390162::1::::<><><>0<>0<>77ad1320cac4f59a9da4f00842fea8bc<>res://.godot/imported/build_grid.png-49d44816fd21598c9d3136eaf2bb84ec.ctex::
 ::res://assets/ui/buttons/::1792387946
@@ -62,33 +69,34 @@ simple_panel_3x.png::CompressedTexture2D::3436914593644789613::1792386899::17923
 ::res://scenes/::1792556914
 auto_battle.tscn::PackedScene::-1::1792390800::0::1::::<><><>0<>0<><>::res://scripts/auto_battle.gd
 build_selector_button.tscn::PackedScene::-1::1792540156::0::1::::<><><>0<>0<><>::res://scripts/build_selector_button.gd<>res://assets/ui/buttons/circular_button.png<>res://assets/ui/buttons/circular_button_highlighted.png<>res://assets/ui/buttons/circular_button_pressed.png<>res://assets/ui/buttons/circular_button_selected.png<>res://assets/ui/icons/red_square.png
-build_tilemap_area.tscn::PackedScene::-1::1792554940::0::1::::<><><>0<>0<><>::res://scripts/build_tilemap_area.gd<>res://assets/ui/build_grid.png<>res://assets/ui/icons/red_square.png<>res://assets/ui/icons/blue_square.png<>res://assets/ui/icons/green_square.png<>res://scenes/build_selector_button.tscn
+build_tilemap_area.tscn::PackedScene::-1::1792559883::0::1::::<><><>0<>0<><>::res://scripts/build_tilemap_area.gd<>res://assets/ui/build_grid.png<>res://assets/ui/icons/red_square.png<>res://assets/ui/icons/blue_square.png<>res://assets/ui/icons/green_square.png<>res://scenes/build_selector_button.tscn
 circular_icon_button.tscn::PackedScene::-1::1792556914::0::1::::<><><>0<>0<><>::
-game_map.tscn::PackedScene::2595092660318710675::1792556914::0::1::::<><><>0<>0<><>::uid://b5bsj2qhnw6rb::::res://scripts/game_map.gd<>res://scenes/build_tilemap_area.tscn<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn<>uid://yojn4otwqbnx::::res://scenes/how_to_play_dialog.tscn<>uid://cq30vongxvgsa::::res://scenes/victory_dialog.tscn<>uid://cveoehe7moy2l::::res://scripts/graph_view.gd
-how_to_play_dialog.tscn::PackedScene::1714004749822994837::1792393513::0::1::::<><><>0<>0<><>::res://scenes/modal_dialog.tscn
-main_menu.tscn::PackedScene::9029200949143378062::1792557725::0::1::::<><><>0<>0<><>::uid://bcff6c8gb6kac::::res://scripts/main_menu.gd<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn
-modal_dialog.tscn::PackedScene::1365998054698664529::1792395326::0::1::::<><><>0<>0<><>::uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf
-settings_dialog.tscn::PackedScene::2613827492648080658::1792556780::0::1::::<><><>0<>0<><>::uid://tpx12myxr54h::::res://scenes/modal_dialog.tscn<>uid://f1o1rko5ghnl::::res://scripts/settings_dialog.gd
-victory_dialog.tscn::PackedScene::5955221624913099028::1792394498::0::1::::<><><>0<>0<><>::uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf<>uid://dda4r57psoolt::::res://themes/ui_theme.tres
-::res://scripts/::1792556525
-archive_tab.gd::GDScript::8235263830509742978::1792556982::0::1::::<>Control<><>0<>0<><>::
-audio_manager.gd::GDScript::3212756527198988516::1792555098::0::1::::<>Node<><>0<>0<><>::
-auto_battle.gd::GDScript::4190985707995589048::1792390800::0::1::::<>Control<><>0<>0<><>::
+game_map.tscn::PackedScene::2595092660318710675::1792558471::0::1::::<><><>0<>0<><>::uid://b5bsj2qhnw6rb::::res://scripts/game_map.gd<>res://scenes/build_tilemap_area.tscn<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn<>uid://yojn4otwqbnx::::res://scenes/how_to_play_dialog.tscn<>uid://cq30vongxvgsa::::res://scenes/victory_dialog.tscn<>uid://cveoehe7moy2l::::res://scripts/graph_view.gd
+how_to_play_dialog.tscn::PackedScene::1714004749822994837::1792558471::0::1::::<><><>0<>0<><>::res://scenes/modal_dialog.tscn
+main_menu.tscn::PackedScene::9029200949143378062::1792559459::0::1::::<><><>0<>0<><>::uid://bcff6c8gb6kac::::res://scripts/main_menu.gd<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://bdifmeulvjpoc::::res://scenes/settings_dialog.tscn
+modal_dialog.tscn::PackedScene::1365998054698664529::1792557974::0::1::::<><><>0<>0<><>::uid://dda4r57psoolt::::res://themes/ui_theme.tres<>uid://bcgalexdne6gv::::res://assets/fonts/mechanical_animals/Mechanical Animals.ttf
+settings_dialog.tscn::PackedScene::2613827492648080658::1792558471::0::1::::<><><>0<>0<><>::uid://tpx12myxr54h::::res://scenes/modal_dialog.tscn<>uid://f1o1rko5ghnl::::res://scripts/settings_dialog.gd
+victory_dialog.tscn::PackedScene::5955221624913099028::1792558471::0::1::::<><><>0<>0<><>::uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf<>uid://dda4r57psoolt::::res://themes/ui_theme.tres
+::res://scripts/::1792559883
+archive_tab.gd::GDScript::8235263830509742978::1792559285::0::1::::<>Control<><>0<>0<><>::
+audio_manager.gd::GDScript::3212756527198988516::1792559364::0::1::::<>Node<><>0<>0<><>::
+auto_battle.gd::GDScript::4190985707995589048::1792558552::0::1::::<>Control<><>0<>0<><>::
 build_selector_button.gd::GDScript::562306567188138696::1792540138::0::1::::<>TextureButton<><>0<>0<><>::
-build_tilemap_area.gd::GDScript::8384620326435759678::1792556088::0::1::::<>Control<><>0<>0<><>::
-game_map.gd::GDScript::4495260791786718751::1792556982::0::1::::<>Control<><>0<>0<><>::
+build_tilemap_area.gd::GDScript::8384620326435759678::1792559883::0::1::::<>Control<><>0<>0<><>::
+build_viewport_starfield.gd::GDScript::2247003740637165466::1792559883::0::1::::BuildViewportStarfield<>Node2D<><>0<>0<><>::
+game_map.gd::GDScript::4495260791786718751::1792559285::0::1::::<>Control<><>0<>0<><>::
 game_state.gd::GDScript::6077380003634046097::1792555393::0::1::::<>Node<><>0<>0<><>::
 graph_view.gd::GDScript::6255922151188688561::1792382624::0::1::::GraphView<>Control<><>0<>0<><>::
-main_menu.gd::GDScript::2537479360614773682::1792557797::0::1::::<>Control<><>0<>0<><>::
-main_menu_starfield.gd::GDScript::2685788357836567031::1792557797::0::1::::<>Control<><>0<>0<><>::
+main_menu.gd::GDScript::2537479360614773682::1792559977::0::1::::<>Control<><>0<>0<><>::
+main_menu_starfield.gd::GDScript::2685788357836567031::1792559364::0::1::::<>Control<><>0<>0<><>::
 settings_dialog.gd::GDScript::405515417357400881::1792556780::0::1::::<>PopupPanel<><>0<>0<><>::
-ship.gd::GDScript::2196189535834771539::1792556088::0::1::::Ship<>RefCounted<><>0<>0<><>::
+ship.gd::GDScript::2196189535834771539::1792559199::0::1::::Ship<>RefCounted<><>0<>0<><>::
 ship_part.gd::GDScript::7088635168022501851::1792556077::0::1::::ShipPart<>RefCounted<><>0<>0<><>::
-ship_part_pattern.gd::GDScript::1004640185120287067::1792555816::0::1::::ShipPartPattern<>RefCounted<><>0<>0<><>::
-ship_part_stats.gd::GDScript::1104444506355225880::1792554173::0::1::::ShipPartStats<>RefCounted<><>0<>0<><>::
-ship_stats.gd::GDScript::6124947875415806807::1792554173::0::1::::ShipStats<>RefCounted<><>0<>0<><>::
-ship_weapon_stats.gd::GDScript::3671429612489468479::1792554173::0::1::::ShipWeaponStats<>RefCounted<><>0<>0<><>::
+ship_part_pattern.gd::GDScript::1004640185120287067::1792559199::0::1::::ShipPartPattern<>RefCounted<><>0<>0<><>::
+ship_part_stats.gd::GDScript::1104444506355225880::1792559199::0::1::::ShipPartStats<>RefCounted<><>0<>0<><>::
+ship_stats.gd::GDScript::6124947875415806807::1792559199::0::1::::ShipStats<>RefCounted<><>0<>0<><>::
+ship_weapon_stats.gd::GDScript::3671429612489468479::1792559199::0::1::::ShipWeaponStats<>RefCounted<><>0<>0<><>::
 stat_display_row.gd::GDScript::8667810644450149048::1792556982::0::1::::StatDisplayRow<>VBoxContainer<><>0<>0<><>::
 ::res://styles/::1792387631
 ::res://themes/::1792395226
-ui_theme.tres::Theme::7371621359120408881::1792396049::0::1::::<><><>0<>0<><>::uid://bqn2tsvmxlmkl::::res://assets/ui/panels/panel_nine_patch.tres<>uid://cuo4815jnqj5h::::res://assets/ui/buttons/button.png<>uid://cdj7cxq56vqxq::::res://assets/ui/buttons/button_pressed.png<>uid://bdpxy5fp552rb::::res://assets/fonts/GameFont.ttf<>uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf<>uid://dvjqfo0psdmk5::::res://assets/ui/buttons/button_highlighted.png<>uid://ceuy7glfq4gtg::::res://assets/ui/panels/simple_panel.png<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres
+ui_theme.tres::Theme::7371621359120408881::1792558268::0::1::::<><><>0<>0<><>::uid://bqn2tsvmxlmkl::::res://assets/ui/panels/panel_nine_patch.tres<>uid://cuo4815jnqj5h::::res://assets/ui/buttons/button.png<>uid://cdj7cxq56vqxq::::res://assets/ui/buttons/button_pressed.png<>uid://6t21fxg7c4q4::::res://assets/fonts/GameFont_bold.ttf<>uid://bcgalexdne6gv::::res://assets/fonts/mechanical_animals/Mechanical Animals.ttf<>uid://dvjqfo0psdmk5::::res://assets/ui/buttons/button_highlighted.png<>uid://ceuy7glfq4gtg::::res://assets/ui/panels/simple_panel.png<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres

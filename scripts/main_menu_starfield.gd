@@ -5,7 +5,10 @@ const MIN_STAR_COUNT := 72
 const MAX_STAR_COUNT := 220
 const STAR_CLICK_RADIUS := 10.0
 const CLICK_FLASH_DURATION := 0.8
-const MIN_STAR_DEPTH := 0.08
+const MAX_FLIGHT_ANGLE_DEGREES := 35.0
+const FLIGHT_TURN_SPEED_DEGREES_PER_SECOND := 45.0
+const MIN_STAR_DEPTH := 0.00000001
+const STAR_CULL_MARGIN_SCALE := 17.0
 const MIN_INITIAL_STAR_DEPTH := 0.24
 const MAX_STAR_RADIUS_SCALE := 5.0
 const MIN_TRAVEL_SPEED := 0.025
@@ -45,22 +48,73 @@ var _stars: Array[TwinkleStar] = []
 var _random := RandomNumberGenerator.new()
 var _elapsed_time := 0.0
 var _warp_progress := 0.0
+var _flight_pitch_degrees := 0.0
+var _flight_yaw_degrees := 0.0
+var _steering_direction := Vector2.ZERO
 
 
 func _ready() -> void:
 	_random.randomize()
 	resized.connect(_on_resized)
 	call_deferred("_generate_stars")
+	AudioManager.set_menu_thruster_mode(Input.is_key_pressed(KEY_SHIFT))
+
+
+func _exit_tree() -> void:
+	AudioManager.stop_menu_thrusters()
 
 
 func _process(delta: float) -> void:
 	_elapsed_time += delta
+	var pitch_input := 0.0
+	if Input.is_physical_key_pressed(KEY_W):
+		pitch_input += 1.0
+	if Input.is_physical_key_pressed(KEY_S):
+		pitch_input -= 1.0
+	var yaw_input := 0.0
+	if Input.is_physical_key_pressed(KEY_D):
+		yaw_input += 1.0
+	if Input.is_physical_key_pressed(KEY_A):
+		yaw_input -= 1.0
+
+	var is_shift_pressed := Input.is_key_pressed(KEY_SHIFT)
+	AudioManager.set_menu_thruster_mode(is_shift_pressed)
+	var speed_multiplier := 2.0 if is_shift_pressed else 1.0
+	var turn_speed := FLIGHT_TURN_SPEED_DEGREES_PER_SECOND * speed_multiplier
+	_flight_pitch_degrees = clampf(
+		_flight_pitch_degrees + pitch_input * turn_speed * delta,
+		-MAX_FLIGHT_ANGLE_DEGREES,
+		MAX_FLIGHT_ANGLE_DEGREES
+	)
+	_flight_yaw_degrees = clampf(
+		_flight_yaw_degrees + yaw_input * turn_speed * delta,
+		-MAX_FLIGHT_ANGLE_DEGREES,
+		MAX_FLIGHT_ANGLE_DEGREES
+	)
+	_steering_direction = Vector2(
+		-tan(deg_to_rad(_flight_yaw_degrees)),
+		tan(deg_to_rad(_flight_pitch_degrees))
+	)
+	var max_steering_strength := tan(deg_to_rad(MAX_FLIGHT_ANGLE_DEGREES))
+	if _steering_direction.length() > max_steering_strength:
+		_steering_direction = (
+			_steering_direction.normalized() * max_steering_strength
+		)
+
 	var eased_warp_progress := _warp_progress * _warp_progress
-	var travel_multiplier := lerpf(1.0, 80.0, eased_warp_progress)
+	var travel_multiplier := lerpf(1.0, 80.0, eased_warp_progress) * speed_multiplier
 	for star in _stars:
 		star.click_flash_remaining = maxf(star.click_flash_remaining - delta, 0.0)
-		star.depth -= star.travel_speed * travel_multiplier * delta
-		if star.depth <= MIN_STAR_DEPTH or _is_star_offscreen(star):
+		var depth_travel := star.travel_speed * travel_multiplier * delta
+		var next_depth := maxf(star.depth - depth_travel, MIN_STAR_DEPTH)
+
+		var current_position_offset := star.world_offset / star.depth
+		var next_position_offset := star.world_offset / next_depth
+		var radial_displacement := next_position_offset - current_position_offset
+		next_position_offset += _steering_direction * radial_displacement.length()
+		star.world_offset = next_position_offset * next_depth
+		star.depth = next_depth
+		if next_depth <= MIN_STAR_DEPTH or _is_star_offscreen(star):
 			_reset_star_position(star, false)
 	queue_redraw()
 
@@ -138,8 +192,9 @@ func _draw() -> void:
 				1.0
 			)
 			var streak_length := 			star.radius * sprite_scale * streak_progress * 2.5
+			var travel_direction := _get_star_travel_direction(star)
 			draw_line(
-				star_position - star.world_offset.normalized() * streak_length,
+				star_position - travel_direction * streak_length,
 				star_position,
 				Color(tint.r, tint.g, tint.b, 0.18 * brightness * streak_progress),
 				maxf(star.radius * 0.45, 0.6),
@@ -250,10 +305,14 @@ func _get_star_position(star: TwinkleStar) -> Vector2:
 	return size * 0.5 + star.world_offset * maxf(size.x, size.y) / star.depth
 
 
+func _get_star_travel_direction(star: TwinkleStar) -> Vector2:
+	return (star.world_offset.normalized() + _steering_direction).normalized()
+
+
 func _is_star_offscreen(star: TwinkleStar) -> bool:
 	var star_position := _get_star_position(star)
 	var radius_scale := minf(1.0 / star.depth, MAX_STAR_RADIUS_SCALE)
-	var margin := star.radius * radius_scale * 4.0
+	var margin := star.radius * radius_scale * STAR_CULL_MARGIN_SCALE
 	return (
 		star_position.x < -margin
 		or star_position.x > size.x + margin

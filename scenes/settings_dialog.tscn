@@ -11,7 +11,7 @@ content_scale_factor = 1.0
 script = ExtResource("2_script")
 
 [node name="Title" parent="Contents" parent_id_path=PackedInt32Array(569822189) index="0" unique_id=253182740]
-text = "Settings"
+text = "SETTINGS"
 
 [node name="MusicRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="0" unique_id=1817432263]
 custom_minimum_size = Vector2(0, 32)
@@ -65,7 +65,7 @@ value = 50.0
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Quit to menu"
+text = "QUIT TO MENU"
 
 [node name="QuitConfirmOverlay" type="Control" parent="."]
 visible = false
@@ -120,9 +120,9 @@ alignment = 1
 [node name="CancelButton" type="Button" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons"]
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
-text = "Cancel"
+text = "CANCEL"
 
 [node name="QuitButton" type="Button" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons"]
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
-text = "Quit"
+text = "QUIT"

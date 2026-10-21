@@ -28,6 +28,7 @@ func copy() -> ShipPartStats:
 
 
 static func with_weapon(
+	p_weapon_name: String,
 	p_weight: float,
 	fire_interval_seconds: float,
 	damage_per_shot: float,
@@ -36,6 +37,7 @@ static func with_weapon(
 	var stats := ShipPartStats.new(0.0, 0.0, p_weight, 0.0)
 	stats.weapons.append(
 		ShipWeaponStats.new(
+			p_weapon_name,
 			fire_interval_seconds,
 			damage_per_shot,
 			projectiles_per_activation

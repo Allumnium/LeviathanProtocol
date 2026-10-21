@@ -6,7 +6,7 @@
 size = Vector2i(500, 250)
 
 [node name="Title" parent="Contents" index="0"]
-text = "How to Play"
+text = "HOW TO PLAY"
 
 [node name="Body" type="Label" parent="Contents/ContentArea" index="0"]
 layout_mode = 2

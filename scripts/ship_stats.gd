@@ -1,6 +1,8 @@
 class_name ShipStats
 extends RefCounted
 
+const INTEGRITY_MULTIPLIER := 1.0 / 3.0
+
 var shields := 0.0
 var integrity := 0.0
 var weight := 0.0
@@ -20,7 +22,7 @@ func add_equipment(equipment_stats: ShipPartStats) -> void:
 		return
 
 	shields += equipment_stats.shields
-	integrity += equipment_stats.integrity
+	integrity += equipment_stats.integrity * INTEGRITY_MULTIPLIER
 	weight += equipment_stats.weight
 	thrust += equipment_stats.thrust
 	for weapon in equipment_stats.weapons:

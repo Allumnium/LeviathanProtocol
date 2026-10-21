@@ -32,6 +32,7 @@ const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 @export var green_tile_texture: Texture2D
 
 @onready var pan_root: Node2D = $PanRoot
+@onready var background_starfield: BuildViewportStarfield = $BackgroundStars
 @onready var grid_layer: TileMapLayer = $PanRoot/GridLayer
 @onready var hull_polygon: Polygon2D = $PanRoot/HullPolygon
 @onready var placed_layer: TileMapLayer = $PanRoot/PlacedLayer
@@ -898,10 +899,15 @@ func _clear_preview() -> void:
 func _set_initial_pan_position() -> void:
 	if _initial_pan_position_set or size.x <= 0.0 or size.y <= 0.0:
 		return
-	var map_size := Vector2(map_dimensions.x * tile_size.x, map_dimensions.y * tile_size.y) * pan_root.scale
+	var world_map_size := Vector2(
+		map_dimensions.x * tile_size.x,
+		map_dimensions.y * tile_size.y
+	)
+	var map_size := world_map_size * pan_root.scale
 	pan_root.position = (size - map_size) / 2.0
 	_initial_pan_position_set = true
 	_clamp_pan_position()
+	background_starfield.configure(world_map_size, size, MIN_ZOOM)
 
 
 func _on_resized() -> void:

@@ -156,7 +156,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			],
 			"Double Laser",
 			LARGE_LASER_TEXTURE,
-			ShipPartStats.with_weapon(6.0, 4.0, 12.0, 2)
+			ShipPartStats.with_weapon("Double Laser", 6.0, 4.0, 12.0, 2)
 		)
 	)
 	patterns.append(
@@ -191,7 +191,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Laser",
 			LASER_TEXTURE,
-			ShipPartStats.with_weapon(3.0, 5.0, 12.0, 1)
+			ShipPartStats.with_weapon("Laser", 3.0, 5.0, 12.0, 1)
 		)
 	)
 	patterns.append(
@@ -220,7 +220,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0)],
 			"Mini Turret",
 			MINI_TURRET_TEXTURE,
-			ShipPartStats.with_weapon(1.0, 1.0, 1.0, 1)
+			ShipPartStats.with_weapon("Mini Turret", 1.0, 1.0, 1.0, 1)
 		)
 	)
 	return patterns

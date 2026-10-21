@@ -4,7 +4,12 @@ const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 
 
 func _ready() -> void:
+	AudioManager.play_battle_ambience()
 	_resolve_battle()
+
+
+func _exit_tree() -> void:
+	AudioManager.stop_battle_ambience()
 
 
 func _resolve_battle() -> void:
