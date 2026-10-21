@@ -5,18 +5,21 @@ var weapon_name: String
 var fire_interval_seconds: float
 var damage_per_shot: float
 var projectiles_per_activation: int
+var range_units: float
 
 
 func _init(
 	p_weapon_name: String,
 	p_fire_interval_seconds: float,
 	p_damage_per_shot: float,
-	p_projectiles_per_activation: int
+	p_projectiles_per_activation: int,
+	p_range_units: float = 220.0
 ) -> void:
 	weapon_name = p_weapon_name
 	fire_interval_seconds = p_fire_interval_seconds
 	damage_per_shot = p_damage_per_shot
 	projectiles_per_activation = p_projectiles_per_activation
+	range_units = p_range_units
 
 
 func get_fire_rate_per_second() -> float:
@@ -39,5 +42,6 @@ func copy() -> ShipWeaponStats:
 		weapon_name,
 		fire_interval_seconds,
 		damage_per_shot,
-		projectiles_per_activation
+		projectiles_per_activation,
+		range_units
 	)

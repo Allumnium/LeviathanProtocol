@@ -30,3 +30,6 @@ res://scripts/ship_part_stats.gd
 res://scripts/ship_stats.gd
 res://scripts/ship_weapon_stats.gd
 res://scripts/battle_visuals.gd
+res://scripts/alien_ship.gd
+res://scripts/battle_simulation.gd
+res://tests/test_battle.gd

@@ -29,7 +29,8 @@ const GRAPH_EDGES: Array[Vector2i] = [
 	Vector2i(4, 5),
 ]
 const FINAL_NODE_ID := 5
-const ALIEN_FLEET_SIZE := 10
+const MIN_ALIEN_FLEET_SIZE := 3
+const MAX_ALIEN_FLEET_SIZE := 8
 const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
@@ -185,16 +186,24 @@ func get_reachable_nodes(from_node_id: int) -> Array[int]:
 
 
 func set_destination(node_id: int) -> bool:
+	if active_part_transformations > 0:
+		push_error("Cannot deploy while ship parts are transforming.")
+		return false
 	if not get_reachable_nodes(current_node_id).has(node_id):
+		return false
+	var player_stats := ship.get_stats()
+	if player_stats.integrity <= 0.0 or player_stats.dps <= 0.0:
+		push_error("Deployment requires a ship with integrity and a working weapon.")
 		return false
 	var difficulty_multiplier := get_difficulty_multiplier()
 	if difficulty_multiplier <= 0.0:
 		return false
+	var fleet_size := randi_range(MIN_ALIEN_FLEET_SIZE, MAX_ALIEN_FLEET_SIZE)
 	var next_battle_aliens: Array[AlienShipType] = AlienShipType.create_random_fleet(
-		ALIEN_FLEET_SIZE,
+		fleet_size,
 		difficulty_multiplier
 	)
-	if next_battle_aliens.size() != ALIEN_FLEET_SIZE:
+	if next_battle_aliens.size() != fleet_size:
 		push_error("Could not create the alien fleet for the selected destination.")
 		return false
 

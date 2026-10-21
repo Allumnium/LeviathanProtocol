@@ -2,24 +2,37 @@ class_name BattleVisuals
 extends Control
 
 const BUILD_CELL_SIZE := Vector2(26.0, 26.0)
-const ALIEN_COUNT_COLUMNS := 4
-const ALIEN_CELL_GAP := 8.0
-const ALIEN_MAX_SIZE := 64.0
-const PLAYER_MAX_SCALE := 4.0
 const HULL_COLOR := Color(0.38, 0.38, 0.4, 1.0)
 const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
-const DIVIDER_COLOR := Color(0.2, 0.32, 0.38, 0.7)
 const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.png")
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
-const AlienShipType = preload("res://scripts/alien_ship.gd")
 
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
+var simulation: BattleSimulation
+var camera_position := Vector2.ZERO
+var camera_zoom := 0.65
+var stars := PackedVector2Array()
+
+
+func world_transform() -> Transform2D:
+	return Transform2D(0.0, Vector2.ONE * camera_zoom, 0.0,
+		size * 0.5 - camera_position * camera_zoom)
+
+
+func _set_ship_transform(position: Vector2, angle: float, ship_scale: float = 1.0) -> void:
+	draw_set_transform_matrix(world_transform() * Transform2D(
+		angle, Vector2.ONE * ship_scale, 0.0, position))
 
 
 func _ready() -> void:
 	for pattern in ShipPartPattern.get_catalog():
 		_part_patterns_by_type[pattern.part_type] = pattern
+	var random := RandomNumberGenerator.new()
+	random.seed = 4815
+	for index in range(450):
+		stars.append(Vector2(random.randf_range(-1800.0, 1800.0),
+			random.randf_range(-1400.0, 1400.0)))
 	resized.connect(_on_resized)
 	queue_redraw()
 
@@ -29,28 +42,43 @@ func _on_resized() -> void:
 
 
 func _draw() -> void:
-	if size.x <= 0.0 or size.y <= 0.0:
+	if size.x <= 0.0 or size.y <= 0.0 or simulation == null:
 		return
-
-	var divider_x := size.x * 0.5
-	draw_line(
-		Vector2(divider_x, 16.0),
-		Vector2(divider_x, size.y - 16.0),
-		DIVIDER_COLOR,
-		1.0
-	)
-	_draw_player_ship()
+	draw_set_transform_matrix(world_transform())
+	for star in stars:
+		draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
+	for drop in simulation.drops:
+		if not drop.collected:
+			var color := Color.DODGER_BLUE
+			if drop.category == ShipPart.Category.OFFENSE:
+				color = Color.RED
+			elif drop.category == ShipPart.Category.SPECIAL:
+				color = Color.LIME_GREEN
+			draw_rect(Rect2(drop.position - Vector2.ONE * 4.0, Vector2.ONE * 8.0), color)
+			draw_rect(Rect2(drop.position - Vector2.ONE * 6.0, Vector2.ONE * 12.0),
+				Color(color, 0.3), false, 1.0)
+	if simulation.player.is_alive():
+		_draw_player_ship()
 	_draw_alien_fleet()
+	draw_set_transform_matrix(world_transform())
+	for beam in simulation.beams:
+		draw_line(beam.source.position, beam.target.position,
+			Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
+	for projectile in simulation.projectiles:
+		var direction := (projectile.target.position - projectile.position).normalized()
+		draw_line(projectile.position - direction * 12.0, projectile.position,
+			Color(0.4, 1.0, 0.25, 0.7), 2.0, true)
+		draw_circle(projectile.position, 2.5, Color(0.8, 1.0, 0.3))
+	for explosion in simulation.explosions:
+		var progress := 1.0 - explosion.lifetime / 0.6
+		draw_arc(explosion.position, 4.0 + progress * 32.0, 0.0, TAU, 24,
+			Color(1.0, 0.45, 0.1, 1.0 - progress), 3.0, true)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 func _draw_player_ship() -> void:
 	var cells := GameState.ship.get_tile_cells()
-	var player_area := Rect2(
-		Vector2(12.0, 16.0),
-		Vector2(size.x * 0.5 - 28.0, size.y - 32.0)
-	)
 	if cells.is_empty():
-		_draw_centered_message(player_area, "NO SHIP BUILT")
 		return
 
 	var minimum_x := cells[0].x
@@ -71,18 +99,8 @@ func _draw_player_ship() -> void:
 		float(minimum_x + maximum_x + 1) * BUILD_CELL_SIZE.x * 0.5,
 		float(minimum_y + maximum_y + 1) * BUILD_CELL_SIZE.y * 0.5
 	)
-	var rotated_size := Vector2(ship_size.y, ship_size.x)
-	var available_size := player_area.size * 0.92
-	var ship_scale := minf(
-		available_size.x / rotated_size.x,
-		available_size.y / rotated_size.y
-	)
-	ship_scale = minf(ship_scale, PLAYER_MAX_SCALE)
-	if ship_scale <= 0.0:
-		push_error("The player ship cannot be scaled into the battle viewport.")
-		return
-
-	draw_set_transform(player_area.get_center(), PI * 0.5, Vector2.ONE * ship_scale)
+	var ship_scale := 48.0 / maxf(ship_size.x, ship_size.y)
+	_set_ship_transform(simulation.player.position, simulation.player.heading + PI * 0.5, ship_scale)
 	var hull_points := PackedVector2Array()
 	for cell in cells:
 		var cell_top_left := Vector2(
@@ -159,77 +177,23 @@ func _draw_player_ship() -> void:
 			Rect2(visual_center - visual_size * 0.5, visual_size),
 			false
 		)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if simulation.player.hit_flash > 0.0:
+		draw_arc(Vector2.ZERO, maxf(ship_size.x, ship_size.y) * 0.55, 0.0, TAU, 32,
+			Color(0.4, 0.8, 1.0, 0.7), 2.0 / ship_scale, true)
+	draw_set_transform_matrix(world_transform())
 
 
 func _draw_alien_fleet() -> void:
-	var fleet: Array[RefCounted] = GameState.battle_aliens
-	if fleet.is_empty():
-		push_error("The battle viewport has no alien fleet to render.")
-		return
-
-	var columns := mini(ALIEN_COUNT_COLUMNS, fleet.size())
-	var rows := ceili(float(fleet.size()) / float(columns))
-	var alien_area := Rect2(
-		Vector2(size.x * 0.5 + 16.0, 16.0),
-		Vector2(size.x * 0.5 - 28.0, size.y - 32.0)
-	)
-	var max_cell_width := (
-		alien_area.size.x - float(columns - 1) * ALIEN_CELL_GAP
-	) / float(columns)
-	var max_cell_height := (
-		alien_area.size.y - float(rows - 1) * ALIEN_CELL_GAP
-	) / float(rows)
-	var cell_size := minf(ALIEN_MAX_SIZE, minf(max_cell_width, max_cell_height))
-	if cell_size <= 0.0:
-		push_error("The alien fleet cannot be fitted into the battle viewport.")
-		return
-
-	var total_width := float(columns) * cell_size + float(columns - 1) * ALIEN_CELL_GAP
-	var total_height := float(rows) * cell_size + float(rows - 1) * ALIEN_CELL_GAP
-	var first_cell_center := Vector2(
-		alien_area.get_center().x - total_width * 0.5 + cell_size * 0.5,
-		alien_area.get_center().y - total_height * 0.5 + cell_size * 0.5
-	)
-	for index in range(fleet.size()):
-		var alien := fleet[index] as AlienShipType
-		if alien == null:
-			push_error("The battle fleet contains an invalid alien ship.")
+	for alien in simulation.aliens:
+		if not alien.is_alive():
 			continue
-		if alien.texture == null:
-			push_error("The %s alien has no battle texture." % alien.display_name)
-			continue
-
-		var column := index % columns
-		var row := floori(float(index) / float(columns))
-		var cell_center := first_cell_center + Vector2(
-			float(column) * (cell_size + ALIEN_CELL_GAP),
-			float(row) * (cell_size + ALIEN_CELL_GAP)
-		)
-		var texture_size := alien.texture.get_size()
-		var texture_scale := cell_size / maxf(texture_size.x, texture_size.y)
-		var draw_size := texture_size * texture_scale
-		draw_set_transform(cell_center, -PI * 0.5, Vector2.ONE)
-		draw_texture_rect(alien.texture, Rect2(-draw_size * 0.5, draw_size), false)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-func _draw_centered_message(area: Rect2, message: String) -> void:
-	var font := get_theme_default_font()
-	if font == null:
-		push_error("No default font is available for the battle viewport.")
-		return
-	var font_size := 14
-	var baseline := area.get_center().y + font.get_height(font_size) * 0.5
-	draw_string(
-		font,
-		Vector2(area.position.x, baseline),
-		message,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		area.size.x,
-		font_size,
-		Color(0.75, 0.78, 0.82, 1.0)
-	)
+		var texture_size := alien.alien.texture.get_size()
+		var draw_size := texture_size * (32.0 / maxf(texture_size.x, texture_size.y))
+		_set_ship_transform(alien.position, alien.heading + PI * 0.5)
+		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false)
+		if alien.hit_flash > 0.0:
+			draw_arc(Vector2.ZERO, 19.0, 0.0, TAU, 24, Color(0.4, 0.9, 1.0, 0.8), 1.5, true)
+	draw_set_transform_matrix(world_transform())
 
 
 func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:

@@ -122,10 +122,15 @@ func _refresh_archive_unread_badge() -> void:
 
 
 func _refresh_deploy_button() -> void:
-	deploy_button.disabled = GameState.active_part_transformations > 0
+	var stats := GameState.ship.get_stats()
+	deploy_button.disabled = (
+		GameState.active_part_transformations > 0 or stats.integrity <= 0.0 or stats.dps <= 0.0
+	)
+	deploy_button.tooltip_text = "Build a ship with a weapon before deploying." if stats.dps <= 0.0 else ""
 
 
 func _refresh_ship_stats() -> void:
+	_refresh_deploy_button()
 	var stats := GameState.ship.get_stats()
 
 	for child in stat_rows.get_children():
@@ -221,7 +226,7 @@ func _on_destination_selected(node_id: int) -> void:
 
 
 func _on_deploy_pressed() -> void:
-	if GameState.active_part_transformations > 0:
+	if deploy_button.disabled:
 		return
 	graph_view.set_current_node(GameState.current_node_id)
 	graph_modal.show()

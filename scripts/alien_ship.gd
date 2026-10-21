@@ -44,34 +44,35 @@ static func get_catalog() -> Array[AlienShip]:
 		AlienShip.new(
 			"Chrysalis",
 			CHRYSALIS_TEXTURE,
-			_create_base_stats(24.0, 44.0, 28.0, 9.0, "Spore Launcher", 1.5, 5.0)
+			_create_base_stats(2.0, 12.0, 28.0, 9.0, "Spore Launcher", 1.5, 1.0, 200.0)
 		),
 		AlienShip.new(
 			"Fighter",
 			FIGHTER_TEXTURE,
-			_create_base_stats(8.0, 28.0, 14.0, 18.0, "Plasma Cannon", 0.8, 4.0)
+			_create_base_stats(1.0, 8.0, 14.0, 18.0, "Plasma Cannon", 0.8, 0.7, 180.0)
 		),
 		AlienShip.new(
 			"Scout",
 			SCOUT_TEXTURE,
-			_create_base_stats(4.0, 20.0, 8.0, 24.0, "Scout Pulse", 1.2, 2.4)
+			_create_base_stats(0.0, 6.0, 8.0, 24.0, "Scout Pulse", 1.2, 0.6, 190.0)
 		),
 		AlienShip.new(
 			"Sentinel",
 			SENTINEL_TEXTURE,
-			_create_base_stats(30.0, 70.0, 36.0, 6.0, "Sentinel Beam", 2.0, 8.0)
+			_create_base_stats(3.0, 14.0, 36.0, 6.0, "Sentinel Beam", 2.0, 1.4, 230.0)
 		),
 		AlienShip.new(
 			"Support",
 			SUPPORT_TEXTURE,
-			_create_base_stats(18.0, 26.0, 18.0, 12.0, "Support Pulse", 2.5, 3.0)
+			_create_base_stats(2.0, 8.0, 18.0, 12.0, "Support Pulse", 2.5, 1.0, 210.0)
 		),
 	]
 
 
 static func create_random_fleet(
 	ship_count: int,
-	difficulty_multiplier: float
+	difficulty_multiplier: float,
+	seed_value: int = -1
 ) -> Array[AlienShip]:
 	if ship_count <= 0:
 		push_error("An alien fleet must contain at least one ship.")
@@ -86,11 +87,14 @@ static func create_random_fleet(
 		return []
 
 	var random := RandomNumberGenerator.new()
-	random.randomize()
+	if seed_value >= 0:
+		random.seed = seed_value
+	else:
+		random.randomize()
 	var randomized_catalog: Array[AlienShip] = []
 	for definition in catalog:
 		randomized_catalog.append(definition)
-	randomized_catalog.shuffle()
+	_shuffle_fleet(randomized_catalog, random)
 
 	var fleet: Array[AlienShip] = []
 	for definition in randomized_catalog:
@@ -100,8 +104,37 @@ static func create_random_fleet(
 	while fleet.size() < ship_count:
 		var definition := catalog[random.randi_range(0, catalog.size() - 1)]
 		fleet.append(definition.scaled_for_difficulty(difficulty_multiplier))
-	fleet.shuffle()
+	_shuffle_fleet(fleet, random)
+	# A shared budget keeps a full swarm survivable for a 50-integrity, 10-DPS ship.
+	var total_health := 0.0
+	for alien in fleet:
+		total_health += alien.stats.integrity + alien.stats.shields
+	for alien in fleet:
+		var health_scale := 85.0 * difficulty_multiplier / total_health
+		alien.stats.integrity *= health_scale
+		alien.stats.shields *= health_scale
+	var focus_order := fleet.duplicate()
+	focus_order.sort_custom(func(a: AlienShip, b: AlienShip) -> bool:
+		return a.stats.integrity + a.stats.shields < b.stats.integrity + b.stats.shields)
+	var cumulative_health := 0.0
+	var expected_damage := 0.0
+	for alien in focus_order:
+		cumulative_health += alien.stats.integrity + alien.stats.shields
+		expected_damage += alien.stats.dps * cumulative_health / 10.0
+	# Account for how long each enemy survives focused fire, not just starting fleet DPS.
+	var damage_scale := 30.0 * difficulty_multiplier * difficulty_multiplier / expected_damage
+	for alien in fleet:
+		for weapon in alien.stats.weapons:
+			weapon.damage_per_shot *= damage_scale
 	return fleet
+
+
+static func _shuffle_fleet(fleet: Array[AlienShip], random: RandomNumberGenerator) -> void:
+	for index in range(fleet.size() - 1, 0, -1):
+		var other_index := random.randi_range(0, index)
+		var temporary := fleet[index]
+		fleet[index] = fleet[other_index]
+		fleet[other_index] = temporary
 
 
 func _scale_stats(difficulty_multiplier: float) -> ShipStats:
@@ -124,7 +157,8 @@ static func _create_base_stats(
 	thrust: float,
 	weapon_name: String,
 	fire_interval_seconds: float,
-	damage_per_shot: float
+	damage_per_shot: float,
+	range_units: float
 ) -> ShipStats:
 	var new_stats := ShipStats.new()
 	new_stats.shields = shields
@@ -132,6 +166,6 @@ static func _create_base_stats(
 	new_stats.weight = weight
 	new_stats.thrust = thrust
 	new_stats.weapons.append(
-		ShipWeaponStats.new(weapon_name, fire_interval_seconds, damage_per_shot, 1)
+		ShipWeaponStats.new(weapon_name, fire_interval_seconds, damage_per_shot, 1, range_units)
 	)
 	return new_stats

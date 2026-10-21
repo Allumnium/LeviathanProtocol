@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/modal_dialog.tscn" id="1_modal"]
 
 [node name="HowToPlayDialog" instance=ExtResource("1_modal")]
-size = Vector2i(500, 250)
+size = Vector2i(500, 350)
 
 [node name="Title" parent="Contents" index="0"]
 text = "HOW TO PLAY"
@@ -11,6 +11,15 @@ text = "HOW TO PLAY"
 [node name="Body" type="Label" parent="Contents/ContentArea" index="0"]
 layout_mode = 2
 size_flags_vertical = 3
-text = "Press Deploy, then select a reachable node."
+theme_override_font_sizes/font_size = 12
+text = "Build an armed ship, press Deploy, then select a reachable node.
+Your ship automatically fights 3-8 aliens and collects salvage.
+Ships keep weapon range, focus weak targets, and retreat on low shields.
+Drag or use WASD / arrows to pan. Mouse wheel zooms. Space follows your ship.
+Salvage: blue = common, red = uncommon, green = rare.
+Each alien has a 60% drop chance (65% blue, 25% red, 10% green).
+Collected squares are added to your build inventory.
+Ships are repaired between deployments; defeat does not advance the map."
+autowrap_mode = 2
 horizontal_alignment = 1
 vertical_alignment = 1
