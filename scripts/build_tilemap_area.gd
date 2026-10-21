@@ -13,6 +13,7 @@ const MAX_ZOOM := 3.0
 const ZOOM_STEP := 0.1
 const ZOOM_SMOOTHING := 12.0
 const KEYBOARD_PAN_SPEED := 420.0
+const MIDDLE_PAN_DRAG_THRESHOLD := 4.0
 
 @export var tile_size := Vector2i(26, 26)
 @export var map_dimensions := MAX_MAP_DIMENSIONS
@@ -26,7 +27,7 @@ const KEYBOARD_PAN_SPEED := 420.0
 @onready var placed_layer: TileMapLayer = $PanRoot/PlacedLayer
 @onready var parts_layer: Node2D = $PanRoot/PartsLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
-@onready var selector_row: HBoxContainer = $SelectorRow
+@onready var selector_row: VBoxContainer = $SelectorRow
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
@@ -43,6 +44,10 @@ var _preview_source_id := NO_SOURCE_ID
 var _tile_set: TileSet
 var _is_placing := false
 var _is_erasing := false
+var _is_panning := false
+var _middle_pan_moved := false
+var _middle_pan_start_position := Vector2.ZERO
+var _middle_pan_last_position := Vector2.ZERO
 var _last_placed_cell := INVALID_CELL
 var _last_erased_cell := INVALID_CELL
 var _initial_pan_position_set := false
@@ -187,6 +192,21 @@ func _input(event: InputEvent) -> void:
 		if local_motion_event == null:
 			return
 		var local_mouse_position := local_motion_event.position
+		if _is_panning:
+			if not _middle_pan_moved:
+				if (
+					local_mouse_position.distance_to(_middle_pan_start_position)
+					<= MIDDLE_PAN_DRAG_THRESHOLD
+				):
+					_middle_pan_last_position = local_mouse_position
+					return
+				_middle_pan_moved = true
+				_pan_by(local_mouse_position - _middle_pan_start_position)
+			else:
+				_pan_by(local_mouse_position - _middle_pan_last_position)
+			_middle_pan_last_position = local_mouse_position
+			_clear_preview()
+			return
 		if _is_placing:
 			_place_at_local_position(local_mouse_position)
 		elif _is_erasing:
@@ -195,7 +215,43 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var mouse_button_event := event as InputEventMouseButton
-	if mouse_button_event == null or mouse_button_event.pressed:
+	if mouse_button_event == null:
+		return
+	if mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE:
+		var local_mouse_button_event := (
+			make_input_local(mouse_button_event) as InputEventMouseButton
+		)
+		if local_mouse_button_event == null:
+			return
+		var local_mouse_position := local_mouse_button_event.position
+		if mouse_button_event.pressed:
+			if (
+				not is_visible_in_tree()
+				or not _is_mouse_over_build_area(local_mouse_position)
+				or _is_mouse_over_selector_row(local_mouse_position)
+			):
+				return
+			_is_placing = false
+			_is_erasing = false
+			_last_placed_cell = INVALID_CELL
+			_last_erased_cell = INVALID_CELL
+			_is_panning = true
+			_middle_pan_moved = false
+			_middle_pan_start_position = local_mouse_position
+			_middle_pan_last_position = local_mouse_position
+			_clear_preview()
+			accept_event()
+		elif _is_panning:
+			_is_panning = false
+			if (
+				not _middle_pan_moved
+				and _is_mouse_over_build_area(local_mouse_position)
+				and not _is_mouse_over_selector_row(local_mouse_position)
+			):
+				_pick_tile_at(_get_cell_at_local_position(local_mouse_position))
+			accept_event()
+		return
+	if mouse_button_event.pressed:
 		return
 	if mouse_button_event.button_index == MOUSE_BUTTON_LEFT:
 		_is_placing = false
@@ -234,12 +290,6 @@ func _gui_input(event: InputEvent) -> void:
 			_is_erasing = true
 			_last_erased_cell = INVALID_CELL
 			_erase_at_local_position(local_mouse_position)
-			accept_event()
-		return
-
-	if mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE:
-		if _is_mouse_over_build_area(local_mouse_position):
-			_pick_tile_at(_get_cell_at_local_position(local_mouse_position))
 			accept_event()
 		return
 
@@ -603,8 +653,12 @@ func _pan_with_keyboard(delta: float) -> void:
 	if direction.is_zero_approx():
 		return
 
+	_pan_by(direction.normalized() * KEYBOARD_PAN_SPEED * delta)
+
+
+func _pan_by(offset: Vector2) -> void:
 	var previous_position := pan_root.position
-	pan_root.position += direction.normalized() * KEYBOARD_PAN_SPEED * delta
+	pan_root.position += offset
 	_clamp_pan_position()
 	if _zoom_anchor_active:
 		_zoom_anchor_position += pan_root.position - previous_position
@@ -661,6 +715,7 @@ func _update_preview_at(local_mouse_position: Vector2) -> void:
 	if (
 		_selected_source_id == NO_SOURCE_ID
 		or _is_erasing
+		or _is_panning
 		or not is_visible_in_tree()
 	):
 		_clear_preview()
@@ -706,13 +761,14 @@ func _on_resized() -> void:
 func _clamp_pan_position() -> void:
 	var map_size := Vector2(map_dimensions.x * tile_size.x, map_dimensions.y * tile_size.y) * pan_root.scale
 	var position_limits := size - map_size
+	var viewport_center := size * 0.5
 	var minimum_position := Vector2(
-		minf(0.0, position_limits.x),
-		minf(0.0, position_limits.y)
+		minf(minf(0.0, position_limits.x), viewport_center.x - map_size.x),
+		minf(minf(0.0, position_limits.y), viewport_center.y - map_size.y)
 	)
 	var maximum_position := Vector2(
-		maxf(0.0, position_limits.x),
-		maxf(0.0, position_limits.y)
+		maxf(maxf(0.0, position_limits.x), viewport_center.x),
+		maxf(maxf(0.0, position_limits.y), viewport_center.y)
 	)
 	pan_root.position = Vector2(
 		clampf(pan_root.position.x, minimum_position.x, maximum_position.x),

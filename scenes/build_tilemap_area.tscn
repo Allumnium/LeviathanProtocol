@@ -36,12 +36,12 @@ snap_2d_vertices_to_pixel = true
 [node name="PreviewLayer" type="TileMapLayer" parent="PanRoot"]
 modulate = Color(1, 1, 1, 0.5)
 
-[node name="SelectorRow" type="HBoxContainer" parent="."]
+[node name="SelectorRow" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchor_left = 0.04
-anchor_top = 0.05
-anchor_right = 0.445
-anchor_bottom = 0.42
+anchor_left = 0.01
+anchor_top = 0.06
+anchor_right = 0.14
+anchor_bottom = 0.94
 theme_override_constants/separation = 8
 
 [node name="RedBuildButton" parent="SelectorRow" instance=ExtResource("6")]

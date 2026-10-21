@@ -85,11 +85,38 @@ theme_override_styles/panel = ExtResource("6_kqil0")
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="TabButtons" type="HBoxContainer" parent="Layout/UpperArea/LeftPanel/PanelContents"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BuildTabButton" type="Button" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons"]
+custom_minimum_size = Vector2(90, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Build"
+
+[node name="UpgradesTabButton" type="Button" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons"]
+custom_minimum_size = Vector2(90, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Upgrades"
+
+[node name="ArchiveTabButton" type="Button" parent="Layout/UpperArea/LeftPanel/PanelContents/TabButtons"]
+custom_minimum_size = Vector2(90, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Archive"
+
 [node name="Tabs" type="TabContainer" parent="Layout/UpperArea/LeftPanel/PanelContents" unique_id=1538854626]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 tab_alignment = 0
+tabs_visible = false
 theme = ExtResource("4_kqil0")
 current_tab = 0
 
@@ -121,7 +148,7 @@ horizontal_scroll_mode = 3
 [node name="ArchiveRows" type="VBoxContainer" parent="Layout/UpperArea/LeftPanel/PanelContents/Tabs/Archive/ArchiveScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 4
 metadata/_tab_index = 2
 
 [node name="DetailsPanel" type="PanelContainer" parent="Layout/UpperArea" unique_id=2056260239]

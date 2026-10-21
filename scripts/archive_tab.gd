@@ -1,11 +1,13 @@
 extends Control
 
 const BOLD_FONT = preload("res://assets/fonts/GameFont_bold.ttf")
+const ROW_PANEL_STYLE = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 
 @onready var archive_rows: VBoxContainer = $ArchiveScroll/ArchiveRows
 
-var _part_types: Array[int] = []
+var _part_patterns: Array[ShipPartPattern] = []
 var _part_images: Array[TextureRect] = []
+var _part_name_labels: Array[Label] = []
 
 
 func _ready() -> void:
@@ -17,11 +19,12 @@ func _ready() -> void:
 
 func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	var row := PanelContainer.new()
-	row.custom_minimum_size = Vector2(0, 104)
+	row.custom_minimum_size = Vector2(0, 64)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_stylebox_override("panel", ROW_PANEL_STYLE)
 
 	var contents := HBoxContainer.new()
-	contents.add_theme_constant_override("separation", 8)
+	contents.add_theme_constant_override("separation", 4)
 	row.add_child(contents)
 
 	var image_center := CenterContainer.new()
@@ -31,7 +34,7 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	contents.add_child(image_center)
 
 	var image := TextureRect.new()
-	image.custom_minimum_size = Vector2(80, 80)
+	image.custom_minimum_size = Vector2(40, 40)
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	image.texture = pattern.preview_texture
@@ -43,30 +46,33 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	details.size_flags_stretch_ratio = 1.0
-	details.add_theme_constant_override("separation", 4)
+	details.add_theme_constant_override("separation", 2)
 	contents.add_child(details)
 
 	var name_label := Label.new()
 	name_label.text = pattern.display_name
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.add_theme_font_override("font", BOLD_FONT)
+	name_label.add_theme_font_size_override("font_size", 12)
 	details.add_child(name_label)
 
 	var description_label := Label.new()
 	description_label.text = "TODO"
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	description_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	description_label.add_theme_font_size_override("font_size", 10)
 	details.add_child(description_label)
 
-	_part_types.append(pattern.part_type)
+	_part_patterns.append(pattern)
 	_part_images.append(image)
+	_part_name_labels.append(name_label)
 	return row
 
 
 func _refresh_discovery_masks() -> void:
 	for index in range(_part_images.size()):
-		_part_images[index].modulate = (
-			Color.WHITE
-			if GameState.has_discovered_part(_part_types[index])
-			else Color.BLACK
+		var is_discovered := GameState.has_discovered_part(_part_patterns[index].part_type)
+		_part_images[index].modulate = Color.WHITE if is_discovered else Color.BLACK
+		_part_name_labels[index].text = (
+			_part_patterns[index].display_name if is_discovered else "???"
 		)

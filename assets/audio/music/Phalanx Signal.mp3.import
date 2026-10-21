@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dn6a2dhv2e1k8"
+path="res://.godot/imported/Phalanx Signal.mp3-1fb206646a9d17d0a5085369737197d6.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/music/Phalanx Signal.mp3"
+dest_files=["res://.godot/imported/Phalanx Signal.mp3-1fb206646a9d17d0a5085369737197d6.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
