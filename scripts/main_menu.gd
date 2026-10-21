@@ -1,11 +1,17 @@
 extends Control
 
 const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
+const PLAY_TRANSITION_DURATION := 4.0
 
+@onready var menu_ui: Control = $CenterContainer
 @onready var play_button: Button = $CenterContainer/MenuButtons/PlayButton
-@onready var settings_button: Button = $CenterContainer/MenuButtons/SettingsButton
+@onready var settings_button: TextureButton = $SettingsButton
 @onready var quit_button: Button = $CenterContainer/MenuButtons/QuitButton
 @onready var settings_dialog: PopupPanel = $SettingsDialog
+@onready var starfield: Control = $Starfield
+@onready var white_fade: ColorRect = $WhiteFade
+
+var _is_starting_run := false
 
 
 func _ready() -> void:
@@ -16,10 +22,67 @@ func _ready() -> void:
 
 
 func _on_play_pressed() -> void:
-	GameState.start_new_run()
+	if _is_starting_run:
+		return
+
+	_is_starting_run = true
+	play_button.disabled = true
+	settings_button.disabled = true
+	quit_button.disabled = true
+	menu_ui.hide()
+	settings_button.hide()
+	settings_dialog.hide()
+	white_fade.color = Color(1.0, 1.0, 1.0, 0.0)
+	white_fade.show()
+
+	var transition_tween := create_tween()
+	transition_tween.set_parallel()
+	transition_tween.tween_property(
+		white_fade,
+		"color",
+		Color.WHITE,
+		PLAY_TRANSITION_DURATION / 3.0
+	).set_delay(PLAY_TRANSITION_DURATION * 2.0 / 3.0)
+	transition_tween.tween_method(
+		Callable(starfield, "set_warp_progress"),
+		0.0,
+		1.0,
+		PLAY_TRANSITION_DURATION
+	)
+	await transition_tween.finished
+
 	var error := get_tree().change_scene_to_file(MAP_SCENE_PATH)
 	if error != OK:
 		push_error("Could not open the game map scene. Error code: %s" % error)
+		await _restore_menu_after_failed_transition()
+		return
+	GameState.start_new_run()
+
+
+func _restore_menu_after_failed_transition() -> void:
+	var restore_tween := create_tween()
+	restore_tween.set_parallel()
+	restore_tween.tween_property(
+		white_fade,
+		"color",
+		Color(1.0, 1.0, 1.0, 0.0),
+		0.5
+	)
+	restore_tween.tween_method(
+		Callable(starfield, "set_warp_progress"),
+		1.0,
+		0.0,
+		0.5
+	)
+	await restore_tween.finished
+
+	white_fade.hide()
+	menu_ui.show()
+	settings_button.show()
+	play_button.disabled = false
+	settings_button.disabled = false
+	quit_button.disabled = false
+	_is_starting_run = false
 
 
 func _on_settings_pressed() -> void:

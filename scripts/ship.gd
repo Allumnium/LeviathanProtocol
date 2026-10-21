@@ -45,7 +45,58 @@ func get_stats() -> ShipStats:
 	for cell in get_tile_cells():
 		if not occupied_cells.has(cell):
 			stats.weight += 1.0
+
+	var filled_hull_area := get_filled_hull_area()
+	stats.integrity += filled_hull_area
+	stats.weight += filled_hull_area
 	return stats
+
+
+func get_filled_hull_area() -> float:
+	if tiles.is_empty():
+		return 0.0
+
+	var tile_corners := PackedVector2Array()
+	for cell in get_tile_cells():
+		var top_left := Vector2(cell)
+		tile_corners.append(top_left)
+		tile_corners.append(top_left + Vector2.RIGHT)
+		tile_corners.append(top_left + Vector2.ONE)
+		tile_corners.append(top_left + Vector2.DOWN)
+
+	var hull := Geometry2D.convex_hull(tile_corners)
+	var excluded_cells: Dictionary[Vector2i, bool] = {}
+	for part in parts:
+		_add_hidden_cells(excluded_cells, part)
+	for part in _transitioning_parts:
+		_add_hidden_cells(excluded_cells, part)
+
+	return maxf(_get_polygon_area(hull) - float(excluded_cells.size()), 0.0)
+
+
+func _get_polygon_area(polygon: PackedVector2Array) -> float:
+	if polygon.size() < 3:
+		return 0.0
+
+	var twice_area := 0.0
+	for index in range(polygon.size()):
+		var next_index := (index + 1) % polygon.size()
+		var current_point := polygon[index]
+		var next_point := polygon[next_index]
+		twice_area += (
+			current_point.x * next_point.y
+			- next_point.x * current_point.y
+		)
+	return absf(twice_area) * 0.5
+
+
+func _add_hidden_cells(
+	excluded_cells: Dictionary[Vector2i, bool],
+	part: ShipPart
+) -> void:
+	for cell in part.get_hidden_tile_cells():
+		if tiles.has(cell):
+			excluded_cells[cell] = true
 
 
 func _add_part_stats(

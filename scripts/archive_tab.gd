@@ -10,7 +10,7 @@ const PATTERN_CELL_GAP := 1
 var _part_patterns: Array[ShipPartPattern] = []
 var _part_images: Array[TextureRect] = []
 var _part_name_labels: Array[Label] = []
-var _part_description_labels: Array[Label] = []
+var _part_description_containers: Array[VBoxContainer] = []
 var _part_pattern_grids: Array[GridContainer] = []
 
 
@@ -78,27 +78,25 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	name_label.add_theme_font_size_override("font_size", 12)
 	details.add_child(name_label)
 
-	var description_label := Label.new()
-	description_label.text = _get_stats_description(pattern)
-	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	description_label.add_theme_font_size_override("font_size", 10)
-	details.add_child(description_label)
+	var description_container := _create_stats_description(pattern)
+	description_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	details.add_child(description_container)
 
 	_part_patterns.append(pattern)
 	_part_images.append(image)
 	_part_name_labels.append(name_label)
-	_part_description_labels.append(description_label)
+	_part_description_containers.append(description_container)
 	_part_pattern_grids.append(pattern_grid)
 	return row
 
 
-func _get_stats_description(pattern: ShipPartPattern) -> String:
-	var description_lines: Array[String] = []
-	_append_stat_contribution(description_lines, "Shields", pattern.stats.shields)
-	_append_stat_contribution(description_lines, "Integrity", pattern.stats.integrity)
-	_append_stat_contribution(description_lines, "Weight", pattern.stats.weight)
-	_append_stat_contribution(description_lines, "Thrust", pattern.stats.thrust)
+func _create_stats_description(pattern: ShipPartPattern) -> VBoxContainer:
+	var description := VBoxContainer.new()
+	description.add_theme_constant_override("separation", 2)
+	_append_stat_contribution(description, "Shields", pattern.stats.shields)
+	_append_stat_contribution(description, "Integrity", pattern.stats.integrity)
+	_append_stat_contribution(description, "Weight", pattern.stats.weight)
+	_append_stat_contribution(description, "Thrust", pattern.stats.thrust)
 
 	for index in range(pattern.stats.weapons.size()):
 		var weapon := pattern.stats.weapons[index]
@@ -121,25 +119,32 @@ func _get_stats_description(pattern: ShipPartPattern) -> String:
 			weapon_details.append("DPS: %s" % _format_signed_stat_value(weapon_dps))
 
 		if not weapon_details.is_empty():
-			var weapon_description := ""
-			for detail in weapon_details:
-				if not weapon_description.is_empty():
-					weapon_description += ", "
-				weapon_description += detail
-			description_lines.append("Weapon %d: %s" % [index + 1, weapon_description])
+			var weapon_description := Label.new()
+			weapon_description.text = "Weapon %d: %s" % [
+				index + 1,
+				", ".join(weapon_details),
+			]
+			weapon_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			weapon_description.add_theme_font_size_override("font_size", 10)
+			description.add_child(weapon_description)
 
-	return "\n".join(description_lines)
+	return description
 
 
 func _append_stat_contribution(
-	description_lines: Array[String],
+	description: VBoxContainer,
 	stat_name: String,
 	value: float
 ) -> void:
 	if is_zero_approx(value):
 		return
-	description_lines.append(
-		"%s: %s" % [stat_name, _format_signed_stat_value(value)]
+	description.add_child(
+		StatDisplayRow.new(
+			stat_name,
+			value,
+			_format_signed_stat_value(value),
+			10
+		)
 	)
 
 
@@ -232,5 +237,5 @@ func _refresh_discovery_masks() -> void:
 		_part_name_labels[index].text = (
 			_part_patterns[index].display_name if is_discovered else "???"
 		)
-		_part_description_labels[index].visible = is_discovered
+		_part_description_containers[index].visible = is_discovered
 		_part_pattern_grids[index].visible = is_discovered

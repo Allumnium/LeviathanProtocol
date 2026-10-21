@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://tpx12myxr54h" path="res://scenes/modal_dialog.tscn" id="1_modal"]
 [ext_resource type="Script" uid="uid://f1o1rko5ghnl" path="res://scripts/settings_dialog.gd" id="2_script"]
+[ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="3_panel"]
 
 [node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
 initial_position = 1
@@ -59,3 +60,69 @@ vertical_alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 value = 50.0
+
+[node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="3"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Quit to menu"
+
+[node name="QuitConfirmOverlay" type="Control" parent="."]
+visible = false
+z_index = 10
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="QuitConfirmOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.78)
+
+[node name="CenterContainer" type="CenterContainer" parent="QuitConfirmOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ConfirmationPanel" type="PanelContainer" parent="QuitConfirmOverlay/CenterContainer"]
+custom_minimum_size = Vector2(320, 144)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("3_panel")
+
+[node name="Contents" type="VBoxContainer" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="WarningLabel" type="Label" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "You will lose all progress,\nare you sure?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ConfirmationButtons" type="HBoxContainer" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+text = "Cancel"
+
+[node name="QuitButton" type="Button" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons"]
+custom_minimum_size = Vector2(100, 40)
+layout_mode = 2
+text = "Quit"

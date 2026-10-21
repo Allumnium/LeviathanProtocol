@@ -9,6 +9,8 @@
 [ext_resource type="PackedScene" uid="uid://cq30vongxvgsa" path="res://scenes/victory_dialog.tscn" id="9"]
 [ext_resource type="Script" uid="uid://cveoehe7moy2l" path="res://scripts/graph_view.gd" id="10"]
 [ext_resource type="Script" path="res://scripts/archive_tab.gd" id="11_archive"]
+[ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="12_icon_button"]
+[ext_resource type="Texture2D" path="res://assets/help.png" id="13_help_icon"]
 
 [node name="GameMap" type="Control" unique_id=1888779315]
 layout_mode = 3
@@ -57,17 +59,18 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HowToPlayButton" type="Button" parent="Layout/TopBar/BarContents" unique_id=1004545367]
-custom_minimum_size = Vector2(148, 36)
+[node name="HowToPlayButton" parent="Layout/TopBar/BarContents" unique_id=1004545367 instance=ExtResource("12_icon_button")]
+custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
-theme = ExtResource("4_kqil0")
-text = "How to Play"
+tooltip_text = "How to Play"
 
-[node name="SettingsButton" type="Button" parent="Layout/TopBar/BarContents" unique_id=1518485851]
-custom_minimum_size = Vector2(120, 36)
+[node name="Icon" parent="Layout/TopBar/BarContents/HowToPlayButton" index="0"]
+texture = ExtResource("13_help_icon")
+
+[node name="SettingsButton" parent="Layout/TopBar/BarContents" unique_id=1518485851 instance=ExtResource("12_icon_button")]
+custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
-theme = ExtResource("4_kqil0")
-text = "Settings"
+tooltip_text = "Settings"
 
 [node name="UpperArea" type="HBoxContainer" parent="Layout" unique_id=277411845]
 layout_mode = 2
@@ -193,30 +196,10 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Ship Stats"
 
-[node name="ShieldsStat" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
+[node name="StatRows" type="VBoxContainer" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Shields: 0"
-
-[node name="IntegrityStat" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Integrity: 0"
-
-[node name="WeightStat" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Weight: 0"
-
-[node name="ThrustStat" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Thrust: 0"
-
-[node name="DPSStat" type="Label" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "DPS: 0.00"
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="WeaponsSeparator" type="HSeparator" parent="Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2

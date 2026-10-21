@@ -24,3 +24,5 @@ res://scripts/ship.gd
 res://scripts/ship_part.gd
 res://scripts/ship_part_pattern.gd
 res://scripts/archive_tab.gd
+res://scripts/main_menu_starfield.gd
+res://scripts/stat_display_row.gd

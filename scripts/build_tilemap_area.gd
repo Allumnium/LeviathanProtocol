@@ -505,7 +505,8 @@ func _try_morph_pattern(
 			pattern.category,
 			origin,
 			cell_offsets,
-			pattern.stats
+			pattern.stats,
+			pattern.get_hidden_tile_offsets_for_rotation(quarter_turns)
 		)
 		if GameState.has_discovered_part(part.type):
 			if not GameState.ship.add_part(part):
