@@ -16,7 +16,10 @@ var dps: float:
 		return total_dps
 
 
-func add_equipment(equipment_stats: ShipPartStats) -> void:
+func add_equipment(
+	equipment_stats: ShipPartStats,
+	weapon_mount_offset: Vector2 = Vector2.ZERO
+) -> void:
 	if equipment_stats == null:
 		push_error("Cannot add missing ship-part stats.")
 		return
@@ -26,4 +29,6 @@ func add_equipment(equipment_stats: ShipPartStats) -> void:
 	weight += equipment_stats.weight
 	thrust += equipment_stats.thrust
 	for weapon in equipment_stats.weapons:
-		weapons.append(weapon.copy())
+		var copied_weapon := weapon.copy()
+		copied_weapon.mount_offset += weapon_mount_offset
+		weapons.append(copied_weapon)

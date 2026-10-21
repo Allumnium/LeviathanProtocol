@@ -32,15 +32,16 @@ static func with_weapon(
 	p_weight: float,
 	fire_interval_seconds: float,
 	damage_per_shot: float,
-	projectiles_per_activation: int
+	projectiles_per_activation: int,
+	p_is_projectile_weapon: bool = false
 ) -> ShipPartStats:
 	var stats := ShipPartStats.new(0.0, 0.0, p_weight, 0.0)
-	stats.weapons.append(
-		ShipWeaponStats.new(
-			p_weapon_name,
-			fire_interval_seconds,
-			damage_per_shot,
-			projectiles_per_activation
-		)
+	var weapon := ShipWeaponStats.new(
+		p_weapon_name,
+		fire_interval_seconds,
+		damage_per_shot,
+		projectiles_per_activation
 	)
+	weapon.is_projectile_weapon = p_is_projectile_weapon
+	stats.weapons.append(weapon)
 	return stats

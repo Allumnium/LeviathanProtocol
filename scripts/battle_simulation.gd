@@ -9,11 +9,19 @@ enum Phase { COMBAT, SALVAGE, VICTORY, DEFEAT }
 
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
+const SPEED_PER_THRUST := 4.0
+const PLAYER_FORMATION_CENTER := Vector2(-420.0, 0.0)
+const PLAYER_FORMATION_COLUMNS := 3
+const PLAYER_FORMATION_SPACING := Vector2(54.0, 54.0)
+const ALIEN_FORMATION_CENTER := Vector2(420.0, 0.0)
+const ALIEN_FORMATION_COLUMNS := 6
+const ALIEN_FORMATION_SPACING := Vector2(65.0, 65.0)
 
 class Combatant:
 	var position := Vector2.ZERO
 	var velocity := Vector2.ZERO
 	var heading := 0.0
+	var is_player := false
 	var stats: ShipStats
 	var integrity := 0.0
 	var shields := 0.0
@@ -45,9 +53,11 @@ class Projectile:
 	var position := Vector2.ZERO
 	var target: Combatant
 	var damage := 0.0
+	var is_player := false
 
 class Beam:
 	var source: Combatant
+	var origin_position := Vector2.ZERO
 	var target: Combatant
 	var lifetime := 0.16
 
@@ -61,6 +71,7 @@ class Explosion:
 	var lifetime := 0.6
 
 var player: Combatant
+var players: Array[Combatant] = []
 var aliens: Array[Combatant] = []
 var projectiles: Array[Projectile] = []
 var beams: Array[Beam] = []
@@ -73,7 +84,15 @@ var random := RandomNumberGenerator.new()
 var _salvage_target: Drop
 
 
-func setup(player_stats: ShipStats, fleet: Array[RefCounted], seed_value: int = -1) -> bool:
+func setup(
+	player_stats: ShipStats,
+	fleet: Array[RefCounted],
+	seed_value: int = -1,
+	player_ship_count: int = 1
+) -> bool:
+	if player_ship_count <= 0:
+		push_error("Battle requires at least one player ship.")
+		return false
 	if not _validate_stats(player_stats) or fleet.is_empty():
 		push_error("Battle requires an armed player ship and a nonempty alien fleet.")
 		return false
@@ -81,8 +100,25 @@ func setup(player_stats: ShipStats, fleet: Array[RefCounted], seed_value: int = 
 		random.seed = seed_value
 	else:
 		random.randomize()
-	player = _create_combatant(player_stats)
-	player.position = Vector2(-240.0, 0.0)
+	players.clear()
+	aliens.clear()
+	projectiles.clear()
+	beams.clear()
+	drops.clear()
+	explosions.clear()
+	collected_categories.clear()
+	for index in range(player_ship_count):
+		var player_ship := _create_combatant(player_stats)
+		player_ship.is_player = true
+		player_ship.position = _get_formation_position(
+			index,
+			player_ship_count,
+			PLAYER_FORMATION_COLUMNS,
+			PLAYER_FORMATION_CENTER,
+			PLAYER_FORMATION_SPACING
+		)
+		players.append(player_ship)
+	player = players[0]
 	for index in range(fleet.size()):
 		var definition := fleet[index] as AlienShip
 		if definition == null:
@@ -92,13 +128,34 @@ func setup(player_stats: ShipStats, fleet: Array[RefCounted], seed_value: int = 
 			return false
 		var alien := _create_combatant(definition.stats)
 		alien.alien = definition
-		alien.position = Vector2(160.0 + float(index % 3) * 65.0,
-			(float(index) - float(fleet.size() - 1) * 0.5) * 52.0)
+		alien.position = _get_formation_position(
+			index,
+			fleet.size(),
+			ALIEN_FORMATION_COLUMNS,
+			ALIEN_FORMATION_CENTER,
+			ALIEN_FORMATION_SPACING
+		)
 		alien.heading = PI
-		alien.speed = clampf(42.0 + definition.stats.thrust, 46.0, 68.0)
 		alien.radius = 14.0
 		aliens.append(alien)
 	return true
+
+
+func _get_formation_position(
+	index: int,
+	count: int,
+	max_columns: int,
+	center: Vector2,
+	spacing: Vector2
+) -> Vector2:
+	var columns := mini(count, max_columns)
+	var rows := ceili(float(count) / float(columns))
+	var column := index % columns
+	var row := floori(float(index) / float(columns))
+	return center + Vector2(
+		(float(column) - float(columns - 1) * 0.5) * spacing.x,
+		(float(row) - float(rows - 1) * 0.5) * spacing.y
+	)
 
 
 func _validate_stats(stats: ShipStats) -> bool:
@@ -120,7 +177,7 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 	ship.stats = stats
 	ship.integrity = stats.integrity
 	ship.shields = stats.shields
-	ship.speed = clampf(95.0 + stats.thrust / maxf(stats.weight, 1.0) * 12.0, 95.0, 140.0)
+	ship.speed = maxf(stats.thrust, 0.0) * SPEED_PER_THRUST
 	for weapon in stats.weapons:
 		ship.cooldowns.append(0.0)
 	return ship
@@ -137,12 +194,14 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
-		_update_ship(player, delta)
+		for player_ship in players:
+			if player_ship.is_alive():
+				_update_ship(player_ship, delta)
 		for alien in aliens:
 			if alien.is_alive():
 				_update_ship(alien, delta)
 		_update_projectiles(delta)
-		if not player.is_alive():
+		if living_player_count() == 0:
 			phase = Phase.DEFEAT
 		elif living_alien_count() == 0 and projectiles.is_empty():
 			phase = Phase.SALVAGE
@@ -158,12 +217,23 @@ func living_alien_count() -> int:
 	return count
 
 
+func living_player_count() -> int:
+	var count := 0
+	for player_ship in players:
+		if player_ship.is_alive():
+			count += 1
+	return count
+
+
 func _choose_target(ship: Combatant) -> Combatant:
-	if ship != player:
-		return player if player.is_alive() else null
+	var enemies: Array[Combatant] = []
+	if ship.is_player:
+		enemies = aliens
+	else:
+		enemies = players
 	var best: Combatant
 	var best_score := INF
-	for enemy in aliens:
+	for enemy in enemies:
 		if not enemy.is_alive():
 			continue
 		var score := enemy.integrity + enemy.shields
@@ -200,7 +270,8 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		radial_speed = -ship.speed
 	var desired := direction * radial_speed
 	desired += direction.orthogonal() * ship.speed * 0.24
-	var neighbors: Array[Combatant] = [player]
+	var neighbors: Array[Combatant] = []
+	neighbors.append_array(players)
 	neighbors.append_array(aliens)
 	for other in neighbors:
 		if other == ship or not other.is_alive():
@@ -221,7 +292,8 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		ship.cooldowns[index] = maxf(0.0, ship.cooldowns[index] - delta)
 		if ship.cooldowns[index] > 0.0:
 			continue
-		if ship.position.distance_to(ship.target.position) > weapon.range_units:
+		var weapon_origin := _get_weapon_origin(ship, weapon)
+		if weapon_origin.distance_to(ship.target.position) > weapon.range_units:
 			continue
 		if not ship.target.is_alive():
 			ship.target = _choose_target(ship)
@@ -233,22 +305,28 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 				ship.target = _choose_target(ship)
 			if ship.target == null:
 				break
-			if ship.position.distance_to(ship.target.position) > weapon.range_units:
+			if weapon_origin.distance_to(ship.target.position) > weapon.range_units:
 				break
 			if shot_index == 0:
 				weapon_fired.emit()
-			if ship == player:
+			if ship.is_player and not weapon.is_projectile_weapon:
 				var beam := Beam.new()
 				beam.source = ship
+				beam.origin_position = weapon_origin
 				beam.target = ship.target
 				beams.append(beam)
 				_damage(ship.target, weapon.damage_per_shot)
 			else:
 				var projectile := Projectile.new()
-				projectile.position = ship.position
+				projectile.position = weapon_origin
 				projectile.target = ship.target
 				projectile.damage = weapon.damage_per_shot
+				projectile.is_player = ship.is_player
 				projectiles.append(projectile)
+
+
+func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
+	return ship.position + weapon.mount_offset.rotated(ship.heading + PI * 0.5)
 
 
 func _update_projectiles(delta: float) -> void:
@@ -279,7 +357,7 @@ func _damage(target: Combatant, damage: float) -> void:
 	var explosion := Explosion.new()
 	explosion.position = target.position
 	explosions.append(explosion)
-	ship_destroyed.emit(target == player)
+	ship_destroyed.emit(target.is_player)
 	if target != player and random.randf() < DROP_CHANCE:
 		var drop := Drop.new()
 		drop.position = target.position
@@ -294,23 +372,46 @@ func _damage(target: Combatant, damage: float) -> void:
 
 
 func _collect_salvage(delta: float) -> void:
+	var salvage_ship := get_living_player()
+	if salvage_ship == null:
+		phase = Phase.DEFEAT
+		return
+	if salvage_ship.speed <= 0.0:
+		phase = Phase.VICTORY
+		return
 	if _salvage_target == null or _salvage_target.collected:
 		_salvage_target = null
 		var nearest := INF
 		for drop in drops:
-			var distance := player.position.distance_to(drop.position)
+			var distance := salvage_ship.position.distance_to(drop.position)
 			if not drop.collected and distance < nearest:
 				nearest = distance
 				_salvage_target = drop
 	if _salvage_target == null:
 		phase = Phase.VICTORY
-		player.velocity = Vector2.ZERO
+		salvage_ship.velocity = Vector2.ZERO
 		return
-	var direction := _salvage_target.position - player.position
-	player.heading = lerp_angle(player.heading, direction.angle(), minf(delta * 6.0, 1.0))
-	var previous := player.position
-	player.position = player.position.move_toward(_salvage_target.position, player.speed * 1.7 * delta)
-	player.velocity = (player.position - previous) / delta
-	if player.position.distance_to(_salvage_target.position) <= 5.0:
+	var direction := _salvage_target.position - salvage_ship.position
+	salvage_ship.heading = lerp_angle(
+		salvage_ship.heading,
+		direction.angle(),
+		minf(delta * 6.0, 1.0)
+	)
+	var previous := salvage_ship.position
+	salvage_ship.position = salvage_ship.position.move_toward(
+		_salvage_target.position,
+		salvage_ship.speed * 1.7 * delta
+	)
+	salvage_ship.velocity = (salvage_ship.position - previous) / delta
+	if salvage_ship.position.distance_to(_salvage_target.position) <= 5.0:
 		_salvage_target.collected = true
 		collected_categories.append(_salvage_target.category)
+
+
+func get_living_player() -> Combatant:
+	if player != null and player.is_alive():
+		return player
+	for player_ship in players:
+		if player_ship.is_alive():
+			return player_ship
+	return null

@@ -220,7 +220,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0)],
 			"Mini Turret",
 			MINI_TURRET_TEXTURE,
-			ShipPartStats.with_weapon("Mini Turret", 1.0, 1.0, 1.0, 1)
+			ShipPartStats.with_weapon("Mini Turret", 1.0, 1.0, 1.0, 1, true)
 		)
 	)
 	return patterns

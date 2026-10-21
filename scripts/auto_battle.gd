@@ -19,7 +19,10 @@ var _credited_drops := 0
 func _ready() -> void:
 	AudioManager.play_battle_ambience()
 	if not GameState.battle_pending or not simulation.setup(
-		GameState.ship.get_stats(), GameState.battle_aliens
+		GameState.ship.get_stats(),
+		GameState.battle_aliens,
+		-1,
+		GameState.player_ship_count
 	):
 		push_error("Cannot open battle without a valid deployment.")
 		GameState.cancel_battle()
@@ -46,7 +49,10 @@ func _physics_process(delta: float) -> void:
 		_credited_drops += 1
 	match simulation.phase:
 		BattleSimulation.Phase.COMBAT:
-			status_label.text = "AUTO BATTLE - %d aliens remaining" % simulation.living_alien_count()
+			status_label.text = "AUTO BATTLE - %d ships / %d aliens" % [
+				simulation.living_player_count(),
+				simulation.living_alien_count()
+			]
 		BattleSimulation.Phase.SALVAGE:
 			status_label.text = "COLLECTING SALVAGE - %d squares recovered" % _credited_drops
 		BattleSimulation.Phase.VICTORY:
@@ -59,8 +65,13 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if _follow_player and simulation.player != null:
-		visuals.camera_position = visuals.camera_position.lerp(simulation.player.position, minf(delta * 5.0, 1.0))
+	if _follow_player:
+		var camera_target := simulation.get_living_player()
+		if camera_target != null:
+			visuals.camera_position = visuals.camera_position.lerp(
+				camera_target.position,
+				minf(delta * 5.0, 1.0)
+			)
 	var direction := Vector2(
 		float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))
 			- float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),

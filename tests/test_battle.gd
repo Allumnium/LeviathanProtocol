@@ -17,6 +17,7 @@ func _basic_stats(shields: float = 0.0) -> ShipStats:
 	var stats := ShipStats.new()
 	stats.integrity = 50.0
 	stats.shields = shields
+	stats.thrust = 25.0
 	stats.weapons.append(ShipWeaponStats.new("Test laser", 0.5, 5.0, 1))
 	return stats
 
@@ -30,11 +31,15 @@ func _fleet(count: int, seed_value: int = 0) -> Array[RefCounted]:
 
 func _run() -> void:
 	_test_weapon_range()
+	_test_player_fleet()
+	_test_thrust_movement()
+	_test_mini_turret_firing()
 	_test_guaranteed_hits()
 	_test_retreat_and_focus()
 	_test_range_keeping()
 	_test_drop_distribution()
 	_test_salvage()
+	_test_stationary_salvage()
 	_test_defeat()
 	_test_combat_events()
 	_test_balance()
@@ -59,6 +64,129 @@ func _test_weapon_range() -> void:
 	simulation.aliens[0].position = Vector2(700.0, 0.0)
 	simulation.advance(1.0 / 60.0)
 	_check(simulation.beams.is_empty(), "Lasers must not fire outside range.")
+
+
+func _test_player_fleet() -> void:
+	var fleet := _fleet(18, 19)
+	var simulation := BattleSimulation.new()
+	_check(simulation.setup(_basic_stats(), fleet, 19, 6), "Six-ship battle setup failed.")
+	_check(simulation.players.size() == 6, "Battle setup must create the configured player fleet.")
+	_check(simulation.living_player_count() == 6, "All deployed player ships must start alive.")
+	for player_ship in simulation.players:
+		for alien in simulation.aliens:
+			_check(
+				player_ship.position.distance_to(alien.position) > 500.0,
+				"Player and alien ships must start farther apart."
+			)
+
+	var scaled_fleet := AlienShip.create_random_fleet(18, 1.0, 20, 6)
+	var total_health := 0.0
+	for alien in scaled_fleet:
+		total_health += alien.stats.integrity + alien.stats.shields
+	_check(is_equal_approx(total_health, 510.0),
+		"Alien encounter health must scale with the player fleet.")
+
+	var firing_simulation := BattleSimulation.new()
+	firing_simulation.setup(_basic_stats(), _fleet(1, 23), 23, 6)
+	var target := firing_simulation.aliens[0]
+	target.position = firing_simulation.players[0].position + Vector2(210.0, 0.0)
+	target.integrity = 1000.0
+	target.shields = 0.0
+	target.cooldowns[0] = 100.0
+	firing_simulation.advance(1.0 / 60.0)
+	_check(
+		firing_simulation.beams.size() == 6,
+		"Every player ship must fire its weapons as a player ship."
+	)
+	_check(
+		is_equal_approx(target.integrity, 970.0),
+		"Every player ship must contribute damage to its target."
+	)
+
+
+func _test_thrust_movement() -> void:
+	var low_thrust_stats := _basic_stats()
+	low_thrust_stats.thrust = 10.0
+	var high_thrust_stats := _basic_stats()
+	high_thrust_stats.thrust = 20.0
+	var low_thrust_simulation := BattleSimulation.new()
+	var high_thrust_simulation := BattleSimulation.new()
+	low_thrust_simulation.setup(low_thrust_stats, _fleet(1), 21)
+	high_thrust_simulation.setup(high_thrust_stats, _fleet(1), 21)
+	_check(
+		is_equal_approx(
+			high_thrust_simulation.player.speed,
+			low_thrust_simulation.player.speed * 2.0
+		),
+		"Ship speed must scale directly with thrust."
+	)
+	var enemy := low_thrust_simulation.aliens[0]
+	enemy.position = low_thrust_simulation.player.position + Vector2(400.0, 0.0)
+	low_thrust_simulation.player.heading = PI
+	low_thrust_simulation._update_ship(low_thrust_simulation.player, 1.0 / 60.0)
+	_check(
+		low_thrust_simulation.player.velocity.x > 0.0
+			and low_thrust_simulation.player.heading > 2.5,
+		"Thrust must allow movement in a direction independent of ship heading."
+	)
+
+
+func _test_mini_turret_firing() -> void:
+	var turret_pattern: ShipPartPattern
+	for pattern in ShipPartPattern.get_catalog():
+		if pattern.part_type == ShipPart.Type.MINI_TURRET:
+			turret_pattern = pattern
+			break
+	_check(turret_pattern != null, "The mini turret must be present in the part catalog.")
+	if turret_pattern == null:
+		return
+
+	var ship := Ship.new()
+	ship.set_tile_at(Vector2i.ZERO, ShipPart.Category.OFFENSE)
+	ship.set_tile_at(Vector2i(3, 0), ShipPart.Category.OFFENSE)
+	var turret := ShipPart.new(
+		turret_pattern.part_type,
+		turret_pattern.category,
+		Vector2i(3, 0),
+		turret_pattern.get_offsets_for_rotation(0),
+		turret_pattern.stats
+	)
+	_check(ship.add_part(turret), "Could not add a mini turret to its test ship.")
+	var stats := ship.get_stats()
+	_check(stats.weapons.size() == 1, "The mini turret must contribute one working weapon.")
+	if stats.weapons.is_empty():
+		return
+	_check(stats.weapons[0].is_projectile_weapon,
+		"The mini turret must retain its projectile weapon type in ship stats.")
+
+	var simulation := BattleSimulation.new()
+	simulation.setup(stats, _fleet(1), 22)
+	var enemy := simulation.aliens[0]
+	enemy.position = simulation.player.position + Vector2(150.0, 0.0)
+	enemy.integrity = 10.0
+	enemy.shields = 0.0
+	enemy.cooldowns[0] = 100.0
+	simulation.advance(0.0)
+	_check(simulation.projectiles.size() == 1, "An in-range mini turret must fire a projectile.")
+	_check(simulation.beams.is_empty(), "The mini turret must not fire a laser beam.")
+	_check(is_equal_approx(enemy.integrity, 10.0),
+		"A mini-turret projectile must deal damage only when it connects.")
+	var expected_origin := simulation.player.position + stats.weapons[0].mount_offset.rotated(
+		simulation.player.heading + PI * 0.5
+	)
+	if not simulation.projectiles.is_empty():
+		_check(simulation.projectiles[0].is_player,
+			"Mini-turret projectiles must be identified as player projectiles.")
+		_check(
+			simulation.projectiles[0].position.is_equal_approx(expected_origin),
+			"Mini turret fire must originate from its position on the ship."
+		)
+	for _tick in range(60):
+		if simulation.projectiles.is_empty():
+			break
+		simulation.advance(1.0 / 60.0)
+	_check(simulation.projectiles.is_empty(), "A mini-turret projectile must eventually connect.")
+	_check(is_equal_approx(enemy.integrity, 9.0), "The mini-turret projectile must damage its target.")
 
 
 func _test_combat_events() -> void:
@@ -101,6 +229,18 @@ func _test_combat_events() -> void:
 		"Alien destruction must emit exactly one alien explosion event.")
 	simulation._damage(simulation.player, 200.0)
 	_check(events.player_deaths == 1, "Player destruction must emit a distinct player explosion event.")
+	var fleet_simulation := BattleSimulation.new()
+	fleet_simulation.setup(_basic_stats(), _fleet(1), 9, 2)
+	var fleet_events := {"player_deaths": 0}
+	fleet_simulation.ship_destroyed.connect(func(is_player: bool):
+		if is_player:
+			fleet_events.player_deaths += 1
+	)
+	fleet_simulation._damage(fleet_simulation.players[1], 200.0)
+	_check(
+		fleet_events.player_deaths == 1,
+		"Destruction of any player ship must emit a player destruction event."
+	)
 
 
 func _check_last_sound(expected_path: String, previous_count: int) -> void:
@@ -197,6 +337,25 @@ func _test_salvage() -> void:
 	_check(simulation.collected_categories.size() == 3, "Finished salvage must not duplicate rewards.")
 
 
+func _test_stationary_salvage() -> void:
+	var stats := _basic_stats()
+	stats.thrust = 0.0
+	var simulation := BattleSimulation.new()
+	simulation.setup(stats, _fleet(1), 24)
+	for alien in simulation.aliens:
+		alien.integrity = 0.0
+	var drop := BattleSimulation.Drop.new()
+	drop.position = Vector2(100.0, 0.0)
+	simulation.drops.append(drop)
+	simulation.advance(1.0 / 60.0)
+	simulation.advance(1.0 / 60.0)
+	_check(
+		simulation.phase == BattleSimulation.Phase.VICTORY
+			and simulation.collected_categories.is_empty(),
+		"A ship without thrust must finish salvage without collecting unreachable drops."
+	)
+
+
 func _test_range_keeping() -> void:
 	var stats := _basic_stats()
 	stats.weapons.append(ShipWeaponStats.new("Short laser", 100.0, 1.0, 1, 130.0))
@@ -270,8 +429,9 @@ func _test_balance() -> void:
 			battles += 1
 			_check(damage <= 40.0, "Basic encounters should leave a safety margin, not deal %.2f damage (%d aliens)." % [damage, count])
 	var average_damage := total_damage / float(battles)
-	_check(average_damage >= 20.0 and average_damage <= 30.0,
-		"Average damage against a basic ship should be about 25, not %.2f." % average_damage)
+	_check(average_damage >= 12.0 and average_damage <= 20.0,
+		"Spaced, thrust-driven basic encounters should average about 16 damage, not %.2f."
+			% average_damage)
 	print("%d basic encounters: damage min %.2f, mean %.2f, max %.2f" % [
 		battles, min_damage, total_damage / float(battles), max_damage])
 
@@ -279,9 +439,12 @@ func _test_balance() -> void:
 func _test_scene() -> void:
 	var state := root.get_node("GameState")
 	state.start_new_run()
+	_check(state.player_ship_count == GameState.STARTING_PLAYER_SHIP_COUNT,
+		"A new run must start with six player ships.")
 	state.discover_part(ShipPart.Type.LASER)
 	var part_stats := ShipPartStats.with_weapon("Integration laser", 1.0, 0.5, 5.0, 1)
 	part_stats.integrity = 150.0
+	part_stats.thrust = 25.0
 	for pattern in ShipPartPattern.get_catalog():
 		if pattern.part_type == ShipPart.Type.LASER:
 			var offsets := pattern.get_offsets_for_rotation(0)
@@ -292,8 +455,12 @@ func _test_scene() -> void:
 			state.ship.add_part(part)
 			break
 	_check(state.set_destination(1), "An armed ship should be able to deploy.")
-	_check(state.battle_aliens.size() >= 3 and state.battle_aliens.size() <= 8,
-		"Deployment must create between 3 and 8 aliens.")
+	_check(
+		state.battle_aliens.size() >= GameState.MIN_ALIEN_FLEET_SIZE * state.player_ship_count
+			and state.battle_aliens.size()
+				<= GameState.MAX_ALIEN_FLEET_SIZE * state.player_ship_count,
+		"Deployment must multiply the base alien fleet by the player fleet size."
+	)
 	var scene := load("res://scenes/auto_battle.tscn") as PackedScene
 	var battle := scene.instantiate()
 	root.add_child(battle)
@@ -301,6 +468,10 @@ func _test_scene() -> void:
 	await process_frame
 	battle.set_physics_process(false)
 	_check(battle.simulation.player != null, "Battle scene must initialize live combat.")
+	_check(
+		battle.simulation.players.size() == state.player_ship_count,
+		"Battle scene must deploy the full player fleet."
+	)
 	_test_battle_sounds(battle)
 	var zoom_before: float = battle.visuals.camera_zoom
 	var wheel := InputEventMouseButton.new()
@@ -372,7 +543,8 @@ func _test_scene() -> void:
 	_check(battle.simulation.player != null, "The rebuilt ship must remain armed on its next deployment.")
 	if battle.simulation.player == null:
 		return
-	battle.simulation.player.integrity = 0.0
+	for player_ship in battle.simulation.players:
+		player_ship.integrity = 0.0
 	battle._physics_process(1.0 / 60.0)
 	_check(state.current_node_id == 1 and not state.battle_pending,
 		"Defeat must cancel deployment without advancing the map.")

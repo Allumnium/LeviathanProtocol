@@ -6,6 +6,8 @@ var fire_interval_seconds: float
 var damage_per_shot: float
 var projectiles_per_activation: int
 var range_units: float
+var mount_offset := Vector2.ZERO
+var is_projectile_weapon := false
 
 
 func _init(
@@ -13,13 +15,15 @@ func _init(
 	p_fire_interval_seconds: float,
 	p_damage_per_shot: float,
 	p_projectiles_per_activation: int,
-	p_range_units: float = 220.0
+	p_range_units: float = 220.0,
+	p_mount_offset: Vector2 = Vector2.ZERO
 ) -> void:
 	weapon_name = p_weapon_name
 	fire_interval_seconds = p_fire_interval_seconds
 	damage_per_shot = p_damage_per_shot
 	projectiles_per_activation = p_projectiles_per_activation
 	range_units = p_range_units
+	mount_offset = p_mount_offset
 
 
 func get_fire_rate_per_second() -> float:
@@ -38,10 +42,13 @@ func get_dps() -> float:
 
 
 func copy() -> ShipWeaponStats:
-	return ShipWeaponStats.new(
+	var copied_weapon := ShipWeaponStats.new(
 		weapon_name,
 		fire_interval_seconds,
 		damage_per_shot,
 		projectiles_per_activation,
-		range_units
+		range_units,
+		mount_offset
 	)
+	copied_weapon.is_projectile_weapon = is_projectile_weapon
+	return copied_weapon

@@ -1,7 +1,7 @@
 class_name BattleVisuals
 extends Control
 
-const BUILD_CELL_SIZE := Vector2(26.0, 26.0)
+const BUILD_CELL_SIZE := Ship.BUILD_CELL_SIZE
 const HULL_COLOR := Color(0.38, 0.38, 0.4, 1.0)
 const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.png")
@@ -57,18 +57,24 @@ func _draw() -> void:
 			draw_rect(Rect2(drop.position - Vector2.ONE * 4.0, Vector2.ONE * 8.0), color)
 			draw_rect(Rect2(drop.position - Vector2.ONE * 6.0, Vector2.ONE * 12.0),
 				Color(color, 0.3), false, 1.0)
-	if simulation.player.is_alive():
-		_draw_player_ship()
+	for player_ship in simulation.players:
+		if player_ship.is_alive():
+			_draw_player_ship(player_ship)
 	_draw_alien_fleet()
 	draw_set_transform_matrix(world_transform())
 	for beam in simulation.beams:
-		draw_line(beam.source.position, beam.target.position,
+		draw_line(beam.origin_position, beam.target.position,
 			Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
 	for projectile in simulation.projectiles:
 		var direction := (projectile.target.position - projectile.position).normalized()
+		var trail_color := Color(0.4, 1.0, 0.25, 0.7)
+		var projectile_color := Color(0.8, 1.0, 0.3)
+		if projectile.is_player:
+			trail_color = Color(1.0, 0.03, 0.06, 0.7)
+			projectile_color = Color(1.0, 0.12, 0.16)
 		draw_line(projectile.position - direction * 12.0, projectile.position,
-			Color(0.4, 1.0, 0.25, 0.7), 2.0, true)
-		draw_circle(projectile.position, 2.5, Color(0.8, 1.0, 0.3))
+			trail_color, 2.0, true)
+		draw_circle(projectile.position, 2.5, projectile_color)
 	for explosion in simulation.explosions:
 		var progress := 1.0 - explosion.lifetime / 0.6
 		draw_arc(explosion.position, 4.0 + progress * 32.0, 0.0, TAU, 24,
@@ -76,7 +82,7 @@ func _draw() -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
-func _draw_player_ship() -> void:
+func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	var cells := GameState.ship.get_tile_cells()
 	if cells.is_empty():
 		return
@@ -99,8 +105,8 @@ func _draw_player_ship() -> void:
 		float(minimum_x + maximum_x + 1) * BUILD_CELL_SIZE.x * 0.5,
 		float(minimum_y + maximum_y + 1) * BUILD_CELL_SIZE.y * 0.5
 	)
-	var ship_scale := 48.0 / maxf(ship_size.x, ship_size.y)
-	_set_ship_transform(simulation.player.position, simulation.player.heading + PI * 0.5, ship_scale)
+	var ship_scale := Ship.BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
+	_set_ship_transform(player_ship.position, player_ship.heading + PI * 0.5, ship_scale)
 	var hull_points := PackedVector2Array()
 	for cell in cells:
 		var cell_top_left := Vector2(
@@ -177,7 +183,7 @@ func _draw_player_ship() -> void:
 			Rect2(visual_center - visual_size * 0.5, visual_size),
 			false
 		)
-	if simulation.player.hit_flash > 0.0:
+	if player_ship.hit_flash > 0.0:
 		draw_arc(Vector2.ZERO, maxf(ship_size.x, ship_size.y) * 0.55, 0.0, TAU, 32,
 			Color(0.4, 0.8, 1.0, 0.7), 2.0 / ship_scale, true)
 	draw_set_transform_matrix(world_transform())

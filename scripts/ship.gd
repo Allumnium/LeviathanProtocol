@@ -2,6 +2,8 @@ class_name Ship
 extends RefCounted
 
 const NO_TILE_CATEGORY := -1
+const BUILD_CELL_SIZE := Vector2(26.0, 26.0)
+const BATTLE_MODEL_SIZE := 48.0
 
 var tiles: Dictionary[Vector2i, int] = {}
 var parts: Array[ShipPart] = []
@@ -37,12 +39,45 @@ func get_tile_cells() -> Array[Vector2i]:
 func get_stats() -> ShipStats:
 	var stats := ShipStats.new()
 	var occupied_cells: Dictionary[Vector2i, bool] = {}
-	for part in parts:
-		_add_part_stats(stats, occupied_cells, part)
-	for part in _transitioning_parts:
-		_add_part_stats(stats, occupied_cells, part)
+	var cells := get_tile_cells()
+	var ship_center := Vector2.ZERO
+	var ship_scale := 0.0
+	if not cells.is_empty():
+		var minimum_x := cells[0].x
+		var minimum_y := cells[0].y
+		var maximum_x := cells[0].x
+		var maximum_y := cells[0].y
+		for cell in cells:
+			minimum_x = mini(minimum_x, cell.x)
+			minimum_y = mini(minimum_y, cell.y)
+			maximum_x = maxi(maximum_x, cell.x)
+			maximum_y = maxi(maximum_y, cell.y)
+		ship_center = Vector2(
+			float(minimum_x + maximum_x + 1) * 0.5,
+			float(minimum_y + maximum_y + 1) * 0.5
+		)
+		var ship_size := Vector2(
+			float(maximum_x - minimum_x + 1) * BUILD_CELL_SIZE.x,
+			float(maximum_y - minimum_y + 1) * BUILD_CELL_SIZE.y
+		)
+		ship_scale = BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
 
-	for cell in get_tile_cells():
+	for part in parts:
+		_add_part_stats(
+			stats,
+			occupied_cells,
+			part,
+			_get_weapon_mount_offset(part, ship_center, ship_scale)
+		)
+	for part in _transitioning_parts:
+		_add_part_stats(
+			stats,
+			occupied_cells,
+			part,
+			_get_weapon_mount_offset(part, ship_center, ship_scale)
+		)
+
+	for cell in cells:
 		if not occupied_cells.has(cell):
 			stats.weight += 1.0
 
@@ -102,11 +137,30 @@ func _add_hidden_cells(
 func _add_part_stats(
 	stats: ShipStats,
 	occupied_cells: Dictionary[Vector2i, bool],
-	part: ShipPart
+	part: ShipPart,
+	weapon_mount_offset: Vector2
 ) -> void:
-	stats.add_equipment(part.stats)
+	stats.add_equipment(part.stats, weapon_mount_offset)
 	for cell in part.get_occupied_cells():
 		occupied_cells[cell] = true
+
+
+func _get_weapon_mount_offset(
+	part: ShipPart,
+	ship_center: Vector2,
+	ship_scale: float
+) -> Vector2:
+	if ship_scale <= 0.0 or part.cell_offsets.is_empty():
+		return Vector2.ZERO
+
+	var part_center := Vector2.ZERO
+	for offset in part.cell_offsets:
+		part_center += Vector2(part.origin + offset) + Vector2.ONE * 0.5
+	part_center /= float(part.cell_offsets.size())
+	return Vector2(
+		(part_center.x - ship_center.x) * BUILD_CELL_SIZE.x * ship_scale,
+		(part_center.y - ship_center.y) * BUILD_CELL_SIZE.y * ship_scale
+	)
 
 
 func add_part(part: ShipPart) -> bool:
