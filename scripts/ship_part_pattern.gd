@@ -9,6 +9,7 @@ const PLATE_TEXTURE = preload("res://assets/plate.png")
 const MINI_TURRET_TEXTURE = preload("res://assets/mini-turret.png")
 const THRUSTER_TEXTURE = preload("res://assets/thruster_s.png")
 const LARGE_THRUSTER_TEXTURE = preload("res://assets/thruster_l.png")
+const COMMAND_CENTER_TEXTURE = preload("res://assets/commandcenter.png")
 
 var part_type: int
 var category: int
@@ -61,6 +62,12 @@ func _init(
 
 static func get_catalog() -> Array[ShipPartPattern]:
 	var patterns: Array[ShipPartPattern] = []
+	patterns.append(ShipPartPattern.new(
+		ShipPart.Type.COMMAND_CENTER, ShipPart.Category.SPECIAL,
+		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)],
+		"Command Center", COMMAND_CENTER_TEXTURE,
+		ShipPartStats.new(0.0, 12.0, 4.0, 0.0)
+	))
 	patterns.append(
 		ShipPartPattern.new(
 			ShipPart.Type.LARGE_THRUSTER,
@@ -228,6 +235,14 @@ static func get_catalog() -> Array[ShipPartPattern]:
 
 func get_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
 	return _get_offsets_for_rotation(cell_offsets, quarter_turns)
+
+
+func get_rotation_for_offsets(offsets: Array[Vector2i]) -> int:
+	var rotation_count := 4 if can_rotate else 1
+	for quarter_turns in range(rotation_count):
+		if get_offsets_for_rotation(quarter_turns) == offsets:
+			return quarter_turns
+	return -1
 
 
 func get_visual_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:

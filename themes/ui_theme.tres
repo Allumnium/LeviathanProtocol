@@ -9,21 +9,17 @@
 [ext_resource type="Texture2D" uid="uid://ceuy7glfq4gtg" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
 [ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="8_popup_panel"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
+[sub_resource type="StyleBoxTexture" id="StyleBoxFlat_button_disabled"]
 content_margin_left = 14.0
 content_margin_top = 8.0
 content_margin_right = 14.0
 content_margin_bottom = 8.0
-bg_color = Color(0.035, 0.04, 0.05, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.2, 0.22, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
+texture = ExtResource("2_button")
+texture_margin_left = 32.0
+texture_margin_top = 10.0
+texture_margin_right = 32.0
+texture_margin_bottom = 10.0
+modulate_color = Color(0.5, 0.55, 0.6, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_focus"]
 draw_center = false

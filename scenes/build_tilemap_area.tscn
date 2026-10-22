@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/build_tilemap_area.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/ui/build_grid.png" id="2"]
@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" path="res://assets/ui/icons/green_square.png" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/build_selector_button.tscn" id="6"]
 [ext_resource type="Script" path="res://scripts/build_viewport_starfield.gd" id="7_starfield"]
+[ext_resource type="PackedScene" path="res://scenes/load_design_dialog.tscn" id="9_load_dialog"]
+[ext_resource type="PackedScene" path="res://scenes/save_design_dialog.tscn" id="10_save_dialog"]
 
 [node name="BuildTilemapArea" type="Control"]
 layout_mode = 1
@@ -18,7 +20,7 @@ grow_vertical = 2
 clip_contents = true
 script = ExtResource("1")
 tile_size = Vector2i(26, 26)
-map_dimensions = Vector2i(30, 30)
+map_dimensions = Vector2i(8, 8)
 grid_texture = ExtResource("2")
 red_tile_texture = ExtResource("3")
 blue_tile_texture = ExtResource("4")
@@ -79,3 +81,31 @@ layout_mode = 2
 
 [node name="Icon" parent="SelectorRow/GreenBuildButton"]
 texture = ExtResource("5")
+
+[node name="DesignControls" type="VBoxContainer" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -60.0
+offset_top = 8.0
+offset_right = 0.0
+offset_bottom = 64.0
+grow_horizontal = 0
+theme_override_constants/separation = 4
+
+[node name="SaveDesignButton" type="Button" parent="DesignControls"]
+custom_minimum_size = Vector2(60, 26)
+layout_mode = 2
+tooltip_text = "Save the current ship design"
+theme_override_font_sizes/font_size = 8
+text = "SAVE"
+
+[node name="LoadDesignButton" type="Button" parent="DesignControls"]
+custom_minimum_size = Vector2(60, 26)
+layout_mode = 2
+tooltip_text = "Open saved ship designs"
+theme_override_font_sizes/font_size = 8
+text = "LOAD"
+
+[node name="LoadDesignDialog" parent="." instance=ExtResource("9_load_dialog")]
+[node name="SaveDesignDialog" parent="." instance=ExtResource("10_save_dialog")]

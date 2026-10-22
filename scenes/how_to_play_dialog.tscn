@@ -12,14 +12,13 @@ text = "HOW TO PLAY"
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_font_sizes/font_size = 12
-text = "Build an armed ship, press Deploy, then select a reachable node.
-Your ship automatically fights 3-8 aliens and collects salvage.
-Ships keep weapon range, focus weak targets, and retreat on low shields.
-Drag or use WASD / arrows to pan. Mouse wheel zooms. Space follows your ship.
-Salvage: blue = common, red = uncommon, green = rare.
-Each alien has a 60% drop chance (65% blue, 25% red, 10% green).
-Squares enter your inventory; rest 1 second after collection, then return.
-Ships are repaired between deployments; defeat does not advance the map."
+text = "Design freely, then construct ships in Fleet using materials and credits.
+Each ship needs one connected command center: 2 ? 2 green squares.
+Drag ships in Fleet to arrange their formation, then Deploy.
+Lost components stop working; disconnected sections become salvage.
+Repair surviving ships for credits. Blue armor is inexpensive to repair.
+Drag or WASD / arrows to pan. Wheel zooms. Space follows a ship.
+Laser upgrades spend red materials and credits."
 autowrap_mode = 2
 horizontal_alignment = 1
 vertical_alignment = 1

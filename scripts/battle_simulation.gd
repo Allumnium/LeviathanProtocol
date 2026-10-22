@@ -5,7 +5,7 @@ signal weapon_fired
 signal shield_hit
 signal ship_destroyed(is_player: bool)
 
-enum Phase { COMBAT, SALVAGE, VICTORY, DEFEAT }
+enum Phase { COMBAT, SALVAGE, VICTORY, DEFEAT, WITHDRAWN }
 
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
@@ -18,6 +18,10 @@ const ALIEN_FORMATION_COLUMNS := 6
 const ALIEN_FORMATION_SPACING := Vector2(65.0, 65.0)
 
 class Combatant:
+	var owned_ship: FleetShip
+	var damage_dealt := 0.0
+	var damage_taken := 0.0
+	var weapon_damage: Dictionary = {}
 	var position := Vector2.ZERO
 	var velocity := Vector2.ZERO
 	var heading := 0.0
@@ -46,10 +50,15 @@ class Combatant:
 	func shortest_range() -> float:
 		var result := INF
 		for weapon in stats.weapons:
+			if owned_ship != null and owned_ship.units[weapon.component_index].hp <= 0.0:
+				continue
 			result = minf(result, weapon.range_units)
-		return result
+		return result if result < INF else 220.0
 
 class Projectile:
+	var source: Combatant
+	var origin := Vector2.ZERO
+	var weapon_name := ""
 	var position := Vector2.ZERO
 	var target: Combatant
 	var damage := 0.0
@@ -82,6 +91,12 @@ var phase := Phase.COMBAT
 var elapsed := 0.0
 var random := RandomNumberGenerator.new()
 var _salvage_target: Drop
+var allied_drop_chance := 0.3
+var laser_upgrade_level := 0
+var withdrawing := false
+var retreat_remaining := 10.0
+var inactive_seconds := 0.0
+var _damage_this_step := false
 
 
 func setup(
@@ -100,6 +115,12 @@ func setup(
 		random.seed = seed_value
 	else:
 		random.randomize()
+	withdrawing = false
+	retreat_remaining = 10.0
+	inactive_seconds = 0.0
+	phase = Phase.COMBAT
+	elapsed = 0.0
+	_salvage_target = null
 	players.clear()
 	aliens.clear()
 	projectiles.clear()
@@ -138,6 +159,38 @@ func setup(
 		alien.heading = PI
 		alien.radius = 14.0
 		aliens.append(alien)
+	return true
+
+
+func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1) -> bool:
+	if ships.is_empty():
+		return false
+	# Use an armed member for legacy setup validation; disabled weapons may remain
+	# aboard other surviving ships in the deployment.
+	var armed: FleetShip
+	for owned in ships:
+		if not owned.get_stats(upgrade_level).weapons.is_empty():
+			armed = owned
+	if armed == null or not setup(armed.get_stats(upgrade_level), fleet, seed_value, ships.size()):
+		return false
+	allied_drop_chance = salvage_chance
+	laser_upgrade_level = upgrade_level
+	var formation_center := Vector2.ZERO
+	for owned in ships:
+		formation_center += Vector2(owned.formation)
+	formation_center /= float(ships.size())
+	for index in range(ships.size()):
+		var member := players[index]
+		member.owned_ship = ships[index]
+		member.stats = ships[index].get_stats(upgrade_level)
+		member.integrity = member.stats.integrity
+		member.shields = member.stats.shields
+		member.speed = member.stats.thrust * SPEED_PER_THRUST
+		member.cooldowns.clear()
+		for weapon in member.stats.weapons:
+			member.cooldowns.append(0.0)
+			member.weapon_damage[weapon.weapon_name] = 0.0
+		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * 65.0
 	return true
 
 
@@ -194,6 +247,13 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
+		_damage_this_step = false
+		var velocities: Array[Vector2] = []
+		var members: Array[Combatant] = []
+		members.append_array(players)
+		members.append_array(aliens)
+		for member in members:
+			velocities.append(member.velocity)
 		for player_ship in players:
 			if player_ship.is_alive():
 				_update_ship(player_ship, delta)
@@ -201,11 +261,30 @@ func advance(delta: float) -> void:
 			if alien.is_alive():
 				_update_ship(alien, delta)
 		_update_projectiles(delta)
+		var accelerating := false
+		for index in range(members.size()):
+			if members[index].is_alive() and members[index].velocity.distance_to(velocities[index]) > 0.01 * delta:
+				accelerating = true
+		inactive_seconds = 0.0 if _damage_this_step or accelerating else inactive_seconds + delta
+		if withdrawing:
+			retreat_remaining -= delta
 		if living_player_count() == 0:
 			phase = Phase.DEFEAT
+		elif (withdrawing and retreat_remaining <= 0.0) or inactive_seconds >= 10.0:
+			phase = Phase.WITHDRAWN
 		elif living_alien_count() == 0 and projectiles.is_empty():
 			phase = Phase.SALVAGE
 	elif phase == Phase.SALVAGE:
+		if withdrawing:
+			retreat_remaining -= delta
+			for member in players:
+				if member.is_alive():
+					member.heading = rotate_toward(member.heading, PI, delta * 1.5)
+					member.velocity = member.velocity.move_toward(Vector2.from_angle(member.heading) * member.speed, member.speed * 2.0 * delta)
+					member.position += member.velocity * delta
+			if retreat_remaining <= 0.0:
+				phase = Phase.WITHDRAWN
+			return
 		_collect_salvage(delta)
 
 
@@ -264,7 +343,7 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 	var offset := ship.target.position - ship.position
 	var distance := offset.length()
 	var direction := offset.normalized()
-	var desired_distance := ship.shortest_range() * 0.92
+	var desired_distance := ship.shortest_range() * 0.92 if not ship.stats.weapons.is_empty() else 220.0
 	var radial_speed := clampf((distance - desired_distance) * 2.5, -ship.speed, ship.speed)
 	if ship.retreat_time > 0.0:
 		radial_speed = -ship.speed
@@ -284,11 +363,25 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 			desired += separation.normalized() * ship.speed * (1.0 - separation.length() / clearance)
 	if ship.position.length() > ARENA_RADIUS - 90.0:
 		desired -= ship.position.normalized() * ship.speed
-	ship.velocity = ship.velocity.move_toward(desired.limit_length(ship.speed), ship.speed * 3.0 * delta)
+	if withdrawing and ship.is_player:
+		direction = -direction
+		desired = direction * ship.speed
+	ship.heading = rotate_toward(ship.heading, direction.angle(), delta * 1.5)
+	# Reverse thrust is one fifth of forward thrust in the ship's local frame.
+	var forward := Vector2.from_angle(ship.heading)
+	var lateral := forward.orthogonal()
+	var forward_speed := clampf(desired.dot(forward), -ship.speed * 0.2, ship.speed)
+	desired = forward * forward_speed + lateral * desired.dot(lateral)
+	ship.velocity = ship.velocity.move_toward(desired.limit_length(ship.speed), ship.speed * 2.0 * delta)
+	# Enforce the reverse cap even while braking or rotating.
+	var reverse := ship.velocity.dot(forward)
+	if reverse < -ship.speed * 0.2:
+		ship.velocity += forward * (-ship.speed * 0.2 - reverse)
 	ship.position = (ship.position + ship.velocity * delta).limit_length(ARENA_RADIUS)
-	ship.heading = lerp_angle(ship.heading, direction.angle(), minf(delta * 5.0, 1.0))
 	for index in range(ship.stats.weapons.size()):
 		var weapon := ship.stats.weapons[index]
+		if ship.owned_ship != null and ship.owned_ship.units[weapon.component_index].hp <= 0.0:
+			continue
 		ship.cooldowns[index] = maxf(0.0, ship.cooldowns[index] - delta)
 		if ship.cooldowns[index] > 0.0:
 			continue
@@ -315,9 +408,12 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 				beam.origin_position = weapon_origin
 				beam.target = ship.target
 				beams.append(beam)
-				_damage(ship.target, weapon.damage_per_shot)
+				_damage(ship.target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name)
 			else:
 				var projectile := Projectile.new()
+				projectile.source = ship
+				projectile.origin = weapon_origin
+				projectile.weapon_name = weapon.weapon_name
 				projectile.position = weapon_origin
 				projectile.target = ship.target
 				projectile.damage = weapon.damage_per_shot
@@ -326,7 +422,7 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 
 
 func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
-	return ship.position + weapon.mount_offset.rotated(ship.heading + PI * 0.5)
+	return ship.position + weapon.mount_offset.rotated(ship.heading)
 
 
 func _update_projectiles(delta: float) -> void:
@@ -338,16 +434,44 @@ func _update_projectiles(delta: float) -> void:
 		var destination := projectile.target.position
 		projectile.position = projectile.position.move_toward(destination, 320.0 * delta)
 		if projectile.position.distance_to(destination) <= projectile.target.radius:
-			_damage(projectile.target, projectile.damage)
+			_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
 			projectiles.remove_at(index)
 
 
-func _damage(target: Combatant, damage: float) -> void:
+func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "") -> void:
 	if not target.is_alive():
 		return
 	var absorbed := minf(target.shields, damage)
 	target.shields -= absorbed
-	target.integrity = maxf(0.0, target.integrity - (damage - absorbed))
+	var actual := absorbed
+	if target.owned_ship != null and damage > absorbed:
+		var owned := target.owned_ship
+		var local_origin := (origin - target.position).rotated(-target.heading)
+		var cell := owned.hit_cell(local_origin, random)
+		var result := owned.damage_cell(cell, damage - absorbed)
+		actual += result.damage
+		for removed_cell in result.removed:
+			if random.randf() < allied_drop_chance:
+				var drop := Drop.new()
+				drop.category = owned.design.tiles[removed_cell]
+				drop.position = target.position + owned.local_cell_position(removed_cell).rotated(target.heading)
+				drops.append(drop)
+		var remaining := owned.get_stats(laser_upgrade_level)
+		target.integrity = remaining.integrity if owned.is_alive() else 0.0
+		target.stats.shields = remaining.shields
+		target.stats.thrust = remaining.thrust
+		target.shields = minf(target.shields, remaining.shields)
+		target.speed = remaining.thrust * SPEED_PER_THRUST
+	else:
+		var hull_damage := minf(target.integrity, damage - absorbed)
+		target.integrity -= hull_damage
+		actual += hull_damage
+	if actual > 0.0:
+		_damage_this_step = true
+	target.damage_taken += actual
+	if source != null:
+		source.damage_dealt += actual
+		source.weapon_damage[weapon_name] = source.weapon_damage.get(weapon_name, 0.0) + actual
 	target.since_damage = 0.0
 	target.hit_flash = 0.12
 	if absorbed > 0.0:
@@ -358,21 +482,20 @@ func _damage(target: Combatant, damage: float) -> void:
 	explosion.position = target.position
 	explosions.append(explosion)
 	ship_destroyed.emit(target.is_player)
-	if target != player and random.randf() < DROP_CHANCE:
+	if not target.is_player and random.randf() < DROP_CHANCE:
 		var drop := Drop.new()
 		drop.position = target.position
 		var roll := random.randf()
-		if roll < 0.65:
-			drop.category = ShipPart.Category.DEFENSE
-		elif roll < 0.9:
-			drop.category = ShipPart.Category.OFFENSE
-		else:
-			drop.category = ShipPart.Category.SPECIAL
+		drop.category = ShipPart.Category.DEFENSE if roll < 0.65 else (ShipPart.Category.OFFENSE if roll < 0.9 else ShipPart.Category.SPECIAL)
 		drops.append(drop)
 
 
 func _collect_salvage(delta: float) -> void:
 	var salvage_ship := get_living_player()
+	for member in players:
+		if member.is_alive() and member.speed > 0.0:
+			salvage_ship = member
+			break
 	if salvage_ship == null:
 		phase = Phase.DEFEAT
 		return
@@ -392,11 +515,7 @@ func _collect_salvage(delta: float) -> void:
 		salvage_ship.velocity = Vector2.ZERO
 		return
 	var direction := _salvage_target.position - salvage_ship.position
-	salvage_ship.heading = lerp_angle(
-		salvage_ship.heading,
-		direction.angle(),
-		minf(delta * 6.0, 1.0)
-	)
+	salvage_ship.heading = rotate_toward(salvage_ship.heading, direction.angle(), delta * 1.5)
 	var previous := salvage_ship.position
 	salvage_ship.position = salvage_ship.position.move_toward(
 		_salvage_target.position,
@@ -415,3 +534,9 @@ func get_living_player() -> Combatant:
 		if player_ship.is_alive():
 			return player_ship
 	return null
+
+
+func request_withdrawal() -> void:
+	if phase in [Phase.COMBAT, Phase.SALVAGE] and not withdrawing:
+		withdrawing = true
+		retreat_remaining = 10.0

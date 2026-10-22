@@ -23,6 +23,13 @@ const PART_FLASH_PURPLE := Color(0.72, 0.2, 1.0, 0.85)
 const PART_FLASH_YELLOW := Color(1.0, 0.88, 0.0, 0.85)
 const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
+const DESIGN_HEADER_FONT: Font = preload(
+	"res://assets/fonts/mechanical_animals/Mechanical Animals.ttf"
+)
+const DESIGN_ROW_PANEL_STYLE: StyleBox = preload(
+	"res://assets/ui/panels/compact_panel_nine_patch.tres"
+)
+const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd")
 
 @export var tile_size := Vector2i(26, 26)
 @export var map_dimensions := MAX_MAP_DIMENSIONS
@@ -49,6 +56,37 @@ const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 @onready var blue_count_label: Label = $SelectorRow/BlueBuildButton/CountBadge/CountLabel
 @onready var green_count_badge: PanelContainer = $SelectorRow/GreenBuildButton/CountBadge
 @onready var green_count_label: Label = $SelectorRow/GreenBuildButton/CountBadge/CountLabel
+@onready var design_controls: VBoxContainer = $DesignControls
+@onready var save_design_button: Button = $DesignControls/SaveDesignButton
+@onready var load_design_button: Button = $DesignControls/LoadDesignButton
+@onready var save_design_dialog: PopupPanel = $SaveDesignDialog
+@onready var save_design_name_input: LineEdit = (
+	$SaveDesignDialog/Contents/ShipNameInput
+)
+@onready var save_design_status_label: Label = $SaveDesignDialog/Contents/StatusLabel
+@onready var confirm_save_design_button: Button = (
+	$SaveDesignDialog/Contents/Buttons/ConfirmSaveButton
+)
+@onready var cancel_save_design_button: Button = (
+	$SaveDesignDialog/Contents/Buttons/CancelButton
+)
+@onready var load_design_dialog: PopupPanel = $LoadDesignDialog
+@onready var saved_design_rows: VBoxContainer = (
+	$LoadDesignDialog/Contents/ScrollContainer/SavedDesignRows
+)
+@onready var empty_designs_label: Label = (
+	$LoadDesignDialog/Contents/ScrollContainer/SavedDesignRows/EmptyDesignsLabel
+)
+@onready var load_design_status_label: Label = $LoadDesignDialog/Contents/StatusLabel
+@onready var close_load_dialog_button: Button = $LoadDesignDialog/Contents/CloseButton
+
+var undo_button: Button
+var redo_button: Button
+var _undo_states: Array[Dictionary] = []
+var _redo_states: Array[Dictionary] = []
+var _stroke_before: Dictionary = {}
+
+var previous_designs_checkbox: CheckBox
 
 var _selected_source_id := NO_SOURCE_ID
 var _preview_cell := INVALID_CELL
@@ -75,6 +113,8 @@ var _active_morph_count := 0
 
 
 func _ready() -> void:
+	map_dimensions = Vector2i.ONE * GameState.build_area_size()
+	GameState.build_area_changed.connect(_resize_build_area)
 	if tile_size.x <= 0 or tile_size.y <= 0:
 		push_error("Build tile size must be positive.")
 		set_process(false)
@@ -117,6 +157,38 @@ func _ready() -> void:
 	red_build_button.toggled.connect(_on_build_button_toggled.bind(RED_SOURCE_ID))
 	blue_build_button.toggled.connect(_on_build_button_toggled.bind(BLUE_SOURCE_ID))
 	green_build_button.toggled.connect(_on_build_button_toggled.bind(GREEN_SOURCE_ID))
+	save_design_button.pressed.connect(_on_save_design_pressed)
+	confirm_save_design_button.pressed.connect(_on_save_design_confirmed)
+	cancel_save_design_button.pressed.connect(save_design_dialog.hide)
+	save_design_name_input.text_submitted.connect(_on_save_design_name_submitted)
+	load_design_button.pressed.connect(_on_load_design_pressed)
+	close_load_dialog_button.pressed.connect(load_design_dialog.hide)
+	previous_designs_checkbox = CheckBox.new()
+	previous_designs_checkbox.text = "Include previous runs"
+	previous_designs_checkbox.add_theme_font_size_override("font_size", 10)
+	preload("res://scripts/fleet_panel.gd").style_checkbox(previous_designs_checkbox)
+	previous_designs_checkbox.toggled.connect(GameState.set_include_previous_designs)
+	var load_contents := $LoadDesignDialog/Contents
+	load_contents.add_child(previous_designs_checkbox)
+	load_contents.move_child(previous_designs_checkbox, 1)
+	GameState.design_library_changed.connect(_populate_saved_design_rows)
+	GameState.ship_stats_changed.connect(_refresh_design_controls)
+	GameState.part_transformations_changed.connect(_refresh_design_controls)
+	undo_button = Button.new()
+	redo_button = Button.new()
+	undo_button.text = "UNDO"
+	redo_button.text = "REDO"
+	undo_button.tooltip_text = "Undo (Ctrl+Z)"
+	redo_button.tooltip_text = "Redo (Ctrl+Y)"
+	for button in [undo_button, redo_button]:
+		button.custom_minimum_size = Vector2(60, 24)
+		button.add_theme_font_size_override("font_size", 8)
+		design_controls.add_child(button)
+	undo_button.pressed.connect(_undo)
+	redo_button.pressed.connect(_redo)
+	GameState.part_transformations_changed.connect(_refresh_history_buttons)
+	_refresh_history_buttons()
+	_refresh_design_controls()
 
 	resized.connect(_on_resized)
 	call_deferred("_set_initial_pan_position")
@@ -276,6 +348,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if mouse_button_event.pressed:
 		return
+	if mouse_button_event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+		_finish_stroke()
 	if mouse_button_event.button_index == MOUSE_BUTTON_LEFT:
 		_is_placing = false
 		_last_placed_cell = INVALID_CELL
@@ -310,6 +384,7 @@ func _gui_input(event: InputEvent) -> void:
 		if _is_mouse_over_build_area(local_mouse_position):
 			_is_placing = false
 			_last_placed_cell = INVALID_CELL
+			_begin_stroke()
 			_is_erasing = true
 			_last_erased_cell = INVALID_CELL
 			_erase_at_local_position(local_mouse_position)
@@ -325,6 +400,7 @@ func _gui_input(event: InputEvent) -> void:
 	if cell == INVALID_CELL:
 		return
 
+	_begin_stroke()
 	_is_placing = true
 	_last_placed_cell = INVALID_CELL
 	_paint_to_cell(cell)
@@ -404,10 +480,6 @@ func _apply_selected_tool(cell: Vector2i) -> void:
 		return
 	if existing_category == category:
 		return
-	if not GameState.try_consume_tile(category):
-		return
-	if existing_category != NO_CATEGORY:
-		GameState.refund_tile(existing_category)
 	GameState.ship.set_tile_at(cell, category)
 	placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
 	AudioManager.play_sfx(PLACE_SFX)
@@ -423,7 +495,6 @@ func _remove_tile_at(cell: Vector2i) -> void:
 		return
 
 	GameState.ship.remove_tile_at(cell)
-	GameState.refund_tile(category)
 	placed_layer.erase_cell(cell)
 	_evaluate_part_patterns()
 
@@ -455,26 +526,16 @@ func _pick_tile_at(cell: Vector2i) -> void:
 
 
 func _refresh_tile_counts() -> void:
-	_set_tile_count(
-		red_count_badge,
-		red_count_label,
-		GameState.get_available_tile_count(ShipPart.Category.OFFENSE)
-	)
-	_set_tile_count(
-		blue_count_badge,
-		blue_count_label,
-		GameState.get_available_tile_count(ShipPart.Category.DEFENSE)
-	)
-	_set_tile_count(
-		green_count_badge,
-		green_count_label,
-		GameState.get_available_tile_count(ShipPart.Category.SPECIAL)
-	)
+	red_count_badge.hide()
+	blue_count_badge.hide()
+	green_count_badge.hide()
 
 
-func _set_tile_count(badge: PanelContainer, label: Label, count: int) -> void:
-	label.text = str(count)
-	badge.show()
+func _resize_build_area() -> void:
+	map_dimensions = Vector2i.ONE * GameState.build_area_size()
+	_fill_grid()
+	_initial_pan_position_set = false
+	_set_initial_pan_position()
 
 
 func _evaluate_part_patterns() -> void:
@@ -747,18 +808,243 @@ func _complete_part_transformation(
 
 
 func _get_texture_for_part(part: ShipPart) -> Texture2D:
-	for pattern in _part_patterns:
-		if pattern.part_type != part.type:
-			continue
-		if pattern.preview_texture == null:
-			push_error("No preview texture is assigned for %s." % pattern.display_name)
-			return null
-		return pattern.preview_texture
+	var pattern := _get_pattern_for_part(part)
+	if pattern == null:
+		return null
+	if pattern.preview_texture == null:
+		push_error("No preview texture is assigned for %s." % pattern.display_name)
+		return null
+	return pattern.preview_texture
 
+
+func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:
+	for pattern in _part_patterns:
+		if pattern.part_type == part.type:
+			return pattern
 	push_error("Unknown ship part type: %s" % part.type)
 	return null
 
 
+func _refresh_design_controls() -> void:
+	var can_change_design := GameState.active_part_transformations == 0
+	save_design_button.disabled = not can_change_design or GameState.ship.tiles.is_empty()
+	load_design_button.disabled = not can_change_design
+
+
+func _on_save_design_pressed() -> void:
+	if not GameState.current_ship_design_name.is_empty():
+		var error_message := GameState.save_current_ship_design(
+			GameState.current_ship_design_name
+		)
+		if error_message.is_empty():
+			return
+		save_design_status_label.text = error_message
+		save_design_name_input.text = GameState.current_ship_design_name
+		save_design_dialog.popup_centered()
+		save_design_name_input.grab_focus()
+		return
+
+	save_design_status_label.text = ""
+	save_design_name_input.text = ""
+	save_design_dialog.popup_centered()
+	save_design_name_input.grab_focus()
+
+
+func _on_save_design_name_submitted(submitted_name: String) -> void:
+	save_design_name_input.text = submitted_name
+	_on_save_design_confirmed()
+
+
+func _on_save_design_confirmed() -> void:
+	var error_message := GameState.save_current_ship_design(
+		save_design_name_input.text
+	)
+	if not error_message.is_empty():
+		save_design_status_label.text = error_message
+		save_design_name_input.grab_focus()
+		return
+	save_design_dialog.hide()
+
+
+func _on_load_design_pressed() -> void:
+	_populate_saved_design_rows()
+	load_design_status_label.text = ""
+	load_design_dialog.popup_centered()
+
+
+func _populate_saved_design_rows() -> void:
+	for child in saved_design_rows.get_children():
+		if child == empty_designs_label:
+			continue
+		saved_design_rows.remove_child(child)
+		child.queue_free()
+
+	previous_designs_checkbox.set_pressed_no_signal(GameState.include_previous_run_designs)
+	var designs := GameState.get_visible_ship_designs()
+	empty_designs_label.visible = designs.is_empty()
+	for design in designs:
+		var row := _create_saved_design_row(design)
+		if row != null:
+			saved_design_rows.add_child(row)
+
+
+func _create_saved_design_row(design: Dictionary) -> PanelContainer:
+	var design_name := str(design.get("name", ""))
+	var saved_ship := Ship.new()
+	if not saved_ship.load_design_data(design.get("ship")):
+		push_error("Could not display saved ship design '%s'." % design_name)
+		return null
+
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0.0, 96.0)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_stylebox_override("panel", DESIGN_ROW_PANEL_STYLE)
+
+	var contents := HBoxContainer.new()
+	contents.add_theme_constant_override("separation", 8)
+	row.add_child(contents)
+
+	var preview: Control = SHIP_DESIGN_PREVIEW_SCRIPT.new()
+	preview.custom_minimum_size = Vector2(112.0, 80.0)
+	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	preview.call("set_ship", saved_ship)
+	contents.add_child(preview)
+
+	var details := VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	details.add_theme_constant_override("separation", 2)
+	contents.add_child(details)
+
+	var name_label := Label.new()
+	name_label.text = design_name.to_upper()
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.add_theme_font_override("font", DESIGN_HEADER_FONT)
+	name_label.add_theme_font_size_override("font_size", 11)
+	details.add_child(name_label)
+
+	var summary_label := Label.new()
+	summary_label.text = _format_design_summary(saved_ship)
+	summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	summary_label.add_theme_font_size_override("font_size", 9)
+	details.add_child(summary_label)
+
+	var load_button := Button.new()
+	load_button.text = "LOAD"
+	load_button.custom_minimum_size = Vector2(64.0, 32.0)
+	load_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	load_button.add_theme_font_size_override("font_size", 10)
+	load_button.pressed.connect(_on_load_saved_design_pressed.bind(design_name))
+	load_button.disabled = not GameState.design_fits_build_area(saved_ship)
+	load_button.tooltip_text = "Upgrade the build area to load this design." if load_button.disabled else ""
+	preload("res://scripts/fleet_panel.gd").compact_button(load_button)
+	contents.add_child(load_button)
+	var delete_button := Button.new()
+	delete_button.icon = preload("res://scripts/fleet_panel.gd").trash_icon()
+	delete_button.tooltip_text = "Delete saved design"
+	delete_button.visible = design_name != "Drone"
+	delete_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	preload("res://scripts/fleet_panel.gd").compact_button(delete_button)
+	delete_button.pressed.connect(func() -> void:
+		if not GameState.delete_saved_ship_design(design_name):
+			load_design_status_label.text = "Could not delete the saved design.")
+	contents.add_child(delete_button)
+	return row
+
+
+func _format_design_summary(saved_ship: Ship) -> String:
+	var stats := saved_ship.get_stats()
+	var summary_lines: Array[String] = [
+		"Shields: %s, Integrity: %s, Weight: %s"
+		% [
+			_format_stat_value(stats.shields),
+			_format_stat_value(stats.integrity),
+			_format_stat_value(stats.weight),
+		],
+		"Cost: %d credits, Thrust: %s, DPS: %.2f"
+		% [
+			saved_ship.cost,
+			_format_stat_value(stats.thrust),
+			stats.dps,
+		],
+	]
+
+	var grouped_weapons: Array[ShipWeaponStats] = []
+	var weapon_counts: Array[int] = []
+	for weapon in stats.weapons:
+		var group_index := -1
+		for index in range(grouped_weapons.size()):
+			if grouped_weapons[index].weapon_name == weapon.weapon_name:
+				group_index = index
+				break
+		if group_index < 0:
+			grouped_weapons.append(weapon)
+			weapon_counts.append(1)
+		else:
+			weapon_counts[group_index] += 1
+
+	if grouped_weapons.is_empty():
+		summary_lines.append("Weapons: none")
+	else:
+		for group_index in range(grouped_weapons.size()):
+			var weapon := grouped_weapons[group_index]
+			var weapon_details: Array[String] = []
+			var fire_rate := weapon.get_fire_rate_per_second()
+			if not is_zero_approx(fire_rate):
+				weapon_details.append("Fire rate: %.2f/sec" % fire_rate)
+			if not is_zero_approx(weapon.damage_per_shot):
+				weapon_details.append(
+					"Damage/shot: %s" % _format_stat_value(weapon.damage_per_shot)
+				)
+			if weapon.projectiles_per_activation != 0:
+				weapon_details.append("Shots: %d" % weapon.projectiles_per_activation)
+			var weapon_dps := weapon.get_dps() * weapon_counts[group_index]
+			if not is_zero_approx(weapon_dps):
+				weapon_details.append("DPS: %.2f" % weapon_dps)
+			var weapon_name := weapon.weapon_name
+			if weapon_counts[group_index] > 1:
+				weapon_name += " (x%d)" % weapon_counts[group_index]
+			summary_lines.append("%s: %s" % [weapon_name, ", ".join(weapon_details)])
+
+	return "\n".join(summary_lines)
+
+
+func _format_stat_value(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return str(roundi(value))
+	return "%.2f" % value
+
+
+func _on_load_saved_design_pressed(design_name: String) -> void:
+	var before := _history_state()
+	if not GameState.load_saved_ship_design(design_name):
+		load_design_status_label.text = (
+			"Could not load this design. Check the build area size."
+		)
+		return
+
+	_record_change(before)
+	_restore_loaded_ship_design()
+	load_design_dialog.hide()
+
+
+func _restore_loaded_ship_design() -> void:
+	_clear_preview()
+	_clear_part_placeholders()
+	_locked_cells.clear()
+	_restore_ship_tiles()
+	_refresh_ship_hull()
+
+	for part in GameState.ship.parts:
+		var pattern := _get_pattern_for_part(part)
+		if pattern == null:
+			continue
+		var quarter_turns := pattern.get_rotation_for_offsets(part.cell_offsets)
+		if quarter_turns < 0:
+			push_error("Could not determine the rotation for %s." % pattern.display_name)
+			continue
+		_add_part_placeholder(part, pattern, quarter_turns)
 
 
 func _zoom_at(local_mouse_position: Vector2, zoom_delta: float) -> void:
@@ -858,7 +1144,16 @@ func _is_mouse_over_selector_area(local_mouse_position: Vector2) -> bool:
 		selector_background.get_global_transform_with_canvas().affine_inverse()
 		* canvas_mouse_position
 	)
-	return Rect2(Vector2.ZERO, selector_background.size).has_point(background_mouse_position)
+	if Rect2(Vector2.ZERO, selector_background.size).has_point(background_mouse_position):
+		return true
+
+	var design_controls_mouse_position := (
+		design_controls.get_global_transform_with_canvas().affine_inverse()
+		* canvas_mouse_position
+	)
+	return Rect2(Vector2.ZERO, design_controls.size).has_point(
+		design_controls_mouse_position
+	)
 
 
 func _update_preview() -> void:
@@ -903,18 +1198,20 @@ func _set_initial_pan_position() -> void:
 		map_dimensions.x * tile_size.x,
 		map_dimensions.y * tile_size.y
 	)
+	var usable_start := Vector2(size.x * 0.17 + 8.0, 8.0)
+	var usable_size := Vector2(maxf(size.x - usable_start.x - 68.0, 1.0), maxf(size.y - 16.0, 1.0))
+	_target_zoom = clampf(minf(usable_size.x / world_map_size.x, usable_size.y / world_map_size.y), MIN_ZOOM, 1.0)
+	pan_root.scale = Vector2.ONE * _target_zoom
 	var map_size := world_map_size * pan_root.scale
-	pan_root.position = (size - map_size) / 2.0
+	pan_root.position = usable_start + (usable_size - map_size) / 2.0
 	_initial_pan_position_set = true
 	_clamp_pan_position()
 	background_starfield.configure(world_map_size, size, MIN_ZOOM)
 
 
 func _on_resized() -> void:
-	if _initial_pan_position_set:
-		_clamp_pan_position()
-	else:
-		_set_initial_pan_position()
+	_initial_pan_position_set = false
+	_set_initial_pan_position()
 
 
 func _clamp_pan_position() -> void:
@@ -933,3 +1230,72 @@ func _clamp_pan_position() -> void:
 		clampf(pan_root.position.x, minimum_position.x, maximum_position.x),
 		clampf(pan_root.position.y, minimum_position.y, maximum_position.y)
 	)
+
+
+func _history_state() -> Dictionary:
+	return {"tiles": GameState.ship.tiles.duplicate(), "name": GameState.current_ship_design_name}
+
+func _begin_stroke() -> void:
+	_finish_stroke()
+	_stroke_before = _history_state()
+
+func _finish_stroke() -> void:
+	if not _stroke_before.is_empty():
+		_record_change(_stroke_before)
+		_stroke_before = {}
+
+func _record_change(before: Dictionary) -> void:
+	if before == _history_state():
+		return
+	_undo_states.append(before)
+	if _undo_states.size() > 100:
+		_undo_states.pop_front()
+	_redo_states.clear()
+	_refresh_history_buttons()
+
+func _refresh_history_buttons() -> void:
+	if undo_button == null:
+		return
+	undo_button.disabled = _undo_states.is_empty() or GameState.active_part_transformations > 0
+	redo_button.disabled = _redo_states.is_empty() or GameState.active_part_transformations > 0
+
+func _restore_history(state: Dictionary) -> void:
+	_is_placing = false
+	_is_erasing = false
+	_last_placed_cell = INVALID_CELL
+	_last_erased_cell = INVALID_CELL
+	GameState.ship = Ship.new()
+	GameState.ship.tiles.assign(state.tiles)
+	GameState.current_ship_design_name = state.name
+	_clear_preview()
+	_evaluate_part_patterns()
+	_refresh_history_buttons()
+
+func _undo() -> void:
+	if GameState.active_part_transformations > 0:
+		return
+	_finish_stroke()
+	if _undo_states.is_empty():
+		return
+	_redo_states.append(_history_state())
+	_restore_history(_undo_states.pop_back())
+
+func _redo() -> void:
+	if GameState.active_part_transformations > 0:
+		return
+	_finish_stroke()
+	if _redo_states.is_empty():
+		return
+	_undo_states.append(_history_state())
+	_restore_history(_redo_states.pop_back())
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or save_design_dialog.visible or load_design_dialog.visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.ctrl_pressed:
+		if event.keycode == KEY_Z:
+			_undo()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_Y:
+			_redo()
+			get_viewport().set_input_as_handled()

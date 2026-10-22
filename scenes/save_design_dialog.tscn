@@ -1,0 +1,62 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://themes/ui_theme.tres" id="1_theme"]
+[ext_resource type="FontFile" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="2_header_font"]
+
+[node name="SaveDesignDialog" type="PopupPanel"]
+initial_position = 1
+size = Vector2i(360, 192)
+visible = false
+exclusive = true
+content_scale_factor = 1.0
+theme = ExtResource("1_theme")
+
+[node name="Contents" type="VBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Contents"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_header_font")
+theme_override_font_sizes/font_size = 14
+text = "SAVE SHIP DESIGN"
+horizontal_alignment = 1
+
+[node name="ShipNameInput" type="LineEdit" parent="Contents"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "SHIP NAME"
+max_length = 32
+select_all_on_focus = true
+
+[node name="StatusLabel" type="Label" parent="Contents"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Contents"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="Contents/Buttons"]
+custom_minimum_size = Vector2(100, 34)
+layout_mode = 2
+text = "CANCEL"
+
+[node name="ConfirmSaveButton" type="Button" parent="Contents/Buttons"]
+custom_minimum_size = Vector2(100, 34)
+layout_mode = 2
+text = "SAVE"

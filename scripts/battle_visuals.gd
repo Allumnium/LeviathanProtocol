@@ -49,14 +49,14 @@ func _draw() -> void:
 		draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
 	for drop in simulation.drops:
 		if not drop.collected:
-			var color := Color.DODGER_BLUE
-			if drop.category == ShipPart.Category.OFFENSE:
-				color = Color.RED
-			elif drop.category == ShipPart.Category.SPECIAL:
-				color = Color.LIME_GREEN
-			draw_rect(Rect2(drop.position - Vector2.ONE * 4.0, Vector2.ONE * 8.0), color)
-			draw_rect(Rect2(drop.position - Vector2.ONE * 6.0, Vector2.ONE * 12.0),
-				Color(color, 0.3), false, 1.0)
+			var tile_texture := _get_tile_texture(drop.category)
+			if tile_texture != null:
+				var drop_size := Vector2.ONE * 12.0
+				draw_texture_rect(
+					tile_texture,
+					Rect2(drop.position - drop_size * 0.5, drop_size),
+					false
+				)
 	for player_ship in simulation.players:
 		if player_ship.is_alive():
 			_draw_player_ship(player_ship)
@@ -83,6 +83,9 @@ func _draw() -> void:
 
 
 func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
+	if player_ship.owned_ship != null:
+		_draw_voxel_ship(player_ship)
+		return
 	var cells := GameState.ship.get_tile_cells()
 	if cells.is_empty():
 		return
@@ -106,7 +109,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 		float(minimum_y + maximum_y + 1) * BUILD_CELL_SIZE.y * 0.5
 	)
 	var ship_scale := Ship.BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
-	_set_ship_transform(player_ship.position, player_ship.heading + PI * 0.5, ship_scale)
+	_set_ship_transform(player_ship.position, player_ship.heading, ship_scale)
 	var hull_points := PackedVector2Array()
 	for cell in cells:
 		var cell_top_left := Vector2(
@@ -236,3 +239,37 @@ func _get_tile_texture(category: int) -> Texture2D:
 		_:
 			push_error("Unknown tile category in battle renderer: %s" % category)
 			return null
+
+
+func _draw_voxel_ship(member: BattleSimulation.Combatant) -> void:
+	var owned := member.owned_ship
+	_set_ship_transform(member.position, member.heading)
+	var hidden := {}
+	for unit in owned.units:
+		if unit.hp > 0.0 and unit.part != null:
+			for cell in unit.part.get_hidden_tile_cells():
+				hidden[cell] = true
+	for unit in owned.units:
+		if unit.hp <= 0.0:
+			continue
+		for cell in unit.cells:
+			var rect := Rect2(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
+			if hidden.has(cell):
+				draw_rect(rect, HULL_CUTOUT_COLOR)
+				draw_rect(rect, Color(1.0, 0.15, 0.15), false, 0.3)
+				continue
+			draw_rect(rect, HULL_COLOR)
+			draw_texture_rect(_get_tile_texture(owned.design.tiles[cell]), rect.grow(-0.2), false)
+		var part: ShipPart = unit.part
+		if part == null:
+			continue
+		var pattern := _get_pattern_for_part(part)
+		var cells := _get_visual_cells_for_part(part, pattern)
+		var rect := Rect2(owned.local_cell_position(cells[0]) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
+		for cell in cells:
+			rect = rect.expand(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5)
+			rect = rect.expand(owned.local_cell_position(cell) + Vector2.ONE * owned.cell_size * 0.5)
+		draw_texture_rect(pattern.preview_texture, rect, false, Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
+	if member.hit_flash > 0.0:
+		draw_arc(Vector2.ZERO, 27.0, 0.0, TAU, 32, Color(0.4, 0.8, 1.0, 0.7), 1.0, true)
+	draw_set_transform_matrix(world_transform())

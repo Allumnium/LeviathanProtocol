@@ -5,7 +5,6 @@ const AMBIENCE_BUS: StringName = &"Ambience"
 const SFX_BUS: StringName = &"SFX"
 const MENU_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Orbital Cartridge.mp3")
 const BUILD_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Star Cartridge.mp3")
-const BATTLE_AMBIENCE: AudioStreamMP3 = preload("res://assets/audio/music/ambient_space.mp3")
 const MENU_THRUSTER_LOW: AudioStreamMP3 = preload(
 	"res://assets/audio/sfx/thruster_low_loop.mp3"
 )
@@ -13,15 +12,16 @@ const MENU_THRUSTER_LARGE: AudioStreamMP3 = preload(
 	"res://assets/audio/sfx/thrust-large-loop.mp3"
 )
 const DEFAULT_VOLUME_PERCENT := 50.0
+const OUTPUT_GAIN_DB := -6.0
 
 var _music_player: AudioStreamPlayer
 var _current_music_track: StringName = &""
-var _battle_ambience_player: AudioStreamPlayer
 var _menu_thruster_player: AudioStreamPlayer
 var _menu_thruster_mode: StringName = &""
 
 
 func _ready() -> void:
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index(&"Master"), OUTPUT_GAIN_DB)
 	_ensure_bus(MUSIC_BUS)
 	_ensure_bus(AMBIENCE_BUS)
 	_ensure_bus(SFX_BUS)
@@ -74,31 +74,6 @@ func play_menu_music() -> void:
 
 func play_build_music() -> void:
 	_play_music(BUILD_MUSIC, &"build")
-
-
-func play_battle_ambience() -> void:
-	if is_instance_valid(_battle_ambience_player) and _battle_ambience_player.playing:
-		return
-
-	var ambience_stream := _create_looping_stream(BATTLE_AMBIENCE)
-	if ambience_stream == null:
-		return
-
-	_battle_ambience_player = AudioStreamPlayer.new()
-	_battle_ambience_player.name = "BattleAmbiencePlayer"
-	_battle_ambience_player.bus = AMBIENCE_BUS
-	_battle_ambience_player.stream = ambience_stream
-	add_child(_battle_ambience_player)
-	_battle_ambience_player.play()
-
-
-func stop_battle_ambience() -> void:
-	if not is_instance_valid(_battle_ambience_player):
-		return
-
-	_battle_ambience_player.stop()
-	_battle_ambience_player.queue_free()
-	_battle_ambience_player = null
 
 
 func set_menu_thruster_mode(use_large_thruster: bool) -> void:

@@ -15,7 +15,8 @@ func _init(
 	stat_name: String = "",
 	value: float = 0.0,
 	formatted_value: String = "",
-	font_size: int = 11
+	font_size: int = 11,
+	show_segments: bool = true
 ) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 1)
@@ -36,6 +37,8 @@ func _init(
 	value_label.add_theme_font_size_override("font_size", font_size)
 	title_row.add_child(value_label)
 	add_child(title_row)
+	if not show_segments:
+		return
 
 	var segments := HFlowContainer.new()
 	segments.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -2,9 +2,10 @@ extends Control
 
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
-const ARCHIVE_TAB_INDEX := 2
+const ARCHIVE_TAB_INDEX := 3
+var shop := preload("res://scripts/fleet_shop.gd").new()
 
-@onready var deploy_button: Button = $Layout/UpperArea/DetailsPanel/DetailsContents/DeployButton
+@onready var deploy_button: Button = $Layout/UpperArea/LeftPanel/PanelContents/DeployButton
 @onready var stat_rows: VBoxContainer = (
 	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/StatRows
 )
@@ -18,6 +19,7 @@ const ARCHIVE_TAB_INDEX := 2
 @onready var settings_button: TextureButton = $Layout/TopBar/BarContents/SettingsButton
 @onready var panel_tabs: TabContainer = $Layout/UpperArea/LeftPanel/PanelContents/Tabs
 @onready var panel_tab_buttons: Array[Button] = [
+	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/FleetTabButton,
 	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/BuildTabButton,
 	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/UpgradesTabButton,
 	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton,
@@ -36,12 +38,18 @@ const ARCHIVE_TAB_INDEX := 2
 
 func _ready() -> void:
 	AudioManager.play_build_music()
+	GameState.credits_changed.connect(_refresh_top_bar)
+	GameState.fleet_changed.connect(_refresh_top_bar)
+	_refresh_top_bar()
 	GameState.unviewed_discoveries_changed.connect(_refresh_archive_unread_badge)
 	GameState.part_transformations_changed.connect(_refresh_deploy_button)
+	GameState.player_ship_count_changed.connect(_refresh_deploy_button)
 	GameState.ship_stats_changed.connect(_refresh_ship_stats)
 	_refresh_archive_unread_badge()
 	_refresh_deploy_button()
 	_refresh_ship_stats()
+	$Layout/UpperArea/DetailsPanel.add_child(shop)
+	shop.bind_fleet(panel_tabs.get_node("Fleet"))
 	_setup_panel_tabs()
 	deploy_button.pressed.connect(_on_deploy_pressed)
 	how_to_play_button.pressed.connect(_on_how_to_play_pressed)
@@ -109,6 +117,10 @@ func _on_panel_tab_button_pressed(tab_index: int) -> void:
 
 
 func _on_panel_tab_changed(tab_index: int) -> void:
+	deploy_button.visible = tab_index == 0
+	shop.visible = tab_index == 0
+	$Layout/UpperArea/DetailsPanel/DetailsContents.visible = tab_index != 0
+	_refresh_ship_stats()
 	for index in range(panel_tab_buttons.size()):
 		panel_tab_buttons[index].button_pressed = index == tab_index
 	if tab_index == ARCHIVE_TAB_INDEX:
@@ -122,16 +134,17 @@ func _refresh_archive_unread_badge() -> void:
 
 
 func _refresh_deploy_button() -> void:
-	var stats := GameState.ship.get_stats()
-	deploy_button.disabled = (
-		GameState.active_part_transformations > 0 or stats.integrity <= 0.0 or stats.dps <= 0.0
-	)
-	deploy_button.tooltip_text = "Build a ship with a weapon before deploying." if stats.dps <= 0.0 else ""
+	deploy_button.disabled = not GameState.can_deploy()
+	deploy_button.tooltip_text = "" if GameState.can_deploy() else "Construct an armed ship in Fleet."
 
 
 func _refresh_ship_stats() -> void:
 	_refresh_deploy_button()
-	var stats := GameState.ship.get_stats()
+	var design := GameState.ship
+	if panel_tabs.current_tab == 0:
+		var selected: Ship = panel_tabs.get_node("Fleet").selected_design
+		design = selected if selected != null else Ship.new()
+	var stats := design.get_stats()
 
 	for child in stat_rows.get_children():
 		stat_rows.remove_child(child)
@@ -140,6 +153,7 @@ func _refresh_ship_stats() -> void:
 	_add_stat_row("Shields", stats.shields, _format_stat_value(stats.shields))
 	_add_stat_row("Integrity", stats.integrity, _format_stat_value(stats.integrity))
 	_add_stat_row("Weight", stats.weight, _format_stat_value(stats.weight))
+	_add_stat_row("Cost", 0.0, "%d credits" % design.cost, false)
 	_add_stat_row("Thrust", stats.thrust, _format_stat_value(stats.thrust))
 	_add_stat_row("DPS", stats.dps, "%.2f" % stats.dps)
 
@@ -200,10 +214,17 @@ func _refresh_ship_stats() -> void:
 		weapon_rows.add_child(weapon_label)
 
 
-func _add_stat_row(stat_name: String, value: float, formatted_value: String) -> void:
-	if is_zero_approx(value):
+func _add_stat_row(
+	stat_name: String,
+	value: float,
+	formatted_value: String,
+	show_segments: bool = true
+) -> void:
+	if show_segments and is_zero_approx(value):
 		return
-	stat_rows.add_child(StatDisplayRow.new(stat_name, value, formatted_value, 12))
+	stat_rows.add_child(
+		StatDisplayRow.new(stat_name, value, formatted_value, 12, show_segments)
+	)
 
 
 func _format_stat_value(value: float) -> String:
@@ -269,3 +290,19 @@ func _return_to_main_menu() -> void:
 	var error := get_tree().change_scene_to_file(MAIN_MENU_SCENE_PATH)
 	if error != OK:
 		push_error("Could not return to the main menu. Error code: %s" % error)
+
+
+func _refresh_top_bar() -> void:
+	var health := 0.0
+	var maximum := 0.0
+	var damaged := 0
+	for owned in GameState.fleet:
+		if owned.repair_cost() > 0:
+			damaged += 1
+		for unit in owned.units:
+			health += unit.hp
+			maximum += unit.max_hp
+	var summary := "%d %s" % [GameState.fleet.size(), "ship" if GameState.fleet.size() == 1 else "ships"]
+	if maximum > 0.0:
+		summary += " · %d%% hull · %d damaged" % [roundi(health / maximum * 100.0), damaged]
+	$Layout/TopBar/BarContents/StatsSpace.text = "%d CR     LEVEL %d\n%s" % [GameState.credits, GameState.campaign_level(), summary]

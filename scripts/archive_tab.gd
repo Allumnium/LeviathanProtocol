@@ -75,7 +75,7 @@ func _create_entry(pattern: ShipPartPattern) -> PanelContainer:
 	name_label.text = pattern.display_name.to_upper()
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.add_theme_font_override("font", HEADER_FONT)
-	name_label.add_theme_font_size_override("font_size", 12)
+	name_label.add_theme_font_size_override("font_size", 6)
 	details.add_child(name_label)
 
 	var description_container := _create_stats_description(pattern)
@@ -126,7 +126,7 @@ func _create_stats_description(pattern: ShipPartPattern) -> VBoxContainer:
 				", ".join(weapon_details),
 			]
 			weapon_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			weapon_description.add_theme_font_size_override("font_size", 10)
+			weapon_description.add_theme_font_size_override("font_size", 5)
 			description.add_child(weapon_description)
 
 	return description
@@ -144,7 +144,7 @@ func _append_stat_contribution(
 			stat_name,
 			value,
 			_format_signed_stat_value(value),
-			10
+			5
 		)
 	)
 

@@ -10,6 +10,7 @@ enum Type {
 	MINI_TURRET,
 	THRUSTER,
 	LARGE_THRUSTER,
+	COMMAND_CENTER,
 }
 
 enum Category {

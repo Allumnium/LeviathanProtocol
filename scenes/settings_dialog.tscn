@@ -24,6 +24,8 @@ layout_mode = 2
 text = "Music"
 vertical_alignment = 1
 
+theme_override_font_sizes/font_size = 11
+
 [node name="MusicSlider" type="HSlider" parent="Contents/ContentArea/MusicRow" index="1" unique_id=222398829]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -40,6 +42,8 @@ layout_mode = 2
 text = "Ambience"
 vertical_alignment = 1
 
+theme_override_font_sizes/font_size = 11
+
 [node name="AmbienceSlider" type="HSlider" parent="Contents/ContentArea/AmbienceRow" index="1" unique_id=2115774007]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -55,6 +59,8 @@ custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Effects"
 vertical_alignment = 1
+
+theme_override_font_sizes/font_size = 11
 
 [node name="EffectsSlider" type="HSlider" parent="Contents/ContentArea/EffectsRow" index="1" unique_id=1484295371]
 layout_mode = 2

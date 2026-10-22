@@ -33,3 +33,7 @@ res://scripts/battle_visuals.gd
 res://scripts/alien_ship.gd
 res://scripts/battle_simulation.gd
 res://tests/test_battle.gd
+res://scripts/fleet_panel.gd
+res://scripts/fleet_ship.gd
+res://scripts/formation_board.gd
+res://scripts/upgrades_panel.gd

@@ -14,15 +14,13 @@ var _dragging := false
 var _follow_player := false
 var _finished := false
 var _credited_drops := 0
+var withdraw_button: Button
 
 
 func _ready() -> void:
-	AudioManager.play_battle_ambience()
-	if not GameState.battle_pending or not simulation.setup(
-		GameState.ship.get_stats(),
-		GameState.battle_aliens,
-		-1,
-		GameState.player_ship_count
+	if not GameState.battle_pending or not simulation.setup_owned(
+		GameState.fleet, GameState.battle_aliens,
+		GameState.allied_salvage_chance(), GameState.laser_upgrade_level
 	):
 		push_error("Cannot open battle without a valid deployment.")
 		GameState.cancel_battle()
@@ -32,12 +30,23 @@ func _ready() -> void:
 	simulation.weapon_fired.connect(AudioManager.play_sfx.bind(SHOOT_SOUND))
 	simulation.shield_hit.connect(AudioManager.play_sfx.bind(SHIELD_HIT_SOUND))
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
+	withdraw_button = Button.new()
+	withdraw_button.text = "WITHDRAW"
+	withdraw_button.add_theme_font_size_override("font_size", 10)
+	preload("res://scripts/fleet_panel.gd").compact_button(withdraw_button)
+	withdraw_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	withdraw_button.offset_left = -100
+	withdraw_button.offset_right = -8
+	withdraw_button.offset_top = 8
+	withdraw_button.offset_bottom = 32
+	withdraw_button.pressed.connect(func() -> void:
+		simulation.request_withdrawal()
+		withdraw_button.disabled = true)
+	add_child(withdraw_button)
+	withdraw_button.offset_left = -110
+	withdraw_button.offset_right = -8
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
-
-
-func _exit_tree() -> void:
-	AudioManager.stop_battle_ambience()
 
 
 func _physics_process(delta: float) -> void:
@@ -61,6 +70,10 @@ func _physics_process(delta: float) -> void:
 		BattleSimulation.Phase.DEFEAT:
 			status_label.text = "SHIP LOST - Returning to rebuild"
 			_finish_battle(false)
+		BattleSimulation.Phase.WITHDRAWN:
+			_finish_battle(false)
+	if simulation.withdrawing and not _finished:
+		withdraw_button.text = "RETREAT %d" % ceili(simulation.retreat_remaining)
 	visuals.queue_redraw()
 
 
@@ -107,17 +120,25 @@ func _on_ship_destroyed(is_player: bool) -> void:
 
 func _finish_battle(won: bool) -> void:
 	_finished = true
+	withdraw_button.hide()
+	GameState.record_battle(simulation)
 	if won:
 		if not GameState.complete_battle():
 			push_error("Could not record battle victory.")
 			return
 	else:
 		GameState.cancel_battle()
-	await get_tree().create_timer(1.0 if won else 2.0).timeout
-	_return_to_map()
+	_show_report(won)
 
 
 func _return_to_map() -> void:
 	var error := get_tree().change_scene_to_file(MAP_SCENE_PATH)
 	if error != OK:
 		push_error("Could not return to the game map. Error code: %s" % error)
+
+
+func _show_report(won: bool) -> void:
+	var report := preload("res://scripts/battle_report.gd").new()
+	add_child(report)
+	report.show_report(GameState.last_battle_report, "VICTORY" if won else ("WITHDRAWN" if simulation.phase == BattleSimulation.Phase.WITHDRAWN else "DEFEAT"), _credited_drops)
+	report.closed.connect(_return_to_map)

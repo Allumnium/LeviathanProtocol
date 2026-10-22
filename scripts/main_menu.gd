@@ -22,9 +22,8 @@ func _ready() -> void:
 	play_button.pressed.connect(_on_play_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
-	game_title.resized.connect(_update_game_title_pivot)
-	_update_game_title_pivot()
-	_animate_game_title()
+	resized.connect(_fit_title)
+	_fit_title()
 
 
 func _on_play_pressed() -> void:
@@ -95,45 +94,12 @@ func _restore_menu_after_failed_transition() -> void:
 	_is_starting_run = false
 
 
-func _update_game_title_pivot() -> void:
-	game_title.pivot_offset = game_title.size * 0.5
-
-
-func _animate_game_title() -> void:
-	var base_y := game_title.position.y
-	var float_tween := create_tween().set_loops()
-	float_tween.tween_property(
-		game_title,
-		"position:y",
-		base_y - 6.0,
-		2.0
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	float_tween.tween_property(
-		game_title,
-		"position:y",
-		base_y + 6.0,
-		4.0
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	float_tween.tween_property(
-		game_title,
-		"position:y",
-		base_y,
-		2.0
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-
-	var pulse_tween := create_tween().set_loops()
-	pulse_tween.tween_property(
-		game_title,
-		"scale",
-		Vector2(1.04, 1.04),
-		2.0
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	pulse_tween.tween_property(
-		game_title,
-		"scale",
-		Vector2.ONE,
-		2.0
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+func _fit_title() -> void:
+	var font := game_title.get_theme_font("font")
+	var font_size := 28
+	while font_size > 16 and font.get_string_size(GAME_TITLE_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > size.x * 0.78:
+		font_size -= 1
+	game_title.add_theme_font_size_override("font_size", font_size)
 
 
 func _on_settings_pressed() -> void:
