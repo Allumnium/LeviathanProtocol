@@ -22,3 +22,7 @@ res://scripts/ship.gd
 res://scripts/ship_design_preview.gd
 res://scripts/ship_part.gd
 res://scenes/victory_dialog.tscn
+res://scripts/main_menu_starfield.gd
+res://scenes/game_setup.tscn
+res://scripts/ship_part_pattern.gd
+res://scripts/fleet_ship.gd

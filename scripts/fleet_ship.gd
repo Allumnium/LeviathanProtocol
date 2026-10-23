@@ -3,7 +3,7 @@ extends RefCounted
 
 # A constructed ship owns an immutable blueprint and persistent component health.
 # Combined parts are atomic damage units; their occupied cells stay until HP is zero.
-const REPAIR_PER_TILE := [2.0, 0.1, 4.0]
+const REPAIR_PER_TILE := [2.0, 0.1, 4.0, 20]
 const NEIGHBORS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 var id := 0
 var display_name := "Ship"

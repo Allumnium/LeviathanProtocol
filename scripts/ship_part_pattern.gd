@@ -66,7 +66,14 @@ static func get_catalog() -> Array[ShipPartPattern]:
 		ShipPart.Type.COMMAND_CENTER, ShipPart.Category.SPECIAL,
 		[Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)],
 		"Command Center", COMMAND_CENTER_TEXTURE,
-		ShipPartStats.new(0.0, 12.0, 4.0, 0.0)
+		ShipPartStats.new(0.0, 12.0, 4.0, 0.0),
+		false,
+		[
+			ShipPart.Category.CORE,
+			ShipPart.Category.SPECIAL,
+			ShipPart.Category.SPECIAL,
+			ShipPart.Category.CORE
+		]
 	))
 	patterns.append(
 		ShipPartPattern.new(

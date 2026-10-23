@@ -527,40 +527,8 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 
 
 func _collect_salvage(delta: float) -> void:
-	var salvage_ship := get_living_player()
-	for member in players:
-		if member.is_alive() and member.speed > 0.0:
-			salvage_ship = member
-			break
-	if salvage_ship == null:
-		phase = Phase.DEFEAT
-		return
-	if salvage_ship.speed <= 0.0:
-		phase = Phase.VICTORY
-		return
-	if _salvage_target == null or _salvage_target.collected:
-		_salvage_target = null
-		var nearest := INF
-		for drop in drops:
-			var distance := salvage_ship.position.distance_to(drop.position)
-			if not drop.collected and distance < nearest:
-				nearest = distance
-				_salvage_target = drop
-	if _salvage_target == null:
-		phase = Phase.VICTORY
-		salvage_ship.velocity = Vector2.ZERO
-		return
-	var direction := _salvage_target.position - salvage_ship.position
-	salvage_ship.heading = rotate_toward(salvage_ship.heading, direction.angle(), delta * 1.5)
-	var previous := salvage_ship.position
-	salvage_ship.position = salvage_ship.position.move_toward(
-		_salvage_target.position,
-		salvage_ship.speed * 1.7 * delta
-	)
-	salvage_ship.velocity = (salvage_ship.position - previous) / delta
-	if salvage_ship.position.distance_to(_salvage_target.position) <= 5.0:
-		_salvage_target.collected = true
-		collected_categories.append(_salvage_target.category)
+	collected_categories.append(drops)
+	phase = Phase.VICTORY
 
 
 func get_living_player() -> Combatant:

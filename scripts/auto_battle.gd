@@ -31,7 +31,7 @@ func _ready() -> void:
 	simulation.shield_hit.connect(AudioManager.play_sfx.bind(SHIELD_HIT_SOUND))
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
 	withdraw_button = Button.new()
-	withdraw_button.text = "WITHDRAW"
+	withdraw_button.text = "RETREAT"
 	withdraw_button.add_theme_font_size_override("font_size", 10)
 	preload("res://scripts/fleet_panel.gd").compact_button(withdraw_button)
 	withdraw_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)

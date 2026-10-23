@@ -1,10 +1,10 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://cmdr8c2epaio5"]
 
-[ext_resource type="Script" path="res://scripts/game_setup.gd" id="1_script"]
-[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="2_title_font"]
-[ext_resource type="StyleBox" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="3_panel"]
+[ext_resource type="Script" uid="uid://b24oqskbkllmv" path="res://scripts/game_setup.gd" id="1_script"]
+[ext_resource type="FontFile" uid="uid://3oynvtt8h876" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="2_title_font"]
+[ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="3_panel"]
 
-[node name="GameSetup" type="Control"]
+[node name="GameSetup" type="Control" unique_id=236618878]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,7 +13,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Backdrop" type="ColorRect" parent="."]
+[node name="Backdrop" type="ColorRect" parent="." unique_id=1943549183]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -23,7 +23,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.015, 0.02, 0.035, 0.82)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=872493165]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -32,16 +32,16 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="SetupModal" type="PanelContainer" parent="CenterContainer"]
+[node name="SetupModal" type="PanelContainer" parent="CenterContainer" unique_id=1767866080]
 custom_minimum_size = Vector2(400, 260)
 layout_mode = 2
 theme_override_styles/panel = ExtResource("3_panel")
 
-[node name="Contents" type="VBoxContainer" parent="CenterContainer/SetupModal"]
+[node name="Contents" type="VBoxContainer" parent="CenterContainer/SetupModal" unique_id=1712381800]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="CenterContainer/SetupModal/Contents"]
+[node name="Title" type="Label" parent="CenterContainer/SetupModal/Contents" unique_id=915569637]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_title_font")
@@ -50,49 +50,49 @@ text = "MISSION SETUP"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="SettingsMargin" type="MarginContainer" parent="CenterContainer/SetupModal/Contents"]
+[node name="SettingsMargin" type="MarginContainer" parent="CenterContainer/SetupModal/Contents" unique_id=377773542]
 layout_mode = 2
 theme_override_constants/margin_left = 20
 
-[node name="SettingsRows" type="VBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin"]
+[node name="SettingsRows" type="VBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin" unique_id=322054223]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="DifficultyRow" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows"]
+[node name="DifficultyRow" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows" unique_id=2056088287]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="DifficultyLabel" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow"]
+[node name="DifficultyLabel" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow" unique_id=365604131]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Difficulty Level"
 vertical_alignment = 1
 
-[node name="DifficultyButton" type="Button" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow"]
+[node name="DifficultyButton" type="Button" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow" unique_id=1491329080]
 custom_minimum_size = Vector2(180, 40)
 layout_mode = 2
 text = "NORMAL"
-alignment = 1
 
-[node name="DifficultyDetails" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows"]
+[node name="DifficultyDetails" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows" unique_id=1062794109]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "Alien ship stats are at base values.\n30% of materials from destroyed allied blocks are recovered."
+text = "Alien ship stats are at base values.
+30% of materials from destroyed allied blocks are recovered."
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Buttons" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents"]
+[node name="Buttons" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents" unique_id=1650797096]
 layout_mode = 2
 theme_override_constants/separation = 12
 alignment = 1
 
-[node name="BackButton" type="Button" parent="CenterContainer/SetupModal/Contents/Buttons"]
+[node name="BackButton" type="Button" parent="CenterContainer/SetupModal/Contents/Buttons" unique_id=2118393112]
 custom_minimum_size = Vector2(120, 44)
 layout_mode = 2
 text = "BACK"
 
-[node name="StartButton" type="Button" parent="CenterContainer/SetupModal/Contents/Buttons"]
+[node name="StartButton" type="Button" parent="CenterContainer/SetupModal/Contents/Buttons" unique_id=1079847964]
 custom_minimum_size = Vector2(140, 44)
 layout_mode = 2
 text = "START RUN"
