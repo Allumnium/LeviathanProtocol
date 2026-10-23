@@ -7,6 +7,7 @@ const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.png")
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
+const SHIELD_FLASH_TINT := Color(0.35, 0.7, 1.0, 1.0)
 
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
 var simulation: BattleSimulation
@@ -58,8 +59,7 @@ func _draw() -> void:
 					false
 				)
 	for player_ship in simulation.players:
-		if player_ship.is_alive():
-			_draw_player_ship(player_ship)
+		_draw_player_ship(player_ship)
 	_draw_alien_fleet()
 	draw_set_transform_matrix(world_transform())
 	for beam in simulation.beams:
@@ -109,6 +109,8 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 		float(minimum_y + maximum_y + 1) * BUILD_CELL_SIZE.y * 0.5
 	)
 	var ship_scale := Ship.BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
+	var is_shield_flashing := player_ship.shield_flash > 0.0
+	var texture_tint := SHIELD_FLASH_TINT if is_shield_flashing else Color.WHITE
 	_set_ship_transform(player_ship.position, player_ship.heading, ship_scale)
 	var hull_points := PackedVector2Array()
 	for cell in cells:
@@ -120,7 +122,10 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 		hull_points.append(cell_top_left + Vector2(BUILD_CELL_SIZE.x, 0.0))
 		hull_points.append(cell_top_left + BUILD_CELL_SIZE)
 		hull_points.append(cell_top_left + Vector2(0.0, BUILD_CELL_SIZE.y))
-	draw_colored_polygon(Geometry2D.convex_hull(hull_points), HULL_COLOR)
+	draw_colored_polygon(
+		Geometry2D.convex_hull(hull_points),
+		Color(0.15, 0.55, 1.0, 1.0) if is_shield_flashing else HULL_COLOR
+	)
 
 	var hidden_cells: Dictionary[Vector2i, bool] = {}
 	for part in GameState.ship.parts:
@@ -136,7 +141,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 				float(cell.y) * BUILD_CELL_SIZE.y
 			) - ship_center
 			var hidden_cell_rect := Rect2(hidden_cell_top_left, BUILD_CELL_SIZE)
-			draw_rect(hidden_cell_rect, HULL_CUTOUT_COLOR)
+			draw_rect(hidden_cell_rect, Color(0.1, 0.35, 0.65) if is_shield_flashing else HULL_CUTOUT_COLOR)
 			if not is_zero_approx(pattern.hidden_tile_outline_color.a):
 				draw_rect(hidden_cell_rect, pattern.hidden_tile_outline_color, false, 2.0)
 
@@ -150,7 +155,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 			(float(cell.x) + 0.5) * BUILD_CELL_SIZE.x,
 			(float(cell.y) + 0.5) * BUILD_CELL_SIZE.y
 		) - ship_center
-		draw_texture(tile_texture, cell_center - tile_texture.get_size() * 0.5)
+		draw_texture(tile_texture, cell_center - tile_texture.get_size() * 0.5, texture_tint)
 
 	for part in GameState.ship.parts:
 		var pattern := _get_pattern_for_part(part)
@@ -184,24 +189,19 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 		draw_texture_rect(
 			pattern.preview_texture,
 			Rect2(visual_center - visual_size * 0.5, visual_size),
-			false
+			false,
+			texture_tint
 		)
-	if player_ship.hit_flash > 0.0:
-		draw_arc(Vector2.ZERO, maxf(ship_size.x, ship_size.y) * 0.55, 0.0, TAU, 32,
-			Color(0.4, 0.8, 1.0, 0.7), 2.0 / ship_scale, true)
 	draw_set_transform_matrix(world_transform())
 
 
 func _draw_alien_fleet() -> void:
 	for alien in simulation.aliens:
-		if not alien.is_alive():
-			continue
 		var texture_size := alien.alien.texture.get_size()
 		var draw_size := texture_size * (32.0 / maxf(texture_size.x, texture_size.y))
 		_set_ship_transform(alien.position, alien.heading + PI * 0.5)
-		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false)
-		if alien.hit_flash > 0.0:
-			draw_arc(Vector2.ZERO, 19.0, 0.0, TAU, 24, Color(0.4, 0.9, 1.0, 0.8), 1.5, true)
+		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else (Color.WHITE if alien.is_alive() else Color(0.38, 0.43, 0.42, 0.72))
+		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false, color)
 	draw_set_transform_matrix(world_transform())
 
 
@@ -243,23 +243,27 @@ func _get_tile_texture(category: int) -> Texture2D:
 
 func _draw_voxel_ship(member: BattleSimulation.Combatant) -> void:
 	var owned := member.owned_ship
+	var is_wreck := not member.is_alive()
+	var wreck_tint := Color(0.4, 0.44, 0.43, 0.75)
+	var is_shield_flashing := member.shield_flash > 0.0
+	var ship_tint := SHIELD_FLASH_TINT if is_shield_flashing else (wreck_tint if is_wreck else Color.WHITE)
 	_set_ship_transform(member.position, member.heading)
 	var hidden := {}
 	for unit in owned.units:
-		if unit.hp > 0.0 and unit.part != null:
+		if (is_wreck or unit.hp > 0.0) and unit.part != null:
 			for cell in unit.part.get_hidden_tile_cells():
 				hidden[cell] = true
 	for unit in owned.units:
-		if unit.hp <= 0.0:
+		if not is_wreck and unit.hp <= 0.0:
 			continue
 		for cell in unit.cells:
 			var rect := Rect2(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
 			if hidden.has(cell):
-				draw_rect(rect, HULL_CUTOUT_COLOR)
-				draw_rect(rect, Color(1.0, 0.15, 0.15), false, 0.3)
+				draw_rect(rect, Color(0.1, 0.35, 0.65) if is_shield_flashing else HULL_CUTOUT_COLOR)
+				draw_rect(rect, Color(0.35, 0.4, 0.38, 0.75) if is_wreck else Color(1.0, 0.15, 0.15), false, 0.3)
 				continue
-			draw_rect(rect, HULL_COLOR)
-			draw_texture_rect(_get_tile_texture(owned.design.tiles[cell]), rect.grow(-0.2), false)
+			draw_rect(rect, Color(0.15, 0.55, 1.0) if is_shield_flashing else (wreck_tint if is_wreck else HULL_COLOR))
+			draw_texture_rect(_get_tile_texture(owned.design.tiles[cell]), rect.grow(-0.2), false, ship_tint)
 		var part: ShipPart = unit.part
 		if part == null:
 			continue
@@ -269,7 +273,6 @@ func _draw_voxel_ship(member: BattleSimulation.Combatant) -> void:
 		for cell in cells:
 			rect = rect.expand(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5)
 			rect = rect.expand(owned.local_cell_position(cell) + Vector2.ONE * owned.cell_size * 0.5)
-		draw_texture_rect(pattern.preview_texture, rect, false, Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
-	if member.hit_flash > 0.0:
-		draw_arc(Vector2.ZERO, 27.0, 0.0, TAU, 32, Color(0.4, 0.8, 1.0, 0.7), 1.0, true)
+		var part_tint := ship_tint if is_shield_flashing or is_wreck else (Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
+		draw_texture_rect(pattern.preview_texture, rect, false, part_tint)
 	draw_set_transform_matrix(world_transform())

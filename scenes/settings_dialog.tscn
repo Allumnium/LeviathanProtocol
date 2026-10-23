@@ -11,7 +11,7 @@ content_scale_factor = 1.0
 script = ExtResource("2_script")
 
 [node name="Title" parent="Contents" parent_id_path=PackedInt32Array(569822189) index="0" unique_id=253182740]
-text = "SETTINGS"
+text = "Settings"
 
 [node name="MusicRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="0" unique_id=1817432263]
 custom_minimum_size = Vector2(0, 32)

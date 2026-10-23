@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cq30vongxvgsa"]
 
-[ext_resource type="FontFile" uid="uid://bcgalexdne6gv" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="1_font"]
+[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="1_font"]
 [ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="2_theme"]
 
 [node name="VictoryDialog" type="Control" unique_id=1607653952]

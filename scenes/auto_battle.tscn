@@ -40,7 +40,7 @@ offset_right = 600.0
 offset_bottom = 30.0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 12
-text = "AUTO BATTLE"
+text = "Auto Battle"
 
 [node name="CameraHelp" type="Label" parent="."]
 layout_mode = 1

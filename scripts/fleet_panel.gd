@@ -67,7 +67,7 @@ func _build_picker() -> void:
 	compact_button(close)
 	close.pressed.connect(picker.hide)
 	top.add_child(close)
-	previous_runs.text = "Include previous runs"
+	previous_runs.text = "INCLUDE PREVIOUS RUNS"
 	previous_runs.add_theme_font_size_override("font_size", 9)
 	style_checkbox(previous_runs)
 	previous_runs.toggled.connect(GameState.set_include_previous_designs)
@@ -166,7 +166,7 @@ func _refresh_rows() -> void:
 
 static func compact_button(button: Button) -> void:
 	button.custom_minimum_size.y = maxf(button.custom_minimum_size.y, 30)
-	button.add_theme_font_override("font", preload("res://assets/fonts/GameFont_bold.ttf"))
+	button.add_theme_font_override("font", preload("res://assets/fonts/TKCLSCR2.TTF"))
 	var theme := preload("res://themes/ui_theme.tres")
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var style: StyleBox = theme.get_stylebox(state, "Button").duplicate()

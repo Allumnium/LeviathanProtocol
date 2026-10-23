@@ -70,10 +70,6 @@ func _ship_at(point: Vector2) -> FleetShip:
 			return owned
 	return null
 
-func _get_tooltip(at_position: Vector2) -> String:
-	var owned := _ship_at(at_position)
-	return owned.display_name if owned != null else "Drag ships to arrange formation. Forward: right"
-
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		selected = _ship_at(event.position)

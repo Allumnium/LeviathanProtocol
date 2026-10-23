@@ -3,9 +3,10 @@
 [ext_resource type="Script" uid="uid://bcff6c8gb6kac" path="res://scripts/main_menu.gd" id="1"]
 [ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="1_bqqt6"]
 [ext_resource type="PackedScene" uid="uid://bdifmeulvjpoc" path="res://scenes/settings_dialog.tscn" id="2"]
-[ext_resource type="Script" path="res://scripts/main_menu_starfield.gd" id="3_starfield"]
+[ext_resource type="Script" uid="uid://bejasonckxk8v" path="res://scripts/main_menu_starfield.gd" id="3_starfield"]
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="4_icon_button"]
-[ext_resource type="FontFile" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="5_title_font"]
+[ext_resource type="FontFile" uid="uid://dnfx18rrv3abw" path="res://assets/fonts/_73A5E77.TTF" id="5_title_font"]
+[ext_resource type="PackedScene" path="res://scenes/game_setup.tscn" id="6_game_setup"]
 
 [node name="MainMenu" type="Control" unique_id=513972528]
 layout_mode = 3
@@ -27,7 +28,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 1)
 
-[node name="Starfield" type="Control" parent="."]
+[node name="Starfield" type="Control" parent="." unique_id=1469941867]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -39,9 +40,9 @@ script = ExtResource("3_starfield")
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=1957707850]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
+anchors_preset = -1
 anchor_top = 0.35
+anchor_right = 1.0
 anchor_bottom = 0.85
 grow_horizontal = 2
 grow_vertical = 2
@@ -66,43 +67,44 @@ custom_minimum_size = Vector2(36, 36)
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
-anchor_top = 0.0
 anchor_right = 1.0
-anchor_bottom = 0.0
 offset_left = -48.0
 offset_top = 12.0
 offset_right = -12.0
 offset_bottom = 48.0
 grow_horizontal = 0
 grow_vertical = 0
-tooltip_text = "Settings"
 
 [node name="SettingsDialog" parent="." unique_id=1725069118 instance=ExtResource("2")]
 visible = false
 
-[node name="GameTitle" type="Label" parent="."]
+[node name="GameTitle" type="Label" parent="." unique_id=927734865]
 z_index = 2
 layout_mode = 1
+anchors_preset = -1
 anchor_left = 0.1
-anchor_right = 0.9
 anchor_top = 0.12
+anchor_right = 0.9
 anchor_bottom = 0.3
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.82, 0.88, 0.91, 1)
-theme_override_colors/font_outline_color = Color(0.06, 0.09, 0.12, 1)
 theme_override_colors/font_shadow_color = Color(0.02, 0.03, 0.04, 1)
-theme_override_constants/outline_size = 1
+theme_override_colors/font_outline_color = Color(0.06, 0.09, 0.12, 1)
 theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 1
 theme_override_fonts/font = ExtResource("5_title_font")
 theme_override_font_sizes/font_size = 28
-text = "LEVIATHAN PROTOCOL"
+text = "Leviathan Protocol"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="WhiteFade" type="ColorRect" parent="."]
+[node name="GameSetup" parent="." instance=ExtResource("6_game_setup")]
+visible = false
+z_index = 10
+
+[node name="WhiteFade" type="ColorRect" parent="." unique_id=637601069]
 visible = false
 z_index = 20
-anchors_preset = 15
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2

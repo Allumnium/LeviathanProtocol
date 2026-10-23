@@ -26,18 +26,18 @@ func _ready() -> void:
 
 func _refresh() -> void:
 	var side := GameState.build_area_size()
-	build_label.text = "BUILD AREA %d x %d" % [side, side]
-	build_purchase.text = "%d x %d - 1R 1B 1G / 50 cr" % [side + 2, side + 2]
+	build_label.text = "BUILD AREA %d X %d" % [side, side]
+	build_purchase.text = "%d X %d - 1R 1B 1G / 50 CR" % [side + 2, side + 2]
 	build_purchase.disabled = side >= GameState.MAX_BUILD_SIZE or GameState.credits < 50 or GameState.red_tiles_available < 1 or GameState.blue_tiles_available < 1 or GameState.green_tiles_available < 1
 	if side >= GameState.MAX_BUILD_SIZE:
 		build_purchase.text = "MAX"
 	var level := GameState.laser_upgrade_level
-	label.text = "LASERS %d/3 · +%d%% damage & rate" % [level, level * 10]
+	label.text = "LASERS %d/3 · +%d%% DAMAGE & RATE" % [level, level * 10]
 	if level >= 3:
 		purchase.text = "MAX"
 		purchase.disabled = true
 		return
 	var red: int = [3, 7, 15][level]
 	var credits: int = [20, 50, 100][level]
-	purchase.text = "UPGRADE · %dR / %d cr" % [red, credits]
+	purchase.text = "UPGRADE · %dR / %d CR" % [red, credits]
 	purchase.disabled = GameState.red_tiles_available < red or GameState.credits < credits

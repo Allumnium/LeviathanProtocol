@@ -3,11 +3,11 @@
 [ext_resource type="StyleBox" uid="uid://bqn2tsvmxlmkl" path="res://assets/ui/panels/panel_nine_patch.tres" id="1_panel"]
 [ext_resource type="Texture2D" uid="uid://cuo4815jnqj5h" path="res://assets/ui/buttons/button.png" id="2_button"]
 [ext_resource type="Texture2D" uid="uid://cdj7cxq56vqxq" path="res://assets/ui/buttons/button_pressed.png" id="3_button_pressed"]
-[ext_resource type="FontFile" uid="uid://6t21fxg7c4q4" path="res://assets/fonts/GameFont_bold.ttf" id="4_font_body"]
-[ext_resource type="FontFile" uid="uid://bcgalexdne6gv" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="5_font_display"]
+[ext_resource type="FontFile" path="res://assets/fonts/voyager.ttf" id="4_font_body"]
 [ext_resource type="Texture2D" uid="uid://dvjqfo0psdmk5" path="res://assets/ui/buttons/button_highlighted.png" id="6_button_highlighted"]
 [ext_resource type="Texture2D" uid="uid://ceuy7glfq4gtg" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
 [ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="8_popup_panel"]
+[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="9_font_interactive"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxFlat_button_disabled"]
 content_margin_left = 14.0
@@ -123,7 +123,7 @@ Button/colors/font_color = Color(0.88, 0.91, 0.93, 1)
 Button/colors/font_disabled_color = Color(0.38, 0.41, 0.43, 1)
 Button/colors/font_hover_color = Color(0.95, 0.98, 1, 1)
 Button/colors/font_pressed_color = Color(0.92, 0.95, 0.97, 1)
-Button/fonts/font = ExtResource("5_font_display")
+Button/fonts/font = ExtResource("9_font_interactive")
 Button/styles/disabled = SubResource("StyleBoxFlat_button_disabled")
 Button/styles/focus = SubResource("StyleBoxFlat_button_focus")
 Button/styles/hover = SubResource("StyleBoxTexture_button_hover")
@@ -134,12 +134,15 @@ Label/fonts/font = ExtResource("4_font_body")
 Panel/styles/panel = ExtResource("1_panel")
 PanelContainer/styles/panel = ExtResource("1_panel")
 PopupPanel/styles/panel = ExtResource("8_popup_panel")
+PopupMenu/fonts/font = ExtResource("9_font_interactive")
+PopupMenu/font_sizes/font_size = 12
+PopupMenu/styles/panel = ExtResource("8_popup_panel")
 TabContainer/colors/font_disabled_color = Color(0.38, 0.41, 0.43, 1)
 TabContainer/colors/font_hovered_color = Color(0.84, 0.93, 0.94, 1)
 TabContainer/colors/font_selected_color = Color(0.92, 0.96, 0.97, 1)
 TabContainer/colors/font_unselected_color = Color(0.62, 0.68, 0.71, 1)
-TabContainer/fonts/font = ExtResource("5_font_display")
 TabContainer/font_sizes/font_size = 12
+TabContainer/fonts/font = ExtResource("9_font_interactive")
 TabContainer/styles/panel = SubResource("StyleBoxFlat_tab_panel")
 TabContainer/styles/tab_disabled = SubResource("StyleBoxTexture_tab_disabled")
 TabContainer/styles/tab_hovered = SubResource("StyleBoxTexture_tab_hovered")

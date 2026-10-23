@@ -1,8 +1,8 @@
 extends Control
 
-const GAME_SETUP_SCENE_PATH := "res://scenes/game_setup.tscn"
+const GAME_MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 const PLAY_TRANSITION_DURATION := 4.0
-const GAME_TITLE_TEXT := "LEVIATHAN PROTOCOL"
+const GAME_TITLE_TEXT := "Leviathan Protocol"
 const WARP_SFX: AudioStreamMP3 = preload("res://assets/audio/sfx/warp.mp3")
 
 @onready var menu_ui: Control = $CenterContainer
@@ -13,6 +13,7 @@ const WARP_SFX: AudioStreamMP3 = preload("res://assets/audio/sfx/warp.mp3")
 @onready var game_title: Label = $GameTitle
 @onready var starfield: Control = $Starfield
 @onready var white_fade: ColorRect = $WhiteFade
+@onready var game_setup = $GameSetup
 
 var _is_starting_run := false
 
@@ -22,6 +23,8 @@ func _ready() -> void:
 	play_button.pressed.connect(_on_play_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
+	game_setup.back_requested.connect(_on_setup_back_requested)
+	game_setup.start_requested.connect(_on_start_run_requested)
 	resized.connect(_fit_title)
 	_fit_title()
 
@@ -29,8 +32,24 @@ func _ready() -> void:
 func _on_play_pressed() -> void:
 	if _is_starting_run:
 		return
+	menu_ui.hide()
+	settings_button.hide()
+	settings_dialog.hide()
+	game_setup.show()
+
+
+func _on_setup_back_requested() -> void:
+	game_setup.hide()
+	menu_ui.show()
+	settings_button.show()
+
+
+func _on_start_run_requested(difficulty: int) -> void:
+	if _is_starting_run or not GameState.start_new_run(difficulty):
+		return
 
 	_is_starting_run = true
+	game_setup.hide()
 	play_button.disabled = true
 	settings_button.disabled = true
 	quit_button.disabled = true
@@ -59,9 +78,9 @@ func _on_play_pressed() -> void:
 	)
 	await transition_tween.finished
 
-	var error := get_tree().change_scene_to_file(GAME_SETUP_SCENE_PATH)
+	var error := get_tree().change_scene_to_file(GAME_MAP_SCENE_PATH)
 	if error != OK:
-		push_error("Could not open the game setup scene. Error code: %s" % error)
+		push_error("Could not open the game map scene. Error code: %s" % error)
 		await _restore_menu_after_failed_transition()
 		return
 

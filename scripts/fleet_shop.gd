@@ -13,7 +13,7 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 5)
 	var title := Label.new()
 	title.text = "SHOP"
-	title.add_theme_font_override("font", preload("res://assets/fonts/mechanical_animals/Mechanical Animals.ttf"))
+	title.add_theme_font_override("font", preload("res://assets/fonts/TKCLSCR2.TTF"))
 	title.add_theme_font_size_override("font_size", 14)
 	add_child(title)
 	for category in range(3):
@@ -30,7 +30,7 @@ func _ready() -> void:
 		row.add_child(count)
 		material_labels.append(count)
 		var buy := Button.new()
-		buy.text = "+1 · %d cr" % GameState.MATERIAL_PRICES[category]
+		buy.text = "+1 · %d CR" % GameState.MATERIAL_PRICES[category]
 		_style_action(buy)
 		buy.pressed.connect(func() -> void: GameState.purchase_material(category))
 		row.add_child(buy)
@@ -72,7 +72,7 @@ func _style_action(button: Button) -> void:
 
 func refresh() -> void:
 	for category in range(3):
-		material_labels[category].text = "%s  %d" % [["RED", "BLUE", "GREEN"][category], GameState.get_available_tile_count(category)]
+		material_labels[category].text = "%s  %d" % [["Red", "Blue", "Green"][category], GameState.get_available_tile_count(category)]
 		buy_buttons[category].disabled = GameState.battle_pending or GameState.credits < GameState.MATERIAL_PRICES[category]
 	var design: Ship = fleet_panel.selected_design if fleet_panel != null else null
 	construct.disabled = design == null
@@ -95,5 +95,5 @@ func refresh() -> void:
 			max_hp += unit.max_hp
 		repair_name.text = "%s · %d%% hull" % [owned.display_name, roundi(hp / maxf(max_hp, 1) * 100)]
 		var price := owned.repair_cost()
-		repair.text = "REPAIR · %d cr" % price
+		repair.text = "REPAIR · %d CR" % price
 		repair.disabled = GameState.battle_pending or price == 0 or price > GameState.credits

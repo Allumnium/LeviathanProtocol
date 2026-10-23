@@ -58,17 +58,17 @@ func _physics_process(delta: float) -> void:
 		_credited_drops += 1
 	match simulation.phase:
 		BattleSimulation.Phase.COMBAT:
-			status_label.text = "AUTO BATTLE - %d ships / %d aliens" % [
+			status_label.text = "Auto Battle - %d ships / %d aliens" % [
 				simulation.living_player_count(),
 				simulation.living_alien_count()
 			]
 		BattleSimulation.Phase.SALVAGE:
-			status_label.text = "COLLECTING SALVAGE - %d squares recovered" % _credited_drops
+			status_label.text = "Collecting Salvage - %d squares recovered" % _credited_drops
 		BattleSimulation.Phase.VICTORY:
-			status_label.text = "VICTORY - %d squares recovered" % _credited_drops
+			status_label.text = "Victory - %d squares recovered" % _credited_drops
 			_finish_battle(true)
 		BattleSimulation.Phase.DEFEAT:
-			status_label.text = "SHIP LOST - Returning to rebuild"
+			status_label.text = "Ship Lost - Returning to rebuild"
 			_finish_battle(false)
 		BattleSimulation.Phase.WITHDRAWN:
 			_finish_battle(false)
@@ -140,5 +140,5 @@ func _return_to_map() -> void:
 func _show_report(won: bool) -> void:
 	var report := preload("res://scripts/battle_report.gd").new()
 	add_child(report)
-	report.show_report(GameState.last_battle_report, "VICTORY" if won else ("WITHDRAWN" if simulation.phase == BattleSimulation.Phase.WITHDRAWN else "DEFEAT"), _credited_drops)
+	report.show_report(GameState.last_battle_report, "Victory" if won else ("Withdrawn" if simulation.phase == BattleSimulation.Phase.WITHDRAWN else "Defeat"), _credited_drops)
 	report.closed.connect(_return_to_map)

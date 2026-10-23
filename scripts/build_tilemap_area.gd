@@ -24,7 +24,7 @@ const PART_FLASH_YELLOW := Color(1.0, 0.88, 0.0, 0.85)
 const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 const DESIGN_HEADER_FONT: Font = preload(
-	"res://assets/fonts/mechanical_animals/Mechanical Animals.ttf"
+	"res://assets/fonts/TKCLSCR2.TTF"
 )
 const DESIGN_ROW_PANEL_STYLE: StyleBox = preload(
 	"res://assets/ui/panels/compact_panel_nine_patch.tres"
@@ -47,6 +47,7 @@ const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd
 @onready var animation_layer: Node2D = $PanRoot/AnimationLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
 @onready var selector_background: ColorRect = $SelectorBackground
+@onready var selector_row: VBoxContainer = $SelectorRow
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
@@ -57,6 +58,7 @@ const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd
 @onready var green_count_badge: PanelContainer = $SelectorRow/GreenBuildButton/CountBadge
 @onready var green_count_label: Label = $SelectorRow/GreenBuildButton/CountBadge/CountLabel
 @onready var design_controls: VBoxContainer = $DesignControls
+@onready var history_controls: HBoxContainer = $HistoryControls
 @onready var save_design_button: Button = $DesignControls/SaveDesignButton
 @onready var load_design_button: Button = $DesignControls/LoadDesignButton
 @onready var save_design_dialog: PopupPanel = $SaveDesignDialog
@@ -164,7 +166,7 @@ func _ready() -> void:
 	load_design_button.pressed.connect(_on_load_design_pressed)
 	close_load_dialog_button.pressed.connect(load_design_dialog.hide)
 	previous_designs_checkbox = CheckBox.new()
-	previous_designs_checkbox.text = "Include previous runs"
+	previous_designs_checkbox.text = "INCLUDE PREVIOUS RUNS"
 	previous_designs_checkbox.add_theme_font_size_override("font_size", 10)
 	preload("res://scripts/fleet_panel.gd").style_checkbox(previous_designs_checkbox)
 	previous_designs_checkbox.toggled.connect(GameState.set_include_previous_designs)
@@ -176,14 +178,14 @@ func _ready() -> void:
 	GameState.part_transformations_changed.connect(_refresh_design_controls)
 	undo_button = Button.new()
 	redo_button = Button.new()
-	undo_button.text = "UNDO"
-	redo_button.text = "REDO"
+	undo_button.icon = _history_icon(false)
+	redo_button.icon = _history_icon(true)
 	undo_button.tooltip_text = "Undo (Ctrl+Z)"
 	redo_button.tooltip_text = "Redo (Ctrl+Y)"
 	for button in [undo_button, redo_button]:
-		button.custom_minimum_size = Vector2(60, 24)
-		button.add_theme_font_size_override("font_size", 8)
-		design_controls.add_child(button)
+		button.custom_minimum_size = Vector2(32, 32)
+		preload("res://scripts/fleet_panel.gd").compact_button(button)
+		history_controls.add_child(button)
 	undo_button.pressed.connect(_undo)
 	redo_button.pressed.connect(_redo)
 	GameState.part_transformations_changed.connect(_refresh_history_buttons)
@@ -192,6 +194,42 @@ func _ready() -> void:
 
 	resized.connect(_on_resized)
 	call_deferred("_set_initial_pan_position")
+
+
+func move_controls_to(container: VBoxContainer) -> void:
+	selector_background.hide()
+	selector_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	selector_background.set_process_input(false)
+	selector_background.set_process_unhandled_input(false)
+	selector_background.set_process_unhandled_key_input(false)
+
+	selector_row.reparent(container)
+	design_controls.reparent(container)
+	for controls in [selector_row, design_controls]:
+		controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	selector_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	selector_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	design_controls.size_flags_vertical = Control.SIZE_SHRINK_END
+	for button in [red_build_button, blue_build_button, green_build_button]:
+		button.custom_minimum_size = Vector2(36, 36)
+		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for button in [save_design_button, load_design_button]:
+		button.custom_minimum_size = Vector2(0, 30)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+func _history_icon(point_right: bool) -> Texture2D:
+	var image := Image.new()
+	var transform := ' transform="translate(28 0) scale(-1 1)"' if point_right else ""
+	var svg := (
+		'<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">'
+		+ '<path%s d="M12 7H8V2L1 9l7 7v-5h4c5 0 8 3 8 8 0 2-.5 4-1.5 6 3-2.5 4.5-5.5 4.5-9 0-5-4-9-11-9z" fill="#cfdee4"/>' % transform
+		+ "</svg>"
+	)
+	image.load_svg_from_string(svg)
+	return ImageTexture.create_from_image(image)
 
 
 func _exit_tree() -> void:
@@ -1139,6 +1177,8 @@ func _is_mouse_over_build_area(local_mouse_position: Vector2) -> bool:
 
 
 func _is_mouse_over_selector_area(local_mouse_position: Vector2) -> bool:
+	if not selector_background.visible:
+		return false
 	var canvas_mouse_position := get_global_transform_with_canvas() * local_mouse_position
 	var background_mouse_position := (
 		selector_background.get_global_transform_with_canvas().affine_inverse()

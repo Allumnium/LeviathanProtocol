@@ -14,7 +14,6 @@ size_flags_vertical = 3
 theme_override_font_sizes/font_size = 12
 text = "Design freely, then construct ships in Fleet using materials and credits.
 Each ship needs one connected command center: 2 ? 2 green squares.
-Drag ships in Fleet to arrange their formation, then Deploy.
 Lost components stop working; disconnected sections become salvage.
 Repair surviving ships for credits. Blue armor is inexpensive to repair.
 Drag or WASD / arrows to pan. Wheel zooms. Space follows a ship.

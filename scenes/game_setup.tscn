@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_setup.gd" id="1_script"]
-[ext_resource type="FontFile" path="res://assets/fonts/mechanical_animals/Mechanical Animals.ttf" id="2_title_font"]
+[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="2_title_font"]
 [ext_resource type="StyleBox" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="3_panel"]
 
 [node name="GameSetup" type="Control"]
@@ -21,7 +21,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.015, 0.02, 0.035, 1)
+color = Color(0.015, 0.02, 0.035, 0.82)
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -50,21 +50,35 @@ text = "MISSION SETUP"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="DifficultyLabel" type="Label" parent="CenterContainer/SetupModal/Contents"]
+[node name="SettingsMargin" type="MarginContainer" parent="CenterContainer/SetupModal/Contents"]
 layout_mode = 2
-text = "ALIEN DIFFICULTY"
-horizontal_alignment = 1
+theme_override_constants/margin_left = 20
 
-[node name="DifficultySelector" type="OptionButton" parent="CenterContainer/SetupModal/Contents"]
-custom_minimum_size = Vector2(0, 40)
+[node name="SettingsRows" type="VBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DifficultyRow" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DifficultyLabel" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow"]
 layout_mode = 2
 size_flags_horizontal = 3
+text = "Difficulty Level"
+vertical_alignment = 1
 
-[node name="DifficultyDetails" type="Label" parent="CenterContainer/SetupModal/Contents"]
-custom_minimum_size = Vector2(0, 32)
+[node name="DifficultyButton" type="Button" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow"]
+custom_minimum_size = Vector2(180, 40)
+layout_mode = 2
+text = "NORMAL"
+alignment = 1
+
+[node name="DifficultyDetails" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows"]
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "ALIEN SHIP STATS ARE AT BASE VALUES."
+text = "Alien ship stats are at base values.\n30% of materials from destroyed allied blocks are recovered."
 horizontal_alignment = 1
 vertical_alignment = 1
 

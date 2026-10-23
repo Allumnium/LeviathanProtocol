@@ -30,6 +30,7 @@ func _fleet(count: int, seed_value: int = 0) -> Array[RefCounted]:
 
 
 func _run() -> void:
+	await _test_main_menu_setup_flow()
 	_test_starter_drones()
 	_test_weapon_range()
 	_test_player_fleet()
@@ -58,6 +59,32 @@ func _run() -> void:
 	await create_timer(0.1).timeout
 	print("Battle tests finished: %d failures" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+func _test_main_menu_setup_flow() -> void:
+	var menu: Variant = load("res://scenes/main_menu.tscn").instantiate()
+	root.add_child(menu)
+	await process_frame
+	menu.play_button.pressed.emit()
+	_check(
+		menu.game_setup.visible and not menu.menu_ui.visible
+			and is_zero_approx(menu.starfield._warp_progress),
+		"Play must show mission setup before beginning the starfield warp."
+	)
+	_check(menu.game_setup.difficulty_button.text == "NORMAL", "Mission setup must default to Normal difficulty.")
+	menu.game_setup.difficulty_button.pressed.emit()
+	_check(menu.game_setup.difficulty_button.text == "HARD", "Difficulty must cycle from Normal to Hard.")
+	menu.game_setup.difficulty_button.pressed.emit()
+	_check(menu.game_setup.difficulty_button.text == "EASY", "Difficulty must cycle from Hard to Easy.")
+	menu.game_setup.difficulty_button.pressed.emit()
+	_check(menu.game_setup.difficulty_button.text == "NORMAL", "Difficulty must cycle from Easy to Normal.")
+	menu.game_setup.back_requested.emit()
+	_check(
+		not menu.game_setup.visible and menu.menu_ui.visible,
+		"Backing out of mission setup must restore the title menu."
+	)
+	root.remove_child(menu)
+	menu.free()
 
 
 func _clear_test_fleet(state: Node) -> void:
@@ -386,6 +413,10 @@ func _test_combat_events() -> void:
 	simulation.advance(1.0 / 60.0)
 	_check(events.shots == 1 and events.shield_hits == 1,
 		"A laser activation must emit firing and shield-impact events.")
+	_check(
+		is_equal_approx(enemy.shield_flash, 0.2),
+		"Shield damage must start a 200 ms blue ship flash."
+	)
 	simulation.player.cooldowns[0] = 100.0
 	enemy.cooldowns[0] = 0.0
 	simulation.advance(1.0 / 60.0)
@@ -396,12 +427,22 @@ func _test_combat_events() -> void:
 		simulation.advance(1.0 / 60.0)
 	_check(events.shield_hits == 2, "A homing projectile must emit a shield event when it connects.")
 	enemy.shields = 0.0
+	enemy.shield_flash = 0.0
 	simulation._damage(enemy, 1.0)
 	_check(events.shield_hits == 2, "Hull-only damage must not emit a shield-hit sound.")
+	_check(is_zero_approx(enemy.shield_flash), "Hull-only damage must not flash the ship blue.")
 	simulation._damage(enemy, 200.0)
 	simulation._damage(enemy, 200.0)
 	_check(events.alien_deaths == 1 and events.player_deaths == 0,
 		"Alien destruction must emit exactly one alien explosion event.")
+	var wreck_position := enemy.position
+	var wreck_heading := enemy.heading
+	simulation._update_wrecks(0.5)
+	_check(
+		not enemy.position.is_equal_approx(wreck_position)
+		and not is_equal_approx(enemy.heading, wreck_heading),
+		"Destroyed ships must remain as drifting, rotating wrecks."
+	)
 	simulation._damage(simulation.player, 200.0)
 	_check(events.player_deaths == 1, "Player destruction must emit a distinct player explosion event.")
 	var fleet_simulation := BattleSimulation.new()
@@ -717,31 +758,91 @@ func _test_scene() -> void:
 	report.closed.emit()
 	await scene_changed
 	var game_map := current_scene
+	var left_panel := game_map.get_node_or_null("Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel") as PanelContainer
+	var center_panel := game_map.get_node_or_null("Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel") as PanelContainer
+	var details_panel := game_map.get_node_or_null("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel") as PanelContainer
+	var workspace_tabs := game_map.get_node_or_null("Layout/UpperArea/WorkspaceContents/TabButtons") as HBoxContainer
+	_check(
+		left_panel != null and center_panel != null and details_panel != null
+			and workspace_tabs != null
+			and left_panel.get_parent() == center_panel.get_parent()
+			and center_panel.get_parent() == details_panel.get_parent(),
+		"The game map must place its full-width tabs above one shared three-panel row."
+	)
+	if left_panel != null and center_panel != null and details_panel != null:
+		_check(
+			left_panel.size_flags_stretch_ratio < details_panel.size_flags_stretch_ratio
+				and details_panel.size_flags_stretch_ratio < center_panel.size_flags_stretch_ratio,
+			"The center panel must be widest and the new left panel slightly narrower than the right panel."
+		)
 	var panel_tabs := game_map.get_node(
-		"Layout/UpperArea/LeftPanel/PanelContents/Tabs"
+		"Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs"
 	) as TabContainer
 	var fleet_tab_button := game_map.get_node_or_null(
-		"Layout/UpperArea/LeftPanel/PanelContents/TabButtons/FleetTabButton"
+		"Layout/UpperArea/WorkspaceContents/TabButtons/FleetTabButton"
 	) as Button
 	_check(panel_tabs != null and panel_tabs.get_tab_count() == 4,
 		"The game map must include the Fleet tab.")
 	_check(fleet_tab_button != null, "The Fleet tab must have a matching panel button.")
+	var ship_designer_button := game_map.get_node_or_null(
+		"Layout/UpperArea/WorkspaceContents/TabButtons/BuildTabButton"
+	) as Button
+	var research_button := game_map.get_node_or_null(
+		"Layout/UpperArea/WorkspaceContents/TabButtons/UpgradesTabButton"
+	) as Button
+	_check(
+		ship_designer_button != null and ship_designer_button.text == "SHIP DESIGNER"
+			and research_button != null and research_button.text == "RESEARCH",
+		"The workspace selectors must use the Ship Designer and Research labels."
+	)
 	if panel_tabs != null and fleet_tab_button != null:
 		fleet_tab_button.pressed.emit()
 		_check(panel_tabs.current_tab == 0, "The Fleet button must select the Fleet tab.")
-		_check(game_map.shop.visible and not game_map.get_node("Layout/UpperArea/DetailsPanel/DetailsContents").visible, "Fleet must show the shop instead of ship stats.")
+		_check(game_map.shop.visible and not game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Fleet must show the shop instead of ship stats.")
+		await process_frame
+		var fleet_center_width: float = center_panel.size.x
+		var fleet_details_width: float = details_panel.size.x
 		panel_tabs.current_tab = 1
-		_check(not game_map.shop.visible and game_map.get_node("Layout/UpperArea/DetailsPanel/DetailsContents").visible, "Build must restore ship stats and hide the shop.")
+		_check(not game_map.shop.visible and game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Build must restore ship stats and hide the shop.")
+		await process_frame
+		_check(
+			is_equal_approx(center_panel.size.x, fleet_center_width)
+				and is_equal_approx(details_panel.size.x, fleet_details_width),
+			"Switching tabs must not change the center or right panel widths."
+		)
+		panel_tabs.current_tab = 3
+		var archive_grid := game_map.get_node_or_null(
+			"Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs/Archive/GridCenter/ArchiveGrid"
+		) as GridContainer
+		var archive_progress := game_map.get_node_or_null(
+			"Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/ArchiveProgress"
+		) as VBoxContainer
+		var archive_details := game_map.get_node_or_null(
+			"Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/ArchiveDetails"
+		) as VBoxContainer
+		_check(
+			archive_grid != null and archive_grid.columns == 6
+				and archive_grid.get_child_count() == ShipPartPattern.get_catalog().size(),
+			"The Archive must show every component as a button in a six-column grid."
+		)
+		_check(
+			archive_progress != null and archive_progress.visible
+				and archive_details != null and archive_details.visible,
+			"The Archive tab must use the left panel for progress and the right panel for details."
+		)
 		panel_tabs.current_tab = 0
 	var build_area := game_map.get_node_or_null(
-		"Layout/UpperArea/LeftPanel/PanelContents/Tabs/Build/BuildTilemapArea"
+		"Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs/Build/BuildTilemapArea"
 	) as Control
+	var build_controls := game_map.get_node_or_null(
+		"Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/BuildControls"
+	) as VBoxContainer
 	_check(build_area != null, "The build screen must contain its ship-design controls.")
-	if build_area != null:
-		var save_design_button := build_area.get_node_or_null(
+	if build_area != null and build_controls != null:
+		var save_design_button := build_controls.get_node_or_null(
 			"DesignControls/SaveDesignButton"
 		) as Button
-		var load_design_button := build_area.get_node_or_null(
+		var load_design_button := build_controls.get_node_or_null(
 			"DesignControls/LoadDesignButton"
 		) as Button
 		_check(
@@ -756,13 +857,25 @@ func _test_scene() -> void:
 				and load_design_button.custom_minimum_size.x <= 60.0,
 			"The build screen must provide a compact text Load button."
 		)
-		var design_controls := build_area.get_node("DesignControls") as VBoxContainer
+		var design_controls := build_controls.get_node("DesignControls") as VBoxContainer
+		var selector_row := build_controls.get_node_or_null("SelectorRow") as VBoxContainer
+		var history_controls := build_area.get_node("HistoryControls") as HBoxContainer
 		_check(
 			design_controls != null
-				and design_controls.get_child_count() == 4
-				and is_equal_approx(design_controls.anchor_right, 1.0)
-				and is_zero_approx(design_controls.offset_right),
-			"Save and Load buttons must stack at the build area's right edge without a panel."
+				and design_controls.get_child_count() == 2
+				and selector_row != null
+				and selector_row.get_child_count() == 3,
+			"Build material selectors and design controls must be placed in the left panel."
+		)
+		_check(
+			history_controls != null
+				and build_area.undo_button.get_parent() == history_controls
+				and build_area.redo_button.get_parent() == history_controls
+				and build_area.undo_button.text.is_empty()
+				and build_area.redo_button.text.is_empty()
+				and build_area.undo_button.icon != null
+				and build_area.redo_button.icon != null,
+			"Undo and Redo must be compact icon buttons at the bottom-left of the build view."
 		)
 
 		save_design_button.pressed.emit()

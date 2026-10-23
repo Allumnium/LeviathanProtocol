@@ -2,31 +2,38 @@ extends Control
 
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
+const BUILD_TAB_INDEX := 1
 const ARCHIVE_TAB_INDEX := 3
 var shop := preload("res://scripts/fleet_shop.gd").new()
 
-@onready var deploy_button: Button = $Layout/UpperArea/LeftPanel/PanelContents/DeployButton
+@onready var deploy_button: Button = $Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/DeployButton
 @onready var stat_rows: VBoxContainer = (
-	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/StatRows
+	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents/StatRows
 )
 @onready var weapon_rows: VBoxContainer = (
-	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/WeaponRows
+	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents/WeaponRows
 )
 @onready var no_weapons_label: Label = (
-	$Layout/UpperArea/DetailsPanel/DetailsContents/StatsScroll/StatsContents/WeaponRows/NoWeaponsLabel
+	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents/WeaponRows/NoWeaponsLabel
 )
 @onready var how_to_play_button: TextureButton = $Layout/TopBar/BarContents/HowToPlayButton
 @onready var settings_button: TextureButton = $Layout/TopBar/BarContents/SettingsButton
-@onready var panel_tabs: TabContainer = $Layout/UpperArea/LeftPanel/PanelContents/Tabs
+@onready var panel_tabs: TabContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs
 @onready var panel_tab_buttons: Array[Button] = [
-	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/FleetTabButton,
-	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/BuildTabButton,
-	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/UpgradesTabButton,
-	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton,
+	$Layout/UpperArea/WorkspaceContents/TabButtons/FleetTabButton,
+	$Layout/UpperArea/WorkspaceContents/TabButtons/BuildTabButton,
+	$Layout/UpperArea/WorkspaceContents/TabButtons/UpgradesTabButton,
+	$Layout/UpperArea/WorkspaceContents/TabButtons/ArchiveTabButton,
 ]
 @onready var archive_unread_badge: Label = (
-	$Layout/UpperArea/LeftPanel/PanelContents/TabButtons/ArchiveTabButton/UnreadCount
+	$Layout/UpperArea/WorkspaceContents/TabButtons/ArchiveTabButton/UnreadCount
 )
+@onready var archive_tab: Control = $Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs/Archive
+@onready var build_area: Control = $Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs/Build/BuildTilemapArea
+@onready var build_controls: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/BuildControls
+@onready var archive_progress: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/ArchiveProgress
+@onready var archive_progress_label: Label = $Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/ArchiveProgress/DiscoveredLabel
+@onready var archive_details: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/ArchiveDetails
 @onready var graph_modal: Control = $GraphModal
 @onready var graph_backdrop: ColorRect = $GraphModal/Backdrop
 @onready var graph_view: GraphView = $GraphModal/CenterContainer/GraphPanel/GraphView
@@ -48,8 +55,11 @@ func _ready() -> void:
 	_refresh_archive_unread_badge()
 	_refresh_deploy_button()
 	_refresh_ship_stats()
-	$Layout/UpperArea/DetailsPanel.add_child(shop)
+	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost.add_child(shop)
+	shop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shop.bind_fleet(panel_tabs.get_node("Fleet"))
+	build_area.move_controls_to(build_controls)
+	archive_tab.bind_external_panels(archive_progress_label, archive_details)
 	_setup_panel_tabs()
 	deploy_button.pressed.connect(_on_deploy_pressed)
 	how_to_play_button.pressed.connect(_on_how_to_play_pressed)
@@ -69,47 +79,9 @@ func _setup_panel_tabs() -> void:
 		var button := panel_tab_buttons[index]
 		button.button_group = tab_button_group
 		button.pressed.connect(_on_panel_tab_button_pressed.bind(index))
-		_style_panel_tab_button(button)
 
 	panel_tabs.tab_changed.connect(_on_panel_tab_changed)
 	_on_panel_tab_changed(panel_tabs.current_tab)
-
-
-func _style_panel_tab_button(button: Button) -> void:
-	button.add_theme_stylebox_override(
-		"normal",
-		panel_tabs.get_theme_stylebox("tab_unselected", "TabContainer")
-	)
-	button.add_theme_stylebox_override(
-		"hover",
-		panel_tabs.get_theme_stylebox("tab_hovered", "TabContainer")
-	)
-	button.add_theme_stylebox_override(
-		"pressed",
-		panel_tabs.get_theme_stylebox("tab_selected", "TabContainer")
-	)
-	button.add_theme_stylebox_override(
-		"disabled",
-		panel_tabs.get_theme_stylebox("tab_disabled", "TabContainer")
-	)
-	button.add_theme_font_override("font", panel_tabs.get_theme_font("font", "TabContainer"))
-	button.add_theme_font_size_override("font_size", 10)
-	button.add_theme_color_override(
-		"font_color",
-		panel_tabs.get_theme_color("font_unselected_color", "TabContainer")
-	)
-	button.add_theme_color_override(
-		"font_hover_color",
-		panel_tabs.get_theme_color("font_hovered_color", "TabContainer")
-	)
-	button.add_theme_color_override(
-		"font_pressed_color",
-		panel_tabs.get_theme_color("font_selected_color", "TabContainer")
-	)
-	button.add_theme_color_override(
-		"font_disabled_color",
-		panel_tabs.get_theme_color("font_disabled_color", "TabContainer")
-	)
 
 
 func _on_panel_tab_button_pressed(tab_index: int) -> void:
@@ -119,7 +91,10 @@ func _on_panel_tab_button_pressed(tab_index: int) -> void:
 func _on_panel_tab_changed(tab_index: int) -> void:
 	deploy_button.visible = tab_index == 0
 	shop.visible = tab_index == 0
-	$Layout/UpperArea/DetailsPanel/DetailsContents.visible = tab_index != 0
+	build_controls.visible = tab_index == BUILD_TAB_INDEX
+	archive_progress.visible = tab_index == ARCHIVE_TAB_INDEX
+	archive_details.visible = tab_index == ARCHIVE_TAB_INDEX
+	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents.visible = tab_index != 0 and tab_index != ARCHIVE_TAB_INDEX
 	_refresh_ship_stats()
 	for index in range(panel_tab_buttons.size()):
 		panel_tab_buttons[index].button_pressed = index == tab_index
@@ -305,4 +280,4 @@ func _refresh_top_bar() -> void:
 	var summary := "%d %s" % [GameState.fleet.size(), "ship" if GameState.fleet.size() == 1 else "ships"]
 	if maximum > 0.0:
 		summary += " · %d%% hull · %d damaged" % [roundi(health / maximum * 100.0), damaged]
-	$Layout/TopBar/BarContents/StatsSpace.text = "%d CR     LEVEL %d\n%s" % [GameState.credits, GameState.campaign_level(), summary]
+	$Layout/TopBar/BarContents/StatsSpace.text = "%d cr     Level %d\n%s" % [GameState.credits, GameState.campaign_level(), summary]

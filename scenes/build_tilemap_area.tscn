@@ -107,5 +107,19 @@ tooltip_text = "Open saved ship designs"
 theme_override_font_sizes/font_size = 8
 text = "LOAD"
 
+[node name="HistoryControls" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchor_left = 0.17
+anchor_top = 1.0
+anchor_right = 0.17
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -42.0
+offset_right = 80.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 4
+
 [node name="LoadDesignDialog" parent="." instance=ExtResource("9_load_dialog")]
 [node name="SaveDesignDialog" parent="." instance=ExtResource("10_save_dialog")]

@@ -40,9 +40,10 @@ class Combatant:
 	var retreat_time := 0.0
 	var retreat_cooldown := 0.0
 	var since_damage := 0.0
-	var hit_flash := 0.0
+	var shield_flash := 0.0
 	var speed := 100.0
 	var radius := 18.0
+	var wreck_angular_velocity := 0.0
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -238,6 +239,8 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 
 func advance(delta: float) -> void:
 	elapsed += delta
+	_update_shield_flashes(delta)
+	_update_wrecks(delta)
 	for index in range(beams.size() - 1, -1, -1):
 		beams[index].lifetime -= delta
 		if beams[index].lifetime <= 0.0:
@@ -288,6 +291,28 @@ func advance(delta: float) -> void:
 		_collect_salvage(delta)
 
 
+func _update_wrecks(delta: float) -> void:
+	var members: Array[Combatant] = []
+	members.append_array(players)
+	members.append_array(aliens)
+	for member in members:
+		if member.is_alive():
+			continue
+		member.position += member.velocity * delta
+		member.heading = wrapf(
+			member.heading + member.wreck_angular_velocity * delta,
+			-PI,
+			PI
+		)
+
+
+func _update_shield_flashes(delta: float) -> void:
+	for member in players:
+		member.shield_flash = maxf(0.0, member.shield_flash - delta)
+	for member in aliens:
+		member.shield_flash = maxf(0.0, member.shield_flash - delta)
+
+
 func living_alien_count() -> int:
 	var count := 0
 	for alien in aliens:
@@ -328,7 +353,6 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 	if not ship.is_alive():
 		return
 	ship.since_damage += delta
-	ship.hit_flash = maxf(0.0, ship.hit_flash - delta)
 	ship.retreat_time = maxf(0.0, ship.retreat_time - delta)
 	ship.retreat_cooldown = maxf(0.0, ship.retreat_cooldown - delta)
 	if ship.since_damage > 2.5:
@@ -473,11 +497,16 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		source.damage_dealt += actual
 		source.weapon_damage[weapon_name] = source.weapon_damage.get(weapon_name, 0.0) + actual
 	target.since_damage = 0.0
-	target.hit_flash = 0.12
 	if absorbed > 0.0:
+		target.shield_flash = 0.2
 		shield_hit.emit()
 	if target.is_alive():
 		return
+	if target.velocity.length_squared() < 1.0:
+		target.velocity = Vector2.from_angle(random.randf_range(0.0, TAU)) * random.randf_range(8.0, 20.0)
+	target.wreck_angular_velocity = random.randf_range(-0.45, 0.45)
+	if absf(target.wreck_angular_velocity) < 0.12:
+		target.wreck_angular_velocity = 0.12 if target.wreck_angular_velocity >= 0.0 else -0.12
 	var explosion := Explosion.new()
 	explosion.position = target.position
 	explosions.append(explosion)
