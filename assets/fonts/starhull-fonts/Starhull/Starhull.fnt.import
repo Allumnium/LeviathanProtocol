@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://3oynvtt8h876"
+path="res://.godot/imported/Starhull.fnt-5c52721b7db94d5996446da42aefc00f.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"
+dest_files=["res://.godot/imported/Starhull.fnt-5c52721b7db94d5996446da42aefc00f.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

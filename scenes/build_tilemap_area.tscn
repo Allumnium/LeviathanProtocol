@@ -1,10 +1,11 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/build_tilemap_area.gd" id="1"]
 [ext_resource type="Texture2D" path="res://assets/ui/build_grid.png" id="2"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/red_square.png" id="3"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/blue_square.png" id="4"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/green_square.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/core.png" id="8_core"]
 [ext_resource type="PackedScene" path="res://scenes/build_selector_button.tscn" id="6"]
 [ext_resource type="Script" path="res://scripts/build_viewport_starfield.gd" id="7_starfield"]
 [ext_resource type="PackedScene" path="res://scenes/load_design_dialog.tscn" id="9_load_dialog"]
@@ -25,6 +26,7 @@ grid_texture = ExtResource("2")
 red_tile_texture = ExtResource("3")
 blue_tile_texture = ExtResource("4")
 green_tile_texture = ExtResource("5")
+core_tile_texture = ExtResource("8_core")
 
 [node name="BackgroundStars" type="Node2D" parent="."]
 script = ExtResource("7_starfield")
@@ -84,11 +86,12 @@ layout_mode = 2
 [node name="Icon" parent="SelectorRow/GreenBuildButton"]
 texture = ExtResource("5")
 
-[node name="EmptyBuildButton" parent="SelectorRow" instance=ExtResource("6")]
+[node name="CoreBuildButton" parent="SelectorRow" instance=ExtResource("6")]
 layout_mode = 2
+tooltip_text = "Core material (4)"
 
-[node name="Icon" parent="SelectorRow/EmptyBuildButton"]
-texture = null
+[node name="Icon" parent="SelectorRow/CoreBuildButton"]
+texture = ExtResource("8_core")
 
 [node name="DesignControls" type="VBoxContainer" parent="."]
 anchors_preset = 1

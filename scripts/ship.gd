@@ -8,6 +8,7 @@ const HULL_AREA_CREDIT_COST_PER_SQUARE := 1
 const RED_TILE_CREDIT_COST := 5
 const BLUE_TILE_CREDIT_COST := 2
 const GREEN_TILE_CREDIT_COST := 10
+const CORE_TILE_CREDIT_COST := 15
 
 var tiles: Dictionary[Vector2i, int] = {}
 var parts: Array[ShipPart] = []
@@ -23,6 +24,8 @@ var cost: int:
 					total_cost += BLUE_TILE_CREDIT_COST
 				ShipPart.Category.SPECIAL:
 					total_cost += GREEN_TILE_CREDIT_COST
+				ShipPart.Category.CORE:
+					total_cost += CORE_TILE_CREDIT_COST
 				_:
 					push_error("Cannot price a ship tile with an unknown category: %s" % category)
 		return total_cost
@@ -439,4 +442,5 @@ func _is_known_tile_category(category: int) -> bool:
 		category == ShipPart.Category.OFFENSE
 		or category == ShipPart.Category.DEFENSE
 		or category == ShipPart.Category.SPECIAL
+		or category == ShipPart.Category.CORE
 	)

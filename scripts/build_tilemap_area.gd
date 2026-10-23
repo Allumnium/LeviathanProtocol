@@ -4,7 +4,8 @@ const GRID_SOURCE_ID := 0
 const RED_SOURCE_ID := 1
 const BLUE_SOURCE_ID := 2
 const GREEN_SOURCE_ID := 3
-const FOURTH_SOURCE_ID := 4
+const CORE_SOURCE_ID := 4
+const FOURTH_SOURCE_ID := CORE_SOURCE_ID
 const NO_SOURCE_ID := -1
 const NO_CATEGORY := -1
 const INVALID_CELL := Vector2i(-1, -1)
@@ -25,7 +26,7 @@ const PART_FLASH_YELLOW := Color(1.0, 0.88, 0.0, 0.85)
 const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 const DESIGN_HEADER_FONT: Font = preload(
-	"res://assets/fonts/TKCLSCR2.TTF"
+	"res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"
 )
 const DESIGN_ROW_PANEL_STYLE: StyleBox = preload(
 	"res://assets/ui/panels/compact_panel_nine_patch.tres"
@@ -38,6 +39,7 @@ const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd
 @export var red_tile_texture: Texture2D
 @export var blue_tile_texture: Texture2D
 @export var green_tile_texture: Texture2D
+@export var core_tile_texture: Texture2D
 
 @onready var pan_root: Node2D = $PanRoot
 @onready var background_starfield: BuildViewportStarfield = $BackgroundStars
@@ -52,13 +54,15 @@ const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
-@onready var empty_build_button: TextureButton = $SelectorRow/EmptyBuildButton
+@onready var core_build_button: TextureButton = $SelectorRow/CoreBuildButton
 @onready var red_count_badge: PanelContainer = $SelectorRow/RedBuildButton/CountBadge
 @onready var red_count_label: Label = $SelectorRow/RedBuildButton/CountBadge/CountLabel
 @onready var blue_count_badge: PanelContainer = $SelectorRow/BlueBuildButton/CountBadge
 @onready var blue_count_label: Label = $SelectorRow/BlueBuildButton/CountBadge/CountLabel
 @onready var green_count_badge: PanelContainer = $SelectorRow/GreenBuildButton/CountBadge
 @onready var green_count_label: Label = $SelectorRow/GreenBuildButton/CountBadge/CountLabel
+@onready var core_count_badge: PanelContainer = $SelectorRow/CoreBuildButton/CountBadge
+@onready var core_count_label: Label = $SelectorRow/CoreBuildButton/CountBadge/CountLabel
 @onready var design_controls: VBoxContainer = $DesignControls
 @onready var history_controls: HBoxContainer = $HistoryControls
 @onready var save_design_button: Button = $DesignControls/SaveDesignButton
@@ -157,12 +161,12 @@ func _ready() -> void:
 	red_build_button.button_group = selector_group
 	blue_build_button.button_group = selector_group
 	green_build_button.button_group = selector_group
-	empty_build_button.button_group = selector_group
+	core_build_button.button_group = selector_group
 
 	red_build_button.toggled.connect(_on_build_button_toggled.bind(RED_SOURCE_ID))
 	blue_build_button.toggled.connect(_on_build_button_toggled.bind(BLUE_SOURCE_ID))
 	green_build_button.toggled.connect(_on_build_button_toggled.bind(GREEN_SOURCE_ID))
-	empty_build_button.toggled.connect(_on_build_button_toggled.bind(FOURTH_SOURCE_ID))
+	core_build_button.toggled.connect(_on_build_button_toggled.bind(CORE_SOURCE_ID))
 	save_design_button.pressed.connect(_on_save_design_pressed)
 	confirm_save_design_button.pressed.connect(_on_save_design_confirmed)
 	cancel_save_design_button.pressed.connect(save_design_dialog.hide)
@@ -214,7 +218,7 @@ func move_controls_to(container: VBoxContainer) -> void:
 		controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	selector_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	design_controls.size_flags_vertical = Control.SIZE_SHRINK_END
-	for button in [red_build_button, blue_build_button, green_build_button, empty_build_button]:
+	for button in [red_build_button, blue_build_button, green_build_button, core_build_button]:
 		button.custom_minimum_size = Vector2(36, 36)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -265,13 +269,15 @@ func _create_tile_set() -> bool:
 	var red_source := _create_atlas_source(red_tile_texture, "red")
 	var blue_source := _create_atlas_source(blue_tile_texture, "blue")
 	var green_source := _create_atlas_source(green_tile_texture, "green")
-	if grid_source == null or red_source == null or blue_source == null or green_source == null:
+	var core_source := _create_atlas_source(core_tile_texture, "core")
+	if grid_source == null or red_source == null or blue_source == null or green_source == null or core_source == null:
 		return false
 
 	tile_set.add_source(grid_source, GRID_SOURCE_ID)
 	tile_set.add_source(red_source, RED_SOURCE_ID)
 	tile_set.add_source(blue_source, BLUE_SOURCE_ID)
 	tile_set.add_source(green_source, GREEN_SOURCE_ID)
+	tile_set.add_source(core_source, CORE_SOURCE_ID)
 	_tile_set = tile_set
 	grid_layer.tile_set = tile_set
 	placed_layer.tile_set = tile_set
@@ -574,6 +580,8 @@ func _pick_tile_at(cell: Vector2i) -> void:
 			blue_build_button.button_pressed = true
 		GREEN_SOURCE_ID:
 			green_build_button.button_pressed = true
+		CORE_SOURCE_ID:
+			core_build_button.button_pressed = true
 		_:
 			return
 	_selected_source_id = source_id
@@ -584,6 +592,7 @@ func _refresh_tile_counts() -> void:
 	red_count_badge.hide()
 	blue_count_badge.hide()
 	green_count_badge.hide()
+	core_count_badge.hide()
 
 
 func _resize_build_area() -> void:
@@ -667,6 +676,8 @@ func _get_source_id_for_category(category: int) -> int:
 			return BLUE_SOURCE_ID
 		ShipPart.Category.SPECIAL:
 			return GREEN_SOURCE_ID
+		ShipPart.Category.CORE:
+			return CORE_SOURCE_ID
 		_:
 			push_error("Unknown ship part category: %s" % category)
 			return NO_SOURCE_ID
@@ -680,8 +691,8 @@ func _get_category_for_source_id(source_id: int) -> int:
 			return ShipPart.Category.DEFENSE
 		GREEN_SOURCE_ID:
 			return ShipPart.Category.SPECIAL
-		FOURTH_SOURCE_ID:
-			return NO_CATEGORY
+		CORE_SOURCE_ID:
+			return ShipPart.Category.CORE
 		_:
 			push_error("Unknown build tile source ID: %s" % source_id)
 			return NO_CATEGORY
@@ -695,6 +706,8 @@ func _get_texture_for_category(category: int) -> Texture2D:
 			return blue_tile_texture
 		ShipPart.Category.SPECIAL:
 			return green_tile_texture
+		ShipPart.Category.CORE:
+			return core_tile_texture
 		_:
 			push_error("Unknown ship part category: %s" % category)
 			return null
@@ -1372,7 +1385,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_1: _select_material_button(red_build_button)
 		KEY_2: _select_material_button(blue_build_button)
 		KEY_3: _select_material_button(green_build_button)
-		KEY_4: _select_material_button(empty_build_button)
+		KEY_4: _select_material_button(core_build_button)
 		_: return
 	get_viewport().set_input_as_handled()
 

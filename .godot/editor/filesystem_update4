@@ -18,3 +18,7 @@ res://scripts/game_setup.gd
 res://scripts/formation_board.gd
 res://scenes/build_tilemap_area.tscn
 res://scripts/game_state.gd
+res://scripts/ship.gd
+res://scripts/ship_design_preview.gd
+res://scripts/ship_part.gd
+res://scenes/victory_dialog.tscn

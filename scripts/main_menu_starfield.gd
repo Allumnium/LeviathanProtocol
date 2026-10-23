@@ -57,11 +57,6 @@ func _ready() -> void:
 	_random.randomize()
 	resized.connect(_on_resized)
 	call_deferred("_generate_stars")
-	AudioManager.set_menu_thruster_mode(Input.is_key_pressed(KEY_SHIFT))
-
-
-func _exit_tree() -> void:
-	AudioManager.stop_menu_thrusters()
 
 
 func _process(delta: float) -> void:
@@ -78,7 +73,6 @@ func _process(delta: float) -> void:
 		yaw_input -= 1.0
 
 	var is_shift_pressed := Input.is_key_pressed(KEY_SHIFT)
-	AudioManager.set_menu_thruster_mode(is_shift_pressed)
 	var speed_multiplier := 2.0 if is_shift_pressed else 1.0
 	var turn_speed := FLIGHT_TURN_SPEED_DEGREES_PER_SECOND * speed_multiplier
 	_flight_pitch_degrees = clampf(

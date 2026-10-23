@@ -597,7 +597,7 @@ func _test_drop_distribution() -> void:
 	var simulation := BattleSimulation.new()
 	simulation.setup(_basic_stats(), _fleet(3), 7)
 	var enemy := simulation.aliens[0]
-	var categories: Array[int] = [0, 0, 0]
+	var categories: Array[int] = [0, 0, 0, 0]
 	for trial in range(3000):
 		enemy.integrity = 1.0
 		enemy.shields = 0.0
@@ -608,8 +608,9 @@ func _test_drop_distribution() -> void:
 		"Alien drop chance should be approximately 60%.")
 	_check(categories[ShipPart.Category.DEFENSE] > categories[ShipPart.Category.OFFENSE]
 		and categories[ShipPart.Category.OFFENSE] > categories[ShipPart.Category.SPECIAL]
-		and categories[ShipPart.Category.SPECIAL] > 0,
-		"Loot must be blue/common, red/uncommon, green/rare in decreasing frequency.")
+		and categories[ShipPart.Category.SPECIAL] > categories[ShipPart.Category.CORE]
+		and categories[ShipPart.Category.CORE] > 0,
+		"Loot must decrease from blue, red, green, to core rarity.")
 
 
 func _test_defeat() -> void:
@@ -733,6 +734,7 @@ func _test_scene() -> void:
 	var red_before: int = state.red_tiles_available
 	var blue_before: int = state.blue_tiles_available
 	var green_before: int = state.green_tiles_available
+	var core_before: int = state.core_tiles_available
 	for tick in range(60 * 120):
 		battle._physics_process(1.0 / 60.0)
 		if battle._finished:
@@ -745,12 +747,13 @@ func _test_scene() -> void:
 		"Surviving purchased ships must carry into the next battle.")
 	_check(state.credits == credits_before_victory + GameState.VICTORY_CREDIT_REWARD,
 		"A victory must award the fixed credit reward.")
-	var collected: Array[int] = [0, 0, 0]
+	var collected: Array[int] = [0, 0, 0, 0]
 	for category in battle.simulation.collected_categories:
 		collected[category] += 1
 	_check(state.red_tiles_available == red_before + collected[ShipPart.Category.OFFENSE]
 		and state.blue_tiles_available == blue_before + collected[ShipPart.Category.DEFENSE]
-		and state.green_tiles_available == green_before + collected[ShipPart.Category.SPECIAL],
+		and state.green_tiles_available == green_before + collected[ShipPart.Category.SPECIAL]
+		and state.core_tiles_available == core_before + collected[ShipPart.Category.CORE],
 		"Collected salvage must be credited to the correct inventory exactly once.")
 	_check(current_scene == battle and not state.last_battle_report.is_empty(),
 		"The report must remain open until Continue is selected.")
@@ -1201,14 +1204,14 @@ func _test_material_shop() -> void:
 	var state := root.get_node("GameState")
 	state.start_new_run()
 	_clear_test_fleet(state)
-	for category in range(3):
+	for category in range(state.MATERIAL_PRICES.size()):
 		var before: int = state.get_available_tile_count(category)
 		var credits_before: int = state.credits
 		_check(state.purchase_material(category), "Each material must be purchasable.")
 		_check(state.get_available_tile_count(category) == before + 1 and state.credits == credits_before - state.MATERIAL_PRICES[category], "Buying a material must add one tile and debit its exact price.")
 	state.credits = 1
 	_check(not state.purchase_material(1) and state.credits == 1, "Unaffordable material purchases must not spend credits.")
-	_check(not state.purchase_material(-1) and not state.purchase_material(3), "Invalid material categories must be rejected.")
+	_check(not state.purchase_material(-1) and not state.purchase_material(4), "Invalid material categories must be rejected.")
 	state.credits = 100
 	state.battle_pending = true
 	_check(not state.purchase_material(0) and state.credits == 100, "The shop must be unavailable during deployment.")
@@ -1221,10 +1224,10 @@ func _test_build_area() -> void:
 	state.start_new_run()
 	_clear_test_fleet(state)
 	_check(state.credits == 1200 and state.build_area_size() == 8, "New runs must start with 1200 credits and an 8 by 8 build area.")
-	var original_inventory := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available]
+	var original_inventory := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available]
 	_check(state.purchase_build_area_upgrade(), "The first area upgrade must be purchasable.")
 	_check(state.build_area_size() == 10 and state.credits == 1150, "Area upgrades must add two tiles per side for 50 credits.")
-	_check([state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available] == [original_inventory[0] - 1, original_inventory[1] - 1, original_inventory[2] - 1], "Area upgrades must consume one of each material.")
+	_check([state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available] == [original_inventory[0] - 1, original_inventory[1] - 1, original_inventory[2] - 1, original_inventory[3] - 1], "Area upgrades must consume one of each material.")
 	var design := _fleet_blueprint()
 	design.set_tile_at(Vector2i(10, 0), ShipPart.Category.DEFENSE)
 	_check(not state.design_fits_build_area(design), "The first out-of-bounds column must require an upgrade.")
@@ -1238,7 +1241,7 @@ func _test_build_area() -> void:
 func _test_builder_history(builder: Control) -> void:
 	var state := root.get_node("GameState")
 	var before: Dictionary = state.ship.tiles.duplicate()
-	var materials := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available]
+	var materials := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available]
 	var key := InputEventKey.new()
 	key.pressed = true
 	key.keycode = KEY_4
@@ -1268,5 +1271,5 @@ func _test_builder_history(builder: Control) -> void:
 	builder._finish_stroke()
 	_check(builder.redo_button.disabled, "A new edit must invalidate redo.")
 	builder._undo()
-	_check(state.ship.tiles == before and materials == [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available], "Undo and redo must never spend materials.")
-	_check(not builder.red_count_badge.visible and not builder.blue_count_badge.visible and not builder.green_count_badge.visible, "Blueprint tools must hide inventory counts.")
+	_check(state.ship.tiles == before and materials == [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available], "Undo and redo must never spend materials.")
+	_check(not builder.red_count_badge.visible and not builder.blue_count_badge.visible and not builder.green_count_badge.visible and not builder.core_count_badge.visible, "Blueprint tools must hide inventory counts.")

@@ -515,7 +515,14 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		var drop := Drop.new()
 		drop.position = target.position
 		var roll := random.randf()
-		drop.category = ShipPart.Category.DEFENSE if roll < 0.65 else (ShipPart.Category.OFFENSE if roll < 0.9 else ShipPart.Category.SPECIAL)
+		if roll < 0.60:
+			drop.category = ShipPart.Category.DEFENSE
+		elif roll < 0.84:
+			drop.category = ShipPart.Category.OFFENSE
+		elif roll < 0.96:
+			drop.category = ShipPart.Category.SPECIAL
+		else:
+			drop.category = ShipPart.Category.CORE
 		drops.append(drop)
 
 

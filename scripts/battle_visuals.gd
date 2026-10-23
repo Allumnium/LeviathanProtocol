@@ -7,6 +7,7 @@ const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.png")
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
+const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
 const SHIELD_FLASH_TINT := Color(0.35, 0.7, 1.0, 1.0)
 
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
@@ -236,6 +237,8 @@ func _get_tile_texture(category: int) -> Texture2D:
 			return BLUE_TILE_TEXTURE
 		ShipPart.Category.SPECIAL:
 			return GREEN_TILE_TEXTURE
+		ShipPart.Category.CORE:
+			return CORE_TILE_TEXTURE
 		_:
 			push_error("Unknown tile category in battle renderer: %s" % category)
 			return null

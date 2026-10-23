@@ -1,10 +1,11 @@
 extends Control
 
-const HEADER_FONT = preload("res://assets/fonts/TKCLSCR2.TTF")
+const HEADER_FONT = preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt")
 const ARCHIVE_TILE_STYLE = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const RED_MATERIAL_TEXTURE = preload("res://assets/ui/icons/red_square.png")
 const BLUE_MATERIAL_TEXTURE = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_MATERIAL_TEXTURE = preload("res://assets/ui/icons/green_square.png")
+const CORE_MATERIAL_TEXTURE = preload("res://assets/core.png")
 const TILE_SIZE := 44.0
 const MATERIAL_TILE_SIZE := 26.0
 const PATTERN_CELL_GAP := 1
@@ -227,6 +228,7 @@ func _get_material_texture(category: int) -> Texture2D:
 		ShipPart.Category.OFFENSE: return RED_MATERIAL_TEXTURE
 		ShipPart.Category.DEFENSE: return BLUE_MATERIAL_TEXTURE
 		ShipPart.Category.SPECIAL: return GREEN_MATERIAL_TEXTURE
+		ShipPart.Category.CORE: return CORE_MATERIAL_TEXTURE
 		_: return null
 
 

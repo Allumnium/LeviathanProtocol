@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://tpx12myxr54h"]
 
 [ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="1_theme"]
-[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="3_title_font"]
+[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="3_title_font"]
 
 [node name="ModalDialog" type="PopupPanel" unique_id=1323140120]
 snap_2d_transforms_to_pixel = true

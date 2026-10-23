@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Theme" path="res://themes/ui_theme.tres" id="1_theme"]
-[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="2_header_font"]
+[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="2_header_font"]
 
 [node name="SaveDesignDialog" type="PopupPanel"]
 initial_position = 1

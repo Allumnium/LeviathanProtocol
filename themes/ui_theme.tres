@@ -3,11 +3,11 @@
 [ext_resource type="StyleBox" uid="uid://bqn2tsvmxlmkl" path="res://assets/ui/panels/panel_nine_patch.tres" id="1_panel"]
 [ext_resource type="Texture2D" uid="uid://cuo4815jnqj5h" path="res://assets/ui/buttons/button.png" id="2_button"]
 [ext_resource type="Texture2D" uid="uid://cdj7cxq56vqxq" path="res://assets/ui/buttons/button_pressed.png" id="3_button_pressed"]
-[ext_resource type="FontFile" path="res://assets/fonts/voyager.ttf" id="4_font_body"]
+[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="4_font_body"]
 [ext_resource type="Texture2D" uid="uid://dvjqfo0psdmk5" path="res://assets/ui/buttons/button_highlighted.png" id="6_button_highlighted"]
 [ext_resource type="Texture2D" uid="uid://ceuy7glfq4gtg" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
 [ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="8_popup_panel"]
-[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="9_font_interactive"]
+[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="9_font_interactive"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxFlat_button_disabled"]
 content_margin_left = 14.0

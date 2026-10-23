@@ -17,6 +17,7 @@ enum Category {
 	OFFENSE,
 	DEFENSE,
 	SPECIAL,
+	CORE,
 }
 
 var type: int

@@ -11,7 +11,7 @@
 [ext_resource type="Script" path="res://scripts/archive_tab.gd" id="11_archive"]
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="12_icon_button"]
 [ext_resource type="Texture2D" path="res://assets/help.png" id="13_help_icon"]
-[ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="14_header_font"]
+[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="14_header_font"]
 
 [ext_resource type="Script" path="res://scripts/fleet_panel.gd" id="20_fleet"]
 [ext_resource type="Script" path="res://scripts/upgrades_panel.gd" id="21_upgrades"]

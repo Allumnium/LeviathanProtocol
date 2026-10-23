@@ -1,0 +1,27 @@
+Starhull - License
+
+Copyright (c) 2026 fcidade
+
+One license covers the buyer and the people working with them on the
+buyer's projects (teammates, contractors). It does not cover other
+companies or other buyers.
+
+You CAN:
+- Use this font in personal and commercial projects: games, apps, videos,
+  streams, websites, printed material.
+- Use it in as many projects as you want. No royalties, no extra fees.
+- Modify it, or convert it to another format, for use in your own projects.
+- Ship it inside your project's files: a game build, an app, or a website
+  (webfont).
+
+You CAN'T:
+- Sell, share or redistribute the font files themselves, original or
+  modified, on their own or as part of an asset pack, font collection or
+  template.
+- Put the font files in a public repository (GitHub and similar). A built
+  game, app or website that uses the font can be public.
+- Claim the font as your own creation.
+
+Credit is not required, but it is appreciated: "Starhull by fcidade".
+
+The font is provided "as is", without warranty of any kind.

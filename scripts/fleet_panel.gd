@@ -166,7 +166,7 @@ func _refresh_rows() -> void:
 
 static func compact_button(button: Button) -> void:
 	button.custom_minimum_size.y = maxf(button.custom_minimum_size.y, 30)
-	button.add_theme_font_override("font", preload("res://assets/fonts/TKCLSCR2.TTF"))
+	button.add_theme_font_override("font", preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"))
 	var theme := preload("res://themes/ui_theme.tres")
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var style: StyleBox = theme.get_stylebox(state, "Button").duplicate()

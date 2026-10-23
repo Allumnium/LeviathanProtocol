@@ -45,6 +45,7 @@ const SAVED_SHIP_DESIGNS_VERSION := 1
 const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
+const STARTING_CORE_TILE_COUNT := 3
 
 var fleet: Array[FleetShip] = []
 var next_ship_id := 1
@@ -69,6 +70,7 @@ var active_part_transformations := 0
 var red_tiles_available := STARTING_RED_TILE_COUNT
 var blue_tiles_available := STARTING_BLUE_TILE_COUNT
 var green_tiles_available := STARTING_GREEN_TILE_COUNT
+var core_tiles_available := STARTING_CORE_TILE_COUNT
 var saved_ship_designs: Array[Dictionary] = []
 var current_run_design_names: Array[String] = []
 var include_previous_run_designs := false
@@ -107,6 +109,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	red_tiles_available = STARTING_RED_TILE_COUNT
 	blue_tiles_available = STARTING_BLUE_TILE_COUNT
 	green_tiles_available = STARTING_GREEN_TILE_COUNT
+	core_tiles_available = STARTING_CORE_TILE_COUNT
 	var drone := preload("res://scripts/builtin_ships.gd").drone()
 	for index in range(3):
 		var owned := FleetShip.new()
@@ -314,7 +317,7 @@ func _write_saved_ship_designs(
 
 
 func _get_ship_tile_counts(target_ship: Ship) -> Array[int]:
-	var tile_counts: Array[int] = [0, 0, 0]
+	var tile_counts: Array[int] = [0, 0, 0, 0]
 	for cell in target_ship.get_tile_cells():
 		var category := target_ship.get_tile_category_at(cell)
 		if category < 0 or category >= tile_counts.size():
@@ -351,6 +354,8 @@ func get_available_tile_count(category: int) -> int:
 			return blue_tiles_available
 		ShipPart.Category.SPECIAL:
 			return green_tiles_available
+		ShipPart.Category.CORE:
+			return core_tiles_available
 		_:
 			push_error("Unknown ship part category: %s" % category)
 			return 0
@@ -410,6 +415,10 @@ func try_consume_tile(category: int) -> bool:
 			if green_tiles_available <= 0:
 				return false
 			green_tiles_available -= 1
+		ShipPart.Category.CORE:
+			if core_tiles_available <= 0:
+				return false
+			core_tiles_available -= 1
 		_:
 			push_error("Unknown ship part category: %s" % category)
 			return false
@@ -426,6 +435,8 @@ func refund_tile(category: int) -> void:
 			blue_tiles_available += 1
 		ShipPart.Category.SPECIAL:
 			green_tiles_available += 1
+		ShipPart.Category.CORE:
+			core_tiles_available += 1
 		_:
 			push_error("Unknown ship part category: %s" % category)
 			return
@@ -451,7 +462,7 @@ func construction_error(blueprint: Ship = null) -> String:
 	return ""
 
 
-const MATERIAL_PRICES := [Ship.RED_TILE_CREDIT_COST, Ship.BLUE_TILE_CREDIT_COST, Ship.GREEN_TILE_CREDIT_COST]
+const MATERIAL_PRICES := [Ship.RED_TILE_CREDIT_COST, Ship.BLUE_TILE_CREDIT_COST, Ship.GREEN_TILE_CREDIT_COST, Ship.CORE_TILE_CREDIT_COST]
 
 
 func get_construction_credit_cost(blueprint: Ship = null) -> int:
@@ -476,6 +487,7 @@ func purchase_material(category: int) -> bool:
 		0: red_tiles_available += 1
 		1: blue_tiles_available += 1
 		2: green_tiles_available += 1
+		3: core_tiles_available += 1
 	credits_changed.emit()
 	tile_inventory_changed.emit()
 	return true
@@ -510,6 +522,7 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
 	red_tiles_available = maxi(0, red_tiles_available - counts[0])
 	blue_tiles_available = maxi(0, blue_tiles_available - counts[1])
 	green_tiles_available = maxi(0, green_tiles_available - counts[2])
+	core_tiles_available = maxi(0, core_tiles_available - counts[3])
 	_refresh_fleet()
 	tile_inventory_changed.emit()
 	credits_changed.emit()
@@ -708,12 +721,13 @@ func build_area_size() -> int:
 func purchase_build_area_upgrade() -> bool:
 	if battle_pending or build_area_size() >= MAX_BUILD_SIZE or credits < 50:
 		return false
-	if red_tiles_available < 1 or blue_tiles_available < 1 or green_tiles_available < 1:
+	if red_tiles_available < 1 or blue_tiles_available < 1 or green_tiles_available < 1 or core_tiles_available < 1:
 		return false
 	credits -= 50
 	red_tiles_available -= 1
 	blue_tiles_available -= 1
 	green_tiles_available -= 1
+	core_tiles_available -= 1
 	build_area_level += 1
 	build_area_changed.emit()
 	upgrades_changed.emit()
