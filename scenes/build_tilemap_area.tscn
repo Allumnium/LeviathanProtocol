@@ -56,13 +56,15 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.12, 0.13, 0.15, 1)
 
-[node name="SelectorRow" type="VBoxContainer" parent="."]
+[node name="SelectorRow" type="GridContainer" parent="."]
 layout_mode = 1
 anchor_left = 0.01
 anchor_top = 0.06
 anchor_right = 0.14
 anchor_bottom = 0.94
-theme_override_constants/separation = 8
+columns = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
 
 [node name="RedBuildButton" parent="SelectorRow" instance=ExtResource("6")]
 layout_mode = 2
@@ -82,6 +84,12 @@ layout_mode = 2
 [node name="Icon" parent="SelectorRow/GreenBuildButton"]
 texture = ExtResource("5")
 
+[node name="EmptyBuildButton" parent="SelectorRow" instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="Icon" parent="SelectorRow/EmptyBuildButton"]
+texture = null
+
 [node name="DesignControls" type="VBoxContainer" parent="."]
 anchors_preset = 1
 anchor_left = 1.0
@@ -97,25 +105,25 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(60, 26)
 layout_mode = 2
 tooltip_text = "Save the current ship design"
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 12
 text = "SAVE"
 
 [node name="LoadDesignButton" type="Button" parent="DesignControls"]
 custom_minimum_size = Vector2(60, 26)
 layout_mode = 2
 tooltip_text = "Open saved ship designs"
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 12
 text = "LOAD"
 
 [node name="HistoryControls" type="HBoxContainer" parent="."]
 layout_mode = 1
-anchor_left = 0.17
+anchor_left = 0.0
 anchor_top = 1.0
-anchor_right = 0.17
+anchor_right = 0.0
 anchor_bottom = 1.0
 offset_left = 8.0
-offset_top = -42.0
-offset_right = 80.0
+offset_top = -20.0
+offset_right = 28.0
 offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 0

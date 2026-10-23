@@ -4,6 +4,7 @@ const GRID_SOURCE_ID := 0
 const RED_SOURCE_ID := 1
 const BLUE_SOURCE_ID := 2
 const GREEN_SOURCE_ID := 3
+const FOURTH_SOURCE_ID := 4
 const NO_SOURCE_ID := -1
 const NO_CATEGORY := -1
 const INVALID_CELL := Vector2i(-1, -1)
@@ -47,10 +48,11 @@ const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd
 @onready var animation_layer: Node2D = $PanRoot/AnimationLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
 @onready var selector_background: ColorRect = $SelectorBackground
-@onready var selector_row: VBoxContainer = $SelectorRow
+@onready var selector_row: GridContainer = $SelectorRow
 @onready var red_build_button: TextureButton = $SelectorRow/RedBuildButton
 @onready var blue_build_button: TextureButton = $SelectorRow/BlueBuildButton
 @onready var green_build_button: TextureButton = $SelectorRow/GreenBuildButton
+@onready var empty_build_button: TextureButton = $SelectorRow/EmptyBuildButton
 @onready var red_count_badge: PanelContainer = $SelectorRow/RedBuildButton/CountBadge
 @onready var red_count_label: Label = $SelectorRow/RedBuildButton/CountBadge/CountLabel
 @onready var blue_count_badge: PanelContainer = $SelectorRow/BlueBuildButton/CountBadge
@@ -155,10 +157,12 @@ func _ready() -> void:
 	red_build_button.button_group = selector_group
 	blue_build_button.button_group = selector_group
 	green_build_button.button_group = selector_group
+	empty_build_button.button_group = selector_group
 
 	red_build_button.toggled.connect(_on_build_button_toggled.bind(RED_SOURCE_ID))
 	blue_build_button.toggled.connect(_on_build_button_toggled.bind(BLUE_SOURCE_ID))
 	green_build_button.toggled.connect(_on_build_button_toggled.bind(GREEN_SOURCE_ID))
+	empty_build_button.toggled.connect(_on_build_button_toggled.bind(FOURTH_SOURCE_ID))
 	save_design_button.pressed.connect(_on_save_design_pressed)
 	confirm_save_design_button.pressed.connect(_on_save_design_confirmed)
 	cancel_save_design_button.pressed.connect(save_design_dialog.hide)
@@ -183,8 +187,8 @@ func _ready() -> void:
 	undo_button.tooltip_text = "Undo (Ctrl+Z)"
 	redo_button.tooltip_text = "Redo (Ctrl+Y)"
 	for button in [undo_button, redo_button]:
-		button.custom_minimum_size = Vector2(32, 32)
-		preload("res://scripts/fleet_panel.gd").compact_button(button)
+		button.custom_minimum_size = Vector2(8, 8)
+		_style_tiny_history_button(button)
 		history_controls.add_child(button)
 	undo_button.pressed.connect(_undo)
 	redo_button.pressed.connect(_redo)
@@ -209,9 +213,8 @@ func move_controls_to(container: VBoxContainer) -> void:
 		controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 		controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	selector_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selector_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	design_controls.size_flags_vertical = Control.SIZE_SHRINK_END
-	for button in [red_build_button, blue_build_button, green_build_button]:
+	for button in [red_build_button, blue_build_button, green_build_button, empty_build_button]:
 		button.custom_minimum_size = Vector2(36, 36)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -224,12 +227,26 @@ func _history_icon(point_right: bool) -> Texture2D:
 	var image := Image.new()
 	var transform := ' transform="translate(28 0) scale(-1 1)"' if point_right else ""
 	var svg := (
-		'<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">'
+		'<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 28 28">'
 		+ '<path%s d="M12 7H8V2L1 9l7 7v-5h4c5 0 8 3 8 8 0 2-.5 4-1.5 6 3-2.5 4.5-5.5 4.5-9 0-5-4-9-11-9z" fill="#cfdee4"/>' % transform
 		+ "</svg>"
 	)
 	image.load_svg_from_string(svg)
 	return ImageTexture.create_from_image(image)
+
+
+func _style_tiny_history_button(button: Button) -> void:
+	var theme := preload("res://themes/ui_theme.tres")
+	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
+		var style := theme.get_stylebox(state, &"Button").duplicate()
+		if style is StyleBoxTexture:
+			style.texture = preload("res://assets/ui/panels/simple_panel.png")
+			style.texture_margin_left = 2.0
+			style.texture_margin_top = 2.0
+			style.texture_margin_right = 2.0
+			style.texture_margin_bottom = 2.0
+		style.set_content_margin_all(0.0)
+		button.add_theme_stylebox_override(state, style)
 
 
 func _exit_tree() -> void:
@@ -663,6 +680,8 @@ func _get_category_for_source_id(source_id: int) -> int:
 			return ShipPart.Category.DEFENSE
 		GREEN_SOURCE_ID:
 			return ShipPart.Category.SPECIAL
+		FOURTH_SOURCE_ID:
+			return NO_CATEGORY
 		_:
 			push_error("Unknown build tile source ID: %s" % source_id)
 			return NO_CATEGORY
@@ -1203,6 +1222,7 @@ func _update_preview() -> void:
 func _update_preview_at(local_mouse_position: Vector2) -> void:
 	if (
 		_selected_source_id == NO_SOURCE_ID
+		or _get_category_for_source_id(_selected_source_id) == NO_CATEGORY
 		or _is_erasing
 		or _is_panning
 		or not is_visible_in_tree()
@@ -1332,10 +1352,31 @@ func _redo() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or save_design_dialog.visible or load_design_dialog.visible:
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.ctrl_pressed:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if event.ctrl_pressed:
 		if event.keycode == KEY_Z:
 			_undo()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_Y:
 			_redo()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_S and not save_design_button.disabled:
+			_on_save_design_pressed()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_L and not load_design_button.disabled:
+			_on_load_design_pressed()
+			get_viewport().set_input_as_handled()
+		return
+	match event.keycode:
+		KEY_1: _select_material_button(red_build_button)
+		KEY_2: _select_material_button(blue_build_button)
+		KEY_3: _select_material_button(green_build_button)
+		KEY_4: _select_material_button(empty_build_button)
+		_: return
+	get_viewport().set_input_as_handled()
+
+
+func _select_material_button(button: TextureButton) -> void:
+	if not button.disabled:
+		button.button_pressed = true

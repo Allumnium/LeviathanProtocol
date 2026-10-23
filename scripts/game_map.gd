@@ -94,7 +94,7 @@ func _on_panel_tab_changed(tab_index: int) -> void:
 	build_controls.visible = tab_index == BUILD_TAB_INDEX
 	archive_progress.visible = tab_index == ARCHIVE_TAB_INDEX
 	archive_details.visible = tab_index == ARCHIVE_TAB_INDEX
-	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents.visible = tab_index != 0 and tab_index != ARCHIVE_TAB_INDEX
+	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents.visible = tab_index == BUILD_TAB_INDEX
 	_refresh_ship_stats()
 	for index in range(panel_tab_buttons.size()):
 		panel_tab_buttons[index].button_pressed = index == tab_index

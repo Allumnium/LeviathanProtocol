@@ -446,16 +446,24 @@ func construction_error(blueprint: Ship = null) -> String:
 	var problem := candidate.construction_error()
 	if not problem.is_empty():
 		return problem
-	if credits < design.cost:
+	if credits < get_construction_credit_cost(design):
 		return "Insufficient credits."
-	var counts := _get_ship_tile_counts(design)
-	for category in range(3):
-		if counts[category] > get_available_tile_count(category):
-			return "Insufficient materials."
 	return ""
 
 
 const MATERIAL_PRICES := [Ship.RED_TILE_CREDIT_COST, Ship.BLUE_TILE_CREDIT_COST, Ship.GREEN_TILE_CREDIT_COST]
+
+
+func get_construction_credit_cost(blueprint: Ship = null) -> int:
+	var design := ship if blueprint == null else blueprint
+	var total := design.cost
+	var counts := _get_ship_tile_counts(design)
+	if counts.size() != MATERIAL_PRICES.size():
+		return total
+	for category in range(MATERIAL_PRICES.size()):
+		var missing := maxi(0, counts[category] - get_available_tile_count(category))
+		total += missing * MATERIAL_PRICES[category]
+	return total
 
 func purchase_material(category: int) -> bool:
 	if battle_pending or category < 0 or category >= MATERIAL_PRICES.size():
@@ -484,6 +492,7 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
 	var design := ship if blueprint == null else blueprint
 	if not construction_error(design).is_empty():
 		return false
+	var construction_credit_cost := get_construction_credit_cost(design)
 	var owned := FleetShip.new()
 	var title := design_name
 	if title.is_empty():
@@ -496,11 +505,11 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
 		owned.formation.x = maxf(owned.formation.x, other.formation.x + 1.0)
 	fleet.append(owned)
 	next_ship_id += 1
-	credits -= design.cost
+	credits -= construction_credit_cost
 	var counts := _get_ship_tile_counts(design)
-	red_tiles_available -= counts[0]
-	blue_tiles_available -= counts[1]
-	green_tiles_available -= counts[2]
+	red_tiles_available = maxi(0, red_tiles_available - counts[0])
+	blue_tiles_available = maxi(0, blue_tiles_available - counts[1])
+	green_tiles_available = maxi(0, green_tiles_available - counts[2])
 	_refresh_fleet()
 	tile_inventory_changed.emit()
 	credits_changed.emit()

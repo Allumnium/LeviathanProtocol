@@ -1,12 +1,24 @@
 extends Control
 
 const HEADER_FONT = preload("res://assets/fonts/TKCLSCR2.TTF")
+const ARCHIVE_TILE_STYLE = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const RED_MATERIAL_TEXTURE = preload("res://assets/ui/icons/red_square.png")
 const BLUE_MATERIAL_TEXTURE = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_MATERIAL_TEXTURE = preload("res://assets/ui/icons/green_square.png")
 const TILE_SIZE := 44.0
 const MATERIAL_TILE_SIZE := 26.0
 const PATTERN_CELL_GAP := 1
+const ARCHIVE_PART_ORDER := [
+	ShipPart.Type.SINGLE_PLATE,
+	ShipPart.Type.ARMOR_BLOCK,
+	ShipPart.Type.MINI_TURRET,
+	ShipPart.Type.LASER,
+	ShipPart.Type.DOUBLE_LASER,
+	ShipPart.Type.THRUSTER,
+	ShipPart.Type.LARGE_THRUSTER,
+	ShipPart.Type.COMMAND_CENTER,
+	ShipPart.Type.SHIELD,
+]
 
 @onready var archive_grid: GridContainer = $GridCenter/ArchiveGrid
 
@@ -23,9 +35,26 @@ func _ready() -> void:
 	GameState.discovered_parts_changed.connect(_on_discovered_parts_changed)
 	var button_group := ButtonGroup.new()
 	button_group.allow_unpress = false
-	for pattern in ShipPartPattern.get_catalog():
+	for pattern in _get_ordered_catalog():
 		archive_grid.add_child(_create_part_button(pattern, button_group))
 	_refresh_discovery_masks()
+
+
+func _get_ordered_catalog() -> Array[ShipPartPattern]:
+	var catalog := ShipPartPattern.get_catalog()
+	var patterns_by_type: Dictionary[int, ShipPartPattern] = {}
+	for pattern in catalog:
+		patterns_by_type[pattern.part_type] = pattern
+	var ordered: Array[ShipPartPattern] = []
+	for part_type in ARCHIVE_PART_ORDER:
+		if patterns_by_type.has(part_type):
+			ordered.append(patterns_by_type[part_type])
+			patterns_by_type.erase(part_type)
+	# Keep newly introduced parts visible until they receive an explicit family position.
+	for pattern in catalog:
+		if patterns_by_type.has(pattern.part_type):
+			ordered.append(pattern)
+	return ordered
 
 
 func bind_external_panels(progress_label: Label, details: VBoxContainer) -> void:
@@ -147,18 +176,20 @@ func _format_stat_value(value: float) -> String:
 
 func _apply_compact_button_style(button: Button) -> void:
 	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
-		var source := get_theme_stylebox(state, &"Button")
-		if source is StyleBoxTexture:
-			var style := source.duplicate() as StyleBoxTexture
-			style.content_margin_left = 4.0
-			style.content_margin_top = 4.0
-			style.content_margin_right = 4.0
-			style.content_margin_bottom = 4.0
-			style.texture_margin_left = 12.0
-			style.texture_margin_top = 5.0
-			style.texture_margin_right = 12.0
-			style.texture_margin_bottom = 5.0
-			button.add_theme_stylebox_override(state, style)
+		var style := ARCHIVE_TILE_STYLE.duplicate() as StyleBoxTexture
+		style.content_margin_left = 3.0
+		style.content_margin_top = 3.0
+		style.content_margin_right = 3.0
+		style.content_margin_bottom = 3.0
+		style.texture_margin_left = 8.0
+		style.texture_margin_top = 8.0
+		style.texture_margin_right = 8.0
+		style.texture_margin_bottom = 8.0
+		match state:
+			&"hover": style.modulate_color = Color(0.85, 0.95, 1.0)
+			&"pressed": style.modulate_color = Color(0.62, 0.78, 0.86)
+			&"disabled": style.modulate_color = Color(0.5, 0.55, 0.6)
+		button.add_theme_stylebox_override(state, style)
 
 
 func _create_pattern_grid(pattern: ShipPartPattern) -> GridContainer:

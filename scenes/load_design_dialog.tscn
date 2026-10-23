@@ -4,10 +4,14 @@
 [ext_resource type="FontFile" path="res://assets/fonts/TKCLSCR2.TTF" id="2_header_font"]
 
 [node name="LoadDesignDialog" type="PopupPanel"]
+snap_2d_transforms_to_pixel = true
+snap_2d_vertices_to_pixel = true
+oversampling_override = 1.0
 initial_position = 1
-size = Vector2i(588, 320)
+size = Vector2i(412, 224)
 visible = false
 exclusive = true
+content_scale_mode = 2
 content_scale_factor = 1.0
 theme = ExtResource("1_theme")
 
@@ -26,12 +30,12 @@ theme_override_constants/separation = 6
 [node name="Title" type="Label" parent="Contents"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_header_font")
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 14
 text = "LOAD SHIP DESIGN"
 horizontal_alignment = 1
 
 [node name="ScrollContainer" type="ScrollContainer" parent="Contents"]
-custom_minimum_size = Vector2(0, 218)
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -58,7 +62,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="Contents"]
-custom_minimum_size = Vector2(100, 36)
+custom_minimum_size = Vector2(90, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "CLOSE"

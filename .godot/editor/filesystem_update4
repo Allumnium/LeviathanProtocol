@@ -16,3 +16,5 @@ res://scripts/main_menu.gd
 res://scripts/upgrades_panel.gd
 res://scripts/game_setup.gd
 res://scripts/formation_board.gd
+res://scenes/build_tilemap_area.tscn
+res://scripts/game_state.gd

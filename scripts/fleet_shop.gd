@@ -80,7 +80,8 @@ func refresh() -> void:
 	construct.tooltip_text = ""
 	if design != null:
 		var counts := GameState._get_ship_tile_counts(design)
-		construction_cost.text = "%d cr · %dR %dB %dG" % [design.cost, counts[0], counts[1], counts[2]]
+		var effective_cost := GameState.get_construction_credit_cost(design)
+		construction_cost.text = "%d cr · %dR %dB %dG" % [effective_cost, counts[0], counts[1], counts[2]]
 		construct.tooltip_text = GameState.construction_error(design)
 		construct.disabled = not construct.tooltip_text.is_empty()
 	var owned: FleetShip = fleet_panel.board.selected if fleet_panel != null else null

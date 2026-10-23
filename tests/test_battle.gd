@@ -825,6 +825,17 @@ func _test_scene() -> void:
 				and archive_grid.get_child_count() == ShipPartPattern.get_catalog().size(),
 			"The Archive must show every component as a button in a six-column grid."
 		)
+		var archive_tab := panel_tabs.get_node("Archive")
+		var thruster_index: int = archive_tab._part_patterns.find_custom(
+			func(pattern: ShipPartPattern) -> bool: return pattern.part_type == ShipPart.Type.THRUSTER
+		)
+		var large_thruster_index: int = archive_tab._part_patterns.find_custom(
+			func(pattern: ShipPartPattern) -> bool: return pattern.part_type == ShipPart.Type.LARGE_THRUSTER
+		)
+		_check(
+			thruster_index >= 0 and large_thruster_index == thruster_index + 1,
+			"The Archive must group the small and large thrusters in complexity order."
+		)
 		_check(
 			archive_progress != null and archive_progress.visible
 				and archive_details != null and archive_details.visible,
@@ -858,14 +869,15 @@ func _test_scene() -> void:
 			"The build screen must provide a compact text Load button."
 		)
 		var design_controls := build_controls.get_node("DesignControls") as VBoxContainer
-		var selector_row := build_controls.get_node_or_null("SelectorRow") as VBoxContainer
+		var selector_row := build_controls.get_node_or_null("SelectorRow") as GridContainer
 		var history_controls := build_area.get_node("HistoryControls") as HBoxContainer
 		_check(
 			design_controls != null
 				and design_controls.get_child_count() == 2
 				and selector_row != null
-				and selector_row.get_child_count() == 3,
-			"Build material selectors and design controls must be placed in the left panel."
+				and selector_row.columns == 2
+				and selector_row.get_child_count() == 4,
+			"Build material selectors and an empty fourth slot must form a 2-by-2 grid in the left panel."
 		)
 		_check(
 			history_controls != null
@@ -1005,8 +1017,13 @@ func _test_owned_fleet() -> void:
 		"Construction must spend every physical tile once.")
 	_check(state.credits == credits - state.ship.cost, "Construction must spend credits.")
 	var after_purchase: int = state.credits
-	_check(not state.purchase_ship() and state.credits == after_purchase and state.fleet.size() == 1,
-		"Insufficient materials must reject construction without spending credits or adding a ship.")
+	var effective_second_cost: int = state.get_construction_credit_cost(state.ship)
+	_check(effective_second_cost == state.ship.cost + 4 * state.MATERIAL_PRICES[ShipPart.Category.SPECIAL],
+		"Construction cost must include the credit price of every missing material.")
+	_check(state.purchase_ship() and state.credits == after_purchase - effective_second_cost and state.fleet.size() == 2,
+		"Missing materials must be purchased automatically as part of construction.")
+	_check(state.red_tiles_available == 8 and state.green_tiles_available == 0,
+		"Construction must consume available materials without making inventory negative.")
 	var owned: FleetShip = state.fleet[0]
 	state.ship.clear()
 	_check(owned.design.tiles.size() == 10 and state.can_deploy(),
@@ -1222,14 +1239,22 @@ func _test_builder_history(builder: Control) -> void:
 	var state := root.get_node("GameState")
 	var before: Dictionary = state.ship.tiles.duplicate()
 	var materials := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available]
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_4
+	builder._unhandled_key_input(key)
+	_check(builder._selected_source_id == builder.FOURTH_SOURCE_ID,
+		"Number 4 must select the fourth material slot.")
+	key.keycode = KEY_1
+	builder._unhandled_key_input(key)
+	_check(builder._selected_source_id == builder.RED_SOURCE_ID,
+		"Number 1 must select the red material slot.")
 	builder._selected_source_id = builder.GREEN_SOURCE_ID
 	builder._begin_stroke()
 	builder._apply_selected_tool(Vector2i(6, 6))
 	builder._apply_selected_tool(Vector2i(7, 6))
 	builder._finish_stroke()
 	_check(state.ship.tiles.size() == before.size() + 2, "Painting a stroke must add its tiles.")
-	var key := InputEventKey.new()
-	key.pressed = true
 	key.ctrl_pressed = true
 	key.keycode = KEY_Z
 	builder._unhandled_key_input(key)
