@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/auto_battle.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/battle_visuals.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/defeat_dialog.tscn" id="3_defeat"]
 
 [node name="AutoBattle" type="Control"]
 layout_mode = 3
@@ -55,4 +56,6 @@ offset_bottom = -8.0
 grow_vertical = 0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 10
-text = "Drag/WASD/Arrows: pan - Wheel: zoom - Space: follow"
+text = "Drag/WASD/Arrows: pan - Wheel: zoom - Space: auto-camera"
+
+[node name="DefeatDialog" parent="." instance=ExtResource("3_defeat")]

@@ -71,7 +71,6 @@ func _create_part_button(pattern: ShipPartPattern, button_group: ButtonGroup) ->
 	button.custom_minimum_size = Vector2.ONE * TILE_SIZE
 	button.toggle_mode = true
 	button.button_group = button_group
-	button.tooltip_text = pattern.display_name
 	_apply_compact_button_style(button)
 	button.pressed.connect(_on_part_button_pressed.bind(index))
 	var image := TextureRect.new()
@@ -243,7 +242,6 @@ func _refresh_discovery_masks() -> void:
 		var discovered := GameState.has_discovered_part(_part_patterns[index].part_type)
 		_part_images[index].modulate = Color.WHITE if discovered else Color.BLACK
 		_question_labels[index].visible = not discovered
-		_part_buttons[index].tooltip_text = _part_patterns[index].display_name if discovered else "Undiscovered component"
 	_refresh_progress()
 
 

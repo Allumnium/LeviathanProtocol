@@ -12,11 +12,11 @@ text = "HOW TO PLAY"
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_font_sizes/font_size = 12
-text = "Design freely, then construct ships in Fleet using materials and credits.
+text = "Design freely, then construct ships in Fleet using materials. Credits automatically purchase any missing materials.
 Each ship needs one connected command center: 2 ? 2 green squares.
 Lost components stop working; disconnected sections become salvage.
 Repair surviving ships for credits. Blue armor is inexpensive to repair.
-Drag or WASD / arrows to pan. Wheel zooms. Space follows a ship.
+Drag or WASD / arrows to pan. Wheel zooms. Auto-camera returns after 5 seconds.
 Laser upgrades spend red materials and credits."
 autowrap_mode = 2
 horizontal_alignment = 1

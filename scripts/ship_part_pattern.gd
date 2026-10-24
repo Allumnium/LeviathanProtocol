@@ -22,6 +22,7 @@ var stats: ShipPartStats
 var can_rotate: bool
 var display_name: String
 var preview_texture: Texture2D
+var renders_on_top := false
 
 
 func _init(
@@ -237,6 +238,16 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			ShipPartStats.with_weapon("Mini Turret", 1.0, 1.0, 1.0, 1, true)
 		)
 	)
+	var top_layer_types := [
+		ShipPart.Type.COMMAND_CENTER,
+		ShipPart.Type.LASER,
+		ShipPart.Type.DOUBLE_LASER,
+		ShipPart.Type.MINI_TURRET,
+		ShipPart.Type.THRUSTER,
+		ShipPart.Type.LARGE_THRUSTER,
+	]
+	for pattern in patterns:
+		pattern.renders_on_top = pattern.part_type in top_layer_types
 	return patterns
 
 

@@ -16,7 +16,8 @@ func _init(
 	value: float = 0.0,
 	formatted_value: String = "",
 	font_size: int = 11,
-	show_segments: bool = true
+	show_segments: bool = true,
+	value_icon: Texture2D = null
 ) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 1)
@@ -35,6 +36,14 @@ func _init(
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	value_label.add_theme_font_size_override("font_size", font_size)
+	if value_icon != null:
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(10, 10)
+		icon.texture = value_icon
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		title_row.add_child(icon)
 	title_row.add_child(value_label)
 	add_child(title_row)
 	if not show_segments:

@@ -113,7 +113,7 @@ static func create_random_fleet(
 	var total_health := 0.0
 	for alien in fleet:
 		total_health += alien.stats.integrity + alien.stats.shields
-	var health_scale := 85.0 * difficulty_multiplier * float(player_ship_count) / total_health
+	var health_scale := 21.25 * difficulty_multiplier * float(player_ship_count) / total_health
 	for alien in fleet:
 		alien.stats.integrity *= health_scale
 		alien.stats.shields *= health_scale
@@ -128,7 +128,7 @@ static func create_random_fleet(
 	# Account for how long each enemy survives focused fire, not just starting fleet DPS.
 	var player_fleet_scale := float(player_ship_count)
 	var damage_scale := (
-		30.0 * difficulty_multiplier * difficulty_multiplier
+		7.5 * difficulty_multiplier * difficulty_multiplier
 		* player_fleet_scale * player_fleet_scale / expected_damage
 	)
 	for alien in fleet:

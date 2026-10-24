@@ -39,6 +39,7 @@ func _run() -> void:
 	_test_owned_fleet()
 	_test_design_selection()
 	_test_material_shop()
+	_test_run_loss()
 	_test_build_area()
 	_test_ship_design_storage()
 	_test_mini_turret_firing()
@@ -139,8 +140,10 @@ func _test_player_fleet() -> void:
 	var total_health := 0.0
 	for alien in scaled_fleet:
 		total_health += alien.stats.integrity + alien.stats.shields
-	_check(is_equal_approx(total_health, 510.0),
+	_check(is_equal_approx(total_health, 127.5),
 		"Alien encounter health must scale with the player fleet.")
+	_check(simulation.aliens.all(func(alien: BattleSimulation.Combatant) -> bool: return is_equal_approx(alien.radius, 7.0)),
+		"Alien combat size and collision radius must be halved.")
 
 	var firing_simulation := BattleSimulation.new()
 	firing_simulation.setup(_basic_stats(), _fleet(1, 23), 23, 6)
@@ -188,14 +191,47 @@ func _test_thrust_movement() -> void:
 
 
 func _test_ship_cost() -> void:
+	var state := root.get_node("GameState")
+	var top_layer_types := [
+		ShipPart.Type.COMMAND_CENTER,
+		ShipPart.Type.LASER,
+		ShipPart.Type.DOUBLE_LASER,
+		ShipPart.Type.MINI_TURRET,
+		ShipPart.Type.THRUSTER,
+		ShipPart.Type.LARGE_THRUSTER,
+	]
+	for pattern in ShipPartPattern.get_catalog():
+		_check(
+			pattern.renders_on_top == (pattern.part_type in top_layer_types),
+			"Guns, thrusters, and the command core must render above the translucent hull."
+		)
 	var ship := Ship.new()
 	ship.set_tile_at(Vector2i(0, 0), ShipPart.Category.OFFENSE)
 	ship.set_tile_at(Vector2i(1, 0), ShipPart.Category.DEFENSE)
 	ship.set_tile_at(Vector2i(2, 0), ShipPart.Category.SPECIAL)
 	_check(is_equal_approx(ship.get_filled_hull_area(), 3.0),
 		"Test ship hull must have a three-square polygon area.")
-	_check(ship.cost == 20,
-		"Ship cost must add hull area to red, blue and green tile costs.")
+	var inventory := [
+		state.red_tiles_available,
+		state.blue_tiles_available,
+		state.green_tiles_available,
+		state.core_tiles_available,
+	]
+	state.red_tiles_available = 1
+	state.blue_tiles_available = 1
+	state.green_tiles_available = 1
+	state.core_tiles_available = 0
+	_check(state.get_construction_credit_cost(ship) == 0,
+		"A ship must cost no credits when all of its materials are stored.")
+	state.red_tiles_available = 0
+	state.blue_tiles_available = 0
+	state.green_tiles_available = 0
+	_check(state.get_construction_credit_cost(ship) == 17,
+		"A ship's credit cost must equal only the price of its missing materials.")
+	state.red_tiles_available = inventory[0]
+	state.blue_tiles_available = inventory[1]
+	state.green_tiles_available = inventory[2]
+	state.core_tiles_available = inventory[3]
 
 
 func _test_ship_design_storage() -> void:
@@ -545,10 +581,10 @@ func _test_salvage() -> void:
 		simulation.advance(1.0 / 60.0)
 		if simulation.phase == BattleSimulation.Phase.VICTORY:
 			break
-	_check(simulation.phase == BattleSimulation.Phase.VICTORY, "Salvage must finish automatically.")
-	_check(simulation.collected_categories.size() == 3, "Every dropped square must be collected once.")
+	_check(simulation.phase == BattleSimulation.Phase.VICTORY, "Victory must resolve immediately.")
+	_check(simulation.collected_categories.size() == 3, "Every dropped square must be recovered once.")
 	for drop in simulation.drops:
-		_check(drop.collected, "Player must fly over every drop.")
+		_check(drop.collected, "Every drop must be marked recovered without a collection flight.")
 	simulation.advance(1.0)
 	_check(simulation.collected_categories.size() == 3, "Finished salvage must not duplicate rewards.")
 
@@ -567,8 +603,8 @@ func _test_stationary_salvage() -> void:
 	simulation.advance(1.0 / 60.0)
 	_check(
 		simulation.phase == BattleSimulation.Phase.VICTORY
-			and simulation.collected_categories.is_empty(),
-		"A ship without thrust must finish salvage without collecting unreachable drops."
+			and simulation.collected_categories.size() == 1,
+		"A ship without thrust must recover drops without a collection flight."
 	)
 
 
@@ -646,8 +682,8 @@ func _test_balance() -> void:
 			battles += 1
 			_check(damage <= 40.0, "Basic encounters should leave a safety margin, not deal %.2f damage (%d aliens)." % [damage, count])
 	var average_damage := total_damage / float(battles)
-	_check(average_damage >= 12.0 and average_damage <= 20.0,
-		"Spaced, thrust-driven basic encounters should average about 16 damage, not %.2f."
+	_check(average_damage >= 4.0 and average_damage <= 9.0,
+		"Quarter-health alien encounters should average about 6 damage, not %.2f."
 			% average_damage)
 	print("%d basic encounters: damage min %.2f, mean %.2f, max %.2f" % [
 		battles, min_damage, total_damage / float(battles), max_damage])
@@ -664,12 +700,13 @@ func _test_scene() -> void:
 	for pattern in ShipPartPattern.get_catalog():
 		state.discover_part(pattern.part_type)
 	state.ship = _fleet_blueprint()
-	var ship_cost: int = state.ship.cost
+	var ship_cost: int = state.get_construction_credit_cost(state.ship)
 	_check(state.purchase_ship(), "A valid ship design should be purchasable.")
 	_check(state.player_ship_count == 1, "Each ship purchase must add one fleet ship.")
 	_check(state.credits == GameState.STARTING_CREDITS - ship_cost,
-		"Purchasing a ship must deduct its design cost.")
+		"Purchasing a ship must charge only for missing materials.")
 	var credits_after_purchase: int = state.credits
+	ship_cost = state.get_construction_credit_cost(state.ship)
 	state.credits = ship_cost - 1
 	_check(not state.purchase_ship(),
 		"A ship purchase must fail when the player cannot afford its cost.")
@@ -719,6 +756,26 @@ func _test_scene() -> void:
 	motion.relative = Vector2(50.0, 20.0)
 	battle._input(motion)
 	_check(battle.visuals.camera_position != camera_before, "Dragging must pan the camera.")
+	_check(not battle._auto_camera_active, "Manual camera movement must suspend auto-camera.")
+	battle._process(4.9)
+	_check(not battle._auto_camera_active, "Auto-camera must wait for five seconds of inactivity.")
+	battle._process(0.2)
+	_check(battle._auto_camera_active, "Auto-camera must resume after five seconds of inactivity.")
+	state.battle_auto_camera = false
+	battle._mark_manual_camera_input()
+	battle._process(6.0)
+	_check(not battle._auto_camera_active, "Disabled battle auto-camera must not resume after inactivity.")
+	state.battle_auto_camera = true
+	battle._auto_camera_active = true
+	var expected_center := Vector2.ZERO
+	var living_count := 0
+	for member in battle.simulation.players + battle.simulation.aliens:
+		if member.is_alive():
+			expected_center += member.position
+			living_count += 1
+	expected_center /= float(living_count)
+	battle._update_auto_camera(1.0)
+	_check(battle.visuals.camera_position.is_equal_approx(expected_center), "Auto-camera must center on all living ships.")
 	var arguments := OS.get_cmdline_user_args()
 	if arguments.size() == 2 and arguments[0] == "--capture":
 		battle.visuals.camera_position = Vector2.ZERO
@@ -801,12 +858,44 @@ func _test_scene() -> void:
 	if panel_tabs != null and fleet_tab_button != null:
 		fleet_tab_button.pressed.emit()
 		_check(panel_tabs.current_tab == 0, "The Fleet button must select the Fleet tab.")
-		_check(game_map.shop.visible and not game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Fleet must show the shop instead of ship stats.")
+		var fleet_panel := panel_tabs.get_node("Fleet")
+		_check(game_map.fleet_controls.visible and game_map.fleet_summary.visible and not game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Fleet must show ship slots and the fleet summary instead of ship stats.")
+		_check(fleet_panel.slots.size() == 3 and fleet_panel.slot_widgets.size() == 3, "Fleet must provide exactly three ship design slots.")
+		fleet_panel.call("_open_picker", 0)
+		_check(
+			not fleet_panel.picker.title_label.visible,
+			"The fleet ship-selection window must not repeat a Select Ship heading."
+		)
+		fleet_panel.picker.close_library()
+		_check(
+			game_map.deploy_button.get_parent() == game_map.fleet_right_panel
+				and game_map.fleet_right_panel.get_child(-1) == game_map.deploy_button
+				and game_map.deploy_button.size_flags_horizontal == Control.SIZE_SHRINK_CENTER,
+			"Deploy must sit at the bottom center of the Fleet right panel."
+		)
+		_check(
+			game_map.fleet_controls.get_child_count() == 4,
+			"Fleet slots must not include separate Slot A, B, or C captions."
+		)
+		_check(
+			game_map.fleet_controls.get_child(0).text == "SHIP TYPES",
+			"The Fleet slot section must be titled Ship Types."
+		)
+		for widget in fleet_panel.slot_widgets:
+			_check(
+				widget.salvage.get_index() < widget.button.get_index()
+					and widget.construct.get_index() > widget.button.get_index(),
+				"Fleet slot actions must place minus left of the preview and plus right of it."
+			)
+		for slot_index in range(3):
+			var occupied: bool = fleet_panel.slots[slot_index].design != null
+			_check(fleet_panel.slot_widgets[slot_index].construct.visible == occupied, "Construct buttons must appear only beside occupied ship slots.")
+			_check(fleet_panel.slot_widgets[slot_index].salvage.visible == occupied, "Salvage buttons must appear only beside occupied ship slots.")
 		await process_frame
 		var fleet_center_width: float = center_panel.size.x
 		var fleet_details_width: float = details_panel.size.x
 		panel_tabs.current_tab = 1
-		_check(not game_map.shop.visible and game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Build must restore ship stats and hide the shop.")
+		_check(not game_map.fleet_controls.visible and not game_map.fleet_summary.visible and game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Build must restore ship stats and hide Fleet's external panels.")
 		await process_frame
 		_check(
 			is_equal_approx(center_panel.size.x, fleet_center_width)
@@ -878,19 +967,36 @@ func _test_scene() -> void:
 			design_controls != null
 				and design_controls.get_child_count() == 2
 				and selector_row != null
-				and selector_row.columns == 2
-				and selector_row.get_child_count() == 4,
-			"Build material selectors and an empty fourth slot must form a 2-by-2 grid in the left panel."
+				and selector_row.columns == 4
+				and selector_row.get_child_count() == 8
+				and selector_row.get_child(0).name == "OffenseLabel"
+				and selector_row.get_child(1).name == "DefenseLabel"
+				and selector_row.get_child(2).name == "TechLabel"
+				and selector_row.get_child(3).name == "CivicLabel"
+				and selector_row.get_child(4).name == "RedBuildButton"
+				and selector_row.get_child(7).name == "CoreBuildButton"
+				and selector_row.get_node("OffenseLabel").text == "OFFENSE"
+				and selector_row.get_node("DefenseLabel").text == "DEFENSE"
+				and selector_row.get_node("TechLabel").text == "TECH"
+				and selector_row.get_node("CivicLabel").text == "CIVIC",
+			"Build material selectors must form one labeled four-button row in the left panel."
 		)
 		_check(
 			history_controls != null
 				and build_area.undo_button.get_parent() == history_controls
 				and build_area.redo_button.get_parent() == history_controls
+				and build_area.pan_button.get_parent() == history_controls
+				and build_area.undo_button.custom_minimum_size == Vector2(16, 16)
+				and build_area.redo_button.custom_minimum_size == Vector2(16, 16)
+				and build_area.pan_button.custom_minimum_size == Vector2(16, 16)
+				and build_area.pan_button.toggle_mode
+				and not build_area.pan_button.button_pressed
 				and build_area.undo_button.text.is_empty()
 				and build_area.redo_button.text.is_empty()
 				and build_area.undo_button.icon != null
-				and build_area.redo_button.icon != null,
-			"Undo and Redo must be compact icon buttons at the bottom-left of the build view."
+				and build_area.redo_button.icon != null
+				and build_area.pan_button.icon != null,
+			"Undo, Redo, and Pan must be compact icon buttons at the bottom-left of the build view."
 		)
 
 		save_design_button.pressed.emit()
@@ -902,6 +1008,10 @@ func _test_scene() -> void:
 		_check(
 			save_dialog.visible and name_input.text.is_empty(),
 			"Saving an unnamed design must prompt for a ship name."
+		)
+		_check(
+			build_area.call("_keyboard_navigation_blocked"),
+			"Typing a ship name must suppress Ship Designer keyboard movement and shortcuts."
 		)
 		var cancel_save_button := build_area.get_node(
 			"SaveDesignDialog/Contents/Buttons/CancelButton"
@@ -919,10 +1029,45 @@ func _test_scene() -> void:
 		build_area.call("_on_load_design_pressed")
 		await process_frame
 		var load_dialog := build_area.get_node("LoadDesignDialog") as PopupPanel
+		var previous_runs := load_dialog.get_node("Contents/Pager/PreviousRuns") as CheckBox
+		var page_back := load_dialog.get_node("Contents/Pager/BackButton") as Button
+		var page_count_label := load_dialog.get_node("Contents/Pager/PageLabel") as Label
+		var page_forward := load_dialog.get_node("Contents/Pager/ForwardButton") as Button
+		var design_scroll := load_dialog.get_node("Contents/ScrollContainer") as ScrollContainer
 		var design_rows := build_area.get_node(
 			"LoadDesignDialog/Contents/ScrollContainer/SavedDesignRows"
 		) as VBoxContainer
 		_check(load_dialog.visible, "Load Design must open the saved-design modal.")
+		_check(
+			load_dialog.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS,
+			"The ship-library panel must use crisp canvas-item scaling instead of a blurry scaled viewport."
+		)
+		load_dialog.hide()
+		await process_frame
+		_check(
+			load_dialog.visible,
+			"The ship-library modal must remain open when an outside action tries to dismiss it."
+		)
+		_check(
+			previous_runs.size_flags_horizontal == Control.SIZE_SHRINK_BEGIN
+				and previous_runs.has_theme_stylebox_override("normal")
+				and previous_runs.has_theme_icon_override("checked_pressed")
+				and previous_runs.has_theme_icon_override("unchecked_pressed"),
+			"The previous-runs checkbox must stay compact and visually consistent in every state."
+		)
+		_check(
+			not page_back.visible and not page_count_label.visible and not page_forward.visible,
+			"Single-page ship libraries must hide their paging controls."
+		)
+		_check(
+			design_scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED
+				and design_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
+			"The ship library must use paging instead of scrollbars."
+		)
+		_check(
+			load_dialog.size.x <= 480 and load_dialog.size.y <= 270,
+			"The shared ship-library modal must remain compact, not %s." % load_dialog.size
+		)
 		_check(
 			design_rows.get_child_count() == 3
 				and design_rows.get_child(2) is PanelContainer,
@@ -930,15 +1075,29 @@ func _test_scene() -> void:
 		)
 		if design_rows.get_child_count() == 3:
 			var row_contents := design_rows.get_child(2).get_child(0) as HBoxContainer
-			var summary_label := row_contents.get_child(1).get_child(1) as Label
+			var cost_row := row_contents.get_child(2) as HBoxContainer
+			var drone_contents := design_rows.get_child(1).get_child(0) as HBoxContainer
+			var drone_cost_row := drone_contents.get_child(2) as HBoxContainer
 			_check(
-				row_contents.get_child_count() == 4
+				row_contents.get_child_count() == 5
 					and row_contents.get_child(0).get_script().resource_path
 						== "res://scripts/ship_design_preview.gd"
-					and row_contents.get_child(1) is VBoxContainer
-					and summary_label.text.contains("Integrity:")
-					and summary_label.text.contains("DPS:"),
-				"Each design row must show a ship preview beside its stat summary."
+					and row_contents.get_child(1) is Label
+					and cost_row.get_child_count() == 10
+					and cost_row.get_child(8) is TextureRect
+					and cost_row.get_child(9) is Label,
+				"Each design row must show its preview, material costs, and credit cost."
+			)
+			_check(
+				is_equal_approx(cost_row.global_position.x, drone_cost_row.global_position.x),
+				"Ship-library costs must remain left-aligned when a row has no delete button."
+			)
+			_check(
+				is_equal_approx(
+					(row_contents.get_child(3) as Button).global_position.x,
+					(drone_contents.get_child(3) as Button).global_position.x
+				),
+				"Ship-library Select buttons must align even when deletion is unavailable."
 			)
 			var ship_before_ui_load: Ship = state.ship
 			var inventory_before_ui_load: Array[int] = [
@@ -946,7 +1105,7 @@ func _test_scene() -> void:
 				state.blue_tiles_available,
 				state.green_tiles_available,
 			]
-			var row_load_button := row_contents.get_child(2) as Button
+			var row_load_button := row_contents.get_child(3) as Button
 			row_load_button.pressed.emit()
 			_check(
 				not load_dialog.visible and state.ship != ship_before_ui_load,
@@ -1016,16 +1175,16 @@ func _test_owned_fleet() -> void:
 	state.ship = _fleet_blueprint()
 	var credits: int = state.credits
 	_check(state.purchase_ship(), "Connected armed blueprint with a core must construct.")
-	_check(state.red_tiles_available == 13 and state.green_tiles_available == 1,
+	_check(state.red_tiles_available == 13 and state.green_tiles_available == 3 and state.core_tiles_available == 1,
 		"Construction must spend every physical tile once.")
-	_check(state.credits == credits - state.ship.cost, "Construction must spend credits.")
+	_check(state.credits == credits, "Construction with stored materials must not spend credits.")
 	var after_purchase: int = state.credits
 	var effective_second_cost: int = state.get_construction_credit_cost(state.ship)
-	_check(effective_second_cost == state.ship.cost + 4 * state.MATERIAL_PRICES[ShipPart.Category.SPECIAL],
-		"Construction cost must include the credit price of every missing material.")
+	_check(effective_second_cost == state.MATERIAL_PRICES[ShipPart.Category.CORE],
+		"Construction cost must include only the credit price of missing materials.")
 	_check(state.purchase_ship() and state.credits == after_purchase - effective_second_cost and state.fleet.size() == 2,
 		"Missing materials must be purchased automatically as part of construction.")
-	_check(state.red_tiles_available == 8 and state.green_tiles_available == 0,
+	_check(state.red_tiles_available == 8 and state.green_tiles_available == 0 and state.core_tiles_available == 0,
 		"Construction must consume available materials without making inventory negative.")
 	var owned: FleetShip = state.fleet[0]
 	state.ship.clear()
@@ -1079,7 +1238,8 @@ func _test_owned_fleet() -> void:
 	owned.repair()
 	simulation.setup_owned(members, _fleet(1), 1.0, 0, 7)
 	simulation._damage(simulation.player, 1000.0, simulation.player.position + Vector2(-100, 0), simulation.aliens[0], "Enemy")
-	_check(simulation.drops.size() == owned.design.tiles.size(), "Every lost material must roll salvage once, including detached sections.")
+	_check(simulation.drops.size() == owned.units[owned.core_index].cells.size(), "Only blocks physically destroyed with the command center may become salvage.")
+	_check(owned.units.any(func(unit: Dictionary) -> bool: return unit.hp > 0.0), "Intact blocks must remain in destroyed-ship wreckage.")
 	owned.repair()
 	for difficulty in range(3):
 		state.difficulty = difficulty
@@ -1145,15 +1305,6 @@ func _test_withdrawal() -> void:
 	for tick in range(2):
 		simulation.advance(1.0 / 60.0)
 	_check(simulation.phase == BattleSimulation.Phase.WITHDRAWN, "Manual retreat must complete after ten seconds even while accelerating.")
-	simulation.setup(_basic_stats(), _fleet(1), 6)
-	simulation.phase = BattleSimulation.Phase.SALVAGE
-	simulation.request_withdrawal()
-	for tick in range(599):
-		simulation.advance(1.0 / 60.0)
-	_check(simulation.phase == BattleSimulation.Phase.SALVAGE, "Withdrawal during salvage must also wait ten seconds.")
-	for tick in range(2):
-		simulation.advance(1.0 / 60.0)
-	_check(simulation.phase == BattleSimulation.Phase.WITHDRAWN, "Withdrawal must work during salvage.")
 	simulation.setup(_basic_stats(10.0), _fleet(1), 7)
 	var player_ship := simulation.player
 	player_ship.position = Vector2.ZERO
@@ -1187,6 +1338,47 @@ func _test_design_selection() -> void:
 	_check(not state.purchase_saved_ship("Unsaved"), "Construction must reject names that are not saved designs.")
 	_check(state.ship.tiles.is_empty() and state.purchase_saved_ship("Old Escort"), "The selected library design must construct independently of the editor.")
 	_check(state.ship.tiles.is_empty() and state.fleet[0].display_name.begins_with("Old Escort"), "Constructing a saved design must preserve the editor and use the selected name.")
+	_check(state.purchase_saved_ship("Old Escort"), "A second ship of the selected type must construct for salvage testing.")
+	var undamaged_escort: FleetShip = state.fleet[0]
+	var damaged_escort: FleetShip = state.fleet[1]
+	damaged_escort.damage_cell(Vector2i(2, 0), 100.0)
+	var salvage_inventory := [
+		state.red_tiles_available,
+		state.blue_tiles_available,
+		state.green_tiles_available,
+		state.core_tiles_available,
+	]
+	var salvage_counts: Array[int] = state._get_ship_tile_counts(blueprint)
+	_check(state.salvage_ship_type("Old Escort"), "A fleet ship type must be salvageable from its slot.")
+	_check(
+		state.fleet.has(undamaged_escort) and not state.fleet.has(damaged_escort),
+		"Salvage must remove the most damaged ship of the selected type."
+	)
+	_check(
+		[
+			state.red_tiles_available,
+			state.blue_tiles_available,
+			state.green_tiles_available,
+			state.core_tiles_available,
+		] == [
+			salvage_inventory[0] + salvage_counts[0],
+			salvage_inventory[1] + salvage_counts[1],
+			salvage_inventory[2] + salvage_counts[2],
+			salvage_inventory[3] + salvage_counts[3],
+		],
+		"Salvage must return every material in the ship's original blueprint."
+	)
+	var credits_before_rebuild: int = state.credits
+	_check(
+		state.purchase_saved_ship("Old Escort")
+			and state.credits == credits_before_rebuild,
+		"Rebuilding a salvaged ship must cost no credits because all materials were returned."
+	)
+	_check(
+		state.salvage_ship_type("Old Escort")
+			and state.credits == credits_before_rebuild,
+		"Repeated construction and salvage must never drain credits."
+	)
 	state.ship = _fleet_blueprint()
 	state.ship.set_tile_at(Vector2i(7, 7), ShipPart.Category.DEFENSE)
 	state.green_tiles_available = 100
@@ -1218,6 +1410,17 @@ func _test_material_shop() -> void:
 	state.battle_pending = false
 	state.start_new_run()
 	_clear_test_fleet(state)
+
+
+func _test_run_loss() -> void:
+	var state := root.get_node("GameState")
+	state.start_new_run()
+	_clear_test_fleet(state)
+	state.credits = 0
+	_check(state.is_run_lost(), "An empty fleet with no affordable ship must lose the run.")
+	state.credits = 100000
+	_check(not state.is_run_lost(), "An empty fleet that can afford a ship must be allowed to rebuild.")
+	state.start_new_run()
 
 func _test_build_area() -> void:
 	var state := root.get_node("GameState")
@@ -1273,3 +1476,20 @@ func _test_builder_history(builder: Control) -> void:
 	builder._undo()
 	_check(state.ship.tiles == before and materials == [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available], "Undo and redo must never spend materials.")
 	_check(not builder.red_count_badge.visible and not builder.blue_count_badge.visible and not builder.green_count_badge.visible and not builder.core_count_badge.visible, "Blueprint tools must hide inventory counts.")
+	var camera_position: Vector2 = builder.pan_root.position
+	builder.pan_button.button_pressed = true
+	_check(
+		builder._selected_source_id == builder.NO_SOURCE_ID,
+		"Selecting the move tool must disable material placement."
+	)
+	_check(builder._move_ship_by(Vector2i(1, 0)), "The move tool must translate a ship within the build grid.")
+	var shifted_tiles: Dictionary = {}
+	for cell in before:
+		shifted_tiles[cell + Vector2i(1, 0)] = before[cell]
+	_check(
+		state.ship.tiles == shifted_tiles and builder.pan_root.position == camera_position,
+		"The move tool must move the ship relative to the grid without panning the camera."
+	)
+	builder._undo()
+	_check(state.ship.tiles == before, "Moving a ship within the grid must be undoable.")
+	builder.pan_button.button_pressed = false

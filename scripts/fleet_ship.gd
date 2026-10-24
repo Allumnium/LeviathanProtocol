@@ -186,6 +186,10 @@ func damage_cell(cell: Vector2i, amount: float) -> Dictionary:
 	unit.hp -= dealt
 	if unit.hp <= 0.0:
 		removed.append_array(unit.cells)
+		# Losing the command center destroys the ship, but does not physically
+		# erase every other intact block from its wreckage.
+		if cell_units[cell] == core_index:
+			return {"damage": dealt, "removed": removed}
 		var connected := connected_cells()
 		for other in units:
 			if other.hp > 0.0 and not connected.has(other.cells[0]):

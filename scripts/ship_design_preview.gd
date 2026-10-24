@@ -6,6 +6,7 @@ const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.pn
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
 const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
+const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.5)
 
 var ship: Ship
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
@@ -60,10 +61,14 @@ func _draw() -> void:
 		hull_points.append(cell_origin + Vector2.ONE * cell_size)
 		hull_points.append(cell_origin + Vector2(0.0, cell_size))
 	var hull := Geometry2D.convex_hull(hull_points)
-	if hull.size() >= 3:
-		draw_colored_polygon(hull, HULL_COLOR)
 
+	var hidden_cells: Dictionary[Vector2i, bool] = {}
+	for part in ship.parts:
+		for hidden_cell in part.get_hidden_tile_cells():
+			hidden_cells[hidden_cell] = true
 	for cell in cells:
+		if hidden_cells.has(cell):
+			continue
 		var texture := _get_tile_texture(ship.get_tile_category_at(cell))
 		if texture == null:
 			continue
@@ -77,7 +82,16 @@ func _draw() -> void:
 		)
 
 	for part in ship.parts:
-		_draw_part(part, origin, cell_size)
+		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.type)
+		if pattern != null and not pattern.renders_on_top:
+			_draw_part(part, origin, cell_size)
+
+	draw_colored_polygon(hull, HULL_OVERLAY_COLOR)
+
+	for part in ship.parts:
+		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.type)
+		if pattern != null and pattern.renders_on_top:
+			_draw_part(part, origin, cell_size)
 
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.35, 0.4, 0.45, 1.0), false, 1.0)
 

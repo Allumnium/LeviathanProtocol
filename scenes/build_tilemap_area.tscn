@@ -64,9 +64,33 @@ anchor_left = 0.01
 anchor_top = 0.06
 anchor_right = 0.14
 anchor_bottom = 0.94
-columns = 2
-theme_override_constants/h_separation = 6
+columns = 4
+theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 6
+
+[node name="OffenseLabel" type="Label" parent="SelectorRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "OFFENSE"
+horizontal_alignment = 1
+
+[node name="DefenseLabel" type="Label" parent="SelectorRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "DEFENSE"
+horizontal_alignment = 1
+
+[node name="TechLabel" type="Label" parent="SelectorRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "TECH"
+horizontal_alignment = 1
+
+[node name="CivicLabel" type="Label" parent="SelectorRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 7
+text = "CIVIC"
+horizontal_alignment = 1
 
 [node name="RedBuildButton" parent="SelectorRow" instance=ExtResource("6")]
 layout_mode = 2
@@ -88,7 +112,6 @@ texture = ExtResource("5")
 
 [node name="CoreBuildButton" parent="SelectorRow" instance=ExtResource("6")]
 layout_mode = 2
-tooltip_text = "Core material (4)"
 
 [node name="Icon" parent="SelectorRow/CoreBuildButton"]
 texture = ExtResource("8_core")
@@ -107,14 +130,12 @@ theme_override_constants/separation = 4
 [node name="SaveDesignButton" type="Button" parent="DesignControls"]
 custom_minimum_size = Vector2(60, 26)
 layout_mode = 2
-tooltip_text = "Save the current ship design"
 theme_override_font_sizes/font_size = 12
 text = "SAVE"
 
 [node name="LoadDesignButton" type="Button" parent="DesignControls"]
 custom_minimum_size = Vector2(60, 26)
 layout_mode = 2
-tooltip_text = "Open saved ship designs"
 theme_override_font_sizes/font_size = 12
 text = "LOAD"
 
@@ -124,7 +145,7 @@ anchor_left = 0.0
 anchor_top = 1.0
 anchor_right = 0.0
 anchor_bottom = 1.0
-offset_left = 8.0
+offset_left = 24.0
 offset_top = -20.0
 offset_right = 28.0
 offset_bottom = -8.0

@@ -53,7 +53,7 @@ func _draw() -> void:
 		if not drop.collected:
 			var tile_texture := _get_tile_texture(drop.category)
 			if tile_texture != null:
-				var drop_size := Vector2.ONE * 12.0
+				var drop_size := Vector2.ONE * drop.size
 				draw_texture_rect(
 					tile_texture,
 					Rect2(drop.position - drop_size * 0.5, drop_size),
@@ -198,10 +198,12 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 
 func _draw_alien_fleet() -> void:
 	for alien in simulation.aliens:
+		if not alien.is_alive():
+			continue
 		var texture_size := alien.alien.texture.get_size()
-		var draw_size := texture_size * (32.0 / maxf(texture_size.x, texture_size.y))
+		var draw_size := texture_size * (16.0 / maxf(texture_size.x, texture_size.y))
 		_set_ship_transform(alien.position, alien.heading + PI * 0.5)
-		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else (Color.WHITE if alien.is_alive() else Color(0.38, 0.43, 0.42, 0.72))
+		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else Color.WHITE
 		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false, color)
 	draw_set_transform_matrix(world_transform())
 
@@ -253,11 +255,11 @@ func _draw_voxel_ship(member: BattleSimulation.Combatant) -> void:
 	_set_ship_transform(member.position, member.heading)
 	var hidden := {}
 	for unit in owned.units:
-		if (is_wreck or unit.hp > 0.0) and unit.part != null:
+		if unit.hp > 0.0 and unit.part != null:
 			for cell in unit.part.get_hidden_tile_cells():
 				hidden[cell] = true
 	for unit in owned.units:
-		if not is_wreck and unit.hp <= 0.0:
+		if unit.hp <= 0.0:
 			continue
 		for cell in unit.cells:
 			var rect := Rect2(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)

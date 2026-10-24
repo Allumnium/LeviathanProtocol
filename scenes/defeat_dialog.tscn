@@ -1,0 +1,67 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="1_font"]
+[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="2_theme"]
+
+[node name="DefeatDialog" type="Control"]
+visible = false
+z_index = 30
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.78)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(380, 200)
+layout_mode = 2
+
+[node name="Contents" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="CenterContainer/Panel/Contents"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("1_font")
+theme_override_colors/font_color = Color(0.93, 0.42, 0.42, 1)
+theme_override_font_sizes/font_size = 18
+text = "FLEET LOST"
+horizontal_alignment = 1
+
+[node name="Message" type="Label" parent="CenterContainer/Panel/Contents"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 11
+text = "Your fleet has been destroyed and you do not have enough credits to construct another ship."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ButtonCenter" type="CenterContainer" parent="CenterContainer/Panel/Contents"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AcceptButton" type="Button" parent="CenterContainer/Panel/Contents/ButtonCenter"]
+custom_minimum_size = Vector2(180, 44)
+layout_mode = 2
+text = "RETURN TO MAIN MENU"

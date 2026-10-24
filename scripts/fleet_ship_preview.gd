@@ -1,5 +1,7 @@
 extends Control
 
+const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.5)
+
 var owned: FleetShip
 var patterns: Dictionary = {}
 
@@ -13,7 +15,24 @@ func _draw() -> void:
 	if owned == null:
 		return
 	var scale_factor := minf(size.x, size.y) / (Ship.BATTLE_MODEL_SIZE + 8.0)
+	var hull_points := PackedVector2Array()
+	for unit in owned.units:
+		if unit.hp <= 0.0:
+			continue
+		for cell in unit.cells:
+			var center := size * 0.5 + owned.local_cell_position(cell) * scale_factor
+			var half_cell := Vector2.ONE * owned.cell_size * scale_factor * 0.5
+			hull_points.append(center - half_cell)
+			hull_points.append(center + Vector2(half_cell.x, -half_cell.y))
+			hull_points.append(center + half_cell)
+			hull_points.append(center + Vector2(-half_cell.x, half_cell.y))
+	var hull := Geometry2D.convex_hull(hull_points)
 	draw_set_transform(size * 0.5, 0.0, Vector2.ONE * scale_factor)
+	var hidden_cells: Dictionary[Vector2i, bool] = {}
+	for unit in owned.units:
+		if unit.hp > 0.0 and unit.part != null:
+			for hidden_cell in unit.part.get_hidden_tile_cells():
+				hidden_cells[hidden_cell] = true
 	for unit in owned.units:
 		var color := Color(0.25, 0.3, 0.35)
 		if unit.hp <= 0.0:
@@ -21,17 +40,43 @@ func _draw() -> void:
 		elif unit.hp < unit.max_hp:
 			color = Color(1.0, 0.65, 0.15)
 		for cell in unit.cells:
+			if hidden_cells.has(cell):
+				continue
 			var rect := Rect2(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
 			draw_rect(rect.grow(-0.2), color, unit.hp > 0.0)
 		var part: ShipPart = unit.part
 		if part != null and unit.hp > 0.0:
 			var pattern: ShipPartPattern = patterns.get(part.type)
-			var visual_cells: Array[Vector2i] = []
-			for offset in pattern.get_visual_offsets_for_rotation(pattern.get_rotation_for_offsets(part.cell_offsets)):
-				visual_cells.append(part.origin + offset)
-			var bounds := Rect2(owned.local_cell_position(visual_cells[0]) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
-			for cell in visual_cells:
-				bounds = bounds.expand(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5)
-				bounds = bounds.expand(owned.local_cell_position(cell) + Vector2.ONE * owned.cell_size * 0.5)
-			if pattern != null:
-				draw_texture_rect(pattern.preview_texture, bounds.grow(-0.3), false, Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.4))
+			if pattern != null and not pattern.renders_on_top:
+				_draw_part(unit, part, pattern)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_colored_polygon(hull, HULL_OVERLAY_COLOR)
+	draw_set_transform(size * 0.5, 0.0, Vector2.ONE * scale_factor)
+	for unit in owned.units:
+		var part: ShipPart = unit.part
+		if part == null or unit.hp <= 0.0:
+			continue
+		var pattern: ShipPartPattern = patterns.get(part.type)
+		if pattern != null and pattern.renders_on_top:
+			_draw_part(unit, part, pattern)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _draw_part(unit: Dictionary, part: ShipPart, pattern: ShipPartPattern) -> void:
+	var rotation := pattern.get_rotation_for_offsets(part.cell_offsets)
+	var visual_cells: Array[Vector2i] = []
+	for offset in pattern.get_visual_offsets_for_rotation(rotation):
+		visual_cells.append(part.origin + offset)
+	if visual_cells.is_empty():
+		return
+	var half_cell := Vector2.ONE * owned.cell_size * 0.5
+	var bounds := Rect2(owned.local_cell_position(visual_cells[0]) - half_cell, Vector2.ONE * owned.cell_size)
+	for cell in visual_cells:
+		bounds = bounds.expand(owned.local_cell_position(cell) - half_cell)
+		bounds = bounds.expand(owned.local_cell_position(cell) + half_cell)
+	draw_texture_rect(
+		pattern.preview_texture,
+		bounds.grow(-0.3),
+		false,
+		Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.4)
+	)

@@ -5,7 +5,7 @@ signal weapon_fired
 signal shield_hit
 signal ship_destroyed(is_player: bool)
 
-enum Phase { COMBAT, SALVAGE, VICTORY, DEFEAT, WITHDRAWN }
+enum Phase { COMBAT, VICTORY, DEFEAT, WITHDRAWN }
 
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
@@ -74,6 +74,7 @@ class Beam:
 class Drop:
 	var position := Vector2.ZERO
 	var category := ShipPart.Category.DEFENSE
+	var size := 8.0
 	var collected := false
 
 class Explosion:
@@ -91,7 +92,6 @@ var collected_categories: Array[int] = []
 var phase := Phase.COMBAT
 var elapsed := 0.0
 var random := RandomNumberGenerator.new()
-var _salvage_target: Drop
 var allied_drop_chance := 0.3
 var laser_upgrade_level := 0
 var withdrawing := false
@@ -121,7 +121,6 @@ func setup(
 	inactive_seconds = 0.0
 	phase = Phase.COMBAT
 	elapsed = 0.0
-	_salvage_target = null
 	players.clear()
 	aliens.clear()
 	projectiles.clear()
@@ -158,7 +157,7 @@ func setup(
 			ALIEN_FORMATION_SPACING
 		)
 		alien.heading = PI
-		alien.radius = 14.0
+		alien.radius = 7.0
 		aliens.append(alien)
 	return true
 
@@ -276,19 +275,8 @@ func advance(delta: float) -> void:
 		elif (withdrawing and retreat_remaining <= 0.0) or inactive_seconds >= 10.0:
 			phase = Phase.WITHDRAWN
 		elif living_alien_count() == 0 and projectiles.is_empty():
-			phase = Phase.SALVAGE
-	elif phase == Phase.SALVAGE:
-		if withdrawing:
-			retreat_remaining -= delta
-			for member in players:
-				if member.is_alive():
-					member.heading = rotate_toward(member.heading, PI, delta * 1.5)
-					member.velocity = member.velocity.move_toward(Vector2.from_angle(member.heading) * member.speed, member.speed * 2.0 * delta)
-					member.position += member.velocity * delta
-			if retreat_remaining <= 0.0:
-				phase = Phase.WITHDRAWN
-			return
-		_collect_salvage(delta)
+			_collect_all_salvage()
+			phase = Phase.VICTORY
 
 
 func _update_wrecks(delta: float) -> void:
@@ -479,6 +467,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 				var drop := Drop.new()
 				drop.category = owned.design.tiles[removed_cell]
 				drop.position = target.position + owned.local_cell_position(removed_cell).rotated(target.heading)
+				drop.size = owned.cell_size
 				drops.append(drop)
 		var remaining := owned.get_stats(laser_upgrade_level)
 		target.integrity = remaining.integrity if owned.is_alive() else 0.0
@@ -526,9 +515,12 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		drops.append(drop)
 
 
-func _collect_salvage(delta: float) -> void:
-	collected_categories.append(drops)
-	phase = Phase.VICTORY
+func _collect_all_salvage() -> void:
+	for drop in drops:
+		if drop.collected:
+			continue
+		drop.collected = true
+		collected_categories.append(drop.category)
 
 
 func get_living_player() -> Combatant:
@@ -541,6 +533,6 @@ func get_living_player() -> Combatant:
 
 
 func request_withdrawal() -> void:
-	if phase in [Phase.COMBAT, Phase.SALVAGE] and not withdrawing:
+	if phase == Phase.COMBAT and not withdrawing:
 		withdrawing = true
 		retreat_remaining = 10.0

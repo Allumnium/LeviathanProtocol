@@ -2,167 +2,297 @@ extends Control
 
 signal selected_design_changed
 signal selected_ship_changed
+
+const SLOT_COUNT := 3
+const PREVIEW = preload("res://scripts/ship_design_preview.gd")
+const MATERIAL_ICONS: Array[Texture2D] = [
+	preload("res://assets/ui/icons/red_square.png"),
+	preload("res://assets/ui/icons/blue_square.png"),
+	preload("res://assets/ui/icons/green_square.png"),
+	preload("res://assets/core.png"),
+]
+const CREDIT_ICON: Texture2D = preload("res://assets/ui/icons/credits.svg")
+const SHIP_LIBRARY_DIALOG = preload("res://scenes/load_design_dialog.tscn")
+
 var selected_design: Ship
 var selected_title := ""
 var choices: Array[Dictionary] = []
+var slots: Array[Dictionary] = []
+var slot_widgets: Array[Dictionary] = []
+var active_slot := -1
 var board := preload("res://scripts/formation_board.gd").new()
-var picker := PopupPanel.new()
-var search := LineEdit.new()
-var previous_runs := CheckBox.new()
-var rows := VBoxContainer.new()
-var page := 0
-var page_label := Label.new()
-var back := Button.new()
-var forward := Button.new()
-var design_title := Label.new()
-var design_preview := preload("res://scripts/ship_design_preview.gd").new()
+var picker: PopupPanel
+var slot_host: VBoxContainer
+var summary_host: VBoxContainer
+
 
 func _ready() -> void:
-	var contents := VBoxContainer.new()
-	contents.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	contents.add_theme_constant_override("separation", 8)
-	add_child(contents)
-	var header := HBoxContainer.new()
-	contents.add_child(header)
-	design_preview.custom_minimum_size = Vector2(52, 40)
-	header.add_child(design_preview)
-	design_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	design_title.add_theme_font_size_override("font_size", 10)
-	design_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	header.add_child(design_title)
-	var browse := Button.new()
-	browse.text = "SEARCH"
-	browse.add_theme_font_size_override("font_size", 9)
-	browse.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	compact_button(browse)
-	header.add_child(browse)
-	browse.pressed.connect(func() -> void:
-		search.text = ""
-		page = 0
-		_refresh_rows()
-		picker.popup_centered(Vector2i(480, 290))
-		search.grab_focus())
-	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	contents.add_child(board)
+	for index in range(SLOT_COUNT):
+		slots.append({"name": GameState.fleet_design_slots[index], "design": null})
+	board.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(board)
 	board.selection_changed.connect(func() -> void: selected_ship_changed.emit())
-	_build_picker()
+	picker = SHIP_LIBRARY_DIALOG.instantiate()
+	add_child(picker)
+	picker.design_selected.connect(_on_picker_design_selected)
 	GameState.design_library_changed.connect(_refresh_choices)
+	GameState.fleet_changed.connect(_refresh_summary)
+	GameState.fleet_changed.connect(_refresh_slots)
+	GameState.credits_changed.connect(_refresh_slots)
+	GameState.tile_inventory_changed.connect(_refresh_slots)
+	GameState.build_area_changed.connect(_refresh_slots)
 	_refresh_choices()
 
-func _build_picker() -> void:
-	picker.theme = preload("res://themes/ui_theme.tres")
-	add_child(picker)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	picker.add_child(box)
-	var top := HBoxContainer.new()
-	box.add_child(top)
-	search.placeholder_text = "Search saved ships"
-	search.add_theme_font_size_override("font_size", 10)
-	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(search)
-	var close := Button.new()
-	close.text = "CLOSE"
-	close.add_theme_font_size_override("font_size", 9)
-	compact_button(close)
-	close.pressed.connect(picker.hide)
-	top.add_child(close)
-	previous_runs.text = "INCLUDE PREVIOUS RUNS"
-	previous_runs.add_theme_font_size_override("font_size", 9)
-	style_checkbox(previous_runs)
-	previous_runs.toggled.connect(GameState.set_include_previous_designs)
-	box.add_child(previous_runs)
-	rows.custom_minimum_size = Vector2(440, 184)
-	box.add_child(rows)
-	var pager := HBoxContainer.new()
-	pager.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(pager)
-	back.icon = _arrow_icon(false)
-	forward.icon = _arrow_icon(true)
-	for button in [back, forward]:
-		compact_button(button)
-	back.pressed.connect(func() -> void: page -= 1; _refresh_rows())
-	forward.pressed.connect(func() -> void: page += 1; _refresh_rows())
-	pager.add_child(back)
-	page_label.add_theme_font_size_override("font_size", 10)
-	pager.add_child(page_label)
-	pager.add_child(forward)
-	search.text_changed.connect(func(_text: String) -> void: page = 0; _refresh_rows())
+
+func bind_external_panels(left: VBoxContainer, right: VBoxContainer) -> void:
+	slot_host = left
+	summary_host = right
+	_build_slot_controls()
+	_refresh_slots()
+	_refresh_summary()
+
+
+func set_external_panels_visible(is_visible: bool) -> void:
+	if slot_host != null:
+		slot_host.visible = is_visible
+	if summary_host != null:
+		summary_host.visible = is_visible
+
+
+func _build_slot_controls() -> void:
+	var header := Label.new()
+	header.text = "SHIP TYPES"
+	header.add_theme_font_size_override("font_size", 14)
+	slot_host.add_child(header)
+	for index in range(SLOT_COUNT):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		slot_host.add_child(row)
+		var select := Button.new()
+		select.custom_minimum_size = Vector2(114, 55)
+		select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		compact_button(select)
+		row.add_child(select)
+		var preview := PREVIEW.new()
+		preview.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+		preview.offset_left = 5
+		preview.offset_top = 5
+		preview.offset_right = 55
+		preview.offset_bottom = -4
+		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		select.add_child(preview)
+		var details := VBoxContainer.new()
+		details.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		details.offset_left = 59
+		details.offset_top = 4
+		details.offset_right = -4
+		details.offset_bottom = -4
+		details.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		select.add_child(details)
+		var name_label := Label.new()
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		name_label.add_theme_font_size_override("font_size", 9)
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		details.add_child(name_label)
+		var cost_rows := VBoxContainer.new()
+		cost_rows.add_theme_constant_override("separation", 0)
+		cost_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		details.add_child(cost_rows)
+		var construct := Button.new()
+		construct.text = "+"
+		construct.custom_minimum_size = Vector2(20, 30)
+		construct.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_style_slot_action(construct)
+		var salvage := Button.new()
+		salvage.text = "-"
+		salvage.custom_minimum_size = Vector2(20, 30)
+		salvage.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_style_slot_action(salvage)
+		row.add_child(salvage)
+		row.move_child(salvage, 0)
+		row.add_child(construct)
+		select.pressed.connect(_open_picker.bind(index))
+		salvage.pressed.connect(_salvage_slot.bind(index))
+		construct.pressed.connect(_construct_slot.bind(index))
+		slot_widgets.append({"button": select, "preview": preview, "label": name_label, "cost": cost_rows, "salvage": salvage, "construct": construct})
+
+
+func _open_picker(slot_index: int) -> void:
+	_activate_slot(slot_index)
+	picker.open_library("SELECT")
+
+
+func _on_picker_design_selected(design_name: String, design: Ship) -> void:
+	_assign_slot(active_slot, {"name": design_name, "design": design})
+
+
+func _activate_slot(slot_index: int) -> void:
+	active_slot = slot_index
+	selected_title = slots[slot_index].name
+	selected_design = slots[slot_index].design
+	selected_design_changed.emit()
+
+
+func _assign_slot(slot_index: int, choice: Dictionary) -> void:
+	if slot_index < 0 or slot_index >= SLOT_COUNT:
+		return
+	for index in range(SLOT_COUNT):
+		if index != slot_index and slots[index].name == choice.name:
+			return
+	if not slots[slot_index].name.is_empty() and slots[slot_index].name != choice.name and _fleet_has_type(slots[slot_index].name):
+		return
+	slots[slot_index] = {"name": choice.name, "design": choice.design}
+	GameState.fleet_design_slots[slot_index] = choice.name
+	_activate_slot(slot_index)
+	_refresh_slots()
+
+
+func _construct_slot(slot_index: int) -> void:
+	var slot: Dictionary = slots[slot_index]
+	if slot.design != null:
+		GameState.purchase_saved_ship(slot.name)
+
+
+func _salvage_slot(slot_index: int) -> void:
+	var slot: Dictionary = slots[slot_index]
+	if slot.design != null:
+		GameState.salvage_ship_type(slot.name)
+
+
+func _refresh_slots() -> void:
+	if slot_widgets.is_empty():
+		return
+	for index in range(SLOT_COUNT):
+		var slot: Dictionary = slots[index]
+		var widget: Dictionary = slot_widgets[index]
+		var design: Ship = slot.design
+		widget.preview.set_ship(design)
+		widget.label.text = slot.name if design != null else "SELECT SHIP"
+		_populate_cost_row(widget.cost, design)
+		widget.button.disabled = design != null and _fleet_has_type(slot.name)
+		widget.construct.visible = design != null
+		widget.salvage.visible = design != null
+		widget.salvage.disabled = design == null or not _fleet_has_type(slot.name) or GameState.battle_pending
+		if design != null:
+			var error := GameState.construction_error(design)
+			widget.construct.disabled = not error.is_empty()
+
+
+func _populate_cost_row(container: VBoxContainer, design: Ship) -> void:
+	for child in container.get_children():
+		child.queue_free()
+	container.visible = design != null
+	if design == null:
+		return
+	var material_row := HBoxContainer.new()
+	material_row.add_theme_constant_override("separation", 1)
+	container.add_child(material_row)
+	var counts := GameState._get_ship_tile_counts(design)
+	for category in range(counts.size()):
+		_add_cost_item(material_row, MATERIAL_ICONS[category], counts[category])
+	var credit_row := HBoxContainer.new()
+	credit_row.add_theme_constant_override("separation", 1)
+	container.add_child(credit_row)
+	_add_cost_item(credit_row, CREDIT_ICON, GameState.get_construction_credit_cost(design))
+
+
+func _add_cost_item(row: HBoxContainer, icon: Texture2D, amount: int) -> void:
+	var texture := TextureRect.new()
+	texture.custom_minimum_size = Vector2(7, 7)
+	texture.texture = icon
+	texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(texture)
+	var label := Label.new()
+	label.text = str(amount)
+	label.add_theme_font_size_override("font_size", 6)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(label)
+
+
+func _refresh_summary() -> void:
+	if summary_host == null:
+		return
+	for child in summary_host.get_children():
+		child.queue_free()
+	var header := Label.new()
+	header.text = "FLEET SUMMARY"
+	header.add_theme_font_size_override("font_size", 14)
+	summary_host.add_child(header)
+	if GameState.fleet.is_empty():
+		var empty := Label.new()
+		empty.text = "No ships constructed"
+		empty.add_theme_font_size_override("font_size", 10)
+		summary_host.add_child(empty)
+		return
+	var groups: Dictionary = {}
+	for owned in GameState.fleet:
+		var type_name := _ship_type_name(owned.display_name)
+		if not groups.has(type_name):
+			groups[type_name] = {"count": 0, "damaged": 0}
+		groups[type_name].count += 1
+		if owned.repair_cost() > 0:
+			groups[type_name].damaged += 1
+	for type_name in groups:
+		var group: Dictionary = groups[type_name]
+		var label := Label.new()
+		label.add_theme_font_size_override("font_size", 10)
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.text = "%s  ×%d" % [type_name, group.count]
+		if group.damaged > 0:
+			label.text += "\n%d NEED REPAIR" % group.damaged
+			label.add_theme_color_override("font_color", Color("edb272"))
+		summary_host.add_child(label)
+
+
+func _ship_type_name(display_name: String) -> String:
+	var pieces := display_name.rsplit(" ", true, 1)
+	return pieces[0] if pieces.size() == 2 and pieces[1].is_valid_int() else display_name
+
+
+func _fleet_has_type(type_name: String) -> bool:
+	return GameState.fleet.any(func(owned: FleetShip) -> bool:
+		return _ship_type_name(owned.display_name) == type_name)
+
 
 func _refresh_choices() -> void:
 	choices.clear()
-	previous_runs.set_pressed_no_signal(GameState.include_previous_run_designs)
 	for entry in GameState.get_visible_ship_designs():
 		var blueprint := Ship.new()
 		if blueprint.load_design_data(entry.ship):
 			choices.append({"name": entry.name, "design": blueprint})
-	selected_design = null
-	for choice in choices:
-		if choice.name == selected_title:
-			selected_design = choice.design
-	if selected_design == null:
-		selected_title = "" if choices.is_empty() else choices[0].name
-		selected_design = null if choices.is_empty() else choices[0].design
-	_update_selection()
-	_refresh_rows()
+	_seed_slots_from_fleet()
+	for index in range(SLOT_COUNT):
+		var name: String = slots[index].name
+		if name.is_empty():
+			continue
+		var choice_match: Dictionary = {}
+		for choice in choices:
+			if choice.name == name:
+				choice_match = choice
+				break
+		slots[index] = {"name": choice_match.get("name", ""), "design": choice_match.get("design")}
+		GameState.fleet_design_slots[index] = slots[index].name
+	if active_slot >= 0:
+		_activate_slot(active_slot)
+	_refresh_slots()
 
-func _update_selection() -> void:
-	design_title.text = selected_title if selected_design != null else "No saved designs"
-	design_preview.set_ship(selected_design)
-	selected_design_changed.emit()
 
-func _refresh_rows() -> void:
-	for child in rows.get_children():
-		rows.remove_child(child)
-		child.queue_free()
-	var filtered: Array[Dictionary] = []
-	for choice in choices:
-		if search.text.strip_edges().is_empty() or choice.name.to_lower().contains(search.text.strip_edges().to_lower()):
-			filtered.append(choice)
-	var pages := maxi(1, ceili(filtered.size() / 4.0))
-	page = clampi(page, 0, pages - 1)
-	page_label.text = "%d / %d" % [page + 1, pages]
-	back.disabled = page == 0
-	forward.disabled = page == pages - 1
-	if filtered.is_empty():
-		var empty := Label.new()
-		empty.text = "No matching saved designs"
-		empty.add_theme_font_size_override("font_size", 10)
-		rows.add_child(empty)
-	for choice in filtered.slice(page * 4, page * 4 + 4):
-		var row := HBoxContainer.new()
-		row.custom_minimum_size.y = 42
-		rows.add_child(row)
-		var preview := preload("res://scripts/ship_design_preview.gd").new()
-		preview.custom_minimum_size = Vector2(48, 40)
-		preview.set_ship(choice.design)
-		row.add_child(preview)
-		var details := Label.new()
-		var stats: ShipStats = choice.design.get_stats()
-		details.text = "%s\n%d cr · Hull %.0f · DPS %.1f · Thrust %.0f" % [choice.name, choice.design.cost, stats.integrity, stats.dps, stats.thrust]
-		details.add_theme_font_size_override("font_size", 8)
-		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		details.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		row.add_child(details)
-		var select := Button.new()
-		select.text = "SELECT"
-		select.add_theme_font_size_override("font_size", 9)
-		select.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		compact_button(select)
-		select.pressed.connect(func() -> void:
-			selected_design = choice.design
-			selected_title = choice.name
-			_update_selection()
-			picker.hide())
-		row.add_child(select)
-		var remove := Button.new()
-		remove.icon = trash_icon()
-		remove.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		remove.tooltip_text = "Delete saved design"
-		remove.visible = choice.name != "Drone"
-		compact_button(remove)
-		remove.pressed.connect(func() -> void: GameState.delete_saved_ship_design(choice.name))
-		row.add_child(remove)
+func _seed_slots_from_fleet() -> void:
+	for owned in GameState.fleet:
+		var type_name := _ship_type_name(owned.display_name)
+		if slots.any(func(slot: Dictionary) -> bool: return slot.name == type_name):
+			continue
+		var empty_index := slots.find_custom(func(slot: Dictionary) -> bool: return slot.name.is_empty())
+		if empty_index < 0:
+			return
+		for choice in choices:
+			if choice.name == type_name:
+				slots[empty_index] = {"name": choice.name, "design": choice.design}
+				GameState.fleet_design_slots[empty_index] = choice.name
+				break
+
 
 static func compact_button(button: Button) -> void:
 	button.custom_minimum_size.y = maxf(button.custom_minimum_size.y, 30)
@@ -170,7 +300,6 @@ static func compact_button(button: Button) -> void:
 	var theme := preload("res://themes/ui_theme.tres")
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var style: StyleBox = theme.get_stylebox(state, "Button").duplicate()
-		# Small icon buttons use the square frame; the wide action sprite has 32px end caps.
 		if button.text.is_empty() and button.icon != null and style is StyleBoxTexture:
 			style.texture = preload("res://assets/ui/panels/simple_panel.png")
 			style.texture_margin_left = 12
@@ -183,6 +312,15 @@ static func compact_button(button: Button) -> void:
 		style.content_margin_bottom = 6
 		button.add_theme_stylebox_override(state, style)
 
+
+static func _style_slot_action(button: Button) -> void:
+	button.add_theme_font_size_override("font_size", 14)
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var style := StyleBoxEmpty.new()
+		style.set_content_margin_all(0)
+		button.add_theme_stylebox_override(state, style)
+
+
 static func style_checkbox(checkbox: CheckBox) -> void:
 	for checked in [false, true]:
 		var image := Image.new()
@@ -194,15 +332,15 @@ static func style_checkbox(checkbox: CheckBox) -> void:
 		style.set_content_margin_all(2)
 		checkbox.add_theme_stylebox_override(state, style)
 
+
 static func _arrow_icon(right: bool) -> Texture2D:
 	var image := Image.new()
 	var path := "M4 2 L9 7 L4 12" if right else "M9 2 L4 7 L9 12"
 	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><path d="%s" fill="none" stroke="#cfdee4" stroke-width="2"/></svg>' % path)
 	return ImageTexture.create_from_image(image)
 
+
 static func trash_icon() -> Texture2D:
 	var image := Image.new()
 	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="16"><path d="M2 4h10M5 4V2h4v2M3 5l1 9h6l1-9M6 6v6M8 6v6" fill="none" stroke="#ed7272" stroke-width="1.5" stroke-linejoin="round"/></svg>')
 	return ImageTexture.create_from_image(image)
-
-

@@ -15,7 +15,6 @@ texture_hover = ExtResource("2_highlighted")
 texture_pressed = ExtResource("3_pressed")
 texture_focused = ExtResource("4_selected")
 mouse_default_cursor_shape = 2
-tooltip_text = "Settings"
 
 [node name="Icon" type="TextureRect" parent="."]
 layout_mode = 1

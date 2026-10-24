@@ -4,7 +4,6 @@ extends RefCounted
 const NO_TILE_CATEGORY := -1
 const BUILD_CELL_SIZE := Vector2(26.0, 26.0)
 const BATTLE_MODEL_SIZE := 48.0
-const HULL_AREA_CREDIT_COST_PER_SQUARE := 1
 const RED_TILE_CREDIT_COST := 5
 const BLUE_TILE_CREDIT_COST := 2
 const GREEN_TILE_CREDIT_COST := 10
@@ -13,24 +12,6 @@ const CORE_TILE_CREDIT_COST := 15
 var tiles: Dictionary[Vector2i, int] = {}
 var parts: Array[ShipPart] = []
 var _transitioning_parts: Array[ShipPart] = []
-var cost: int:
-	get:
-		var total_cost := ceili(get_filled_hull_area()) * HULL_AREA_CREDIT_COST_PER_SQUARE
-		for category in tiles.values():
-			match category:
-				ShipPart.Category.OFFENSE:
-					total_cost += RED_TILE_CREDIT_COST
-				ShipPart.Category.DEFENSE:
-					total_cost += BLUE_TILE_CREDIT_COST
-				ShipPart.Category.SPECIAL:
-					total_cost += GREEN_TILE_CREDIT_COST
-				ShipPart.Category.CORE:
-					total_cost += CORE_TILE_CREDIT_COST
-				_:
-					push_error("Cannot price a ship tile with an unknown category: %s" % category)
-		return total_cost
-
-
 func set_tile_at(cell: Vector2i, category: int) -> void:
 	tiles[cell] = category
 

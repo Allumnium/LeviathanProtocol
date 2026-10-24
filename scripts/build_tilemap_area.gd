@@ -25,13 +25,6 @@ const PART_FLASH_PURPLE := Color(0.72, 0.2, 1.0, 0.85)
 const PART_FLASH_YELLOW := Color(1.0, 0.88, 0.0, 0.85)
 const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
-const DESIGN_HEADER_FONT: Font = preload(
-	"res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"
-)
-const DESIGN_ROW_PANEL_STYLE: StyleBox = preload(
-	"res://assets/ui/panels/compact_panel_nine_patch.tres"
-)
-const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd")
 
 @export var tile_size := Vector2i(26, 26)
 @export var map_dimensions := MAX_MAP_DIMENSIONS
@@ -79,22 +72,13 @@ const SHIP_DESIGN_PREVIEW_SCRIPT = preload("res://scripts/ship_design_preview.gd
 	$SaveDesignDialog/Contents/Buttons/CancelButton
 )
 @onready var load_design_dialog: PopupPanel = $LoadDesignDialog
-@onready var saved_design_rows: VBoxContainer = (
-	$LoadDesignDialog/Contents/ScrollContainer/SavedDesignRows
-)
-@onready var empty_designs_label: Label = (
-	$LoadDesignDialog/Contents/ScrollContainer/SavedDesignRows/EmptyDesignsLabel
-)
-@onready var load_design_status_label: Label = $LoadDesignDialog/Contents/StatusLabel
-@onready var close_load_dialog_button: Button = $LoadDesignDialog/Contents/CloseButton
 
 var undo_button: Button
 var redo_button: Button
+var pan_button: Button
 var _undo_states: Array[Dictionary] = []
 var _redo_states: Array[Dictionary] = []
 var _stroke_before: Dictionary = {}
-
-var previous_designs_checkbox: CheckBox
 
 var _selected_source_id := NO_SOURCE_ID
 var _preview_cell := INVALID_CELL
@@ -106,6 +90,9 @@ var _is_panning := false
 var _middle_pan_moved := false
 var _middle_pan_start_position := Vector2.ZERO
 var _middle_pan_last_position := Vector2.ZERO
+var _pan_drag_button := MOUSE_BUTTON_NONE
+var _is_moving_ship := false
+var _ship_move_start_cell := INVALID_CELL
 var _last_placed_cell := INVALID_CELL
 var _last_erased_cell := INVALID_CELL
 var _initial_pan_position_set := false
@@ -172,30 +159,24 @@ func _ready() -> void:
 	cancel_save_design_button.pressed.connect(save_design_dialog.hide)
 	save_design_name_input.text_submitted.connect(_on_save_design_name_submitted)
 	load_design_button.pressed.connect(_on_load_design_pressed)
-	close_load_dialog_button.pressed.connect(load_design_dialog.hide)
-	previous_designs_checkbox = CheckBox.new()
-	previous_designs_checkbox.text = "INCLUDE PREVIOUS RUNS"
-	previous_designs_checkbox.add_theme_font_size_override("font_size", 10)
-	preload("res://scripts/fleet_panel.gd").style_checkbox(previous_designs_checkbox)
-	previous_designs_checkbox.toggled.connect(GameState.set_include_previous_designs)
-	var load_contents := $LoadDesignDialog/Contents
-	load_contents.add_child(previous_designs_checkbox)
-	load_contents.move_child(previous_designs_checkbox, 1)
-	GameState.design_library_changed.connect(_populate_saved_design_rows)
+	load_design_dialog.design_selected.connect(_on_library_design_selected)
 	GameState.ship_stats_changed.connect(_refresh_design_controls)
 	GameState.part_transformations_changed.connect(_refresh_design_controls)
 	undo_button = Button.new()
 	redo_button = Button.new()
+	pan_button = Button.new()
 	undo_button.icon = _history_icon(false)
 	redo_button.icon = _history_icon(true)
-	undo_button.tooltip_text = "Undo (Ctrl+Z)"
-	redo_button.tooltip_text = "Redo (Ctrl+Y)"
-	for button in [undo_button, redo_button]:
-		button.custom_minimum_size = Vector2(8, 8)
+	pan_button.icon = _pan_icon()
+	pan_button.toggle_mode = true
+	pan_button.button_pressed = false
+	for button in [undo_button, redo_button, pan_button]:
+		button.custom_minimum_size = Vector2(16, 16)
 		_style_tiny_history_button(button)
 		history_controls.add_child(button)
 	undo_button.pressed.connect(_undo)
 	redo_button.pressed.connect(_redo)
+	pan_button.toggled.connect(_on_pan_tool_toggled)
 	GameState.part_transformations_changed.connect(_refresh_history_buttons)
 	_refresh_history_buttons()
 	_refresh_design_controls()
@@ -231,12 +212,37 @@ func _history_icon(point_right: bool) -> Texture2D:
 	var image := Image.new()
 	var transform := ' transform="translate(28 0) scale(-1 1)"' if point_right else ""
 	var svg := (
-		'<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 28 28">'
+		'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 28 28">'
 		+ '<path%s d="M12 7H8V2L1 9l7 7v-5h4c5 0 8 3 8 8 0 2-.5 4-1.5 6 3-2.5 4.5-5.5 4.5-9 0-5-4-9-11-9z" fill="#cfdee4"/>' % transform
 		+ "</svg>"
 	)
 	image.load_svg_from_string(svg)
 	return ImageTexture.create_from_image(image)
+
+
+func _pan_icon() -> Texture2D:
+	var image := Image.new()
+	image.load_svg_from_string(
+		'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16">'
+		+ '<path d="M5.5 7V3.5a1 1 0 0 1 2 0V6 2.5a1 1 0 0 1 2 0V6 3.5a1 1 0 0 1 2 0V7 5a1 1 0 0 1 2 0v4c0 3-1.8 5-4.8 5H7.4c-1.5 0-2.5-.7-3.3-1.8L2 9.2a1.1 1.1 0 0 1 1.7-1.4z" fill="none" stroke="#cfdee4" stroke-width="1.2" stroke-linejoin="round"/>'
+		+ '</svg>'
+	)
+	return ImageTexture.create_from_image(image)
+
+
+func _on_pan_tool_toggled(is_selected: bool) -> void:
+	_is_placing = false
+	_is_erasing = false
+	_last_placed_cell = INVALID_CELL
+	_last_erased_cell = INVALID_CELL
+	if is_selected:
+		for button in [red_build_button, blue_build_button, green_build_button, core_build_button]:
+			button.button_pressed = false
+		_selected_source_id = NO_SOURCE_ID
+	else:
+		_is_moving_ship = false
+		_ship_move_start_cell = INVALID_CELL
+	_clear_preview()
 
 
 func _style_tiny_history_button(button: Button) -> void:
@@ -336,9 +342,17 @@ func _fill_grid() -> void:
 
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
-		_pan_with_keyboard(delta)
+		if not _keyboard_navigation_blocked():
+			_pan_with_keyboard(delta)
 		_update_zoom(delta)
 	_update_preview()
+
+
+func _keyboard_navigation_blocked() -> bool:
+	if save_design_dialog.visible or load_design_dialog.visible:
+		return true
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	return focus_owner is LineEdit or focus_owner is TextEdit
 
 
 func _input(event: InputEvent) -> void:
@@ -348,6 +362,9 @@ func _input(event: InputEvent) -> void:
 		if local_motion_event == null:
 			return
 		var local_mouse_position := local_motion_event.position
+		if _is_moving_ship:
+			_clear_preview()
+			return
 		if _is_panning:
 			if not _middle_pan_moved:
 				if (
@@ -373,7 +390,33 @@ func _input(event: InputEvent) -> void:
 	var mouse_button_event := event as InputEventMouseButton
 	if mouse_button_event == null:
 		return
-	if mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE:
+	if (
+		mouse_button_event.button_index == MOUSE_BUTTON_LEFT
+		and ((pan_button != null and pan_button.button_pressed) or _is_moving_ship)
+	):
+		var local_event := make_input_local(mouse_button_event) as InputEventMouseButton
+		if local_event == null:
+			return
+		var local_position := local_event.position
+		if mouse_button_event.pressed:
+			if not is_visible_in_tree() or not _is_mouse_over_build_area(local_position):
+				return
+			_ship_move_start_cell = _get_cell_at_local_position(local_position)
+			if _ship_move_start_cell == INVALID_CELL:
+				return
+			_is_moving_ship = true
+			_clear_preview()
+			accept_event()
+		elif _is_moving_ship:
+			var end_cell := _get_cell_at_local_position(local_position)
+			_is_moving_ship = false
+			if end_cell != INVALID_CELL:
+				_move_ship_by(end_cell - _ship_move_start_cell)
+			_ship_move_start_cell = INVALID_CELL
+			accept_event()
+		return
+	var is_pan_drag_event := mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE
+	if is_pan_drag_event:
 		var local_mouse_button_event := (
 			make_input_local(mouse_button_event) as InputEventMouseButton
 		)
@@ -392,6 +435,7 @@ func _input(event: InputEvent) -> void:
 			_last_placed_cell = INVALID_CELL
 			_last_erased_cell = INVALID_CELL
 			_is_panning = true
+			_pan_drag_button = mouse_button_event.button_index
 			_middle_pan_moved = false
 			_middle_pan_start_position = local_mouse_position
 			_middle_pan_last_position = local_mouse_position
@@ -400,11 +444,13 @@ func _input(event: InputEvent) -> void:
 		elif _is_panning:
 			_is_panning = false
 			if (
-				not _middle_pan_moved
+				mouse_button_event.button_index == MOUSE_BUTTON_MIDDLE
+				and not _middle_pan_moved
 				and _is_mouse_over_build_area(local_mouse_position)
 				and not _is_mouse_over_selector_area(local_mouse_position)
 			):
 				_pick_tile_at(_get_cell_at_local_position(local_mouse_position))
+			_pan_drag_button = MOUSE_BUTTON_NONE
 			accept_event()
 		return
 	if mouse_button_event.pressed:
@@ -937,166 +983,28 @@ func _on_save_design_confirmed() -> void:
 
 
 func _on_load_design_pressed() -> void:
-	_populate_saved_design_rows()
-	load_design_status_label.text = ""
-	load_design_dialog.popup_centered()
+	load_design_dialog.open_library("LOAD", _validate_library_design)
 
 
-func _populate_saved_design_rows() -> void:
-	for child in saved_design_rows.get_children():
-		if child == empty_designs_label:
-			continue
-		saved_design_rows.remove_child(child)
-		child.queue_free()
-
-	previous_designs_checkbox.set_pressed_no_signal(GameState.include_previous_run_designs)
-	var designs := GameState.get_visible_ship_designs()
-	empty_designs_label.visible = designs.is_empty()
-	for design in designs:
-		var row := _create_saved_design_row(design)
-		if row != null:
-			saved_design_rows.add_child(row)
+func _validate_library_design(saved_ship: Ship) -> String:
+	return "Upgrade the build area to load this design." if not GameState.design_fits_build_area(saved_ship) else ""
 
 
-func _create_saved_design_row(design: Dictionary) -> PanelContainer:
-	var design_name := str(design.get("name", ""))
-	var saved_ship := Ship.new()
-	if not saved_ship.load_design_data(design.get("ship")):
-		push_error("Could not display saved ship design '%s'." % design_name)
-		return null
-
-	var row := PanelContainer.new()
-	row.custom_minimum_size = Vector2(0.0, 96.0)
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_stylebox_override("panel", DESIGN_ROW_PANEL_STYLE)
-
-	var contents := HBoxContainer.new()
-	contents.add_theme_constant_override("separation", 8)
-	row.add_child(contents)
-
-	var preview: Control = SHIP_DESIGN_PREVIEW_SCRIPT.new()
-	preview.custom_minimum_size = Vector2(112.0, 80.0)
-	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	preview.call("set_ship", saved_ship)
-	contents.add_child(preview)
-
-	var details := VBoxContainer.new()
-	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	details.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	details.add_theme_constant_override("separation", 2)
-	contents.add_child(details)
-
-	var name_label := Label.new()
-	name_label.text = design_name.to_upper()
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.add_theme_font_override("font", DESIGN_HEADER_FONT)
-	name_label.add_theme_font_size_override("font_size", 11)
-	details.add_child(name_label)
-
-	var summary_label := Label.new()
-	summary_label.text = _format_design_summary(saved_ship)
-	summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	summary_label.add_theme_font_size_override("font_size", 9)
-	details.add_child(summary_label)
-
-	var load_button := Button.new()
-	load_button.text = "LOAD"
-	load_button.custom_minimum_size = Vector2(64.0, 32.0)
-	load_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	load_button.add_theme_font_size_override("font_size", 10)
-	load_button.pressed.connect(_on_load_saved_design_pressed.bind(design_name))
-	load_button.disabled = not GameState.design_fits_build_area(saved_ship)
-	load_button.tooltip_text = "Upgrade the build area to load this design." if load_button.disabled else ""
-	preload("res://scripts/fleet_panel.gd").compact_button(load_button)
-	contents.add_child(load_button)
-	var delete_button := Button.new()
-	delete_button.icon = preload("res://scripts/fleet_panel.gd").trash_icon()
-	delete_button.tooltip_text = "Delete saved design"
-	delete_button.visible = design_name != "Drone"
-	delete_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	preload("res://scripts/fleet_panel.gd").compact_button(delete_button)
-	delete_button.pressed.connect(func() -> void:
-		if not GameState.delete_saved_ship_design(design_name):
-			load_design_status_label.text = "Could not delete the saved design.")
-	contents.add_child(delete_button)
-	return row
-
-
-func _format_design_summary(saved_ship: Ship) -> String:
-	var stats := saved_ship.get_stats()
-	var summary_lines: Array[String] = [
-		"Shields: %s, Integrity: %s, Weight: %s"
-		% [
-			_format_stat_value(stats.shields),
-			_format_stat_value(stats.integrity),
-			_format_stat_value(stats.weight),
-		],
-		"Cost: %d credits, Thrust: %s, DPS: %.2f"
-		% [
-			saved_ship.cost,
-			_format_stat_value(stats.thrust),
-			stats.dps,
-		],
-	]
-
-	var grouped_weapons: Array[ShipWeaponStats] = []
-	var weapon_counts: Array[int] = []
-	for weapon in stats.weapons:
-		var group_index := -1
-		for index in range(grouped_weapons.size()):
-			if grouped_weapons[index].weapon_name == weapon.weapon_name:
-				group_index = index
-				break
-		if group_index < 0:
-			grouped_weapons.append(weapon)
-			weapon_counts.append(1)
-		else:
-			weapon_counts[group_index] += 1
-
-	if grouped_weapons.is_empty():
-		summary_lines.append("Weapons: none")
-	else:
-		for group_index in range(grouped_weapons.size()):
-			var weapon := grouped_weapons[group_index]
-			var weapon_details: Array[String] = []
-			var fire_rate := weapon.get_fire_rate_per_second()
-			if not is_zero_approx(fire_rate):
-				weapon_details.append("Fire rate: %.2f/sec" % fire_rate)
-			if not is_zero_approx(weapon.damage_per_shot):
-				weapon_details.append(
-					"Damage/shot: %s" % _format_stat_value(weapon.damage_per_shot)
-				)
-			if weapon.projectiles_per_activation != 0:
-				weapon_details.append("Shots: %d" % weapon.projectiles_per_activation)
-			var weapon_dps := weapon.get_dps() * weapon_counts[group_index]
-			if not is_zero_approx(weapon_dps):
-				weapon_details.append("DPS: %.2f" % weapon_dps)
-			var weapon_name := weapon.weapon_name
-			if weapon_counts[group_index] > 1:
-				weapon_name += " (x%d)" % weapon_counts[group_index]
-			summary_lines.append("%s: %s" % [weapon_name, ", ".join(weapon_details)])
-
-	return "\n".join(summary_lines)
-
-
-func _format_stat_value(value: float) -> String:
-	if is_equal_approx(value, roundf(value)):
-		return str(roundi(value))
-	return "%.2f" % value
+func _on_library_design_selected(design_name: String, _design: Ship) -> void:
+	_on_load_saved_design_pressed(design_name)
 
 
 func _on_load_saved_design_pressed(design_name: String) -> void:
 	var before := _history_state()
 	if not GameState.load_saved_ship_design(design_name):
-		load_design_status_label.text = (
+		load_design_dialog.status_label.text = (
 			"Could not load this design. Check the build area size."
 		)
+		load_design_dialog.status_label.visible = true
 		return
 
 	_record_change(before)
 	_restore_loaded_ship_design()
-	load_design_dialog.hide()
 
 
 func _restore_loaded_ship_design() -> void:
@@ -1173,10 +1081,33 @@ func _pan_by(offset: Vector2) -> void:
 		_zoom_anchor_position += pan_root.position - previous_position
 
 
+func _move_ship_by(cell_offset: Vector2i) -> bool:
+	if cell_offset == Vector2i.ZERO or GameState.ship.tiles.is_empty():
+		return false
+	var moved_tiles: Dictionary[Vector2i, int] = {}
+	for cell in GameState.ship.tiles:
+		var moved_cell: Vector2i = cell + cell_offset
+		if (
+			moved_cell.x < 0
+			or moved_cell.y < 0
+			or moved_cell.x >= map_dimensions.x
+			or moved_cell.y >= map_dimensions.y
+		):
+			return false
+		moved_tiles[moved_cell] = GameState.ship.tiles[cell]
+	var before := _history_state()
+	GameState.ship.tiles = moved_tiles
+	_evaluate_part_patterns()
+	_record_change(before)
+	return true
+
+
 func _on_build_button_toggled(is_selected: bool, source_id: int) -> void:
 	_is_placing = false
 	_last_placed_cell = INVALID_CELL
 	if is_selected:
+		if pan_button != null:
+			pan_button.set_pressed_no_signal(false)
 		_selected_source_id = source_id
 	elif _selected_source_id == source_id:
 		_selected_source_id = NO_SOURCE_ID
@@ -1363,7 +1294,7 @@ func _redo() -> void:
 	_restore_history(_redo_states.pop_back())
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not is_visible_in_tree() or save_design_dialog.visible or load_design_dialog.visible:
+	if not is_visible_in_tree() or _keyboard_navigation_blocked():
 		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return

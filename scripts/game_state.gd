@@ -74,6 +74,8 @@ var core_tiles_available := STARTING_CORE_TILE_COUNT
 var saved_ship_designs: Array[Dictionary] = []
 var current_run_design_names: Array[String] = []
 var include_previous_run_designs := false
+var fleet_design_slots: Array[String] = ["", "", ""]
+var battle_auto_camera := true
 
 
 func _ready() -> void:
@@ -97,6 +99,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	fleet.clear()
 	current_run_design_names.clear()
 	include_previous_run_designs = false
+	fleet_design_slots = ["", "", ""]
 	next_ship_id = 1
 	laser_upgrade_level = 0
 	build_area_level = 0
@@ -117,6 +120,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 		owned.formation = Vector2(0, index - 1)
 		fleet.append(owned)
 		next_ship_id += 1
+	fleet_design_slots[0] = "Drone"
 	for part in drone.parts:
 		discover_part(part.type)
 	_refresh_fleet()
@@ -467,7 +471,7 @@ const MATERIAL_PRICES := [Ship.RED_TILE_CREDIT_COST, Ship.BLUE_TILE_CREDIT_COST,
 
 func get_construction_credit_cost(blueprint: Ship = null) -> int:
 	var design := ship if blueprint == null else blueprint
-	var total := design.cost
+	var total := 0
 	var counts := _get_ship_tile_counts(design)
 	if counts.size() != MATERIAL_PRICES.size():
 		return total
@@ -495,10 +499,22 @@ func purchase_material(category: int) -> bool:
 func purchase_saved_ship(design_name: String) -> bool:
 	for entry in get_visible_ship_designs():
 		if entry.name == design_name:
+			if not _ensure_fleet_design_slot(design_name):
+				return false
 			var blueprint := Ship.new()
 			if blueprint.load_design_data(entry.ship):
 				return purchase_ship(blueprint, design_name)
 	return false
+
+
+func _ensure_fleet_design_slot(design_name: String) -> bool:
+	if fleet_design_slots.has(design_name):
+		return true
+	var empty_slot := fleet_design_slots.find("")
+	if empty_slot < 0:
+		return false
+	fleet_design_slots[empty_slot] = design_name
+	return true
 
 func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
 	var design := ship if blueprint == null else blueprint
@@ -542,6 +558,45 @@ func repair_ship(owned: FleetShip) -> bool:
 	return true
 
 
+func salvage_ship_type(design_name: String) -> bool:
+	if battle_pending or design_name.is_empty():
+		return false
+	var candidate: FleetShip
+	var candidate_damage := -1.0
+	for owned in fleet:
+		if _fleet_ship_type_name(owned.display_name) != design_name:
+			continue
+		var damage := _fleet_ship_damage_fraction(owned)
+		if candidate == null or damage > candidate_damage:
+			candidate = owned
+			candidate_damage = damage
+	if candidate == null:
+		return false
+	var counts := _get_ship_tile_counts(candidate.design)
+	red_tiles_available += counts[ShipPart.Category.OFFENSE]
+	blue_tiles_available += counts[ShipPart.Category.DEFENSE]
+	green_tiles_available += counts[ShipPart.Category.SPECIAL]
+	core_tiles_available += counts[ShipPart.Category.CORE]
+	fleet.erase(candidate)
+	_refresh_fleet()
+	tile_inventory_changed.emit()
+	return true
+
+
+func _fleet_ship_type_name(display_name: String) -> String:
+	var pieces := display_name.rsplit(" ", true, 1)
+	return pieces[0] if pieces.size() == 2 and pieces[1].is_valid_int() else display_name
+
+
+func _fleet_ship_damage_fraction(owned: FleetShip) -> float:
+	var current_health := 0.0
+	var maximum_health := 0.0
+	for unit in owned.units:
+		current_health += maxf(0.0, unit.hp)
+		maximum_health += unit.max_hp
+	return 1.0 - current_health / maximum_health if maximum_health > 0.0 else 1.0
+
+
 func move_ship(owned: FleetShip, position: Vector2) -> void:
 	if battle_pending or not fleet.has(owned) or not position.is_finite():
 		return
@@ -562,6 +617,22 @@ func _refresh_fleet() -> void:
 func can_deploy() -> bool:
 	return not fleet.is_empty() and fleet.any(func(owned: FleetShip) -> bool:
 		return owned.is_alive() and not owned.get_stats(laser_upgrade_level).weapons.is_empty())
+
+
+func can_afford_any_ship() -> bool:
+	for entry in get_visible_ship_designs():
+		var design := Ship.new()
+		if not design.load_design_data(entry.ship) or not design_fits_build_area(design):
+			continue
+		var candidate := FleetShip.new()
+		candidate.initialize(design, next_ship_id, "")
+		if candidate.construction_error().is_empty() and credits >= get_construction_credit_cost(design):
+			return true
+	return false
+
+
+func is_run_lost() -> bool:
+	return fleet.is_empty() and not can_deploy() and not can_afford_any_ship()
 
 
 func allied_salvage_chance() -> float:
