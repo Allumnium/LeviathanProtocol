@@ -117,13 +117,15 @@ func _input(event: InputEvent) -> void:
 	):
 		return
 	while _next_reward_icon < _reward_icons.size():
-		_reveal_next_reward()
+		_reveal_next_reward(false)
+	AudioManager.play_sfx(MATERIAL_REVEAL_SOUND)
 	get_viewport().set_input_as_handled()
 
 
-func _reveal_next_reward() -> void:
+func _reveal_next_reward(play_sound := true) -> void:
 	_reward_icons[_next_reward_icon].modulate.a = 1.0
-	AudioManager.play_sfx(MATERIAL_REVEAL_SOUND)
+	if play_sound:
+		AudioManager.play_sfx(MATERIAL_REVEAL_SOUND)
 	_next_reward_icon += 1
 
 

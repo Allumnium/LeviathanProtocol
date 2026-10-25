@@ -183,28 +183,27 @@ func _format_stat_value(value: float) -> String:
 
 
 func _on_destination_selected(node_id: int) -> void:
-	if _graph_map_only or _travel_in_progress:
+	if _travel_in_progress:
 		return
-	if not GameState.set_destination(node_id):
+	if not GameState.set_planned_destination(node_id):
 		push_error("The selected destination is not reachable from the current room.")
 		return
-	_travel_in_progress = true
-	graph_close_button.disabled = true
-	graph_view.start_travel(node_id, 2.0)
-	await graph_view.travel_finished
-	if not is_inside_tree():
-		return
-	graph_modal.hide()
-
-	var error := get_tree().change_scene_to_file(AUTO_BATTLE_SCENE_PATH)
-	if error != OK:
-		GameState.cancel_battle()
-		graph_modal.show()
-		push_error("Could not open the auto-battle scene. Error code: %s" % error)
+	graph_view.selected_node_id = node_id
+	graph_view.queue_redraw()
 
 
 func _on_deploy_pressed() -> void:
 	if deploy_button.disabled:
+		return
+	var destinations := GameState.get_reachable_nodes(GameState.current_node_id)
+	var chosen_destination := GameState.planned_destination_node_id
+	if destinations.size() == 1 or destinations.has(chosen_destination):
+		if destinations.size() == 1:
+			chosen_destination = destinations[0]
+		if GameState.set_destination(chosen_destination):
+			_open_pending_battle(false)
+		else:
+			push_error("The selected sector could not be deployed to.")
 		return
 	_graph_map_only = false
 	graph_view.set_current_node(GameState.current_node_id)
@@ -212,9 +211,19 @@ func _on_deploy_pressed() -> void:
 
 
 func _on_map_pressed() -> void:
-	_graph_map_only = true
+	_graph_map_only = false
 	graph_view.set_current_node(GameState.current_node_id)
 	graph_modal.show()
+
+
+func _open_pending_battle(restore_map_on_failure: bool) -> void:
+	var error := get_tree().change_scene_to_file(AUTO_BATTLE_SCENE_PATH)
+	if error == OK:
+		return
+	GameState.cancel_battle()
+	if restore_map_on_failure:
+		graph_modal.show()
+	push_error("Could not open the auto-battle scene. Error code: %s" % error)
 
 
 func _on_graph_modal_backdrop_input(event: InputEvent) -> void:

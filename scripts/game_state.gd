@@ -22,6 +22,7 @@ const GRAPH_BRANCHES_PER_COLUMN := 2
 var NODE_POSITIONS: Array[Vector2] = []
 var NODE_COLUMNS: Array[int] = []
 var GRAPH_EDGES: Array[Vector2i] = []
+var CONVERGENCE_NODE_IDS: Array[int] = []
 var FINAL_NODE_ID := 0
 const MIN_ALIEN_FLEET_SIZE := 3
 const MAX_ALIEN_FLEET_SIZE := 8
@@ -43,6 +44,7 @@ var last_battle_report: Array[Dictionary] = []
 
 var current_node_id := 0
 var destination_node_id := -1
+var planned_destination_node_id := -1
 var visited_nodes: Array[int] = [0]
 var battle_pending := false
 var player_ship_count := 0
@@ -117,6 +119,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	_generate_campaign_graph()
 	current_node_id = 0
 	destination_node_id = -1
+	planned_destination_node_id = -1
 	visited_nodes = [0]
 	battle_pending = false
 	player_ship_count = 0
@@ -160,6 +163,7 @@ func _generate_campaign_graph() -> void:
 	NODE_POSITIONS.clear()
 	NODE_COLUMNS.clear()
 	GRAPH_EDGES.clear()
+	CONVERGENCE_NODE_IDS.clear()
 	var random := RandomNumberGenerator.new()
 	random.randomize()
 	# Fifteen columns leave fourteen steps after the origin. Three 3–5 column
@@ -190,6 +194,8 @@ func _generate_campaign_graph() -> void:
 			))
 			NODE_COLUMNS.append(column)
 			column_nodes.append(node_id)
+			if column > 0 and convergence_columns.has(column):
+				CONVERGENCE_NODE_IDS.append(node_id)
 		if previous_column_nodes.size() == 1:
 			for to_node in column_nodes:
 				GRAPH_EDGES.append(Vector2i(previous_column_nodes[0], to_node))
@@ -765,6 +771,13 @@ func get_reachable_nodes(from_node_id: int) -> Array[int]:
 	return reachable_nodes
 
 
+func set_planned_destination(node_id: int) -> bool:
+	if battle_pending or not get_reachable_nodes(current_node_id).has(node_id):
+		return false
+	planned_destination_node_id = node_id
+	return true
+
+
 func set_destination(node_id: int) -> bool:
 	if battle_pending or not can_deploy():
 		return false
@@ -786,6 +799,7 @@ func set_destination(node_id: int) -> bool:
 		return false
 
 	destination_node_id = node_id
+	planned_destination_node_id = node_id
 	battle_pending = true
 	battle_aliens.clear()
 	for alien in next_battle_aliens:
@@ -811,6 +825,7 @@ func complete_battle(surviving_player_ship_count: int = -1) -> bool:
 	if not visited_nodes.has(current_node_id):
 		visited_nodes.append(current_node_id)
 	destination_node_id = -1
+	planned_destination_node_id = -1
 	battle_pending = false
 	battle_aliens.clear()
 	credits += VICTORY_CREDIT_REWARD
@@ -826,6 +841,7 @@ func cancel_battle(surviving_player_ship_count: int = -1) -> void:
 		player_ship_count = surviving_player_ship_count
 		player_ship_count_changed.emit()
 	destination_node_id = -1
+	planned_destination_node_id = -1
 	battle_pending = false
 	battle_aliens.clear()
 

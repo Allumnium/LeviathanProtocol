@@ -11,3 +11,4 @@ res://scripts/ship_design_preview.gd
 res://scripts/ship_library_dialog.gd
 res://scripts/battle_report.gd
 res://scripts/game_state.gd
+res://scripts/game_map.gd

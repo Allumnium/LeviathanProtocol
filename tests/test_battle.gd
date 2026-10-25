@@ -884,13 +884,12 @@ func _test_scene() -> void:
 		state.is_modal_ui_open(),
 		"An open map must register as a keyboard-panning blocker for views behind it."
 	)
-	game_map._on_destination_selected(3)
 	_check(
 		game_map.graph_modal.visible
-			and game_map._graph_map_only
+			and not game_map._graph_map_only
 			and state.current_node_id == sector_before_map
 			and not state.battle_pending,
-		"Map mode must show the sector graph without allowing travel."
+		"Map and deploy mode must share the same actionable sector graph."
 	)
 	game_map.graph_close_button.pressed.emit()
 	_check(not game_map.graph_modal.visible, "The graph's top-right X must close the map.")
@@ -955,16 +954,24 @@ func _test_scene() -> void:
 		_check(
 			fleet_panel.board.formation_button != null
 				and fleet_panel.board.formation_button.text == "ECHELON (V)"
-				and fleet_panel.board.FORMATION_NAMES.size() == 6
+				and fleet_panel.board.FORMATION_NAMES.size() == 7
+				and fleet_panel.board.FORMATION_NAMES[-2] == "HALF CIRCLE"
 				and fleet_panel.board.FORMATION_NAMES[-1] == "NONE"
 				and fleet_panel.board.clip_contents,
-			"The formation panel must provide the five-pattern cycling control."
+			"The formation panel must provide the six-pattern cycling control."
 		)
 		var line_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 1)
 		var double_line_positions: Array[Vector2] = fleet_panel.board._formation_positions(6, 2)
 		var staggered_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 3)
 		var echelon_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 0)
 		var wedge_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 4)
+		var half_circle_positions: Array[Vector2] = fleet_panel.board._formation_positions(7, 5)
+		_check(
+			half_circle_positions.size() == 7
+				and is_equal_approx(half_circle_positions[0].x, half_circle_positions[-1].x)
+				and is_equal_approx(half_circle_positions[0].y, -half_circle_positions[-1].y),
+			"Half Circle must form a symmetric rounded arc."
+		)
 		_check(
 			line_positions.all(func(position: Vector2) -> bool: return position.x == 0.0)
 				and double_line_positions.all(func(position: Vector2) -> bool:

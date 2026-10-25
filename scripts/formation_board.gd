@@ -8,9 +8,11 @@ const MAX_VIEW_SCALE := 3.0
 const ZOOM_FACTOR := 1.2
 const KEYBOARD_PAN_SPEED := 260.0
 const FORMATION_NAMES: Array[String] = [
-	"ECHELON (V)", "LINE", "DOUBLE LINE", "STAGGERED", "WEDGE", "NONE",
+	"ECHELON (V)", "LINE", "DOUBLE LINE", "STAGGERED", "WEDGE", "HALF CIRCLE", "NONE",
 ]
-const NONE_FORMATION_INDEX := 5
+const NONE_FORMATION_INDEX := 6
+const HALF_CIRCLE_MAX_ARC := deg_to_rad(145.0)
+const HALF_CIRCLE_ANGLE_STEP := deg_to_rad(24.0)
 var selected: FleetShip
 var selected_ships: Array[FleetShip] = []
 var dragging := false
@@ -168,6 +170,20 @@ func _formation_positions(count: int, pattern: int) -> Array[Vector2]:
 				if positions.size() < count:
 					positions.append(Vector2(depth, depth))
 				depth += 1
+		5: # A rounded wedge spread along no more than 145 degrees of a circle.
+			if count == 1:
+				positions.append(Vector2.ZERO)
+			else:
+				var sweep := minf(HALF_CIRCLE_MAX_ARC, HALF_CIRCLE_ANGLE_STEP * (count - 1))
+				var angle_step := sweep / float(count - 1)
+				# Choose a radius that keeps adjacent ships one formation unit apart.
+				var radius := 1.0 / (2.0 * sin(angle_step * 0.5))
+				for index in range(count):
+					var angle := -sweep * 0.5 + angle_step * index
+					positions.append(Vector2(
+						radius * (1.0 - cos(angle)),
+						radius * sin(angle)
+					))
 	return positions
 
 func _sync_ships() -> void:

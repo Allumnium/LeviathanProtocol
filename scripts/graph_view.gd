@@ -13,6 +13,7 @@ const ZOOM_FACTOR := 1.15
 const KEYBOARD_PAN_SPEED := 300.0
 const DRAG_THRESHOLD := 4.0
 const SECTOR_STAR_TEXTURE: Texture2D = preload("res://assets/star1.png")
+const SPACE_STATION_TEXTURE: Texture2D = preload("res://assets/space_station.png")
 const STAR_FRAME_COUNT := 6
 const STAR_FRAME_SIZE := Vector2(32.0, 29.0)
 const STAR_FRAMES_PER_SECOND := 6.0
@@ -60,7 +61,11 @@ func _ready() -> void:
 
 func set_current_node(node_id: int) -> void:
 	current_node_id = node_id
-	selected_node_id = -1
+	selected_node_id = (
+		GameState.planned_destination_node_id
+		if GameState.get_reachable_nodes(current_node_id).has(GameState.planned_destination_node_id)
+		else -1
+	)
 	_reset_camera()
 	_ship_world_position = _node_center(current_node_id)
 	_ship_rotation = 0.0
@@ -171,29 +176,31 @@ func _draw() -> void:
 	draw_set_transform_matrix(world_transform())
 	for star in stars:
 		draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
-	var reachable_nodes := GameState.get_reachable_nodes(current_node_id)
-
 	for edge in GameState.GRAPH_EDGES:
-		var edge_color := Color(0.32, 0.32, 0.32)
-		if current_node_id == edge.x:
-			edge_color = Color(0.48, 0.48, 0.48)
-		if GameState.visited_nodes.has(edge.x) and GameState.visited_nodes.has(edge.y):
-			edge_color = Color(0.22, 0.58, 0.66)
+		var edge_color := Color(0.42, 0.42, 0.42)
+		if edge.x == current_node_id and edge.y == selected_node_id:
+			var pulse := 0.5 + 0.5 * sin(_elapsed_time * TAU * 0.5)
+			var brightness := lerpf(0.32, 0.9, pulse)
+			edge_color = Color(brightness, brightness, brightness)
 		_draw_arrow(edge.x, edge.y, edge_color)
 
 	for node_id in range(GameState.NODE_POSITIONS.size()):
 		var center := _node_center(node_id)
-		var star_color := Color(0.58, 0.58, 0.62)
+		if GameState.CONVERGENCE_NODE_IDS.find(node_id) in [0, 1]:
+			_draw_space_station(node_id, center)
+		else:
+			_draw_sector_star(node_id, center, Color(0.72, 0.72, 0.72))
 
-		if GameState.visited_nodes.has(node_id):
-			star_color = Color(0.35, 0.68, 0.76)
-		if reachable_nodes.has(node_id):
-			star_color = Color(0.62, 0.82, 0.88)
-		if node_id == current_node_id:
-			star_color = Color(0.35, 0.9, 1.0)
-		if node_id == selected_node_id:
-			star_color = Color(1.0, 0.78, 0.3)
-		_draw_sector_star(node_id, center, star_color)
+
+func _draw_space_station(node_id: int, center: Vector2) -> void:
+	var click_progress := float(_node_click_remaining.get(node_id, 0.0)) / STAR_CLICK_DURATION
+	var click_pulse := click_progress * click_progress
+	var sprite_size := Vector2.ONE * NODE_SIZE.x * (1.0 + click_pulse * 0.75)
+	draw_texture_rect(
+		SPACE_STATION_TEXTURE,
+		Rect2(center - sprite_size * 0.5, sprite_size),
+		false
+	)
 
 
 func _draw_sector_star(node_id: int, center: Vector2, tint: Color) -> void:

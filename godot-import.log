@@ -11,17 +11,10 @@ ERROR: Failed to read the root certificate store.
 [  83% ] first_scan_filesystem | Starting file scan...
 [ DONE ] first_scan_filesystem
 
-[   0% ] update_scripts_classes | Started Registering global classes... (4 steps)
-[   0% ] update_scripts_classes | 
-[  20% ] update_scripts_classes | 
-[  40% ] update_scripts_classes | 
-[  60% ] update_scripts_classes | 
-[ DONE ] update_scripts_classes
-
 [   0% ] reimport | Started (Re)Importing Assets (1 steps)
 [   0% ] reimport | Preparing files to reimport...
 [   0% ] reimport | Executing pre-reimport operations...
-[   0% ] reimport | credits.svg
+[   0% ] reimport | space_station.png
 [  50% ] reimport | Finalizing Asset Import...
 [ DONE ] reimport
 
