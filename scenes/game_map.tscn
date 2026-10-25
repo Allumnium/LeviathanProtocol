@@ -132,6 +132,19 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 
+[node name="MapButton" type="Button" parent="Layout/TopBar/BarContents"]
+custom_minimum_size = Vector2(52, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "MAP"
+
+[node name="SectorName" type="Label" parent="Layout/TopBar/BarContents"]
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "SECTOR 1"
+vertical_alignment = 1
+
 [node name="StatsSpace" type="Label" parent="Layout/TopBar/BarContents" unique_id=650711298]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -510,13 +523,19 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
 [node name="GraphPanel" type="PanelContainer" parent="GraphModal/CenterContainer" unique_id=2075394125]
-custom_minimum_size = Vector2(480, 180)
+custom_minimum_size = Vector2(480, 255)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="CloseX" parent="GraphModal/CenterContainer/GraphPanel" instance=ExtResource("24_close")]
 

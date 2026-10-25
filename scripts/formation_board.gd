@@ -3,27 +3,47 @@ extends Control
 signal selection_changed
 
 const SPACING := 65.0
-const MIN_VIEW_SCALE := 0.25
+const MIN_VIEW_SCALE := 0.1
 const MAX_VIEW_SCALE := 3.0
 const ZOOM_FACTOR := 1.2
 const KEYBOARD_PAN_SPEED := 260.0
-const FORMATION_NAMES: Array[String] = ["ECHELON (V)", "LINE", "DOUBLE LINE", "STAGGERED", "WEDGE"]
+const FORMATION_NAMES: Array[String] = [
+	"ECHELON (V)", "LINE", "DOUBLE LINE", "STAGGERED", "WEDGE", "NONE",
+]
+const NONE_FORMATION_INDEX := 5
 var selected: FleetShip
+var selected_ships: Array[FleetShip] = []
 var dragging := false
 var previews: Dictionary = {}
 var view_center := Vector2.ZERO
 var view_scale := 1.0
 var drag_offset := Vector2.ZERO
 var drag_position := Vector2.ZERO
+var group_drag_start := Vector2.ZERO
+var group_drag_offset := Vector2.ZERO
+var group_start_positions: Dictionary = {}
+var box_selecting := false
+var selection_box_start := Vector2.ZERO
+var selection_box_end := Vector2.ZERO
 var camera_panning := false
 var camera_pan_last := Vector2.ZERO
 var formation_button: Button
+var formation_heading: Label
 var formation_index := 0
 var last_fleet_size := -1
+var preserve_camera_on_sync := false
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(160, 90)
 	clip_contents = true
+	formation_heading = Label.new()
+	formation_heading.name = "FormationHeading"
+	formation_heading.text = "FORMATION"
+	formation_heading.position = Vector2(6.0, 5.0)
+	formation_heading.add_theme_font_size_override("font_size", 11)
+	formation_heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	formation_heading.z_index = 10
+	add_child(formation_heading)
 	formation_button = Button.new()
 	formation_button.name = "FormationButton"
 	formation_button.custom_minimum_size = Vector2(112, 24)
@@ -44,7 +64,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not is_visible_in_tree():
+	if not is_visible_in_tree() or GameState.is_modal_ui_open():
 		return
 	var focus_owner := get_viewport().gui_get_focus_owner()
 	if focus_owner is LineEdit or focus_owner is TextEdit:
@@ -67,11 +87,14 @@ func _process(delta: float) -> void:
 func _cycle_formation() -> void:
 	formation_index = (formation_index + 1) % FORMATION_NAMES.size()
 	formation_button.text = FORMATION_NAMES[formation_index]
+	if formation_index == NONE_FORMATION_INDEX:
+		return
+	preserve_camera_on_sync = true
 	_apply_formation()
 
 
-func _apply_formation(notify_change: bool = true) -> void:
-	if GameState.fleet.is_empty():
+func _apply_formation(notify_change: bool = true, fit_view: bool = true) -> void:
+	if GameState.fleet.is_empty() or formation_index == NONE_FORMATION_INDEX:
 		return
 	var positions := _formation_positions(GameState.fleet.size(), formation_index)
 	positions.sort_custom(func(a: Vector2, b: Vector2) -> bool:
@@ -83,8 +106,10 @@ func _apply_formation(notify_change: bool = true) -> void:
 		ordered[index].formation = positions[index]
 	if notify_change:
 		GameState.fleet_changed.emit()
-	else:
+	elif fit_view:
 		_fit()
+	else:
+		_layout_ships()
 
 
 func _strategic_ship_order() -> Array[FleetShip]:
@@ -135,22 +160,23 @@ func _formation_positions(count: int, pattern: int) -> Array[Vector2]:
 			var half_height := (count - 1) * 0.5
 			for index in range(count):
 				positions.append(Vector2(-0.65 if index % 2 == 0 else 0.65, index - half_height))
-		4: # Broad front ranks taper toward the rear.
-			var columns := ceili(sqrt(float(count)))
-			var index := 0
-			while index < count:
-				var depth := index / columns
-				var row_count := mini(columns, count - index)
-				for row in range(row_count):
-					positions.append(Vector2(-depth, row - (row_count - 1) * 0.5))
-					index += 1
+		4: # Mirror Echelon so the point and opening face the opposite direction.
+			positions.append(Vector2.ZERO)
+			var depth := 1
+			while positions.size() < count:
+				positions.append(Vector2(depth, -depth))
+				if positions.size() < count:
+					positions.append(Vector2(depth, depth))
+				depth += 1
 	return positions
 
 func _sync_ships() -> void:
-	var fleet_size_changed := last_fleet_size >= 0 and last_fleet_size != GameState.fleet.size()
+	var previous_fleet_size := last_fleet_size
+	var fleet_size_changed := previous_fleet_size >= 0 and previous_fleet_size != GameState.fleet.size()
+	var fleet_size_increased := previous_fleet_size >= 0 and GameState.fleet.size() > previous_fleet_size
 	last_fleet_size = GameState.fleet.size()
-	if fleet_size_changed:
-		_apply_formation(false)
+	if fleet_size_changed and formation_index != NONE_FORMATION_INDEX:
+		_apply_formation(false, false)
 	for preview in previews.values():
 		remove_child(preview)
 		preview.queue_free()
@@ -164,8 +190,37 @@ func _sync_ships() -> void:
 		formation_button.move_to_front()
 	if not GameState.fleet.has(selected):
 		selected = null if GameState.fleet.is_empty() else GameState.fleet[0]
+	selected_ships = selected_ships.filter(func(ship: FleetShip) -> bool:
+		return GameState.fleet.has(ship))
+	if selected != null and selected_ships.is_empty():
+		selected_ships.append(selected)
 	selection_changed.emit()
-	_fit()
+	if preserve_camera_on_sync or fleet_size_changed:
+		preserve_camera_on_sync = false
+		if fleet_size_increased:
+			_zoom_out_to_fit_fleet()
+		_layout_ships()
+	else:
+		_fit()
+
+
+func _zoom_out_to_fit_fleet() -> void:
+	if GameState.fleet.is_empty() or size.x <= 0.0 or size.y <= 0.0:
+		return
+	var available_half := Vector2(
+		maxf(size.x * 0.5 - 8.0, 1.0),
+		maxf(size.y * 0.5 - 8.0, 1.0)
+	)
+	var required_half_extent := Vector2.ONE
+	for owned in GameState.fleet:
+		var offset := (owned.formation * SPACING - view_center).abs()
+		required_half_extent.x = maxf(required_half_extent.x, offset.x + 28.0)
+		required_half_extent.y = maxf(required_half_extent.y, offset.y + 28.0)
+	var fitting_scale := minf(
+		available_half.x / required_half_extent.x,
+		available_half.y / required_half_extent.y
+	)
+	view_scale = maxf(minf(view_scale, fitting_scale), MIN_VIEW_SCALE)
 
 func _fit() -> void:
 	if dragging or camera_panning:
@@ -183,7 +238,9 @@ func _fit() -> void:
 	_layout_ships()
 
 func _screen_position(owned: FleetShip) -> Vector2:
-	var world := drag_position if dragging and owned == selected else owned.formation * SPACING
+	var world := owned.formation * SPACING
+	if dragging and selected_ships.has(owned):
+		world = group_start_positions.get(owned, world) + group_drag_offset
 	return (world - view_center) * view_scale + size * 0.5
 
 func _layout_ships() -> void:
@@ -196,8 +253,36 @@ func _layout_ships() -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.15, 0.2, 0.25), false)
-	if selected != null and previews.has(selected):
-		draw_rect(Rect2(_screen_position(selected) - Vector2.ONE * 28.0 * view_scale, Vector2.ONE * 56.0 * view_scale), Color(0.4, 0.85, 1.0), false)
+	for owned in selected_ships:
+		var outline := _ship_outline(owned)
+		if outline.size() >= 3:
+			# Keep the selection stroke on physical pixel centers. Fractional
+			# vertices combined with a 1.5 px line made opposite hull edges
+			# rasterize at visibly different thicknesses at some zoom levels.
+			for point_index in range(outline.size()):
+				outline[point_index] = outline[point_index].round()
+			outline.append(outline[0])
+			draw_polyline(outline, Color.WHITE, 2.0, true)
+	if box_selecting:
+		var selection_rect := Rect2(selection_box_start, selection_box_end - selection_box_start).abs()
+		draw_rect(selection_rect, Color(1.0, 1.0, 1.0, 0.12), true)
+		draw_rect(selection_rect, Color.WHITE, false, 1.0)
+
+
+func _ship_outline(owned: FleetShip) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var half_cell := Vector2.ONE * owned.cell_size * view_scale * 0.5
+	var ship_center := _screen_position(owned)
+	for unit in owned.units:
+		if unit.hp <= 0.0:
+			continue
+		for cell in unit.cells:
+			var center := ship_center + owned.local_cell_position(cell) * view_scale
+			points.append(center - half_cell)
+			points.append(center + Vector2(half_cell.x, -half_cell.y))
+			points.append(center + half_cell)
+			points.append(center + Vector2(-half_cell.x, half_cell.y))
+	return Geometry2D.convex_hull(points) if not points.is_empty() else points
 
 func _ship_at(point: Vector2) -> FleetShip:
 	for owned in GameState.fleet:
@@ -218,14 +303,29 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		selected = _ship_at(event.position)
+		var clicked_ship := _ship_at(event.position)
+		selected = clicked_ship
+		if clicked_ship != null:
+			if not selected_ships.has(clicked_ship):
+				selected_ships = [clicked_ship]
+		else:
+			selected_ships.clear()
 		selection_changed.emit()
 		if selected != null:
 			dragging = true
-			drag_position = selected.formation * SPACING
-			drag_offset = drag_position - ((event.position - size * 0.5) / view_scale + view_center)
-		queue_redraw()
-		accept_event()
+			group_drag_start = (event.position - size * 0.5) / view_scale + view_center
+			group_drag_offset = Vector2.ZERO
+			group_start_positions.clear()
+			for ship in selected_ships:
+				group_start_positions[ship] = ship.formation * SPACING
+			queue_redraw()
+			accept_event()
+		else:
+			box_selecting = true
+			selection_box_start = event.position
+			selection_box_end = event.position
+			queue_redraw()
+			accept_event()
 
 func _input(event: InputEvent) -> void:
 	if camera_panning:
@@ -239,17 +339,55 @@ func _input(event: InputEvent) -> void:
 			camera_panning = false
 			get_viewport().set_input_as_handled()
 		return
+	if box_selecting:
+		if event is InputEventMouseMotion:
+			selection_box_end = get_local_mouse_position()
+			queue_redraw()
+			get_viewport().set_input_as_handled()
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			box_selecting = false
+			var selection_rect := Rect2(selection_box_start, selection_box_end - selection_box_start).abs()
+			selected_ships.clear()
+			for owned in GameState.fleet:
+				if selection_rect.has_point(_screen_position(owned)):
+					selected_ships.append(owned)
+			selected = selected_ships[0] if not selected_ships.is_empty() else null
+			selection_changed.emit()
+			queue_redraw()
+			get_viewport().set_input_as_handled()
+		return
 	if not dragging:
 		return
 	if event is InputEventMouseMotion:
-		drag_position = (get_local_mouse_position() - size * 0.5) / view_scale + view_center + drag_offset
+		var current_world := (get_local_mouse_position() - size * 0.5) / view_scale + view_center
+		group_drag_offset = current_world - group_drag_start
 		_layout_ships()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		dragging = false
-		GameState.move_ship(selected, drag_position / SPACING)
-		_fit()
+		_move_selected_group(group_drag_offset)
 		get_viewport().set_input_as_handled()
+
+
+func _move_selected_group(world_offset: Vector2) -> void:
+	if world_offset.is_zero_approx():
+		_layout_ships()
+		return
+	var destinations: Dictionary = {}
+	for ship in selected_ships:
+		destinations[ship] = (group_start_positions[ship] + world_offset) / SPACING
+	for destination in destinations.values():
+		for other in GameState.fleet:
+			if selected_ships.has(other):
+				continue
+			if destination.distance_to(other.formation) < 0.8:
+				group_drag_offset = Vector2.ZERO
+				_layout_ships()
+				return
+	for ship in selected_ships:
+		ship.formation = destinations[ship]
+	preserve_camera_on_sync = true
+	GameState.fleet_changed.emit()
 
 
 func _zoom_at(screen_position: Vector2, factor: float) -> void:

@@ -3,28 +3,15 @@
 [ext_resource type="Texture2D" path="res://assets/close_x.png" id="1_close"]
 [ext_resource type="Script" path="res://scripts/close_x_button.gd" id="2_script"]
 
-[node name="CloseX" type="Control"]
-z_index = 20
+[node name="CloseX" type="TextureButton"]
+z_index = 4096
+z_as_relative = false
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-script = ExtResource("2_script")
-
-[node name="Button" type="TextureButton" parent="."]
-custom_minimum_size = Vector2(22, 22)
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -26.0
-offset_top = 4.0
-offset_right = -4.0
-offset_bottom = 26.0
-grow_horizontal = 0
+offset_right = 24.0
+offset_bottom = 24.0
+mouse_default_cursor_shape = 2
 texture_normal = ExtResource("1_close")
 ignore_texture_size = true
 stretch_mode = 5
+script = ExtResource("2_script")

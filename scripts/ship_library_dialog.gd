@@ -16,7 +16,7 @@ const PAGE_SIZE := 3
 
 @onready var title_label: Label = $Contents/Title
 @onready var search: LineEdit = $Contents/SearchRow/Search
-@onready var close_button: Control = $CloseX
+@onready var close_button: TextureButton = $CloseX
 @onready var previous_runs: CheckBox = $Contents/Pager/PreviousRuns
 @onready var rows: VBoxContainer = $Contents/ScrollContainer/SavedDesignRows
 @onready var empty_label: Label = $Contents/ScrollContainer/SavedDesignRows/EmptyDesignsLabel
@@ -33,7 +33,10 @@ var _allow_close := false
 
 
 func _ready() -> void:
-	close_button.connect("pressed", close_library)
+	close_button.pressed.connect(close_library)
+	# Close on mouse-down as well, so an active LineEdit cannot consume the
+	# first click merely to relinquish focus.
+	close_button.button_down.connect(close_library)
 	popup_hide.connect(_on_popup_hide)
 	search.text_changed.connect(func(_text: String) -> void:
 		page = 0
@@ -65,7 +68,12 @@ func open_library(new_action_text: String, validator: Callable = Callable()) -> 
 	page = 0
 	refresh_library()
 	popup_centered(Vector2i(480, 255))
-	search.grab_focus()
+	call_deferred("_clear_initial_focus")
+
+
+func _clear_initial_focus() -> void:
+	if is_instance_valid(search):
+		search.release_focus()
 
 
 func close_library() -> void:
@@ -150,13 +158,16 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 	if credit_cost > 0:
 		_add_cost_item(costs, CREDIT_ICON, credit_cost)
 	var action := Button.new()
-	action.text = action_text
-	action.custom_minimum_size.x = 68
+	var assigned_slot := GameState.fleet_design_slots.find(str(choice.name))
+	var is_assigned := action_text == "SELECT" and assigned_slot >= 0
+	action.text = "ASSIGNED TO SLOT %d" % (assigned_slot + 1) if is_assigned else action_text
+	action.custom_minimum_size.x = 112 if is_assigned else 68
+	action.add_theme_font_size_override("font_size", 8 if is_assigned else 10)
 	_style_button(action)
 	var validation_message := ""
 	if selection_validator.is_valid():
 		validation_message = str(selection_validator.call(choice.design))
-	action.disabled = not validation_message.is_empty()
+	action.disabled = is_assigned or not validation_message.is_empty()
 	action.pressed.connect(func() -> void:
 		_allow_close = true
 		design_selected.emit(choice.name, choice.design)

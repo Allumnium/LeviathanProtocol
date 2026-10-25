@@ -1,6 +1,7 @@
 extends Control
 
-const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.5)
+const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.7)
+const HULL_BASE_COLOR := Color(0.38, 0.38, 0.4, 1.0)
 
 var owned: FleetShip
 var patterns: Dictionary = {}
@@ -27,6 +28,7 @@ func _draw() -> void:
 			hull_points.append(center + half_cell)
 			hull_points.append(center + Vector2(-half_cell.x, half_cell.y))
 	var hull := Geometry2D.convex_hull(hull_points)
+	draw_colored_polygon(hull, HULL_BASE_COLOR)
 	draw_set_transform(size * 0.5, 0.0, Vector2.ONE * scale_factor)
 	var hidden_cells: Dictionary[Vector2i, bool] = {}
 	for unit in owned.units:

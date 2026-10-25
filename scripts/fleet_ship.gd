@@ -14,6 +14,7 @@ var cell_units: Dictionary[Vector2i, int] = {}
 var core_index := -1
 var center := Vector2.ZERO
 var cell_size := 8.0
+var visual_revision := 0
 
 func initialize(blueprint: Ship, ship_id: int, title: String) -> void:
 	id = ship_id
@@ -186,6 +187,7 @@ func damage_cell(cell: Vector2i, amount: float) -> Dictionary:
 	unit.hp -= dealt
 	if unit.hp <= 0.0:
 		removed.append_array(unit.cells)
+		visual_revision += 1
 		# Losing the command center destroys the ship, but does not physically
 		# erase every other intact block from its wreckage.
 		if cell_units[cell] == core_index:

@@ -17,25 +17,12 @@ const AlienShipType = preload("res://scripts/alien_ship.gd")
 
 enum Difficulty { EASY, MEDIUM, HARD }
 
-const NODE_POSITIONS: Array[Vector2] = [
-	Vector2(0.08, 0.5),
-	Vector2(0.31, 0.23),
-	Vector2(0.31, 0.77),
-	Vector2(0.62, 0.23),
-	Vector2(0.62, 0.77),
-	Vector2(0.92, 0.5),
-]
-const GRAPH_EDGES: Array[Vector2i] = [
-	Vector2i(0, 1),
-	Vector2i(0, 2),
-	Vector2i(1, 3),
-	Vector2i(1, 4),
-	Vector2i(2, 3),
-	Vector2i(2, 4),
-	Vector2i(3, 5),
-	Vector2i(4, 5),
-]
-const FINAL_NODE_ID := 5
+const GRAPH_COLUMN_COUNT := 15
+const GRAPH_BRANCHES_PER_COLUMN := 2
+var NODE_POSITIONS: Array[Vector2] = []
+var NODE_COLUMNS: Array[int] = []
+var GRAPH_EDGES: Array[Vector2i] = []
+var FINAL_NODE_ID := 0
 const MIN_ALIEN_FLEET_SIZE := 3
 const MAX_ALIEN_FLEET_SIZE := 8
 const STARTING_CREDITS := 1200
@@ -79,6 +66,8 @@ var battle_auto_camera := true
 
 
 func _ready() -> void:
+	if NODE_POSITIONS.is_empty():
+		_generate_campaign_graph()
 	get_tree().node_added.connect(_disable_non_text_keyboard_focus)
 	_disable_keyboard_focus_recursively(get_tree().root)
 	_load_saved_ship_designs()
@@ -95,6 +84,27 @@ func _disable_non_text_keyboard_focus(node: Node) -> void:
 		(node as Control).focus_mode = Control.FOCUS_NONE
 
 
+func is_modal_ui_open() -> bool:
+	var current_scene := get_tree().current_scene
+	return current_scene != null and _node_contains_visible_modal(current_scene, current_scene)
+
+
+func _node_contains_visible_modal(node: Node, scene_root: Node) -> bool:
+	if node != scene_root and node is Window and node.visible:
+		return true
+	if (
+		node != scene_root
+		and node is Control
+		and node.visible
+		and node.name in [&"GraphModal", &"VictoryDialog", &"DefeatDialog", &"QuitConfirmOverlay"]
+	):
+		return true
+	for child in node.get_children():
+		if _node_contains_visible_modal(child, scene_root):
+			return true
+	return false
+
+
 func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	if not [
 		Difficulty.EASY,
@@ -104,6 +114,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 		push_error("Cannot start a run with an unknown difficulty.")
 		return false
 
+	_generate_campaign_graph()
 	current_node_id = 0
 	destination_node_id = -1
 	visited_nodes = [0]
@@ -143,6 +154,55 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	credits_changed.emit()
 	player_ship_count_changed.emit()
 	return true
+
+
+func _generate_campaign_graph() -> void:
+	NODE_POSITIONS.clear()
+	NODE_COLUMNS.clear()
+	GRAPH_EDGES.clear()
+	var random := RandomNumberGenerator.new()
+	random.randomize()
+	# Fifteen columns leave fourteen steps after the origin. Three 3–5 column
+	# sections ending at the final column therefore use one length 4 and two
+	# length 5 sections, shuffled for each run.
+	var section_lengths: Array[int] = [4, 5, 5]
+	for index in range(section_lengths.size() - 1, 0, -1):
+		var swap_index := random.randi_range(0, index)
+		var value := section_lengths[index]
+		section_lengths[index] = section_lengths[swap_index]
+		section_lengths[swap_index] = value
+	var convergence_columns: Dictionary[int, bool] = {0: true}
+	var convergence_column := 0
+	for section_length in section_lengths:
+		convergence_column += section_length
+		convergence_columns[convergence_column] = true
+
+	var previous_column_nodes: Array[int] = []
+	for column in range(GRAPH_COLUMN_COUNT):
+		var column_nodes: Array[int] = []
+		var node_count := 1 if convergence_columns.has(column) else GRAPH_BRANCHES_PER_COLUMN
+		for lane in range(node_count):
+			var node_id := NODE_POSITIONS.size()
+			var normalized_y := 0.5 if node_count == 1 else lerpf(0.28, 0.72, float(lane) / float(node_count - 1))
+			NODE_POSITIONS.append(Vector2(
+				lerpf(0.035, 0.965, float(column) / float(GRAPH_COLUMN_COUNT - 1)),
+				normalized_y
+			))
+			NODE_COLUMNS.append(column)
+			column_nodes.append(node_id)
+		if previous_column_nodes.size() == 1:
+			for to_node in column_nodes:
+				GRAPH_EDGES.append(Vector2i(previous_column_nodes[0], to_node))
+		elif column_nodes.size() == 1:
+			for from_node in previous_column_nodes:
+				GRAPH_EDGES.append(Vector2i(from_node, column_nodes[0]))
+		else:
+			# Preserve each lane between convergence points so choosing a branch
+			# remains meaningful until both routes meet again.
+			for lane in range(mini(previous_column_nodes.size(), column_nodes.size())):
+				GRAPH_EDGES.append(Vector2i(previous_column_nodes[lane], column_nodes[lane]))
+		previous_column_nodes = column_nodes
+	FINAL_NODE_ID = previous_column_nodes[0]
 
 
 func get_saved_ship_designs() -> Array[Dictionary]:
@@ -687,7 +747,10 @@ func record_battle(simulation: BattleSimulation) -> void:
 		if owned == null:
 			continue
 		last_battle_report.append({"ship": owned, "damage": combatant.damage_dealt,
-			"taken": combatant.damage_taken, "weapons": combatant.weapon_damage.duplicate(),
+			"taken": combatant.damage_taken,
+			"repair_damage": combatant.permanent_damage_taken,
+			"deflected": combatant.damage_deflected(),
+			"weapons": combatant.weapon_damage.duplicate(),
 			"destroyed": not combatant.is_alive()})
 		if not combatant.is_alive():
 			fleet.erase(owned)
@@ -849,10 +912,6 @@ func design_fits_build_area(design: Ship) -> bool:
 
 
 func campaign_level() -> int:
-	if current_node_id == 0:
+	if current_node_id < 0 or current_node_id >= NODE_COLUMNS.size():
 		return 1
-	if current_node_id <= 2:
-		return 2
-	if current_node_id <= 4:
-		return 3
-	return 4
+	return NODE_COLUMNS[current_node_id] + 1

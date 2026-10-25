@@ -12,6 +12,8 @@ const MATERIAL_ICONS: Array[Texture2D] = [
 	preload("res://assets/core.png"),
 ]
 const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
+const PLUS_ICON: Texture2D = preload("res://assets/plus.png")
+const MINUS_ICON: Texture2D = preload("res://assets/minus.png")
 const SHIP_LIBRARY_DIALOG = preload("res://scenes/load_design_dialog.tscn")
 
 var selected_design: Ship
@@ -68,6 +70,13 @@ func _build_slot_controls() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
 		slot_host.add_child(row)
+		var salvage_host := CenterContainer.new()
+		salvage_host.custom_minimum_size = Vector2(20, 55)
+		row.add_child(salvage_host)
+		var salvage := TextureButton.new()
+		salvage.texture_normal = MINUS_ICON
+		_style_slot_action(salvage)
+		salvage_host.add_child(salvage)
 		var select := Button.new()
 		select.custom_minimum_size = Vector2(114, 55)
 		select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -98,23 +107,26 @@ func _build_slot_controls() -> void:
 		cost_rows.add_theme_constant_override("separation", 0)
 		cost_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		details.add_child(cost_rows)
-		var construct := Button.new()
-		construct.text = "+"
-		construct.custom_minimum_size = Vector2(20, 30)
-		construct.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var construct_host := CenterContainer.new()
+		construct_host.custom_minimum_size = Vector2(20, 55)
+		row.add_child(construct_host)
+		var construct := TextureButton.new()
+		construct.texture_normal = PLUS_ICON
 		_style_slot_action(construct)
-		var salvage := Button.new()
-		salvage.text = "-"
-		salvage.custom_minimum_size = Vector2(20, 30)
-		salvage.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		_style_slot_action(salvage)
-		row.add_child(salvage)
-		row.move_child(salvage, 0)
-		row.add_child(construct)
+		construct_host.add_child(construct)
 		select.pressed.connect(_open_picker.bind(index))
 		salvage.pressed.connect(_salvage_slot.bind(index))
 		construct.pressed.connect(_construct_slot.bind(index))
-		slot_widgets.append({"button": select, "preview": preview, "label": name_label, "cost": cost_rows, "salvage": salvage, "construct": construct})
+		slot_widgets.append({
+			"button": select,
+			"preview": preview,
+			"label": name_label,
+			"cost": cost_rows,
+			"salvage": salvage,
+			"salvage_host": salvage_host,
+			"construct": construct,
+			"construct_host": construct_host,
+		})
 
 
 func _open_picker(slot_index: int) -> void:
@@ -318,12 +330,22 @@ static func compact_button(button: Button) -> void:
 		button.add_theme_stylebox_override(state, style)
 
 
-static func _style_slot_action(button: Button) -> void:
-	button.add_theme_font_size_override("font_size", 14)
-	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
-		var style := StyleBoxEmpty.new()
-		style.set_content_margin_all(0)
-		button.add_theme_stylebox_override(state, style)
+static func _style_slot_action(button: TextureButton) -> void:
+	button.custom_minimum_size = Vector2(18, 30)
+	button.ignore_texture_size = true
+	button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.mouse_entered.connect(func() -> void:
+		if not button.disabled:
+			button.self_modulate = Color(1.25, 1.25, 1.25, 1.0))
+	button.mouse_exited.connect(func() -> void:
+		button.self_modulate = Color.WHITE)
+	button.button_down.connect(func() -> void:
+		if not button.disabled:
+			button.self_modulate = Color(0.48, 0.52, 0.58, 1.0))
+	button.button_up.connect(func() -> void:
+		button.self_modulate = Color(1.25, 1.25, 1.25, 1.0) if button.is_hovered() else Color.WHITE)
 
 
 static func style_checkbox(checkbox: CheckBox) -> void:

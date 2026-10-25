@@ -5,7 +5,7 @@ signal start_requested(difficulty: int)
 
 @onready var difficulty_button: Button = $CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow/DifficultyButton
 @onready var difficulty_details: Label = $CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyDetails
-@onready var back_button: Control = $CenterContainer/SetupModal/CloseX
+@onready var back_button: TextureButton = $CenterContainer/SetupModal/CloseX
 @onready var start_button: Button = $CenterContainer/SetupModal/Contents/Buttons/StartButton
 
 var selected_difficulty := GameState.Difficulty.MEDIUM
@@ -13,7 +13,7 @@ var selected_difficulty := GameState.Difficulty.MEDIUM
 
 func _ready() -> void:
 	difficulty_button.pressed.connect(_on_difficulty_pressed)
-	back_button.connect("pressed", _on_back_pressed)
+	back_button.pressed.connect(_on_back_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	_update_difficulty_display()
 

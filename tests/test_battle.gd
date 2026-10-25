@@ -874,6 +874,26 @@ func _test_scene() -> void:
 		fleet_tab_button != null and fleet_tab_button.focus_mode == Control.FOCUS_NONE,
 		"Buttons must not accept Tab or arrow-key focus navigation."
 	)
+	_check(
+		game_map.map_button != null and game_map.sector_name_label.text == "SECTOR 2",
+		"The top bar must show a Map button beside the current sector name."
+	)
+	var sector_before_map: int = state.current_node_id
+	game_map._on_map_pressed()
+	_check(
+		state.is_modal_ui_open(),
+		"An open map must register as a keyboard-panning blocker for views behind it."
+	)
+	game_map._on_destination_selected(3)
+	_check(
+		game_map.graph_modal.visible
+			and game_map._graph_map_only
+			and state.current_node_id == sector_before_map
+			and not state.battle_pending,
+		"Map mode must show the sector graph without allowing travel."
+	)
+	game_map.graph_close_button.pressed.emit()
+	_check(not game_map.graph_modal.visible, "The graph's top-right X must close the map.")
 	_check(panel_tabs != null and panel_tabs.get_tab_count() == 4,
 		"The game map must include the Fleet tab.")
 	_check(fleet_tab_button != null, "The Fleet tab must have a matching panel button.")
@@ -935,13 +955,16 @@ func _test_scene() -> void:
 		_check(
 			fleet_panel.board.formation_button != null
 				and fleet_panel.board.formation_button.text == "ECHELON (V)"
-				and fleet_panel.board.FORMATION_NAMES.size() == 5
+				and fleet_panel.board.FORMATION_NAMES.size() == 6
+				and fleet_panel.board.FORMATION_NAMES[-1] == "NONE"
 				and fleet_panel.board.clip_contents,
 			"The formation panel must provide the five-pattern cycling control."
 		)
 		var line_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 1)
 		var double_line_positions: Array[Vector2] = fleet_panel.board._formation_positions(6, 2)
 		var staggered_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 3)
+		var echelon_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 0)
+		var wedge_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 4)
 		_check(
 			line_positions.all(func(position: Vector2) -> bool: return position.x == 0.0)
 				and double_line_positions.all(func(position: Vector2) -> bool:
@@ -950,6 +973,12 @@ func _test_scene() -> void:
 				and staggered_positions.all(func(position: Vector2) -> bool:
 					return is_equal_approx(absf(position.x), 0.65)),
 			"Line, Double Line, and Staggered must all use vertical arrangements."
+		)
+		_check(
+			wedge_positions.size() == echelon_positions.size()
+				and wedge_positions.all(func(position: Vector2) -> bool:
+					return echelon_positions.has(Vector2(-position.x, position.y))),
+			"Wedge must mirror Echelon (V) in the opposite direction."
 		)
 		fleet_panel.board._cycle_formation()
 		_check(
@@ -964,6 +993,15 @@ func _test_scene() -> void:
 		_check(
 			not fleet_panel.picker.title_label.visible,
 			"The fleet ship-selection window must not repeat a Select Ship heading."
+		)
+		var assigned_rows: VBoxContainer = fleet_panel.picker.rows
+		var assigned_drone_action := (
+			assigned_rows.get_child(1).get_child(0).get_child(3) as Button
+		)
+		_check(
+			assigned_drone_action.text == "ASSIGNED TO SLOT 1"
+				and assigned_drone_action.disabled,
+			"Fleet selector rows must identify the numbered slot already using a design."
 		)
 		fleet_panel.picker.close_library()
 		_check(
@@ -983,8 +1021,8 @@ func _test_scene() -> void:
 		)
 		for widget in fleet_panel.slot_widgets:
 			_check(
-				widget.salvage.get_index() < widget.button.get_index()
-					and widget.construct.get_index() > widget.button.get_index(),
+				widget.salvage_host.get_index() < widget.button.get_index()
+					and widget.construct_host.get_index() > widget.button.get_index(),
 				"Fleet slot actions must place minus left of the preview and plus right of it."
 			)
 		for slot_index in range(3):
@@ -1114,7 +1152,7 @@ func _test_scene() -> void:
 		)
 		var cancel_save_button := build_area.get_node(
 			"SaveDesignDialog/CloseX"
-		) as Control
+		) as TextureButton
 		cancel_save_button.pressed.emit()
 
 		var original_designs: Array[Dictionary] = state.get_saved_ship_designs()
@@ -1238,6 +1276,8 @@ func _test_scene() -> void:
 	for player_ship in battle.simulation.players:
 		player_ship.integrity = 0.0
 	battle._physics_process(1.0 / 60.0)
+	for tick in range(61):
+		battle._physics_process(1.0 / 60.0)
 	_check(state.current_node_id == 1 and not state.battle_pending,
 		"Defeat must cancel deployment without advancing the map.")
 	_check(state.player_ship_count == 0,

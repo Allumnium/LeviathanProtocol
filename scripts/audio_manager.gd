@@ -5,6 +5,7 @@ const AMBIENCE_BUS: StringName = &"Ambience"
 const SFX_BUS: StringName = &"SFX"
 const MENU_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Orbital Cartridge.mp3")
 const BUILD_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Star Cartridge.mp3")
+const BATTLE_MUSIC: AudioStreamMP3 = preload("res://assets/audio/music/Phalanx Signal.mp3")
 const MENU_THRUSTER_LOW: AudioStreamMP3 = preload(
 	"res://assets/audio/sfx/thruster_low_loop.mp3"
 )
@@ -13,11 +14,14 @@ const MENU_THRUSTER_LARGE: AudioStreamMP3 = preload(
 )
 const DEFAULT_VOLUME_PERCENT := 50.0
 const OUTPUT_GAIN_DB := -6.0
+const MAX_SFX_PLAYERS := 32
 
 var _music_player: AudioStreamPlayer
 var _current_music_track: StringName = &""
 var _menu_thruster_player: AudioStreamPlayer
 var _menu_thruster_mode: StringName = &""
+var _sfx_players: Array[AudioStreamPlayer] = []
+var _last_sfx_time_by_stream: Dictionary = {}
 
 
 func _ready() -> void:
@@ -51,20 +55,44 @@ func set_bus_volume_percent(bus_name: StringName, volume_percent: float) -> void
 	AudioServer.set_bus_mute(bus_index, is_zero_approx(linear_volume))
 
 
-func play_sfx(stream: AudioStream, pitch_scale: float = 1.0) -> void:
+func play_sfx(
+	stream: AudioStream,
+	pitch_scale: float = 1.0,
+	volume_db: float = 0.0,
+	minimum_interval_ms: int = 0
+) -> void:
 	if stream == null:
 		push_error("Cannot play a sound effect without an audio stream.")
 		return
 	if pitch_scale <= 0.0:
 		push_error("Cannot play a sound effect with a non-positive pitch scale.")
 		return
+	var now := Time.get_ticks_msec()
+	var stream_key := stream.resource_path if not stream.resource_path.is_empty() else str(stream.get_instance_id())
+	if (
+		minimum_interval_ms > 0
+		and now - int(_last_sfx_time_by_stream.get(stream_key, -minimum_interval_ms))
+			< minimum_interval_ms
+	):
+		return
+	_last_sfx_time_by_stream[stream_key] = now
 
-	var player := AudioStreamPlayer.new()
+	var player: AudioStreamPlayer
+	for candidate in _sfx_players:
+		if not candidate.playing:
+			player = candidate
+			break
+	if player == null:
+		if _sfx_players.size() >= MAX_SFX_PLAYERS:
+			return
+		player = AudioStreamPlayer.new()
+		player.name = "SfxPlayer%d" % (_sfx_players.size() + 1)
+		_sfx_players.append(player)
+		add_child(player)
 	player.bus = SFX_BUS
 	player.stream = stream
 	player.pitch_scale = pitch_scale
-	player.finished.connect(player.queue_free)
-	add_child(player)
+	player.volume_db = volume_db
 	player.play()
 
 
@@ -74,6 +102,10 @@ func play_menu_music() -> void:
 
 func play_build_music() -> void:
 	_play_music(BUILD_MUSIC, &"build")
+
+
+func play_battle_music() -> void:
+	_play_music(BATTLE_MUSIC, &"battle")
 
 
 func set_menu_thruster_mode(use_large_thruster: bool) -> void:

@@ -33,7 +33,6 @@ window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 mouse_cursor/custom_image="res://assets/cursor.png"
-mouse_cursor/custom_image_hotspot=Vector2(0, 0)
 
 [gui]
 

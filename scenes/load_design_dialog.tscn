@@ -31,8 +31,6 @@ theme = ExtResource("1_theme")
 theme_override_styles/panel = SubResource("StyleBoxFlat_crisp_popup")
 script = ExtResource("3_script")
 
-[node name="CloseX" parent="." instance=ExtResource("4_close")]
-
 [node name="Contents" type="VBoxContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -119,3 +117,5 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="CloseX" parent="." instance=ExtResource("4_close")]

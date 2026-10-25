@@ -69,7 +69,7 @@ const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 @onready var confirm_save_design_button: Button = (
 	$SaveDesignDialog/Contents/Buttons/ConfirmSaveButton
 )
-@onready var cancel_save_design_button: Control = (
+@onready var cancel_save_design_button: TextureButton = (
 	$SaveDesignDialog/CloseX
 )
 @onready var load_design_dialog: PopupPanel = $LoadDesignDialog
@@ -157,7 +157,7 @@ func _ready() -> void:
 	core_build_button.toggled.connect(_on_build_button_toggled.bind(CORE_SOURCE_ID))
 	save_design_button.pressed.connect(_on_save_design_pressed)
 	confirm_save_design_button.pressed.connect(_on_save_design_confirmed)
-	cancel_save_design_button.connect("pressed", save_design_dialog.hide)
+	cancel_save_design_button.pressed.connect(save_design_dialog.hide)
 	save_design_name_input.text_submitted.connect(_on_save_design_name_submitted)
 	load_design_button.pressed.connect(_on_load_design_pressed)
 	load_design_dialog.design_selected.connect(_on_library_design_selected)
@@ -320,7 +320,7 @@ func _process(delta: float) -> void:
 
 
 func _keyboard_navigation_blocked() -> bool:
-	if save_design_dialog.visible or load_design_dialog.visible:
+	if GameState.is_modal_ui_open() or save_design_dialog.visible or load_design_dialog.visible:
 		return true
 	var focus_owner := get_viewport().gui_get_focus_owner()
 	return focus_owner is LineEdit or focus_owner is TextEdit

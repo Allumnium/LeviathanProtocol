@@ -9,15 +9,22 @@ const SHIP_EXPLOSION_SOUND: AudioStream = preload("res://assets/audio/sfx/ship_e
 const AUTO_CAMERA_RETURN_DELAY := 5.0
 const AUTO_CAMERA_MARGIN := Vector2(72.0, 64.0)
 const AUTO_CAMERA_SMOOTHING := 4.0
+const COMBAT_BLASTER_VOLUME_DB := -30.0
+const COMBAT_IMPACT_VOLUME_DB := -10.0
+const ALIEN_EXPLOSION_VOLUME_DB := -30.0
+const FINISHING_SHOT_TIME_SCALE := 0.1
+const FINISHING_SHOT_WINDOW_SECONDS := 0.5
+const FINISHING_SHOT_CAMERA_ZOOM := 2.5
+const FINISHING_SHOT_CAMERA_TRANSITION_SECONDS := 0.4
+const RESULT_DELAY_SECONDS := 1.0
 
 @onready var visuals: BattleVisuals = $BattleVisuals
-@onready var status_label: Label = $Status
 @onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
 @onready var pause_button: Button = $BattleSpeedControls/PauseButton
 @onready var fast_forward_button: Button = $BattleSpeedControls/FastForwardButton
 @onready var defeat_dialog: Control = $DefeatDialog
 @onready var defeat_accept_button: Button = $DefeatDialog/CenterContainer/Panel/Contents/ButtonCenter/AcceptButton
-@onready var defeat_close_button: Control = $DefeatDialog/CenterContainer/Panel/CloseX
+@onready var defeat_close_button: TextureButton = $DefeatDialog/CenterContainer/Panel/CloseX
 
 var simulation := BattleSimulation.new()
 var _dragging := false
@@ -27,9 +34,18 @@ var _finished := false
 var _credited_drops := 0
 var withdraw_button: Button
 var _run_lost := false
+var _report_open := false
+var _battle_credit_reward := 0
+var _cinematic_projectile: BattleSimulation.Projectile
+var _cinematic_camera_start := Vector2.ZERO
+var _cinematic_zoom_start := 1.0
+var _cinematic_transition_elapsed := 0.0
+var _result_delay_remaining := -1.0
+var _pending_result_won := false
 
 
 func _ready() -> void:
+	AudioManager.play_battle_music()
 	if not GameState.battle_pending or not simulation.setup_owned(
 		GameState.fleet, GameState.battle_aliens,
 		GameState.allied_salvage_chance(), GameState.laser_upgrade_level
@@ -39,8 +55,12 @@ func _ready() -> void:
 		set_physics_process(false)
 		call_deferred("_return_to_map")
 		return
-	simulation.weapon_fired.connect(AudioManager.play_sfx.bind(SHOOT_SOUND))
-	simulation.shield_hit.connect(AudioManager.play_sfx.bind(SHIELD_HIT_SOUND))
+	simulation.weapon_fired.connect(
+		AudioManager.play_sfx.bind(SHOOT_SOUND, 1.0, COMBAT_BLASTER_VOLUME_DB, 35)
+	)
+	simulation.shield_hit.connect(
+		AudioManager.play_sfx.bind(SHIELD_HIT_SOUND, 1.0, COMBAT_IMPACT_VOLUME_DB)
+	)
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
 	withdraw_button = Button.new()
 	withdraw_button.text = "RETREAT"
@@ -62,28 +82,43 @@ func _ready() -> void:
 	pause_button.toggled.connect(_on_pause_toggled)
 	fast_forward_button.toggled.connect(_on_fast_forward_toggled)
 	defeat_accept_button.pressed.connect(_return_to_main_menu)
-	defeat_close_button.connect("pressed", _return_to_main_menu)
+	defeat_close_button.pressed.connect(_return_to_main_menu)
 
 
 func _physics_process(delta: float) -> void:
-	if _finished or pause_button.button_pressed:
+	if _finished:
 		return
-	simulation.advance(delta * (2.0 if fast_forward_button.button_pressed else 1.0))
+	if _result_delay_remaining >= 0.0:
+		# Keep the wreckage moving while the battlefield remains visible during
+		# the short beat before the result panel appears.
+		simulation.advance(delta)
+		_result_delay_remaining -= delta
+		visuals.queue_redraw()
+		if _result_delay_remaining <= 0.0:
+			_finish_battle(_pending_result_won)
+		return
+	if pause_button.button_pressed:
+		return
+	if _cinematic_projectile == null:
+		_try_begin_finishing_shot()
+	var speed_multiplier := (
+		FINISHING_SHOT_TIME_SCALE * (2.0 if fast_forward_button.button_pressed else 1.0)
+		if _cinematic_projectile != null
+		else (2.0 if fast_forward_button.button_pressed else 1.0)
+	)
+	simulation.advance(delta * speed_multiplier)
+	if _cinematic_projectile == null:
+		_try_begin_finishing_shot()
 	while _credited_drops < simulation.collected_categories.size():
 		GameState.refund_tile(simulation.collected_categories[_credited_drops])
 		_credited_drops += 1
 	match simulation.phase:
 		BattleSimulation.Phase.COMBAT:
-			status_label.text = "Auto Battle - %d ships / %d aliens" % [
-				simulation.living_player_count(),
-				simulation.living_alien_count()
-			]
+			pass
 		BattleSimulation.Phase.VICTORY:
-			status_label.text = "Victory - %d squares recovered" % _credited_drops
-			_finish_battle(true)
+			_begin_result_delay(true)
 		BattleSimulation.Phase.DEFEAT:
-			status_label.text = "Ship Lost - Returning to rebuild"
-			_finish_battle(false)
+			_begin_result_delay(false)
 		BattleSimulation.Phase.WITHDRAWN:
 			_finish_battle(false)
 	if simulation.withdrawing and not _finished:
@@ -102,6 +137,31 @@ func _on_fast_forward_toggled(is_fast: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if _report_open or _result_delay_remaining >= 0.0:
+		return
+	if _cinematic_projectile != null and simulation.projectiles.has(_cinematic_projectile):
+		_cinematic_transition_elapsed += delta
+		var transition_weight := smoothstep(
+			0.0,
+			1.0,
+			clampf(
+				_cinematic_transition_elapsed / FINISHING_SHOT_CAMERA_TRANSITION_SECONDS,
+				0.0,
+				1.0
+			)
+		)
+		visuals.camera_position = _cinematic_camera_start.lerp(
+			_cinematic_projectile.position,
+			transition_weight
+		)
+		visuals.camera_zoom = lerpf(
+			_cinematic_zoom_start,
+			FINISHING_SHOT_CAMERA_ZOOM,
+			transition_weight
+		)
+		visuals.queue_redraw()
+		return
+	_cinematic_projectile = null
 	var direction := Vector2(
 		float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))
 			- float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)),
@@ -120,6 +180,8 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _report_open or _result_delay_remaining >= 0.0 or _cinematic_projectile != null:
+		return
 	if event is InputEventMouseButton:
 		if event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
 			_dragging = event.pressed
@@ -144,24 +206,32 @@ func _mark_manual_camera_input() -> void:
 
 
 func _update_auto_camera(delta: float) -> void:
-	var ships: Array[BattleSimulation.Combatant] = []
+	var ship_count := 0
+	var center := Vector2.ZERO
 	for member in simulation.players:
 		if member.is_alive():
-			ships.append(member)
+			center += member.position
+			ship_count += 1
 	for member in simulation.aliens:
 		if member.is_alive():
-			ships.append(member)
-	if ships.is_empty() or visuals.size.x <= 0.0 or visuals.size.y <= 0.0:
+			center += member.position
+			ship_count += 1
+	if ship_count == 0 or visuals.size.x <= 0.0 or visuals.size.y <= 0.0:
 		return
-	var center := Vector2.ZERO
-	for member in ships:
-		center += member.position
-	center /= float(ships.size())
+	center /= float(ship_count)
 	var extent := Vector2.ONE
-	for member in ships:
+	for member in simulation.players:
+		if not member.is_alive():
+			continue
 		var distance := (member.position - center).abs() + Vector2.ONE * member.radius
 		extent.x = maxf(extent.x, distance.x)
 		extent.y = maxf(extent.y, distance.y)
+	for member in simulation.aliens:
+		if not member.is_alive():
+			continue
+		var alien_distance := (member.position - center).abs() + Vector2.ONE * member.radius
+		extent.x = maxf(extent.x, alien_distance.x)
+		extent.y = maxf(extent.y, alien_distance.y)
 	var raw_available_half := visuals.size * 0.5 - AUTO_CAMERA_MARGIN
 	var available_half := Vector2(
 		maxf(raw_available_half.x, 1.0),
@@ -178,7 +248,29 @@ func _update_auto_camera(delta: float) -> void:
 
 
 func _on_ship_destroyed(is_player: bool) -> void:
-	AudioManager.play_sfx(SHIP_EXPLOSION_SOUND if is_player else ALIEN_EXPLOSION_SOUND)
+	if is_player:
+		AudioManager.play_sfx(SHIP_EXPLOSION_SOUND)
+	else:
+		AudioManager.play_sfx(ALIEN_EXPLOSION_SOUND, 1.0, ALIEN_EXPLOSION_VOLUME_DB)
+
+
+func _try_begin_finishing_shot() -> void:
+	var projectile := simulation.get_finishing_projectile(FINISHING_SHOT_WINDOW_SECONDS)
+	if projectile == null:
+		return
+	_cinematic_projectile = projectile
+	_cinematic_camera_start = visuals.camera_position
+	_cinematic_zoom_start = visuals.camera_zoom
+	_cinematic_transition_elapsed = 0.0
+
+
+func _begin_result_delay(won: bool) -> void:
+	_pending_result_won = won
+	_result_delay_remaining = RESULT_DELAY_SECONDS
+	_cinematic_projectile = null
+	_dragging = false
+	battle_speed_controls.hide()
+	withdraw_button.hide()
 
 
 func _finish_battle(won: bool) -> void:
@@ -186,12 +278,14 @@ func _finish_battle(won: bool) -> void:
 	withdraw_button.hide()
 	battle_speed_controls.hide()
 	GameState.record_battle(simulation)
+	var credits_before := GameState.credits
 	if won:
 		if not GameState.complete_battle():
 			push_error("Could not record battle victory.")
 			return
 	else:
 		GameState.cancel_battle()
+	_battle_credit_reward = maxi(GameState.credits - credits_before, 0)
 	_run_lost = GameState.is_run_lost()
 	_show_report(won)
 
@@ -209,6 +303,7 @@ func _return_to_main_menu() -> void:
 
 
 func _on_report_closed() -> void:
+	_report_open = false
 	if _run_lost:
 		defeat_dialog.show()
 		defeat_accept_button.grab_focus()
@@ -217,7 +312,15 @@ func _on_report_closed() -> void:
 
 
 func _show_report(won: bool) -> void:
+	_report_open = true
 	var report := preload("res://scripts/battle_report.gd").new()
 	add_child(report)
-	report.show_report(GameState.last_battle_report, "Victory" if won else ("Withdrawn" if simulation.phase == BattleSimulation.Phase.WITHDRAWN else "Defeat"), _credited_drops)
+	report.show_report(
+		GameState.last_battle_report,
+		"Victory" if won else (
+			"Withdrawn" if simulation.phase == BattleSimulation.Phase.WITHDRAWN else "Defeat"
+		),
+		simulation.collected_categories,
+		_battle_credit_reward
+	)
 	report.closed.connect(_on_report_closed)

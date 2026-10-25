@@ -6,7 +6,7 @@ const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.pn
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
 const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
-const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.5)
+const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.7)
 
 var ship: Ship
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
@@ -61,6 +61,7 @@ func _draw() -> void:
 		hull_points.append(cell_origin + Vector2.ONE * cell_size)
 		hull_points.append(cell_origin + Vector2(0.0, cell_size))
 	var hull := Geometry2D.convex_hull(hull_points)
+	draw_colored_polygon(hull, HULL_COLOR)
 
 	var hidden_cells: Dictionary[Vector2i, bool] = {}
 	for part in ship.parts:

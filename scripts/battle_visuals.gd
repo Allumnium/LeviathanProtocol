@@ -3,18 +3,21 @@ extends Control
 
 const BUILD_CELL_SIZE := Ship.BUILD_CELL_SIZE
 const HULL_COLOR := Color(0.38, 0.38, 0.4, 1.0)
+const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.7)
 const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.png")
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
 const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
 const SHIELD_FLASH_TINT := Color(0.35, 0.7, 1.0, 1.0)
+const SHIELD_OUTLINE_COLOR := Color(0.45, 0.85, 1.0, 1.0)
 
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
 var simulation: BattleSimulation
 var camera_position := Vector2.ZERO
 var camera_zoom := 0.65
 var stars := PackedVector2Array()
+var _owned_render_cache: Dictionary = {}
 
 
 func world_transform() -> Transform2D:
@@ -111,7 +114,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	)
 	var ship_scale := Ship.BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
 	var is_shield_flashing := player_ship.shield_flash > 0.0
-	var texture_tint := SHIELD_FLASH_TINT if is_shield_flashing else Color.WHITE
+	var texture_tint := Color.WHITE
 	_set_ship_transform(player_ship.position, player_ship.heading, ship_scale)
 	var hull_points := PackedVector2Array()
 	for cell in cells:
@@ -125,7 +128,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 		hull_points.append(cell_top_left + Vector2(0.0, BUILD_CELL_SIZE.y))
 	draw_colored_polygon(
 		Geometry2D.convex_hull(hull_points),
-		Color(0.15, 0.55, 1.0, 1.0) if is_shield_flashing else HULL_COLOR
+		HULL_COLOR
 	)
 
 	var hidden_cells: Dictionary[Vector2i, bool] = {}
@@ -142,7 +145,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 				float(cell.y) * BUILD_CELL_SIZE.y
 			) - ship_center
 			var hidden_cell_rect := Rect2(hidden_cell_top_left, BUILD_CELL_SIZE)
-			draw_rect(hidden_cell_rect, Color(0.1, 0.35, 0.65) if is_shield_flashing else HULL_CUTOUT_COLOR)
+			draw_rect(hidden_cell_rect, HULL_CUTOUT_COLOR)
 			if not is_zero_approx(pattern.hidden_tile_outline_color.a):
 				draw_rect(hidden_cell_rect, pattern.hidden_tile_outline_color, false, 2.0)
 
@@ -193,6 +196,8 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 			false,
 			texture_tint
 		)
+	if is_shield_flashing:
+		_draw_hull_outline(Geometry2D.convex_hull(hull_points))
 	draw_set_transform_matrix(world_transform())
 
 
@@ -248,36 +253,102 @@ func _get_tile_texture(category: int) -> Texture2D:
 
 func _draw_voxel_ship(member: BattleSimulation.Combatant) -> void:
 	var owned := member.owned_ship
+	var render_cache := _get_owned_render_cache(owned)
 	var is_wreck := not member.is_alive()
 	var wreck_tint := Color(0.4, 0.44, 0.43, 0.75)
 	var is_shield_flashing := member.shield_flash > 0.0
-	var ship_tint := SHIELD_FLASH_TINT if is_shield_flashing else (wreck_tint if is_wreck else Color.WHITE)
+	var ship_tint := wreck_tint if is_wreck else Color.WHITE
 	_set_ship_transform(member.position, member.heading)
-	var hidden := {}
-	for unit in owned.units:
-		if unit.hp > 0.0 and unit.part != null:
-			for cell in unit.part.get_hidden_tile_cells():
-				hidden[cell] = true
-	for unit in owned.units:
+	var hidden: Dictionary = render_cache.hidden
+	var part_rects: Dictionary = render_cache.part_rects
+	var hull: PackedVector2Array = render_cache.hull
+	var base_hull_color := wreck_tint if is_wreck else HULL_COLOR
+	draw_colored_polygon(hull, base_hull_color)
+	for unit_index in range(owned.units.size()):
+		var unit: Dictionary = owned.units[unit_index]
 		if unit.hp <= 0.0:
 			continue
 		for cell in unit.cells:
 			var rect := Rect2(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
 			if hidden.has(cell):
-				draw_rect(rect, Color(0.1, 0.35, 0.65) if is_shield_flashing else HULL_CUTOUT_COLOR)
+				draw_rect(rect, HULL_CUTOUT_COLOR)
 				draw_rect(rect, Color(0.35, 0.4, 0.38, 0.75) if is_wreck else Color(1.0, 0.15, 0.15), false, 0.3)
 				continue
 			draw_rect(rect, Color(0.15, 0.55, 1.0) if is_shield_flashing else (wreck_tint if is_wreck else HULL_COLOR))
 			draw_texture_rect(_get_tile_texture(owned.design.tiles[cell]), rect.grow(-0.2), false, ship_tint)
-		var part: ShipPart = unit.part
-		if part == null:
+		_draw_cached_part(unit_index, unit, part_rects, ship_tint, is_shield_flashing, is_wreck, false)
+	draw_colored_polygon(hull, HULL_OVERLAY_COLOR if not is_wreck else Color(0.38, 0.38, 0.4, 0.35))
+	for unit_index in range(owned.units.size()):
+		_draw_cached_part(unit_index, owned.units[unit_index], part_rects, ship_tint, is_shield_flashing, is_wreck, true)
+	if is_shield_flashing:
+		_draw_hull_outline(hull)
+	draw_set_transform_matrix(world_transform())
+
+
+func _draw_hull_outline(hull: PackedVector2Array) -> void:
+	if hull.size() < 3:
+		return
+	var outline := hull.duplicate()
+	outline.append(hull[0])
+	draw_polyline(outline, SHIELD_OUTLINE_COLOR, 2.0, true)
+
+
+func _draw_cached_part(
+	unit_index: int,
+	unit: Dictionary,
+	part_rects: Dictionary,
+	ship_tint: Color,
+	is_shield_flashing: bool,
+	is_wreck: bool,
+	renders_on_top: bool
+) -> void:
+	if unit.hp <= 0.0 or unit.part == null or not part_rects.has(unit_index):
+		return
+	var pattern := _get_pattern_for_part(unit.part)
+	if pattern == null or pattern.renders_on_top != renders_on_top:
+		return
+	var part_tint := ship_tint if is_shield_flashing or is_wreck else (Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
+	draw_texture_rect(pattern.preview_texture, part_rects[unit_index], false, part_tint)
+
+
+func _get_owned_render_cache(owned: FleetShip) -> Dictionary:
+	var cached: Dictionary = _owned_render_cache.get(owned, {})
+	if not cached.is_empty() and cached.revision == owned.visual_revision:
+		return cached
+	var hidden: Dictionary = {}
+	var part_rects: Dictionary = {}
+	var hull_points := PackedVector2Array()
+	for unit_index in range(owned.units.size()):
+		var unit: Dictionary = owned.units[unit_index]
+		if unit.hp <= 0.0:
 			continue
+		for cell in unit.cells:
+			var center := owned.local_cell_position(cell)
+			var half_cell := Vector2.ONE * owned.cell_size * 0.5
+			hull_points.append(center - half_cell)
+			hull_points.append(center + Vector2(half_cell.x, -half_cell.y))
+			hull_points.append(center + half_cell)
+			hull_points.append(center + Vector2(-half_cell.x, half_cell.y))
+		if unit.part == null:
+			continue
+		for cell in unit.part.get_hidden_tile_cells():
+			hidden[cell] = true
+		var part: ShipPart = unit.part
 		var pattern := _get_pattern_for_part(part)
 		var cells := _get_visual_cells_for_part(part, pattern)
-		var rect := Rect2(owned.local_cell_position(cells[0]) - Vector2.ONE * owned.cell_size * 0.5, Vector2.ONE * owned.cell_size)
+		if cells.is_empty():
+			continue
+		var half_cell := Vector2.ONE * owned.cell_size * 0.5
+		var rect := Rect2(owned.local_cell_position(cells[0]) - half_cell, Vector2.ONE * owned.cell_size)
 		for cell in cells:
-			rect = rect.expand(owned.local_cell_position(cell) - Vector2.ONE * owned.cell_size * 0.5)
-			rect = rect.expand(owned.local_cell_position(cell) + Vector2.ONE * owned.cell_size * 0.5)
-		var part_tint := ship_tint if is_shield_flashing or is_wreck else (Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
-		draw_texture_rect(pattern.preview_texture, rect, false, part_tint)
-	draw_set_transform_matrix(world_transform())
+			rect = rect.expand(owned.local_cell_position(cell) - half_cell)
+			rect = rect.expand(owned.local_cell_position(cell) + half_cell)
+		part_rects[unit_index] = rect
+	cached = {
+		"revision": owned.visual_revision,
+		"hidden": hidden,
+		"part_rects": part_rects,
+		"hull": Geometry2D.convex_hull(hull_points)
+	}
+	_owned_render_cache[owned] = cached
+	return cached

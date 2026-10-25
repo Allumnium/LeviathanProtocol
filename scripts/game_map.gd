@@ -41,12 +41,17 @@ var fleet_controls := VBoxContainer.new()
 @onready var graph_modal: Control = $GraphModal
 @onready var graph_backdrop: ColorRect = $GraphModal/Backdrop
 @onready var graph_view: GraphView = $GraphModal/CenterContainer/GraphPanel/GraphView
-@onready var graph_close_button: Control = $GraphModal/CenterContainer/GraphPanel/CloseX
+@onready var graph_close_button: TextureButton = $GraphModal/CenterContainer/GraphPanel/CloseX
 @onready var settings_dialog: PopupPanel = $SettingsDialog
 @onready var how_to_play_dialog: PopupPanel = $HowToPlayDialog
 @onready var victory_dialog: Control = $VictoryDialog
 @onready var victory_accept_button: Button = $VictoryDialog/CenterContainer/Panel/Contents/ButtonCenter/AcceptButton
-@onready var victory_close_button: Control = $VictoryDialog/CenterContainer/Panel/CloseX
+@onready var victory_close_button: TextureButton = $VictoryDialog/CenterContainer/Panel/CloseX
+@onready var map_button: Button = $Layout/TopBar/BarContents/MapButton
+@onready var sector_name_label: Label = $Layout/TopBar/BarContents/SectorName
+
+var _graph_map_only := false
+var _travel_in_progress := false
 
 
 func _ready() -> void:
@@ -84,11 +89,12 @@ func _ready() -> void:
 	deploy_button.pressed.connect(_on_deploy_pressed)
 	how_to_play_button.pressed.connect(_on_how_to_play_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
+	map_button.pressed.connect(_on_map_pressed)
 	graph_view.destination_selected.connect(_on_destination_selected)
 	graph_backdrop.gui_input.connect(_on_graph_modal_backdrop_input)
-	graph_close_button.connect("pressed", graph_modal.hide)
+	graph_close_button.pressed.connect(graph_modal.hide)
 	victory_accept_button.pressed.connect(_on_victory_accepted)
-	victory_close_button.connect("pressed", _on_victory_accepted)
+	victory_close_button.pressed.connect(_on_victory_accepted)
 
 	if GameState.current_node_id == GameState.FINAL_NODE_ID:
 		victory_dialog.show()
@@ -177,8 +183,16 @@ func _format_stat_value(value: float) -> String:
 
 
 func _on_destination_selected(node_id: int) -> void:
+	if _graph_map_only or _travel_in_progress:
+		return
 	if not GameState.set_destination(node_id):
 		push_error("The selected destination is not reachable from the current room.")
+		return
+	_travel_in_progress = true
+	graph_close_button.disabled = true
+	graph_view.start_travel(node_id, 2.0)
+	await graph_view.travel_finished
+	if not is_inside_tree():
 		return
 	graph_modal.hide()
 
@@ -192,18 +206,27 @@ func _on_destination_selected(node_id: int) -> void:
 func _on_deploy_pressed() -> void:
 	if deploy_button.disabled:
 		return
+	_graph_map_only = false
+	graph_view.set_current_node(GameState.current_node_id)
+	graph_modal.show()
+
+
+func _on_map_pressed() -> void:
+	_graph_map_only = true
 	graph_view.set_current_node(GameState.current_node_id)
 	graph_modal.show()
 
 
 func _on_graph_modal_backdrop_input(event: InputEvent) -> void:
+	if _travel_in_progress:
+		return
 	var mouse_event := event as InputEventMouseButton
 	if mouse_event != null and mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
 		graph_modal.hide()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not graph_modal.visible:
+	if not graph_modal.visible or _travel_in_progress:
 		return
 
 	var key_event := event as InputEventKey
@@ -253,4 +276,5 @@ func _refresh_top_bar() -> void:
 	$Layout/TopBar/BarContents/DefenseAmount.text = str(GameState.blue_tiles_available)
 	$Layout/TopBar/BarContents/TechAmount.text = str(GameState.green_tiles_available)
 	$Layout/TopBar/BarContents/CivicAmount.text = str(GameState.core_tiles_available)
+	sector_name_label.text = "SECTOR %d" % (GameState.current_node_id + 1)
 	$Layout/TopBar/BarContents/StatsSpace.text = "Level %d\n%s" % [GameState.campaign_level(), summary]
