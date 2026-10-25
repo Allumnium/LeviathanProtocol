@@ -142,21 +142,11 @@ func _create_stats_description(pattern: ShipPartPattern) -> VBoxContainer:
 	description.add_theme_constant_override("separation", 4)
 	_append_stat_contribution(description, "Shields", pattern.stats.shields)
 	_append_stat_contribution(description, "Integrity", pattern.stats.integrity * ShipStats.INTEGRITY_MULTIPLIER)
-	_append_stat_contribution(description, "Weight", pattern.stats.weight)
 	_append_stat_contribution(description, "Thrust", pattern.stats.thrust)
+	var total_dps := 0.0
 	for weapon in pattern.stats.weapons:
-		var details: Array[String] = []
-		var fire_rate := weapon.get_fire_rate_per_second()
-		if not is_zero_approx(fire_rate): details.append("Fire rate: %.2f per sec" % fire_rate)
-		if not is_zero_approx(weapon.damage_per_shot): details.append("Damage/shot: %s" % _format_stat_value(weapon.damage_per_shot))
-		if weapon.projectiles_per_activation != 0: details.append("Shots: %d" % weapon.projectiles_per_activation)
-		if not is_zero_approx(weapon.get_dps()): details.append("DPS: %s" % _format_signed_stat_value(weapon.get_dps()))
-		if not details.is_empty():
-			var label := Label.new()
-			label.text = "%s: %s" % [weapon.weapon_name, ", ".join(details)]
-			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			label.add_theme_font_size_override("font_size", 10)
-			description.add_child(label)
+		total_dps += weapon.get_dps()
+	_append_stat_contribution(description, "DPS", total_dps)
 	return description
 
 

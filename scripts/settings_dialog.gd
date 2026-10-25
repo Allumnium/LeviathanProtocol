@@ -11,8 +11,8 @@ const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 @onready var quit_confirmation_button: Button = (
 	$QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons/QuitButton
 )
-@onready var cancel_quit_button: Button = (
-	$QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons/CancelButton
+@onready var cancel_quit_button: Control = (
+	$QuitConfirmOverlay/CenterContainer/ConfirmationPanel/CloseX
 )
 
 
@@ -33,7 +33,7 @@ func _ready() -> void:
 	battle_auto_camera_toggle.toggled.connect(_on_battle_auto_camera_toggled)
 	quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	quit_confirmation_button.pressed.connect(_on_quit_confirmed)
-	cancel_quit_button.pressed.connect(_on_quit_cancelled)
+	cancel_quit_button.connect("pressed", _on_quit_cancelled)
 
 
 func _on_music_volume_changed(volume_percent: float) -> void:

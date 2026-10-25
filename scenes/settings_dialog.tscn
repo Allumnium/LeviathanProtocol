@@ -1,8 +1,9 @@
-[gd_scene format=3 uid="uid://bdifmeulvjpoc"]
+[gd_scene load_steps=5 format=3 uid="uid://bdifmeulvjpoc"]
 
 [ext_resource type="PackedScene" uid="uid://tpx12myxr54h" path="res://scenes/modal_dialog.tscn" id="1_modal"]
 [ext_resource type="Script" uid="uid://f1o1rko5ghnl" path="res://scripts/settings_dialog.gd" id="2_script"]
 [ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="3_panel"]
+[ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="4_close"]
 
 [node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
 initial_position = 1
@@ -122,6 +123,8 @@ custom_minimum_size = Vector2(320, 144)
 layout_mode = 2
 theme_override_styles/panel = ExtResource("3_panel")
 
+[node name="CloseX" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel" instance=ExtResource("4_close")]
+
 [node name="Contents" type="VBoxContainer" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel"]
 layout_mode = 2
 theme_override_constants/separation = 12
@@ -139,11 +142,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 alignment = 1
-
-[node name="CancelButton" type="Button" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons"]
-custom_minimum_size = Vector2(100, 40)
-layout_mode = 2
-text = "CANCEL"
 
 [node name="QuitButton" type="Button" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ConfirmationButtons"]
 custom_minimum_size = Vector2(100, 40)

@@ -8,6 +8,9 @@ func show_report(entries: Array[Dictionary], outcome: String, salvage: int) -> v
 	offset_top = 24
 	offset_right = -40
 	offset_bottom = -24
+	var close := preload("res://scenes/close_x_button.tscn").instantiate() as Control
+	close.connect("pressed", func() -> void: closed.emit())
+	add_child(close)
 	var column := VBoxContainer.new()
 	add_child(column)
 	var title := Label.new()
@@ -46,10 +49,6 @@ func show_report(entries: Array[Dictionary], outcome: String, salvage: int) -> v
 			weapon_label.add_theme_font_size_override("font_size", 10)
 			details.add_child(weapon_label)
 			_add_bar(details, entry.weapons[weapon], maximum)
-	var close := Button.new()
-	close.text = "CONTINUE"
-	close.pressed.connect(func() -> void: closed.emit())
-	column.add_child(close)
 
 func _add_bar(parent: Control, amount: float, maximum: float) -> void:
 	var bar := ProgressBar.new()

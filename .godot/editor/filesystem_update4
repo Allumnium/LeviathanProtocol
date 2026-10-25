@@ -21,3 +21,11 @@ res://scenes/build_tilemap_area.tscn
 res://scenes/how_to_play_dialog.tscn
 res://scripts/ship.gd
 res://scripts/ship_part_pattern.gd
+res://scripts/formation_board.gd
+res://scripts/locked_tab_icon.gd
+res://scenes/modal_dialog.tscn
+res://scenes/save_design_dialog.tscn
+res://scenes/settings_dialog.tscn
+res://scenes/victory_dialog.tscn
+res://scripts/battle_report.gd
+res://scripts/game_setup.gd

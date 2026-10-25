@@ -11,7 +11,7 @@ const MATERIAL_ICONS: Array[Texture2D] = [
 	preload("res://assets/ui/icons/green_square.png"),
 	preload("res://assets/core.png"),
 ]
-const CREDIT_ICON: Texture2D = preload("res://assets/ui/icons/credits.svg")
+const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 const SHIP_LIBRARY_DIALOG = preload("res://scenes/load_design_dialog.tscn")
 
 var selected_design: Ship
@@ -187,13 +187,18 @@ func _populate_cost_row(container: VBoxContainer, design: Ship) -> void:
 	var material_row := HBoxContainer.new()
 	material_row.add_theme_constant_override("separation", 1)
 	container.add_child(material_row)
-	var counts := GameState._get_ship_tile_counts(design)
+	var counts := GameState.get_construction_material_costs(design)
 	for category in range(counts.size()):
-		_add_cost_item(material_row, MATERIAL_ICONS[category], counts[category])
+		if counts[category] > 0:
+			_add_cost_item(material_row, MATERIAL_ICONS[category], counts[category])
+	material_row.visible = material_row.get_child_count() > 0
 	var credit_row := HBoxContainer.new()
 	credit_row.add_theme_constant_override("separation", 1)
 	container.add_child(credit_row)
-	_add_cost_item(credit_row, CREDIT_ICON, GameState.get_construction_credit_cost(design))
+	var credit_cost := GameState.get_construction_credit_cost(design)
+	if credit_cost > 0:
+		_add_cost_item(credit_row, CREDIT_ICON, credit_cost)
+	credit_row.visible = credit_cost > 0
 
 
 func _add_cost_item(row: HBoxContainer, icon: Texture2D, amount: int) -> void:

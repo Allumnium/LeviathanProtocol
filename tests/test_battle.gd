@@ -221,12 +221,16 @@ func _test_ship_cost() -> void:
 	state.blue_tiles_available = 1
 	state.green_tiles_available = 1
 	state.core_tiles_available = 0
+	_check(state.get_construction_material_costs(ship) == [1, 1, 1, 0],
+		"The displayed material cost must include only materials currently taken from inventory.")
 	_check(state.get_construction_credit_cost(ship) == 0,
 		"A ship must cost no credits when all of its materials are stored.")
-	state.red_tiles_available = 0
+	state.red_tiles_available = 1
 	state.blue_tiles_available = 0
 	state.green_tiles_available = 0
-	_check(state.get_construction_credit_cost(ship) == 17,
+	_check(state.get_construction_material_costs(ship) == [1, 0, 0, 0],
+		"The displayed material cost must exclude missing materials bought with credits.")
+	_check(state.get_construction_credit_cost(ship) == 12,
 		"A ship's credit cost must equal only the price of its missing materials.")
 	state.red_tiles_available = inventory[0]
 	state.blue_tiles_available = inventory[1]
@@ -729,6 +733,31 @@ func _test_scene() -> void:
 	battle.set_physics_process(false)
 	_check(battle.simulation.player != null, "Battle scene must initialize live combat.")
 	_check(
+		battle.get_node_or_null("CameraHelp") == null
+			and battle.pause_button.toggle_mode
+			and battle.fast_forward_button.toggle_mode,
+		"Battle must replace camera instructions with Pause and 2x toggle controls."
+	)
+	battle.pause_button.button_pressed = true
+	var paused_elapsed: float = battle.simulation.elapsed
+	battle._physics_process(0.1)
+	_check(
+		battle.pause_button.button_pressed
+			and not battle.fast_forward_button.button_pressed
+			and battle.simulation.elapsed == paused_elapsed,
+		"Pause must disable fast-forward."
+	)
+	battle.fast_forward_button.button_pressed = true
+	var fast_elapsed: float = battle.simulation.elapsed
+	battle._physics_process(0.1)
+	_check(
+		battle.fast_forward_button.button_pressed
+			and not battle.pause_button.button_pressed
+			and is_equal_approx(battle.simulation.elapsed, fast_elapsed + 0.2),
+		"Fast-forward must override Pause."
+	)
+	battle.fast_forward_button.button_pressed = false
+	_check(
 		battle.simulation.players.size() == state.player_ship_count,
 		"Battle scene must deploy the full player fleet."
 	)
@@ -841,6 +870,10 @@ func _test_scene() -> void:
 	var fleet_tab_button := game_map.get_node_or_null(
 		"Layout/UpperArea/WorkspaceContents/TabButtons/FleetTabButton"
 	) as Button
+	_check(
+		fleet_tab_button != null and fleet_tab_button.focus_mode == Control.FOCUS_NONE,
+		"Buttons must not accept Tab or arrow-key focus navigation."
+	)
 	_check(panel_tabs != null and panel_tabs.get_tab_count() == 4,
 		"The game map must include the Fleet tab.")
 	_check(fleet_tab_button != null, "The Fleet tab must have a matching panel button.")
@@ -855,12 +888,78 @@ func _test_scene() -> void:
 			and research_button != null and research_button.text == "RESEARCH",
 		"The workspace selectors must use the Ship Designer and Research labels."
 	)
+	var ship_designer_lock := ship_designer_button.get_node_or_null("Lock") as Control
+	var research_lock := research_button.get_node_or_null("Lock") as Control
+	var ship_designer_lock_icon := ship_designer_lock.get_node_or_null("Icon") as TextureRect
+	var research_lock_icon := research_lock.get_node_or_null("Icon") as TextureRect
+	_check(
+		ship_designer_button.disabled
+			and research_button.disabled
+			and research_button.get_index() < ship_designer_button.get_index()
+			and ship_designer_lock != null
+			and ship_designer_lock_icon != null
+			and ship_designer_lock_icon.texture != null
+			and ship_designer_lock.anchor_right == 1.0
+			and ship_designer_lock.anchor_bottom == 1.0
+			and ship_designer_lock.tooltip_text == "Only available at Shipyards"
+			and research_lock != null
+			and research_lock_icon != null
+			and research_lock_icon.texture != null
+			and research_lock.anchor_right == 1.0
+			and research_lock.anchor_bottom == 1.0
+			and research_lock.tooltip_text == "Requires lab",
+		"Research and Ship Designer must start locked, show contextual locks, and appear in that order."
+	)
 	if panel_tabs != null and fleet_tab_button != null:
 		fleet_tab_button.pressed.emit()
 		_check(panel_tabs.current_tab == 0, "The Fleet button must select the Fleet tab.")
 		var fleet_panel := panel_tabs.get_node("Fleet")
 		_check(game_map.fleet_controls.visible and game_map.fleet_summary.visible and not game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents").visible, "Fleet must show ship slots and the fleet summary instead of ship stats.")
 		_check(fleet_panel.slots.size() == 3 and fleet_panel.slot_widgets.size() == 3, "Fleet must provide exactly three ship design slots.")
+		var formation_cursor := Vector2(40, 30)
+		var formation_world_before: Vector2 = (
+			(formation_cursor - fleet_panel.board.size * 0.5) / fleet_panel.board.view_scale
+			+ fleet_panel.board.view_center
+		)
+		var formation_scale_before: float = fleet_panel.board.view_scale
+		fleet_panel.board._zoom_at(formation_cursor, 1.2)
+		var formation_world_after: Vector2 = (
+			(formation_cursor - fleet_panel.board.size * 0.5) / fleet_panel.board.view_scale
+			+ fleet_panel.board.view_center
+		)
+		_check(
+			fleet_panel.board.view_scale > formation_scale_before
+				and formation_world_before.is_equal_approx(formation_world_after),
+			"Fleet formation wheel zoom must remain anchored beneath the cursor."
+		)
+		_check(
+			fleet_panel.board.formation_button != null
+				and fleet_panel.board.formation_button.text == "ECHELON (V)"
+				and fleet_panel.board.FORMATION_NAMES.size() == 5
+				and fleet_panel.board.clip_contents,
+			"The formation panel must provide the five-pattern cycling control."
+		)
+		var line_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 1)
+		var double_line_positions: Array[Vector2] = fleet_panel.board._formation_positions(6, 2)
+		var staggered_positions: Array[Vector2] = fleet_panel.board._formation_positions(5, 3)
+		_check(
+			line_positions.all(func(position: Vector2) -> bool: return position.x == 0.0)
+				and double_line_positions.all(func(position: Vector2) -> bool:
+					return position.x == 0.0 or position.x == -1.0)
+				and staggered_positions[0].y < staggered_positions[-1].y
+				and staggered_positions.all(func(position: Vector2) -> bool:
+					return is_equal_approx(absf(position.x), 0.65)),
+			"Line, Double Line, and Staggered must all use vertical arrangements."
+		)
+		fleet_panel.board._cycle_formation()
+		_check(
+			fleet_panel.board.formation_button.text == "LINE"
+				and (
+					state.fleet.size() < 2
+					or state.fleet[0].formation != state.fleet[1].formation
+				),
+			"Cycling the formation control must auto-arrange the fleet in the chosen pattern."
+		)
 		fleet_panel.call("_open_picker", 0)
 		_check(
 			not fleet_panel.picker.title_label.visible,
@@ -868,10 +967,11 @@ func _test_scene() -> void:
 		)
 		fleet_panel.picker.close_library()
 		_check(
-			game_map.deploy_button.get_parent() == game_map.fleet_right_panel
-				and game_map.fleet_right_panel.get_child(-1) == game_map.deploy_button
-				and game_map.deploy_button.size_flags_horizontal == Control.SIZE_SHRINK_CENTER,
-			"Deploy must sit at the bottom center of the Fleet right panel."
+			game_map.deploy_button.get_parent() is CenterContainer
+				and game_map.deploy_button.get_parent().get_parent() == game_map.fleet_right_panel
+				and game_map.deploy_button.custom_minimum_size.x <= 100.0
+				and game_map.fleet_right_panel.get_child(-1) == game_map.deploy_button.get_parent(),
+			"Deploy must fit inside a bottom-center container owned by the Fleet right panel."
 		)
 		_check(
 			game_map.fleet_controls.get_child_count() == 4,
@@ -906,12 +1006,8 @@ func _test_scene() -> void:
 		var archive_grid := game_map.get_node_or_null(
 			"Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/Tabs/Archive/GridCenter/ArchiveGrid"
 		) as GridContainer
-		var archive_progress := game_map.get_node_or_null(
-			"Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/ArchiveProgress"
-		) as VBoxContainer
-		var archive_details := game_map.get_node_or_null(
-			"Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/ArchiveDetails"
-		) as VBoxContainer
+		var archive_progress: VBoxContainer = game_map.archive_progress
+		var archive_details: VBoxContainer = game_map.archive_details
 		_check(
 			archive_grid != null and archive_grid.columns == 6
 				and archive_grid.get_child_count() == ShipPartPattern.get_catalog().size(),
@@ -931,7 +1027,14 @@ func _test_scene() -> void:
 		_check(
 			archive_progress != null and archive_progress.visible
 				and archive_details != null and archive_details.visible,
-			"The Archive tab must use the left panel for progress and the right panel for details."
+			"The Archive tab must use the left panel for details and the right panel for progress."
+		)
+		_check(
+			archive_details.get_parent()
+				== game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents")
+				and archive_progress.get_parent()
+					== game_map.get_node("Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost"),
+			"Archive side-panel content must be swapped without moving the panels themselves."
 		)
 		panel_tabs.current_tab = 0
 	var build_area := game_map.get_node_or_null(
@@ -985,18 +1088,14 @@ func _test_scene() -> void:
 			history_controls != null
 				and build_area.undo_button.get_parent() == history_controls
 				and build_area.redo_button.get_parent() == history_controls
-				and build_area.pan_button.get_parent() == history_controls
+				and history_controls.get_child_count() == 2
 				and build_area.undo_button.custom_minimum_size == Vector2(16, 16)
 				and build_area.redo_button.custom_minimum_size == Vector2(16, 16)
-				and build_area.pan_button.custom_minimum_size == Vector2(16, 16)
-				and build_area.pan_button.toggle_mode
-				and not build_area.pan_button.button_pressed
 				and build_area.undo_button.text.is_empty()
 				and build_area.redo_button.text.is_empty()
 				and build_area.undo_button.icon != null
-				and build_area.redo_button.icon != null
-				and build_area.pan_button.icon != null,
-			"Undo, Redo, and Pan must be compact icon buttons at the bottom-left of the build view."
+				and build_area.redo_button.icon != null,
+			"Undo and Redo must be compact icon buttons at the bottom-left of the build view."
 		)
 
 		save_design_button.pressed.emit()
@@ -1014,8 +1113,8 @@ func _test_scene() -> void:
 			"Typing a ship name must suppress Ship Designer keyboard movement and shortcuts."
 		)
 		var cancel_save_button := build_area.get_node(
-			"SaveDesignDialog/Contents/Buttons/CancelButton"
-		) as Button
+			"SaveDesignDialog/CloseX"
+		) as Control
 		cancel_save_button.pressed.emit()
 
 		var original_designs: Array[Dictionary] = state.get_saved_ship_designs()
@@ -1030,7 +1129,7 @@ func _test_scene() -> void:
 		await process_frame
 		var load_dialog := build_area.get_node("LoadDesignDialog") as PopupPanel
 		var previous_runs := load_dialog.get_node("Contents/Pager/PreviousRuns") as CheckBox
-		var page_back := load_dialog.get_node("Contents/Pager/BackButton") as Button
+		var page_back := load_dialog.get_node("Contents/Pager/PreviousPageButton") as Button
 		var page_count_label := load_dialog.get_node("Contents/Pager/PageLabel") as Label
 		var page_forward := load_dialog.get_node("Contents/Pager/ForwardButton") as Button
 		var design_scroll := load_dialog.get_node("Contents/ScrollContainer") as ScrollContainer
@@ -1065,6 +1164,13 @@ func _test_scene() -> void:
 			"The ship library must use paging instead of scrollbars."
 		)
 		_check(
+			page_back.get_theme_stylebox("normal").texture.resource_path
+				== "res://assets/ui/panels/simple_panel.png"
+				and page_forward.get_theme_stylebox("normal").texture.resource_path
+					== "res://assets/ui/panels/simple_panel.png",
+			"Ship-library paging controls must use the simple panel frame."
+		)
+		_check(
 			load_dialog.size.x <= 480 and load_dialog.size.y <= 270,
 			"The shared ship-library modal must remain compact, not %s." % load_dialog.size
 		)
@@ -1083,9 +1189,9 @@ func _test_scene() -> void:
 					and row_contents.get_child(0).get_script().resource_path
 						== "res://scripts/ship_design_preview.gd"
 					and row_contents.get_child(1) is Label
-					and cost_row.get_child_count() == 10
-					and cost_row.get_child(8) is TextureRect
-					and cost_row.get_child(9) is Label,
+					and cost_row.get_child_count() % 2 == 0
+					and cost_row.get_children().all(func(child: Node) -> bool:
+						return not (child is Label) or child.text != "0"),
 				"Each design row must show its preview, material costs, and credit cost."
 			)
 			_check(
@@ -1477,11 +1583,19 @@ func _test_builder_history(builder: Control) -> void:
 	_check(state.ship.tiles == before and materials == [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available], "Undo and redo must never spend materials.")
 	_check(not builder.red_count_badge.visible and not builder.blue_count_badge.visible and not builder.green_count_badge.visible and not builder.core_count_badge.visible, "Blueprint tools must hide inventory counts.")
 	var camera_position: Vector2 = builder.pan_root.position
-	builder.pan_button.button_pressed = true
+	builder._selected_source_id = builder.NO_SOURCE_ID
 	_check(
 		builder._selected_source_id == builder.NO_SOURCE_ID,
-		"Selecting the move tool must disable material placement."
+		"Ship dragging must be active whenever material placement is inactive."
 	)
+	var first_cell: Vector2i = before.keys()[0]
+	builder._ship_move_start_cell = first_cell
+	builder._update_ship_move_ghost(first_cell + Vector2i(1, 0))
+	_check(
+		builder.move_ghost_layer.get_used_cells().size() == before.size(),
+		"Dragging the move tool must show a complete grid-snapped ghost of the ship."
+	)
+	builder.move_ghost_layer.clear()
 	_check(builder._move_ship_by(Vector2i(1, 0)), "The move tool must translate a ship within the build grid.")
 	var shifted_tiles: Dictionary = {}
 	for cell in before:
@@ -1492,4 +1606,3 @@ func _test_builder_history(builder: Control) -> void:
 	)
 	builder._undo()
 	_check(state.ship.tiles == before, "Moving a ship within the grid must be undoable.")
-	builder.pan_button.button_pressed = false

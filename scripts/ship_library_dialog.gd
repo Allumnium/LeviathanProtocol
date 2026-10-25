@@ -10,17 +10,17 @@ const MATERIAL_ICONS: Array[Texture2D] = [
 	preload("res://assets/ui/icons/green_square.png"),
 	preload("res://assets/core.png"),
 ]
-const CREDIT_ICON: Texture2D = preload("res://assets/ui/icons/credits.svg")
+const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 const ROW_STYLE: StyleBox = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const PAGE_SIZE := 3
 
 @onready var title_label: Label = $Contents/Title
 @onready var search: LineEdit = $Contents/SearchRow/Search
-@onready var close_button: Button = $Contents/SearchRow/CloseButton
+@onready var close_button: Control = $CloseX
 @onready var previous_runs: CheckBox = $Contents/Pager/PreviousRuns
 @onready var rows: VBoxContainer = $Contents/ScrollContainer/SavedDesignRows
 @onready var empty_label: Label = $Contents/ScrollContainer/SavedDesignRows/EmptyDesignsLabel
-@onready var back_button: Button = $Contents/Pager/BackButton
+@onready var back_button: Button = $Contents/Pager/PreviousPageButton
 @onready var page_label: Label = $Contents/Pager/PageLabel
 @onready var forward_button: Button = $Contents/Pager/ForwardButton
 @onready var status_label: Label = $Contents/StatusLabel
@@ -33,7 +33,7 @@ var _allow_close := false
 
 
 func _ready() -> void:
-	close_button.pressed.connect(close_library)
+	close_button.connect("pressed", close_library)
 	popup_hide.connect(_on_popup_hide)
 	search.text_changed.connect(func(_text: String) -> void:
 		page = 0
@@ -48,8 +48,8 @@ func _ready() -> void:
 		_refresh_rows())
 	GameState.design_library_changed.connect(refresh_library)
 	_style_checkbox(previous_runs)
-	for button in [close_button, back_button, forward_button]:
-		_style_button(button)
+	for button in [back_button, forward_button]:
+		_style_pager_button(button)
 	refresh_library()
 
 
@@ -142,10 +142,13 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 	costs.add_theme_constant_override("separation", 3)
 	costs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	contents.add_child(costs)
-	var counts := GameState._get_ship_tile_counts(choice.design)
+	var counts := GameState.get_construction_material_costs(choice.design)
 	for category in range(MATERIAL_ICONS.size()):
-		_add_cost_item(costs, MATERIAL_ICONS[category], counts[category])
-	_add_cost_item(costs, CREDIT_ICON, GameState.get_construction_credit_cost(choice.design))
+		if counts[category] > 0:
+			_add_cost_item(costs, MATERIAL_ICONS[category], counts[category])
+	var credit_cost := GameState.get_construction_credit_cost(choice.design)
+	if credit_cost > 0:
+		_add_cost_item(costs, CREDIT_ICON, credit_cost)
 	var action := Button.new()
 	action.text = action_text
 	action.custom_minimum_size.x = 68
@@ -189,6 +192,25 @@ func _add_cost_item(row: HBoxContainer, icon: Texture2D, amount: int) -> void:
 static func _style_button(button: Button) -> void:
 	button.custom_minimum_size.y = maxf(button.custom_minimum_size.y, 30)
 	button.add_theme_font_override("font", preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"))
+
+
+static func _style_pager_button(button: Button) -> void:
+	button.custom_minimum_size = Vector2(30, 26)
+	button.add_theme_font_override("font", preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"))
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var style := StyleBoxTexture.new()
+		style.texture = preload("res://assets/ui/panels/simple_panel.png")
+		style.texture_margin_left = 12
+		style.texture_margin_right = 12
+		style.texture_margin_top = 12
+		style.texture_margin_bottom = 12
+		style.set_content_margin_all(3)
+		match state:
+			"hover": style.modulate_color = Color(0.85, 0.95, 1.0)
+			"pressed": style.modulate_color = Color(0.65, 0.78, 0.86)
+			"disabled": style.modulate_color = Color(0.5, 0.55, 0.6)
+			"focus": style.draw_center = false
+		button.add_theme_stylebox_override(state, style)
 
 
 static func _style_checkbox(checkbox: CheckBox) -> void:

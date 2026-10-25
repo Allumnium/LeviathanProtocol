@@ -1,8 +1,21 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Theme" path="res://themes/ui_theme.tres" id="1_theme"]
 [ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="2_header_font"]
 [ext_resource type="Script" path="res://scripts/ship_library_dialog.gd" id="3_script"]
+[ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="4_close"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_crisp_popup"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0.105, 0.135, 0.16, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.48, 0.58, 0.64, 1)
 
 [node name="LoadDesignDialog" type="PopupPanel"]
 snap_2d_transforms_to_pixel = true
@@ -15,7 +28,10 @@ exclusive = true
 content_scale_mode = 1
 content_scale_factor = 1.0
 theme = ExtResource("1_theme")
+theme_override_styles/panel = SubResource("StyleBoxFlat_crisp_popup")
 script = ExtResource("3_script")
+
+[node name="CloseX" parent="." instance=ExtResource("4_close")]
 
 [node name="Contents" type="VBoxContainer" parent="."]
 anchors_preset = 15
@@ -45,15 +61,6 @@ custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 placeholder_text = "Search saved ships"
-
-[node name="Spacer" type="Control" parent="Contents/SearchRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="CloseButton" type="Button" parent="Contents/SearchRow"]
-custom_minimum_size = Vector2(72, 30)
-layout_mode = 2
-text = "CLOSE"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="Contents"]
 custom_minimum_size = Vector2(0, 142)
@@ -91,7 +98,7 @@ text = "INCLUDE PREVIOUS RUNS"
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="BackButton" type="Button" parent="Contents/Pager"]
+[node name="PreviousPageButton" type="Button" parent="Contents/Pager"]
 layout_mode = 2
 text = "<"
 

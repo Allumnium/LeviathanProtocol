@@ -41,6 +41,7 @@ const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 @onready var placed_layer: TileMapLayer = $PanRoot/PlacedLayer
 @onready var parts_layer: Node2D = $PanRoot/PartsLayer
 @onready var animation_layer: Node2D = $PanRoot/AnimationLayer
+@onready var move_ghost_layer: TileMapLayer = $PanRoot/MoveGhostLayer
 @onready var preview_layer: TileMapLayer = $PanRoot/PreviewLayer
 @onready var selector_background: ColorRect = $SelectorBackground
 @onready var selector_row: GridContainer = $SelectorRow
@@ -68,14 +69,13 @@ const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 @onready var confirm_save_design_button: Button = (
 	$SaveDesignDialog/Contents/Buttons/ConfirmSaveButton
 )
-@onready var cancel_save_design_button: Button = (
-	$SaveDesignDialog/Contents/Buttons/CancelButton
+@onready var cancel_save_design_button: Control = (
+	$SaveDesignDialog/CloseX
 )
 @onready var load_design_dialog: PopupPanel = $LoadDesignDialog
 
 var undo_button: Button
 var redo_button: Button
-var pan_button: Button
 var _undo_states: Array[Dictionary] = []
 var _redo_states: Array[Dictionary] = []
 var _stroke_before: Dictionary = {}
@@ -135,6 +135,7 @@ func _ready() -> void:
 
 	grid_layer.tile_set = _tile_set
 	placed_layer.tile_set = _tile_set
+	move_ghost_layer.tile_set = _tile_set
 	preview_layer.tile_set = _tile_set
 	_fill_grid()
 	_part_patterns = ShipPartPattern.get_catalog()
@@ -156,7 +157,7 @@ func _ready() -> void:
 	core_build_button.toggled.connect(_on_build_button_toggled.bind(CORE_SOURCE_ID))
 	save_design_button.pressed.connect(_on_save_design_pressed)
 	confirm_save_design_button.pressed.connect(_on_save_design_confirmed)
-	cancel_save_design_button.pressed.connect(save_design_dialog.hide)
+	cancel_save_design_button.connect("pressed", save_design_dialog.hide)
 	save_design_name_input.text_submitted.connect(_on_save_design_name_submitted)
 	load_design_button.pressed.connect(_on_load_design_pressed)
 	load_design_dialog.design_selected.connect(_on_library_design_selected)
@@ -164,19 +165,14 @@ func _ready() -> void:
 	GameState.part_transformations_changed.connect(_refresh_design_controls)
 	undo_button = Button.new()
 	redo_button = Button.new()
-	pan_button = Button.new()
 	undo_button.icon = _history_icon(false)
 	redo_button.icon = _history_icon(true)
-	pan_button.icon = _pan_icon()
-	pan_button.toggle_mode = true
-	pan_button.button_pressed = false
-	for button in [undo_button, redo_button, pan_button]:
+	for button in [undo_button, redo_button]:
 		button.custom_minimum_size = Vector2(16, 16)
 		_style_tiny_history_button(button)
 		history_controls.add_child(button)
 	undo_button.pressed.connect(_undo)
 	redo_button.pressed.connect(_redo)
-	pan_button.toggled.connect(_on_pan_tool_toggled)
 	GameState.part_transformations_changed.connect(_refresh_history_buttons)
 	_refresh_history_buttons()
 	_refresh_design_controls()
@@ -218,31 +214,6 @@ func _history_icon(point_right: bool) -> Texture2D:
 	)
 	image.load_svg_from_string(svg)
 	return ImageTexture.create_from_image(image)
-
-
-func _pan_icon() -> Texture2D:
-	var image := Image.new()
-	image.load_svg_from_string(
-		'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16">'
-		+ '<path d="M5.5 7V3.5a1 1 0 0 1 2 0V6 2.5a1 1 0 0 1 2 0V6 3.5a1 1 0 0 1 2 0V7 5a1 1 0 0 1 2 0v4c0 3-1.8 5-4.8 5H7.4c-1.5 0-2.5-.7-3.3-1.8L2 9.2a1.1 1.1 0 0 1 1.7-1.4z" fill="none" stroke="#cfdee4" stroke-width="1.2" stroke-linejoin="round"/>'
-		+ '</svg>'
-	)
-	return ImageTexture.create_from_image(image)
-
-
-func _on_pan_tool_toggled(is_selected: bool) -> void:
-	_is_placing = false
-	_is_erasing = false
-	_last_placed_cell = INVALID_CELL
-	_last_erased_cell = INVALID_CELL
-	if is_selected:
-		for button in [red_build_button, blue_build_button, green_build_button, core_build_button]:
-			button.button_pressed = false
-		_selected_source_id = NO_SOURCE_ID
-	else:
-		_is_moving_ship = false
-		_ship_move_start_cell = INVALID_CELL
-	_clear_preview()
 
 
 func _style_tiny_history_button(button: Button) -> void:
@@ -363,6 +334,7 @@ func _input(event: InputEvent) -> void:
 			return
 		var local_mouse_position := local_motion_event.position
 		if _is_moving_ship:
+			_update_ship_move_ghost(_get_cell_at_local_position(local_mouse_position))
 			_clear_preview()
 			return
 		if _is_panning:
@@ -392,7 +364,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if (
 		mouse_button_event.button_index == MOUSE_BUTTON_LEFT
-		and ((pan_button != null and pan_button.button_pressed) or _is_moving_ship)
+		and (_selected_source_id == NO_SOURCE_ID or _is_moving_ship)
 	):
 		var local_event := make_input_local(mouse_button_event) as InputEventMouseButton
 		if local_event == null:
@@ -405,11 +377,13 @@ func _input(event: InputEvent) -> void:
 			if _ship_move_start_cell == INVALID_CELL:
 				return
 			_is_moving_ship = true
+			_update_ship_move_ghost(_ship_move_start_cell)
 			_clear_preview()
 			accept_event()
 		elif _is_moving_ship:
 			var end_cell := _get_cell_at_local_position(local_position)
 			_is_moving_ship = false
+			move_ghost_layer.clear()
 			if end_cell != INVALID_CELL:
 				_move_ship_by(end_cell - _ship_move_start_cell)
 			_ship_move_start_cell = INVALID_CELL
@@ -1059,13 +1033,13 @@ func _update_zoom(delta: float) -> void:
 
 func _pan_with_keyboard(delta: float) -> void:
 	var direction := Vector2.ZERO
-	if Input.is_key_pressed(KEY_A):
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
 		direction.x += 1.0
-	if Input.is_key_pressed(KEY_D):
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		direction.x -= 1.0
-	if Input.is_key_pressed(KEY_W):
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 		direction.y += 1.0
-	if Input.is_key_pressed(KEY_S):
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		direction.y -= 1.0
 	if direction.is_zero_approx():
 		return
@@ -1102,12 +1076,30 @@ func _move_ship_by(cell_offset: Vector2i) -> bool:
 	return true
 
 
+func _update_ship_move_ghost(target_cell: Vector2i) -> void:
+	move_ghost_layer.clear()
+	if target_cell == INVALID_CELL or _ship_move_start_cell == INVALID_CELL:
+		return
+	var cell_offset := target_cell - _ship_move_start_cell
+	for cell in GameState.ship.tiles:
+		var moved_cell: Vector2i = cell + cell_offset
+		if (
+			moved_cell.x < 0
+			or moved_cell.y < 0
+			or moved_cell.x >= map_dimensions.x
+			or moved_cell.y >= map_dimensions.y
+		):
+			move_ghost_layer.clear()
+			return
+		var source_id := _get_source_id_for_category(GameState.ship.tiles[cell])
+		if source_id != NO_SOURCE_ID:
+			move_ghost_layer.set_cell(moved_cell, source_id, Vector2i.ZERO)
+
+
 func _on_build_button_toggled(is_selected: bool, source_id: int) -> void:
 	_is_placing = false
 	_last_placed_cell = INVALID_CELL
 	if is_selected:
-		if pan_button != null:
-			pan_button.set_pressed_no_signal(false)
 		_selected_source_id = source_id
 	elif _selected_source_id == source_id:
 		_selected_source_id = NO_SOURCE_ID

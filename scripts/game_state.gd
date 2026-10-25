@@ -79,7 +79,20 @@ var battle_auto_camera := true
 
 
 func _ready() -> void:
+	get_tree().node_added.connect(_disable_non_text_keyboard_focus)
+	_disable_keyboard_focus_recursively(get_tree().root)
 	_load_saved_ship_designs()
+
+
+func _disable_keyboard_focus_recursively(node: Node) -> void:
+	_disable_non_text_keyboard_focus(node)
+	for child in node.get_children():
+		_disable_keyboard_focus_recursively(child)
+
+
+func _disable_non_text_keyboard_focus(node: Node) -> void:
+	if node is BaseButton or node is Range:
+		(node as Control).focus_mode = Control.FOCUS_NONE
 
 
 func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
@@ -479,6 +492,17 @@ func get_construction_credit_cost(blueprint: Ship = null) -> int:
 		var missing := maxi(0, counts[category] - get_available_tile_count(category))
 		total += missing * MATERIAL_PRICES[category]
 	return total
+
+
+func get_construction_material_costs(blueprint: Ship = null) -> Array[int]:
+	var design := ship if blueprint == null else blueprint
+	var required := _get_ship_tile_counts(design)
+	if required.size() != MATERIAL_PRICES.size():
+		return []
+	var costs: Array[int] = []
+	for category in range(required.size()):
+		costs.append(mini(required[category], get_available_tile_count(category)))
+	return costs
 
 func purchase_material(category: int) -> bool:
 	if battle_pending or category < 0 or category >= MATERIAL_PRICES.size():

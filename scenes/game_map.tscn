@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://bc8c2dkat3syl"]
+[gd_scene load_steps=23 format=3 uid="uid://bc8c2dkat3syl"]
 
 [ext_resource type="Script" uid="uid://b5bsj2qhnw6rb" path="res://scripts/game_map.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/build_tilemap_area.tscn" id="2"]
@@ -12,7 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="12_icon_button"]
 [ext_resource type="Texture2D" path="res://assets/help.png" id="13_help_icon"]
 [ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="14_header_font"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/credits.svg" id="15_credit_icon"]
+[ext_resource type="Texture2D" path="res://assets/credits.png" id="15_credit_icon"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/red_square.png" id="16_red_icon"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/blue_square.png" id="17_blue_icon"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/green_square.png" id="18_green_icon"]
@@ -20,6 +20,9 @@
 
 [ext_resource type="Script" path="res://scripts/fleet_panel.gd" id="20_fleet"]
 [ext_resource type="Script" path="res://scripts/upgrades_panel.gd" id="21_upgrades"]
+[ext_resource type="Texture2D" path="res://assets/lock.png" id="22_lock_icon"]
+[ext_resource type="Script" path="res://scripts/locked_tab_icon.gd" id="23_lock_script"]
+[ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="24_close"]
 
 [node name="GameMap" type="Control" unique_id=1888779315]
 layout_mode = 3
@@ -172,6 +175,40 @@ toggle_mode = true
 theme_override_font_sizes/font_size = 14
 text = "FLEET"
 
+[node name="UpgradesTabButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/TabButtons"]
+custom_minimum_size = Vector2(64, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+theme_override_font_sizes/font_size = 14
+text = "RESEARCH"
+
+[node name="Lock" type="Control" parent="Layout/UpperArea/WorkspaceContents/TabButtons/UpgradesTabButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_default_cursor_shape = 2
+script = ExtResource("23_lock_script")
+lock_message = "Requires lab"
+
+[node name="Icon" type="TextureRect" parent="Layout/UpperArea/WorkspaceContents/TabButtons/UpgradesTabButton/Lock"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -18.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = 18.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("22_lock_icon")
+expand_mode = 1
+stretch_mode = 5
+
 [node name="BuildTabButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/TabButtons"]
 custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
@@ -180,13 +217,31 @@ toggle_mode = true
 theme_override_font_sizes/font_size = 14
 text = "SHIP DESIGNER"
 
-[node name="UpgradesTabButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/TabButtons"]
-custom_minimum_size = Vector2(64, 26)
-layout_mode = 2
-size_flags_horizontal = 3
-toggle_mode = true
-theme_override_font_sizes/font_size = 14
-text = "RESEARCH"
+[node name="Lock" type="Control" parent="Layout/UpperArea/WorkspaceContents/TabButtons/BuildTabButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_default_cursor_shape = 2
+script = ExtResource("23_lock_script")
+lock_message = "Only available at Shipyards"
+
+[node name="Icon" type="TextureRect" parent="Layout/UpperArea/WorkspaceContents/TabButtons/BuildTabButton/Lock"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -18.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = 18.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("22_lock_icon")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ArchiveTabButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/TabButtons"]
 custom_minimum_size = Vector2(64, 26)
@@ -334,6 +389,38 @@ theme_override_styles/panel = ExtResource("6_kqil0")
 [node name="ContentHost" type="Control" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel"]
 layout_mode = 2
 
+[node name="FleetRightMargin" type="MarginContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="FleetRightPanel" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FleetSummary" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="DeployCenter" type="CenterContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DeployButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel/DeployCenter" unique_id=2001398976]
+custom_minimum_size = Vector2(100, 30)
+layout_mode = 2
+theme = ExtResource("4_kqil0")
+text = "DEPLOY"
+
 [node name="DetailsContents" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost" unique_id=8957397]
 layout_mode = 1
 anchors_preset = 15
@@ -358,6 +445,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
+vertical_scroll_mode = 0
 
 [node name="StatsContents" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll"]
 layout_mode = 2
@@ -376,16 +464,19 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
 [node name="WeaponsSeparator" type="HSeparator" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="WeaponsHeader" type="Label" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
+visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("14_header_font")
 theme_override_font_sizes/font_size = 13
 text = "WEAPONS"
 
 [node name="WeaponRows" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
@@ -394,13 +485,6 @@ theme_override_constants/separation = 4
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "No weapons equipped."
-
-[node name="DeployButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents" unique_id=2001398976]
-custom_minimum_size = Vector2(180, 36)
-layout_mode = 2
-size_flags_horizontal = 4
-theme = ExtResource("4_kqil0")
-text = "DEPLOY"
 
 [node name="GraphModal" type="Control" parent="." unique_id=213025514]
 visible = false
@@ -433,6 +517,8 @@ mouse_filter = 2
 [node name="GraphPanel" type="PanelContainer" parent="GraphModal/CenterContainer" unique_id=2075394125]
 custom_minimum_size = Vector2(480, 180)
 layout_mode = 2
+
+[node name="CloseX" parent="GraphModal/CenterContainer/GraphPanel" instance=ExtResource("24_close")]
 
 [node name="GraphView" type="Control" parent="GraphModal/CenterContainer/GraphPanel" unique_id=1513686605]
 layout_mode = 2

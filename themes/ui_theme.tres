@@ -115,6 +115,18 @@ texture_margin_right = 16.0
 texture_margin_bottom = 16.0
 modulate_color = Color(0.65, 0.71, 0.75, 1)
 
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_tooltip"]
+content_margin_left = 8.0
+content_margin_top = 6.0
+content_margin_right = 8.0
+content_margin_bottom = 6.0
+texture = ExtResource("7_tab_panel")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+modulate_color = Color(0.72, 0.78, 0.82, 1)
+
 [resource]
 default_font = ExtResource("9_font_interactive")
 default_font_size = 16
@@ -147,4 +159,5 @@ TabContainer/styles/tab_disabled = SubResource("StyleBoxTexture_tab_disabled")
 TabContainer/styles/tab_hovered = SubResource("StyleBoxTexture_tab_hovered")
 TabContainer/styles/tab_selected = SubResource("StyleBoxTexture_tab_selected")
 TabContainer/styles/tab_unselected = SubResource("StyleBoxTexture_tab_unselected")
+TooltipPanel/styles/panel = SubResource("StyleBoxTexture_tooltip")
 Window/styles/panel = ExtResource("1_panel")

@@ -12,8 +12,12 @@ const AUTO_CAMERA_SMOOTHING := 4.0
 
 @onready var visuals: BattleVisuals = $BattleVisuals
 @onready var status_label: Label = $Status
+@onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
+@onready var pause_button: Button = $BattleSpeedControls/PauseButton
+@onready var fast_forward_button: Button = $BattleSpeedControls/FastForwardButton
 @onready var defeat_dialog: Control = $DefeatDialog
 @onready var defeat_accept_button: Button = $DefeatDialog/CenterContainer/Panel/Contents/ButtonCenter/AcceptButton
+@onready var defeat_close_button: Control = $DefeatDialog/CenterContainer/Panel/CloseX
 
 var simulation := BattleSimulation.new()
 var _dragging := false
@@ -55,13 +59,16 @@ func _ready() -> void:
 	withdraw_button.offset_right = -8
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
+	pause_button.toggled.connect(_on_pause_toggled)
+	fast_forward_button.toggled.connect(_on_fast_forward_toggled)
 	defeat_accept_button.pressed.connect(_return_to_main_menu)
+	defeat_close_button.connect("pressed", _return_to_main_menu)
 
 
 func _physics_process(delta: float) -> void:
-	if _finished:
+	if _finished or pause_button.button_pressed:
 		return
-	simulation.advance(delta)
+	simulation.advance(delta * (2.0 if fast_forward_button.button_pressed else 1.0))
 	while _credited_drops < simulation.collected_categories.size():
 		GameState.refund_tile(simulation.collected_categories[_credited_drops])
 		_credited_drops += 1
@@ -82,6 +89,16 @@ func _physics_process(delta: float) -> void:
 	if simulation.withdrawing and not _finished:
 		withdraw_button.text = "RETREAT %d" % ceili(simulation.retreat_remaining)
 	visuals.queue_redraw()
+
+
+func _on_pause_toggled(is_paused: bool) -> void:
+	if is_paused:
+		fast_forward_button.set_pressed_no_signal(false)
+
+
+func _on_fast_forward_toggled(is_fast: bool) -> void:
+	if is_fast:
+		pause_button.set_pressed_no_signal(false)
 
 
 func _process(delta: float) -> void:
@@ -167,6 +184,7 @@ func _on_ship_destroyed(is_player: bool) -> void:
 func _finish_battle(won: bool) -> void:
 	_finished = true
 	withdraw_button.hide()
+	battle_speed_controls.hide()
 	GameState.record_battle(simulation)
 	if won:
 		if not GameState.complete_battle():

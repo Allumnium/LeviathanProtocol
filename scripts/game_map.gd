@@ -3,13 +3,14 @@ extends Control
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
 const BUILD_TAB_INDEX := 1
+const RESEARCH_TAB_INDEX := 2
 const ARCHIVE_TAB_INDEX := 3
-const CREDIT_ICON: Texture2D = preload("res://assets/ui/icons/credits.svg")
+const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 var fleet_controls := VBoxContainer.new()
-var fleet_summary := VBoxContainer.new()
-var fleet_right_panel := VBoxContainer.new()
 
-@onready var deploy_button: Button = $Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel/PanelContents/DeployButton
+@onready var fleet_right_panel: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel
+@onready var fleet_summary: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel/FleetSummary
+@onready var deploy_button: Button = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel/DeployCenter/DeployButton
 @onready var stat_rows: VBoxContainer = (
 	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents/StatRows
 )
@@ -40,10 +41,12 @@ var fleet_right_panel := VBoxContainer.new()
 @onready var graph_modal: Control = $GraphModal
 @onready var graph_backdrop: ColorRect = $GraphModal/Backdrop
 @onready var graph_view: GraphView = $GraphModal/CenterContainer/GraphPanel/GraphView
+@onready var graph_close_button: Control = $GraphModal/CenterContainer/GraphPanel/CloseX
 @onready var settings_dialog: PopupPanel = $SettingsDialog
 @onready var how_to_play_dialog: PopupPanel = $HowToPlayDialog
 @onready var victory_dialog: Control = $VictoryDialog
 @onready var victory_accept_button: Button = $VictoryDialog/CenterContainer/Panel/Contents/ButtonCenter/AcceptButton
+@onready var victory_close_button: Control = $VictoryDialog/CenterContainer/Panel/CloseX
 
 
 func _ready() -> void:
@@ -64,18 +67,18 @@ func _ready() -> void:
 	fleet_controls.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	fleet_controls.add_theme_constant_override("separation", 5)
 	$Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents.add_child(fleet_controls)
-	fleet_right_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	fleet_right_panel.add_theme_constant_override("separation", 8)
-	$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost.add_child(fleet_right_panel)
-	fleet_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fleet_summary.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	fleet_summary.add_theme_constant_override("separation", 8)
-	fleet_right_panel.add_child(fleet_summary)
-	deploy_button.reparent(fleet_right_panel)
-	deploy_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	deploy_button.size_flags_vertical = Control.SIZE_SHRINK_END
 	fleet_panel.bind_external_panels(fleet_controls, fleet_summary)
 	build_area.move_controls_to(build_controls)
+	archive_details.reparent(
+		$Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents
+	)
+	archive_details.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	archive_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	archive_details.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	archive_progress.reparent(
+		$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost
+	)
+	archive_progress.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	archive_tab.bind_external_panels(archive_progress_label, archive_details)
 	_setup_panel_tabs()
 	deploy_button.pressed.connect(_on_deploy_pressed)
@@ -83,7 +86,9 @@ func _ready() -> void:
 	settings_button.pressed.connect(_on_settings_pressed)
 	graph_view.destination_selected.connect(_on_destination_selected)
 	graph_backdrop.gui_input.connect(_on_graph_modal_backdrop_input)
+	graph_close_button.connect("pressed", graph_modal.hide)
 	victory_accept_button.pressed.connect(_on_victory_accepted)
+	victory_close_button.connect("pressed", _on_victory_accepted)
 
 	if GameState.current_node_id == GameState.FINAL_NODE_ID:
 		victory_dialog.show()
@@ -96,6 +101,8 @@ func _setup_panel_tabs() -> void:
 		var button := panel_tab_buttons[index]
 		button.button_group = tab_button_group
 		button.pressed.connect(_on_panel_tab_button_pressed.bind(index))
+	panel_tab_buttons[BUILD_TAB_INDEX].disabled = true
+	panel_tab_buttons[RESEARCH_TAB_INDEX].disabled = true
 
 	panel_tabs.tab_changed.connect(_on_panel_tab_changed)
 	_on_panel_tab_changed(panel_tabs.current_tab)
@@ -143,66 +150,10 @@ func _refresh_ship_stats() -> void:
 
 	_add_stat_row("Shields", stats.shields, _format_stat_value(stats.shields))
 	_add_stat_row("Integrity", stats.integrity, _format_stat_value(stats.integrity))
-	_add_stat_row("Weight", stats.weight, _format_stat_value(stats.weight))
 	_add_stat_row("Cost", 0.0, str(GameState.get_construction_credit_cost(design)), false, CREDIT_ICON)
 	_add_stat_row("Thrust", stats.thrust, _format_stat_value(stats.thrust))
 	_add_stat_row("DPS", stats.dps, "%.2f" % stats.dps)
 
-	for child in weapon_rows.get_children():
-		if child == no_weapons_label:
-			continue
-		weapon_rows.remove_child(child)
-		child.queue_free()
-
-	no_weapons_label.visible = stats.weapons.is_empty()
-	var grouped_weapons: Array[ShipWeaponStats] = []
-	var weapon_counts: Array[int] = []
-	for weapon in stats.weapons:
-		var group_index := -1
-		for index in range(grouped_weapons.size()):
-			if grouped_weapons[index].weapon_name == weapon.weapon_name:
-				group_index = index
-				break
-		if group_index < 0:
-			grouped_weapons.append(weapon)
-			weapon_counts.append(1)
-		else:
-			weapon_counts[group_index] = weapon_counts[group_index] + 1
-
-	for group_index in range(grouped_weapons.size()):
-		var weapon := grouped_weapons[group_index]
-		var weapon_details: Array[String] = []
-		var fire_rate := weapon.get_fire_rate_per_second()
-		if not is_zero_approx(fire_rate):
-			weapon_details.append("Fire rate: %.2f per sec" % fire_rate)
-		if not is_zero_approx(weapon.damage_per_shot):
-			weapon_details.append(
-				"Damage per shot: %s" % _format_stat_value(weapon.damage_per_shot)
-			)
-		if weapon.projectiles_per_activation != 0:
-			weapon_details.append(
-				"Shots: %d" % weapon.projectiles_per_activation
-			)
-		var weapon_dps := weapon.get_dps()
-		if not is_zero_approx(weapon_dps):
-			var group_dps := weapon_dps * weapon_counts[group_index]
-			weapon_details.append("DPS: %.2f (%.2f)" % [weapon_dps, group_dps])
-		if weapon_details.is_empty():
-			continue
-
-		var weapon_label := Label.new()
-		weapon_label.name = "WeaponGroup%d" % (group_index + 1)
-		weapon_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		weapon_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		weapon_label.add_theme_font_size_override("font_size", 11)
-		var weapon_display_name := weapon.weapon_name
-		if weapon_counts[group_index] > 1:
-			weapon_display_name += " (x%d)" % weapon_counts[group_index]
-		weapon_label.text = "%s\n%s" % [
-			weapon_display_name,
-			"\n".join(weapon_details),
-		]
-		weapon_rows.add_child(weapon_label)
 
 
 func _add_stat_row(

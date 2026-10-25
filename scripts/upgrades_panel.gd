@@ -1,6 +1,6 @@
 extends VBoxContainer
 
-const CREDIT_ICON: Texture2D = preload("res://assets/ui/icons/credits.svg")
+const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 
 var label := Label.new()
 var purchase := Button.new()

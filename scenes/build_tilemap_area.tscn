@@ -47,6 +47,9 @@ color = Color(0.38, 0.38, 0.4, 1)
 
 [node name="AnimationLayer" type="Node2D" parent="PanRoot"]
 
+[node name="MoveGhostLayer" type="TileMapLayer" parent="PanRoot"]
+modulate = Color(1, 1, 1, 0.5)
+
 [node name="PreviewLayer" type="TileMapLayer" parent="PanRoot"]
 modulate = Color(1, 1, 1, 0.5)
 
