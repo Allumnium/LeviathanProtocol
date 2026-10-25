@@ -15,6 +15,10 @@ enum Phase { COMBAT, VICTORY, DEFEAT, WITHDRAWN }
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
 const SPEED_PER_THRUST := 4.0
+const MIN_TURN_RATE := 0.75
+const MAX_TURN_RATE := 1.5
+const PASSIVE_DRAG_PER_SECOND := 0.06
+const SOFT_BOUNDARY_MARGIN := 180.0
 const PLAYER_FORMATION_CENTER := Vector2(-420.0, 0.0)
 const PLAYER_FORMATION_COLUMNS := 3
 const PLAYER_FORMATION_SPACING := Vector2(54.0, 54.0)
@@ -51,6 +55,8 @@ class Combatant:
 	var since_damage := 0.0
 	var shield_flash := 0.0
 	var speed := 100.0
+	var acceleration := 75.0
+	var turn_rate := 1.2
 	var radius := 18.0
 	var wreck_angular_velocity := 0.0
 	var wreck_motion_remaining := 0.0
@@ -221,7 +227,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		member.stats = ships[index].get_stats(upgrade_level)
 		member.integrity = member.stats.integrity
 		member.shields = member.stats.shields
-		member.speed = member.stats.thrust * SPEED_PER_THRUST
+		_refresh_mobility(member)
 		member.cooldowns.clear()
 		for weapon in member.stats.weapons:
 			member.cooldowns.append(0.0)
@@ -267,11 +273,27 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 	ship.stats = stats
 	ship.integrity = stats.integrity
 	ship.shields = stats.shields
-	ship.speed = maxf(stats.thrust, 0.0) * SPEED_PER_THRUST
+	_refresh_mobility(ship)
 	ship.target_refresh_remaining = 0.0
 	for weapon in stats.weapons:
 		ship.cooldowns.append(0.0)
 	return ship
+
+
+func _refresh_mobility(ship: Combatant) -> void:
+	ship.speed = maxf(ship.stats.thrust, 0.0) * SPEED_PER_THRUST
+	if ship.speed <= 0.0:
+		ship.acceleration = 0.0
+		ship.turn_rate = MIN_TURN_RATE
+		return
+	var thrust_to_weight := ship.stats.thrust / maxf(ship.stats.weight, 1.0)
+	var acceleration_factor := clampf(0.75 + thrust_to_weight * 0.06, 0.8, 1.8)
+	ship.acceleration = ship.speed * acceleration_factor
+	ship.turn_rate = clampf(
+		MIN_TURN_RATE + thrust_to_weight * 0.1,
+		MIN_TURN_RATE,
+		MAX_TURN_RATE
+	)
 
 
 func advance(delta: float) -> void:
@@ -521,16 +543,19 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		ship.target = _choose_target(ship)
 		ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null:
+		_apply_passive_drag(ship, delta)
+		ship.position += ship.velocity * delta
 		return
 	var offset := ship.target.position - ship.position
 	var distance := offset.length()
-	var direction := offset.normalized()
-	var desired_distance := ship.shortest_range() * 0.92 if not ship.stats.weapons.is_empty() else 220.0
-	var radial_speed := clampf((distance - desired_distance) * 2.5, -ship.speed, ship.speed)
+	var direction := (
+		offset / distance if distance > 0.001 else Vector2.from_angle(ship.heading)
+	)
+	var radial_speed := ship.speed
 	if ship.retreat_time > 0.0:
 		radial_speed = -ship.speed
 	var desired := direction * radial_speed
-	desired += direction.orthogonal() * ship.speed * 0.24
+	desired += direction.orthogonal() * ship.speed * 0.4
 	var ship_cell := _spatial_cell(ship.position)
 	for cell_x in range(ship_cell.x - 1, ship_cell.x + 2):
 		for cell_y in range(ship_cell.y - 1, ship_cell.y + 2):
@@ -548,23 +573,32 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 					separation = Vector2.UP
 					separation_distance = 1.0
 				desired += separation / separation_distance * ship.speed * (1.0 - separation_distance / clearance)
-	if ship.position.length() > ARENA_RADIUS - 90.0:
-		desired -= ship.position.normalized() * ship.speed
+	var distance_from_center := ship.position.length()
+	if distance_from_center > ARENA_RADIUS - SOFT_BOUNDARY_MARGIN:
+		var boundary_progress := clampf(
+			(distance_from_center - (ARENA_RADIUS - SOFT_BOUNDARY_MARGIN))
+			/ SOFT_BOUNDARY_MARGIN,
+			0.0,
+			1.5
+		)
+		desired -= (
+			ship.position.normalized() * ship.speed * (0.5 + boundary_progress * 2.0)
+		)
 	if withdrawing and ship.is_player:
 		direction = -direction
 		desired = direction * ship.speed
-	ship.heading = rotate_toward(ship.heading, direction.angle(), delta * 1.5)
-	# Reverse thrust is one fifth of forward thrust in the ship's local frame.
+	var desired_velocity := desired.limit_length(ship.speed)
+	var desired_heading := direction.angle()
+	if desired_velocity.length_squared() > 0.01:
+		desired_heading = desired_velocity.angle()
+	ship.heading = rotate_toward(ship.heading, desired_heading, delta * ship.turn_rate)
+	# Ships have forward thrust only. They shed speed through passive drag rather
+	# than braking, so reversals and course corrections form broad flight arcs.
 	var forward := Vector2.from_angle(ship.heading)
-	var lateral := forward.orthogonal()
-	var forward_speed := clampf(desired.dot(forward), -ship.speed * 0.2, ship.speed)
-	desired = forward * forward_speed + lateral * desired.dot(lateral)
-	ship.velocity = ship.velocity.move_toward(desired.limit_length(ship.speed), ship.speed * 2.0 * delta)
-	# Enforce the reverse cap even while braking or rotating.
-	var reverse := ship.velocity.dot(forward)
-	if reverse < -ship.speed * 0.2:
-		ship.velocity += forward * (-ship.speed * 0.2 - reverse)
-	ship.position = (ship.position + ship.velocity * delta).limit_length(ARENA_RADIUS)
+	_apply_passive_drag(ship, delta)
+	ship.velocity += forward * ship.acceleration * delta
+	ship.velocity = ship.velocity.limit_length(ship.speed)
+	ship.position += ship.velocity * delta
 	for index in range(ship.stats.weapons.size()):
 		var weapon := ship.stats.weapons[index]
 		if ship.owned_ship != null and ship.owned_ship.units[weapon.component_index].hp <= 0.0:
@@ -603,6 +637,10 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 				projectile.is_player = ship.is_player
 				projectiles.append(projectile)
 				_add_pending_damage(projectile.target, projectile.damage)
+
+
+func _apply_passive_drag(ship: Combatant, delta: float) -> void:
+	ship.velocity *= exp(-PASSIVE_DRAG_PER_SECOND * delta)
 
 
 func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
@@ -684,7 +722,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		target.stats.shields = remaining.shields
 		target.stats.thrust = remaining.thrust
 		target.shields = minf(target.shields, remaining.shields)
-		target.speed = remaining.thrust * SPEED_PER_THRUST
+		_refresh_mobility(target)
 	else:
 		var hull_damage := minf(target.integrity, damage - absorbed)
 		target.integrity -= hull_damage

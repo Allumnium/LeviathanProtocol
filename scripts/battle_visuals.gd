@@ -9,6 +9,9 @@ const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.pn
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
 const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
+const MINIGUN_BULLET_TEXTURE: Texture2D = preload("res://assets/bullet.png")
+const MINIGUN_BULLET_SCALE := 0.125
+const MINIGUN_BULLET_ROTATION_SPEED := TAU * 2.0
 const SHIELD_FLASH_TINT := Color(0.35, 0.7, 1.0, 1.0)
 const SHIELD_OUTLINE_COLOR := Color(0.45, 0.85, 1.0, 1.0)
 
@@ -81,6 +84,25 @@ func _draw() -> void:
 	for projectile in simulation.projectiles:
 		var projectile_position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
 		if not _visible_world_rect.has_point(projectile_position):
+			continue
+		if projectile.is_player and projectile.weapon_name == "Mini Turret":
+			var initial_rotation := (
+				float(projectile.get_instance_id() % 16) / 16.0 * TAU
+			)
+			var bullet_rotation := (
+				simulation.elapsed * MINIGUN_BULLET_ROTATION_SPEED + initial_rotation
+			)
+			draw_set_transform_matrix(
+				world_transform()
+				* Transform2D(bullet_rotation, Vector2.ONE, 0.0, projectile_position)
+			)
+			var bullet_size := MINIGUN_BULLET_TEXTURE.get_size() * MINIGUN_BULLET_SCALE
+			draw_texture_rect(
+				MINIGUN_BULLET_TEXTURE,
+				Rect2(-bullet_size * 0.5, bullet_size),
+				false
+			)
+			draw_set_transform_matrix(world_transform())
 			continue
 		var direction := (projectile.target.position - projectile_position).normalized()
 		var trail_color := Color(0.4, 1.0, 0.25, 0.7)

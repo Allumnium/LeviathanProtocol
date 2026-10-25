@@ -18,7 +18,8 @@ func _init(
 	font_size: int = 11,
 	show_segments: bool = true,
 	value_icon: Texture2D = null,
-	segment_color: Color = Color.TRANSPARENT
+	segment_color: Color = Color.TRANSPARENT,
+	segments_inline: bool = false
 ) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 1)
@@ -69,7 +70,11 @@ func _init(
 				resolved_segment_color
 			)
 		)
-	add_child(segments)
+	if segments_inline:
+		title_row.add_child(segments)
+		title_row.move_child(segments, 1)
+	else:
+		add_child(segments)
 
 
 func _create_segment(fill_fraction: float, fill_color: Color) -> ColorRect:

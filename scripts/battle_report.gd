@@ -49,15 +49,13 @@ func show_report(
 	var rows := VBoxContainer.new()
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(rows)
-	var slot_summaries := _summarize_by_slot(entries)
-	for summary in slot_summaries:
+	var summaries := _summarize_by_slot(entries)
+	summaries.append_array(_summarize_aliens(entries))
+	for summary in summaries:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		rows.add_child(row)
-		var preview := preload("res://scripts/fleet_ship_preview.gd").new()
-		preview.owned = summary.ship
-		preview.custom_minimum_size = Vector2(76, 76)
-		row.add_child(preview)
+		row.add_child(_create_summary_preview(summary))
 		var details := VBoxContainer.new()
 		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		details.add_theme_constant_override("separation", 2)
@@ -77,17 +75,17 @@ func show_report(
 			summary_line.add_child(destroyed_label)
 		details.add_child(StatDisplayRow.new(
 			"DAMAGE DEALT", summary.damage, "%.1f" % summary.damage,
-			9, true, null, DAMAGE_DEALT_COLOR
+			9, true, null, DAMAGE_DEALT_COLOR, true
 		))
 		if summary.deflected > 0.0:
 			details.add_child(StatDisplayRow.new(
 				"DAMAGE DEFLECTED", summary.deflected, str(roundi(summary.deflected)),
-				9, true, null, DAMAGE_DEFLECTED_COLOR
+				9, true, null, DAMAGE_DEFLECTED_COLOR, true
 			))
 		if summary.repair_damage > 0.0:
 			details.add_child(StatDisplayRow.new(
 				"REPAIRS NEEDED", summary.repair_damage, str(roundi(summary.repair_damage)),
-				9, true, null, REPAIR_DAMAGE_COLOR
+				9, true, null, REPAIR_DAMAGE_COLOR, true
 			))
 	var button_center := CenterContainer.new()
 	column.add_child(button_center)
@@ -226,7 +224,9 @@ func _summarize_by_slot(entries: Array[Dictionary]) -> Array[Dictionary]:
 			"deflected": 0.0, "destroyed": 0,
 		}
 		for entry in entries:
-			var ship: FleetShip = entry.ship
+			var ship := entry.get("ship") as FleetShip
+			if ship == null:
+				continue
 			if _ship_type_name(ship.display_name) != design_name:
 				continue
 			if summary.ship == null:
@@ -240,6 +240,51 @@ func _summarize_by_slot(entries: Array[Dictionary]) -> Array[Dictionary]:
 		if summary.ship != null:
 			summaries.append(summary)
 	return summaries
+
+
+func _summarize_aliens(entries: Array[Dictionary]) -> Array[Dictionary]:
+	var summaries: Array[Dictionary] = []
+	var summary_by_name: Dictionary = {}
+	for entry in entries:
+		var alien := entry.get("alien") as AlienShip
+		if alien == null:
+			continue
+		var summary: Dictionary = summary_by_name.get(alien.display_name, {})
+		if summary.is_empty():
+			summary = {
+				"name": alien.display_name, "alien": alien, "is_alien": true,
+				"damage": 0.0, "taken": 0.0, "repair_damage": 0.0,
+				"deflected": 0.0, "destroyed": 0,
+			}
+			summary_by_name[alien.display_name] = summary
+			summaries.append(summary)
+		summary.damage += float(entry.get("damage", 0.0))
+		summary.taken += float(entry.get("taken", 0.0))
+		summary.deflected += float(entry.get("deflected", 0.0))
+		if bool(entry.get("destroyed", false)):
+			summary.destroyed += 1
+	return summaries
+
+
+func _create_summary_preview(summary: Dictionary) -> Control:
+	if not bool(summary.get("is_alien", false)):
+		var preview := preload("res://scripts/fleet_ship_preview.gd").new()
+		preview.owned = summary.ship
+		preview.custom_minimum_size = Vector2(53, 53)
+		return preview
+	var center := CenterContainer.new()
+	center.custom_minimum_size = Vector2(53, 53)
+	var alien: AlienShip = summary.alien
+	var texture := TextureRect.new()
+	var texture_size := alien.texture.get_size()
+	var preview_size := texture_size * (27.0 / maxf(texture_size.x, texture_size.y))
+	texture.custom_minimum_size = preview_size
+	texture.texture = alien.texture
+	texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(texture)
+	return center
 
 
 func _ship_type_name(display_name: String) -> String:

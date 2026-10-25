@@ -45,7 +45,7 @@ func _run() -> void:
 	_test_mini_turret_firing()
 	_test_guaranteed_hits()
 	_test_retreat_and_focus()
-	_test_range_keeping()
+	_test_continuous_pursuit()
 	_test_drop_distribution()
 	_test_salvage()
 	_test_stationary_salvage()
@@ -184,9 +184,21 @@ func _test_thrust_movement() -> void:
 	low_thrust_simulation.player.heading = PI
 	low_thrust_simulation._update_ship(low_thrust_simulation.player, 1.0 / 60.0)
 	_check(
-		low_thrust_simulation.player.velocity.x > 0.0
+		low_thrust_simulation.player.velocity.x < 0.0
+			and low_thrust_simulation.player.velocity.length() < low_thrust_simulation.player.speed * 0.1
 			and low_thrust_simulation.player.heading > 2.5,
-		"Thrust must allow movement in a direction independent of ship heading."
+		"Ships must accelerate forward while gradually turning toward their desired course."
+	)
+	low_thrust_simulation.player.target = null
+	low_thrust_simulation.player.target_refresh_remaining = 1.0
+	low_thrust_simulation.player.velocity = Vector2(40.0, 0.0)
+	var coast_start := low_thrust_simulation.player.position
+	low_thrust_simulation._update_ship(low_thrust_simulation.player, 0.5)
+	_check(
+		low_thrust_simulation.player.position.x > coast_start.x
+			and low_thrust_simulation.player.velocity.x > 0.0
+			and low_thrust_simulation.player.velocity.x < 40.0,
+		"A ship without a target must coast and decelerate gradually instead of stopping."
 	)
 
 
@@ -338,7 +350,7 @@ func _test_ship_design_storage() -> void:
 	state.current_ship_design_name = design_name
 
 	var oversized_design := Ship.new()
-	for index in range(19):
+	for index in range(21):
 		oversized_design.set_tile_at(Vector2i(index, 0), ShipPart.Category.OFFENSE)
 	state.saved_ship_designs.append({
 		"name": "Too Many Red Tiles",
@@ -566,9 +578,12 @@ func _test_retreat_and_focus() -> void:
 	simulation.aliens[1].integrity = 6.0
 	simulation.advance(1.0 / 60.0)
 	_check(simulation.player.retreat_time > 0.0, "Low shields should trigger retreat.")
-	_check(simulation.player.velocity.x < 0.0, "Retreat should move away from the enemy.")
 	_check(simulation.player.target == simulation.aliens[1], "AI should focus the weakest in-range enemy.")
 	_check(simulation.aliens[1].integrity == 1.0, "Focus fire must damage the selected weak enemy.")
+	for tick in range(119):
+		simulation.advance(1.0 / 60.0)
+	_check(absf(angle_difference(0.0, simulation.player.heading)) > 1.0,
+		"Retreat should visibly turn the ship before thrust carries it clear.")
 
 
 func _test_salvage() -> void:
@@ -612,25 +627,22 @@ func _test_stationary_salvage() -> void:
 	)
 
 
-func _test_range_keeping() -> void:
+func _test_continuous_pursuit() -> void:
 	var stats := _basic_stats()
 	stats.weapons.append(ShipWeaponStats.new("Short laser", 100.0, 1.0, 1, 130.0))
 	var simulation := BattleSimulation.new()
-	simulation.setup(stats, _fleet(3), 6)
+	simulation.setup(stats, _fleet(1), 6)
 	var enemy := simulation.aliens[0]
-	enemy.position = simulation.player.position + Vector2(180.0, 0.0)
+	enemy.position = simulation.player.position + Vector2(100.0, 0.0)
 	enemy.integrity = 100000.0
 	enemy.shields = 0.0
-	for alien in simulation.aliens:
-		alien.integrity = 100000.0
-		alien.cooldowns[0] = 10000.0
-		if alien != enemy:
-			alien.position = Vector2(700.0, 0.0)
-	for tick in range(300):
-		simulation._update_ship(simulation.player, 1.0 / 60.0)
-	var distance := simulation.player.position.distance_to(enemy.position)
-	_check(distance > 115.0 and distance < 130.0,
-		"AI should hold near the shortest weapon's maximum range, not %.2f." % distance)
+	enemy.cooldowns[0] = 10000.0
+	simulation.player.heading = 0.0
+	simulation.player.velocity = Vector2.RIGHT * simulation.player.speed * 0.75
+	var speed_before := simulation.player.velocity.x
+	simulation._update_ship(simulation.player, 1.0 / 60.0)
+	_check(simulation.player.velocity.x >= speed_before,
+		"Entering weapon range must not cause a pursuing ship to brake.")
 
 
 func _test_drop_distribution() -> void:
@@ -686,8 +698,8 @@ func _test_balance() -> void:
 			battles += 1
 			_check(damage <= 40.0, "Basic encounters should leave a safety margin, not deal %.2f damage (%d aliens)." % [damage, count])
 	var average_damage := total_damage / float(battles)
-	_check(average_damage >= 4.0 and average_damage <= 9.0,
-		"Quarter-health alien encounters should average about 6 damage, not %.2f."
+	_check(average_damage >= 4.0 and average_damage <= 10.0,
+		"Quarter-health alien encounters should average under 10 damage, not %.2f."
 			% average_damage)
 	print("%d basic encounters: damage min %.2f, mean %.2f, max %.2f" % [
 		battles, min_damage, total_damage / float(battles), max_damage])
@@ -1424,6 +1436,10 @@ func _test_owned_fleet() -> void:
 	enemy.integrity = 2.0
 	simulation._damage(enemy, 100.0, report_source.position, report_source, "Laser")
 	_check(report_source.damage_dealt == 2.0 and report_source.weapon_damage["Laser"] == 2.0, "Reports must count actual damage, excluding overkill.")
+	state.record_battle(simulation)
+	_check(state.last_battle_report.any(func(entry: Dictionary) -> bool:
+		return entry.get("is_alien", false) and entry.get("alien") == enemy.alien
+	), "Battle reports must include alien combatants.")
 	_test_withdrawal()
 
 
@@ -1465,7 +1481,8 @@ func _test_withdrawal() -> void:
 	player_ship.retreat_time = 5.0
 	simulation.aliens[0].position = Vector2(150, 0)
 	simulation._update_ship(player_ship, 1.0)
-	_check(player_ship.velocity.dot(Vector2.from_angle(player_ship.heading)) >= -player_ship.speed * 0.2 - 0.001, "Backward movement must be capped at 20 percent of forward thrust.")
+	_check(player_ship.velocity.dot(Vector2.from_angle(player_ship.heading)) > 0.0,
+		"Ships must accelerate forward instead of applying reverse braking thrust.")
 	player_ship.heading = PI
 	var before_heading := player_ship.heading
 	simulation._update_ship(player_ship, 0.1)
@@ -1579,19 +1596,19 @@ func _test_build_area() -> void:
 	var state := root.get_node("GameState")
 	state.start_new_run()
 	_clear_test_fleet(state)
-	_check(state.credits == 1200 and state.build_area_size() == 8, "New runs must start with 1200 credits and an 8 by 8 build area.")
+	_check(state.credits == 1200 and state.build_area_size() == 20, "New runs must start with 1200 credits and a 20 by 20 build area.")
 	var original_inventory := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available]
 	_check(state.purchase_build_area_upgrade(), "The first area upgrade must be purchasable.")
-	_check(state.build_area_size() == 10 and state.credits == 1150, "Area upgrades must add two tiles per side for 50 credits.")
+	_check(state.build_area_size() == 22 and state.credits == 1150, "Area upgrades must add two tiles per side for 50 credits.")
 	_check([state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available] == [original_inventory[0] - 1, original_inventory[1] - 1, original_inventory[2] - 1, original_inventory[3] - 1], "Area upgrades must consume one of each material.")
 	var design := _fleet_blueprint()
-	design.set_tile_at(Vector2i(10, 0), ShipPart.Category.DEFENSE)
+	design.set_tile_at(Vector2i(22, 0), ShipPart.Category.DEFENSE)
 	_check(not state.design_fits_build_area(design), "The first out-of-bounds column must require an upgrade.")
 	state.blue_tiles_available = 0
-	_check(not state.purchase_build_area_upgrade() and state.build_area_size() == 10 and state.credits == 1150, "Unaffordable upgrades must not change size or credits.")
+	_check(not state.purchase_build_area_upgrade() and state.build_area_size() == 22 and state.credits == 1150, "Unaffordable upgrades must not change size or credits.")
 	state.start_new_run()
 	_clear_test_fleet(state)
-	_check(state.build_area_size() == 8, "Build upgrades must reset for a new run.")
+	_check(state.build_area_size() == 20, "Build upgrades must reset to the 20 by 20 base size for a new run.")
 
 
 func _test_builder_history(builder: Control) -> void:

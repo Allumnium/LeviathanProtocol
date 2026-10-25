@@ -34,6 +34,7 @@ const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
 const STARTING_CORE_TILE_COUNT := 3
+const BASE_BUILD_SIZE := 20
 
 var fleet: Array[FleetShip] = []
 var next_ship_id := 1
@@ -763,6 +764,19 @@ func record_battle(simulation: BattleSimulation) -> void:
 			"destroyed": not combatant.is_alive()})
 		if not combatant.is_alive():
 			fleet.erase(owned)
+	for combatant in simulation.aliens:
+		if combatant.alien == null:
+			continue
+		last_battle_report.append({
+			"alien": combatant.alien,
+			"damage": combatant.damage_dealt,
+			"taken": combatant.damage_taken,
+			"repair_damage": 0.0,
+			"deflected": combatant.damage_deflected(),
+			"weapons": combatant.weapon_damage.duplicate(),
+			"destroyed": not combatant.is_alive(),
+			"is_alien": true,
+		})
 	_refresh_fleet()
 
 
@@ -897,7 +911,7 @@ func delete_saved_ship_design(design_name: String, file_path: String = SAVED_SHI
 
 
 func build_area_size() -> int:
-	return 8 + 2 * build_area_level
+	return BASE_BUILD_SIZE + 2 * build_area_level
 
 
 func purchase_build_area_upgrade() -> bool:
