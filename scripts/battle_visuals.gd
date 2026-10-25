@@ -16,8 +16,10 @@ var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
 var simulation: BattleSimulation
 var camera_position := Vector2.ZERO
 var camera_zoom := 0.65
+var interpolation_alpha := 1.0
 var stars := PackedVector2Array()
 var _owned_render_cache: Dictionary = {}
+var _visible_world_rect := Rect2()
 
 
 func world_transform() -> Transform2D:
@@ -49,11 +51,16 @@ func _on_resized() -> void:
 func _draw() -> void:
 	if size.x <= 0.0 or size.y <= 0.0 or simulation == null:
 		return
+	_visible_world_rect = Rect2(
+		camera_position - size / (camera_zoom * 2.0),
+		size / camera_zoom
+	).grow(80.0)
 	draw_set_transform_matrix(world_transform())
 	for star in stars:
-		draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
+		if _visible_world_rect.has_point(star):
+			draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
 	for drop in simulation.drops:
-		if not drop.collected:
+		if not drop.collected and _visible_world_rect.has_point(drop.position):
 			var tile_texture := _get_tile_texture(drop.category)
 			if tile_texture != null:
 				var drop_size := Vector2.ONE * drop.size
@@ -67,19 +74,26 @@ func _draw() -> void:
 	_draw_alien_fleet()
 	draw_set_transform_matrix(world_transform())
 	for beam in simulation.beams:
+		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(beam.target.position):
+			continue
 		draw_line(beam.origin_position, beam.target.position,
 			Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
 	for projectile in simulation.projectiles:
-		var direction := (projectile.target.position - projectile.position).normalized()
+		var projectile_position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
+		if not _visible_world_rect.has_point(projectile_position):
+			continue
+		var direction := (projectile.target.position - projectile_position).normalized()
 		var trail_color := Color(0.4, 1.0, 0.25, 0.7)
 		var projectile_color := Color(0.8, 1.0, 0.3)
 		if projectile.is_player:
 			trail_color = Color(1.0, 0.03, 0.06, 0.7)
 			projectile_color = Color(1.0, 0.12, 0.16)
-		draw_line(projectile.position - direction * 12.0, projectile.position,
+		draw_line(projectile_position - direction * 12.0, projectile_position,
 			trail_color, 2.0, true)
-		draw_circle(projectile.position, 2.5, projectile_color)
+		draw_circle(projectile_position, 2.5, projectile_color)
 	for explosion in simulation.explosions:
+		if not _visible_world_rect.has_point(explosion.position):
+			continue
 		var progress := 1.0 - explosion.lifetime / 0.6
 		draw_arc(explosion.position, 4.0 + progress * 32.0, 0.0, TAU, 24,
 			Color(1.0, 0.45, 0.1, 1.0 - progress), 3.0, true)
@@ -87,8 +101,11 @@ func _draw() -> void:
 
 
 func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
+	var render_position := player_ship.previous_position.lerp(player_ship.position, interpolation_alpha)
+	if not _visible_world_rect.has_point(render_position):
+		return
 	if player_ship.owned_ship != null:
-		_draw_voxel_ship(player_ship)
+		_draw_voxel_ship(player_ship, render_position)
 		return
 	var cells := GameState.ship.get_tile_cells()
 	if cells.is_empty():
@@ -115,7 +132,8 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	var ship_scale := Ship.BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
 	var is_shield_flashing := player_ship.shield_flash > 0.0
 	var texture_tint := Color.WHITE
-	_set_ship_transform(player_ship.position, player_ship.heading, ship_scale)
+	var render_heading := lerp_angle(player_ship.previous_heading, player_ship.heading, interpolation_alpha)
+	_set_ship_transform(render_position, render_heading, ship_scale)
 	var hull_points := PackedVector2Array()
 	for cell in cells:
 		var cell_top_left := Vector2(
@@ -205,9 +223,13 @@ func _draw_alien_fleet() -> void:
 	for alien in simulation.aliens:
 		if not alien.is_alive():
 			continue
+		var render_position := alien.previous_position.lerp(alien.position, interpolation_alpha)
+		if not _visible_world_rect.has_point(render_position):
+			continue
 		var texture_size := alien.alien.texture.get_size()
 		var draw_size := texture_size * (16.0 / maxf(texture_size.x, texture_size.y))
-		_set_ship_transform(alien.position, alien.heading + PI * 0.5)
+		var render_heading := lerp_angle(alien.previous_heading, alien.heading, interpolation_alpha)
+		_set_ship_transform(render_position, render_heading + PI * 0.5)
 		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else Color.WHITE
 		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false, color)
 	draw_set_transform_matrix(world_transform())
@@ -251,14 +273,15 @@ func _get_tile_texture(category: int) -> Texture2D:
 			return null
 
 
-func _draw_voxel_ship(member: BattleSimulation.Combatant) -> void:
+func _draw_voxel_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
 	var owned := member.owned_ship
 	var render_cache := _get_owned_render_cache(owned)
 	var is_wreck := not member.is_alive()
 	var wreck_tint := Color(0.4, 0.44, 0.43, 0.75)
 	var is_shield_flashing := member.shield_flash > 0.0
 	var ship_tint := wreck_tint if is_wreck else Color.WHITE
-	_set_ship_transform(member.position, member.heading)
+	var render_heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
+	_set_ship_transform(render_position, render_heading)
 	var hidden: Dictionary = render_cache.hidden
 	var part_rects: Dictionary = render_cache.part_rects
 	var hull: PackedVector2Array = render_cache.hull

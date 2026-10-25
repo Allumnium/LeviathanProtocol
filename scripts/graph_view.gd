@@ -190,6 +190,18 @@ func _draw() -> void:
 			_draw_space_station(node_id, center)
 		else:
 			_draw_sector_star(node_id, center, Color(0.72, 0.72, 0.72))
+		if node_id != 0 and GameState.visited_nodes.has(node_id):
+			_draw_cleared_checkmark(center)
+
+
+func _draw_cleared_checkmark(center: Vector2) -> void:
+	var check_center := center + Vector2(9.0, -9.0)
+	var points := PackedVector2Array([
+		check_center + Vector2(-5.0, 0.0),
+		check_center + Vector2(-1.5, 4.0),
+		check_center + Vector2(6.0, -5.0),
+	])
+	draw_polyline(points, Color(0.2, 1.0, 0.35), 3.0, true)
 
 
 func _draw_space_station(node_id: int, center: Vector2) -> void:

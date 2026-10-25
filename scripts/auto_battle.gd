@@ -17,6 +17,8 @@ const FINISHING_SHOT_WINDOW_SECONDS := 0.25
 const FINISHING_SHOT_CAMERA_ZOOM := 2.5
 const FINISHING_SHOT_CAMERA_TRANSITION_SECONDS := 0.4
 const RESULT_DELAY_SECONDS := 1.0
+const SIMULATION_TICK_SECONDS := 1.0 / 30.0
+const MAX_SIMULATION_STEPS_PER_FRAME := 6
 
 @onready var visuals: BattleVisuals = $BattleVisuals
 @onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
@@ -42,6 +44,7 @@ var _cinematic_zoom_start := 1.0
 var _cinematic_transition_elapsed := 0.0
 var _result_delay_remaining := -1.0
 var _pending_result_won := false
+var _simulation_accumulator := 0.0
 
 
 func _ready() -> void:
@@ -79,6 +82,7 @@ func _ready() -> void:
 	withdraw_button.offset_right = -8
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
+	fast_forward_button.set_pressed_no_signal(GameState.battle_fast_forward)
 	pause_button.toggled.connect(_on_pause_toggled)
 	fast_forward_button.toggled.connect(_on_fast_forward_toggled)
 	defeat_accept_button.pressed.connect(_return_to_main_menu)
@@ -91,7 +95,7 @@ func _physics_process(delta: float) -> void:
 	if _result_delay_remaining >= 0.0:
 		# Keep the wreckage moving while the battlefield remains visible during
 		# the short beat before the result panel appears.
-		simulation.advance(delta)
+		_advance_fixed_simulation(delta, 1.0)
 		_result_delay_remaining -= delta
 		visuals.queue_redraw()
 		if _result_delay_remaining <= 0.0:
@@ -106,7 +110,7 @@ func _physics_process(delta: float) -> void:
 		if _cinematic_projectile != null
 		else (2.0 if fast_forward_button.button_pressed else 1.0)
 	)
-	simulation.advance(delta * speed_multiplier)
+	_advance_fixed_simulation(delta, speed_multiplier)
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
 	while _credited_drops < simulation.collected_categories.size():
@@ -126,12 +130,33 @@ func _physics_process(delta: float) -> void:
 	visuals.queue_redraw()
 
 
+func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
+	_simulation_accumulator += delta * speed_multiplier
+	var steps := 0
+	while (
+		_simulation_accumulator >= SIMULATION_TICK_SECONDS
+		and steps < MAX_SIMULATION_STEPS_PER_FRAME
+	):
+		simulation.advance(SIMULATION_TICK_SECONDS)
+		_simulation_accumulator -= SIMULATION_TICK_SECONDS
+		steps += 1
+	if steps == MAX_SIMULATION_STEPS_PER_FRAME:
+		_simulation_accumulator = minf(_simulation_accumulator, SIMULATION_TICK_SECONDS)
+	visuals.interpolation_alpha = clampf(
+		_simulation_accumulator / SIMULATION_TICK_SECONDS,
+		0.0,
+		1.0
+	)
+
+
 func _on_pause_toggled(is_paused: bool) -> void:
 	if is_paused:
 		fast_forward_button.set_pressed_no_signal(false)
+		GameState.battle_fast_forward = false
 
 
 func _on_fast_forward_toggled(is_fast: bool) -> void:
+	GameState.battle_fast_forward = is_fast
 	if is_fast:
 		pause_button.set_pressed_no_signal(false)
 
@@ -151,7 +176,10 @@ func _process(delta: float) -> void:
 			)
 		)
 		visuals.camera_position = _cinematic_camera_start.lerp(
-			_cinematic_projectile.position,
+			_cinematic_projectile.previous_position.lerp(
+				_cinematic_projectile.position,
+				visuals.interpolation_alpha
+			),
 			transition_weight
 		)
 		visuals.camera_zoom = lerpf(

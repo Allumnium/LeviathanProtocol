@@ -64,7 +64,9 @@ var saved_ship_designs: Array[Dictionary] = []
 var current_run_design_names: Array[String] = []
 var include_previous_run_designs := false
 var fleet_design_slots: Array[String] = ["", "", ""]
+var fleet_formation_index := 0
 var battle_auto_camera := true
+var battle_fast_forward := false
 
 
 func _ready() -> void:
@@ -127,6 +129,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	current_run_design_names.clear()
 	include_previous_run_designs = false
 	fleet_design_slots = ["", "", ""]
+	fleet_formation_index = 0
 	next_ship_id = 1
 	laser_upgrade_level = 0
 	build_area_level = 0
@@ -776,6 +779,11 @@ func set_planned_destination(node_id: int) -> bool:
 		return false
 	planned_destination_node_id = node_id
 	return true
+
+
+func is_shipyard_node(node_id: int) -> bool:
+	var convergence_index := CONVERGENCE_NODE_IDS.find(node_id)
+	return convergence_index == 0 or convergence_index == 1
 
 
 func set_destination(node_id: int) -> bool:

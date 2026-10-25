@@ -38,6 +38,7 @@ var preserve_camera_on_sync := false
 func _ready() -> void:
 	custom_minimum_size = Vector2(160, 90)
 	clip_contents = true
+	formation_index = clampi(GameState.fleet_formation_index, 0, FORMATION_NAMES.size() - 1)
 	formation_heading = Label.new()
 	formation_heading.name = "FormationHeading"
 	formation_heading.text = "FORMATION"
@@ -60,7 +61,6 @@ func _ready() -> void:
 	add_child(formation_button)
 	GameState.fleet_changed.connect(_sync_ships)
 	resized.connect(_fit)
-	_apply_formation(false)
 	_sync_ships()
 	formation_button.move_to_front()
 
@@ -88,6 +88,7 @@ func _process(delta: float) -> void:
 
 func _cycle_formation() -> void:
 	formation_index = (formation_index + 1) % FORMATION_NAMES.size()
+	GameState.fleet_formation_index = formation_index
 	formation_button.text = FORMATION_NAMES[formation_index]
 	if formation_index == NONE_FORMATION_INDEX:
 		return

@@ -2,6 +2,9 @@ class_name BattleSimulation
 extends RefCounted
 
 const PROJECTILE_SPEED := 320.0
+const TARGET_REFRESH_INTERVAL := 0.2
+const SPATIAL_CELL_SIZE := 256.0
+const WRECK_MOTION_SECONDS := 4.0
 
 signal weapon_fired
 signal shield_hit
@@ -27,8 +30,10 @@ class Combatant:
 	var shield_damage_taken := 0.0
 	var weapon_damage: Dictionary = {}
 	var position := Vector2.ZERO
+	var previous_position := Vector2.ZERO
 	var velocity := Vector2.ZERO
 	var heading := 0.0
+	var previous_heading := 0.0
 	var is_player := false
 	var stats: ShipStats
 	var integrity := 0.0
@@ -48,6 +53,8 @@ class Combatant:
 	var speed := 100.0
 	var radius := 18.0
 	var wreck_angular_velocity := 0.0
+	var wreck_motion_remaining := 0.0
+	var target_refresh_remaining := 0.0
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -74,6 +81,7 @@ class Projectile:
 	var origin := Vector2.ZERO
 	var weapon_name := ""
 	var position := Vector2.ZERO
+	var previous_position := Vector2.ZERO
 	var target: Combatant
 	var damage := 0.0
 	var is_player := false
@@ -114,6 +122,7 @@ var _damage_this_step := false
 var _members: Array[Combatant] = []
 var _previous_velocities: Array[Vector2] = []
 var _pending_damage_by_target: Dictionary = {}
+var _spatial_cells: Dictionary = {}
 
 
 func setup(
@@ -154,6 +163,7 @@ func setup(
 			PLAYER_FORMATION_CENTER,
 			PLAYER_FORMATION_SPACING
 		)
+		player_ship.previous_position = player_ship.position
 		players.append(player_ship)
 	player = players[0]
 	for index in range(fleet.size()):
@@ -173,6 +183,8 @@ func setup(
 			ALIEN_FORMATION_SPACING
 		)
 		alien.heading = PI
+		alien.previous_position = alien.position
+		alien.previous_heading = alien.heading
 		alien.radius = 7.0
 		aliens.append(alien)
 	_rebuild_member_cache()
@@ -215,6 +227,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 			member.cooldowns.append(0.0)
 			member.weapon_damage[weapon.weapon_name] = 0.0
 		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * 65.0
+		member.previous_position = member.position
 	return true
 
 
@@ -255,12 +268,18 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 	ship.integrity = stats.integrity
 	ship.shields = stats.shields
 	ship.speed = maxf(stats.thrust, 0.0) * SPEED_PER_THRUST
+	ship.target_refresh_remaining = 0.0
 	for weapon in stats.weapons:
 		ship.cooldowns.append(0.0)
 	return ship
 
 
 func advance(delta: float) -> void:
+	for member in _members:
+		member.previous_position = member.position
+		member.previous_heading = member.heading
+	for projectile in projectiles:
+		projectile.previous_position = projectile.position
 	elapsed += delta
 	_update_shield_flashes(delta)
 	_update_wrecks(delta)
@@ -275,6 +294,7 @@ func advance(delta: float) -> void:
 	if phase == Phase.COMBAT:
 		_damage_this_step = false
 		_rebuild_pending_projectile_damage()
+		_rebuild_spatial_index()
 		for index in range(_members.size()):
 			_previous_velocities[index] = _members[index].velocity
 		for player_ship in players:
@@ -302,14 +322,18 @@ func advance(delta: float) -> void:
 
 func _update_wrecks(delta: float) -> void:
 	for member in _members:
-		if member.is_alive():
+		if member.is_alive() or member.wreck_motion_remaining <= 0.0:
 			continue
+		member.wreck_motion_remaining = maxf(member.wreck_motion_remaining - delta, 0.0)
 		member.position += member.velocity * delta
 		member.heading = wrapf(
 			member.heading + member.wreck_angular_velocity * delta,
 			-PI,
 			PI
 		)
+		if member.wreck_motion_remaining <= 0.0:
+			member.velocity = Vector2.ZERO
+			member.wreck_angular_velocity = 0.0
 
 
 func _update_shield_flashes(delta: float) -> void:
@@ -336,11 +360,43 @@ func living_player_count() -> int:
 
 
 func _choose_target(ship: Combatant) -> Combatant:
-	var enemies: Array[Combatant] = []
-	if ship.is_player:
-		enemies = aliens
-	else:
-		enemies = players
+	if _spatial_cells.is_empty():
+		return _choose_target_linear(ship)
+	var best: Combatant
+	var best_score := INF
+	var fallback: Combatant
+	var fallback_score := INF
+	var center_cell := _spatial_cell(ship.position)
+	var maximum_ring := ceili(ARENA_RADIUS * 2.0 / SPATIAL_CELL_SIZE) + 1
+	for ring in range(maximum_ring + 1):
+		best = null
+		fallback = null
+		best_score = INF
+		fallback_score = INF
+		for cell_x in range(center_cell.x - ring, center_cell.x + ring + 1):
+			for cell_y in range(center_cell.y - ring, center_cell.y + ring + 1):
+				if ring > 0 and abs(cell_x - center_cell.x) != ring and abs(cell_y - center_cell.y) != ring:
+					continue
+				var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
+				for enemy: Combatant in occupants:
+					if enemy.is_player == ship.is_player or not enemy.is_alive():
+						continue
+					var score := enemy.integrity + enemy.shields
+					if score < fallback_score:
+						fallback = enemy
+						fallback_score = score
+					if _pending_projectile_damage(enemy) >= score:
+						continue
+					if score < best_score:
+						best = enemy
+						best_score = score
+		if best != null or fallback != null:
+			return best if best != null else fallback
+	return null
+
+
+func _choose_target_linear(ship: Combatant) -> Combatant:
+	var enemies: Array[Combatant] = aliens if ship.is_player else players
 	var best: Combatant
 	var best_score := INF
 	var fallback: Combatant
@@ -349,14 +405,10 @@ func _choose_target(ship: Combatant) -> Combatant:
 		if not enemy.is_alive():
 			continue
 		var score := enemy.integrity + enemy.shields
-		if ship.position.distance_to(enemy.position) > ship.shortest_range():
-			score += 1000.0
 		if score < fallback_score:
 			fallback = enemy
 			fallback_score = score
-		if _pending_projectile_damage(enemy) >= enemy.integrity + enemy.shields:
-			continue
-		if score < best_score:
+		if _pending_projectile_damage(enemy) < score and score < best_score:
 			best = enemy
 			best_score = score
 	return best if best != null else fallback
@@ -367,19 +419,67 @@ func _choose_weapon_target(
 	weapon_origin: Vector2,
 	weapon_range: float
 ) -> Combatant:
-	var enemies: Array[Combatant] = aliens if ship.is_player else players
+	var current := ship.target
+	var range_squared := weapon_range * weapon_range
+	if (
+		current != null
+		and current.is_alive()
+		and current.is_player != ship.is_player
+		and weapon_origin.distance_squared_to(current.position) <= range_squared
+		and _pending_projectile_damage(current) < current.integrity + current.shields
+	):
+		return current
+	if _spatial_cells.is_empty():
+		var enemies: Array[Combatant] = aliens if ship.is_player else players
+		var fallback_best: Combatant
+		var fallback_score := INF
+		for enemy in enemies:
+			if (
+				not enemy.is_alive()
+				or weapon_origin.distance_squared_to(enemy.position) > range_squared
+			):
+				continue
+			var score := enemy.integrity + enemy.shields
+			if _pending_projectile_damage(enemy) < score and score < fallback_score:
+				fallback_best = enemy
+				fallback_score = score
+		return fallback_best
 	var best: Combatant
 	var best_score := INF
-	for enemy in enemies:
-		if not enemy.is_alive() or weapon_origin.distance_to(enemy.position) > weapon_range:
-			continue
-		var score := enemy.integrity + enemy.shields
-		if _pending_projectile_damage(enemy) >= score:
-			continue
-		if score < best_score:
-			best = enemy
-			best_score = score
+	var cell_radius := ceili(weapon_range / SPATIAL_CELL_SIZE)
+	var center_cell := _spatial_cell(weapon_origin)
+	for cell_x in range(center_cell.x - cell_radius, center_cell.x + cell_radius + 1):
+		for cell_y in range(center_cell.y - cell_radius, center_cell.y + cell_radius + 1):
+			var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
+			for enemy: Combatant in occupants:
+				if (
+					enemy.is_player == ship.is_player
+					or not enemy.is_alive()
+					or weapon_origin.distance_squared_to(enemy.position) > range_squared
+				):
+					continue
+				var score := enemy.integrity + enemy.shields
+				if _pending_projectile_damage(enemy) >= score:
+					continue
+				if score < best_score:
+					best = enemy
+					best_score = score
 	return best
+
+
+func _spatial_cell(position: Vector2) -> Vector2i:
+	return Vector2i(floori(position.x / SPATIAL_CELL_SIZE), floori(position.y / SPATIAL_CELL_SIZE))
+
+
+func _rebuild_spatial_index() -> void:
+	_spatial_cells.clear()
+	for member in _members:
+		if not member.is_alive():
+			continue
+		var cell := _spatial_cell(member.position)
+		if not _spatial_cells.has(cell):
+			_spatial_cells[cell] = []
+		(_spatial_cells[cell] as Array).append(member)
 
 
 func _pending_projectile_damage(target: Combatant) -> float:
@@ -413,7 +513,13 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		if ship.retreat_cooldown <= 0.0:
 			ship.retreat_time = 2.5
 			ship.retreat_cooldown = 9.0
-	ship.target = _choose_target(ship)
+	ship.target_refresh_remaining -= delta
+	if ship.target != null and not ship.target.is_alive():
+		ship.target = null
+		ship.target_refresh_remaining = random.randf_range(0.0, TARGET_REFRESH_INTERVAL)
+	if ship.target == null and ship.target_refresh_remaining <= 0.0:
+		ship.target = _choose_target(ship)
+		ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null:
 		return
 	var offset := ship.target.position - ship.position
@@ -425,15 +531,23 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		radial_speed = -ship.speed
 	var desired := direction * radial_speed
 	desired += direction.orthogonal() * ship.speed * 0.24
-	for other in _members:
-		if other == ship or not other.is_alive():
-			continue
-		var separation := ship.position - other.position
-		var clearance := ship.radius + other.radius + 12.0
-		if separation.length() < clearance:
-			if separation.is_zero_approx():
-				separation = Vector2.UP
-			desired += separation.normalized() * ship.speed * (1.0 - separation.length() / clearance)
+	var ship_cell := _spatial_cell(ship.position)
+	for cell_x in range(ship_cell.x - 1, ship_cell.x + 2):
+		for cell_y in range(ship_cell.y - 1, ship_cell.y + 2):
+			var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
+			for other: Combatant in occupants:
+				if other == ship or not other.is_alive():
+					continue
+				var separation := ship.position - other.position
+				var clearance := ship.radius + other.radius + 12.0
+				var distance_squared := separation.length_squared()
+				if distance_squared >= clearance * clearance:
+					continue
+				var separation_distance := sqrt(distance_squared)
+				if separation.is_zero_approx():
+					separation = Vector2.UP
+					separation_distance = 1.0
+				desired += separation / separation_distance * ship.speed * (1.0 - separation_distance / clearance)
 	if ship.position.length() > ARENA_RADIUS - 90.0:
 		desired -= ship.position.normalized() * ship.speed
 	if withdrawing and ship.is_player:
@@ -459,9 +573,10 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		if ship.cooldowns[index] > 0.0:
 			continue
 		var weapon_origin := _get_weapon_origin(ship, weapon)
-		ship.target = _choose_weapon_target(ship, weapon_origin, weapon.range_units)
-		if ship.target == null:
+		var weapon_target := _choose_weapon_target(ship, weapon_origin, weapon.range_units)
+		if weapon_target == null:
 			continue
+		ship.target = weapon_target
 		ship.cooldowns[index] = weapon.fire_interval_seconds
 		for shot_index in range(weapon.projectiles_per_activation):
 			ship.target = _choose_weapon_target(ship, weapon_origin, weapon.range_units)
@@ -482,6 +597,7 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 				projectile.origin = weapon_origin
 				projectile.weapon_name = weapon.weapon_name
 				projectile.position = weapon_origin
+				projectile.previous_position = weapon_origin
 				projectile.target = ship.target
 				projectile.damage = weapon.damage_per_shot
 				projectile.is_player = ship.is_player
@@ -588,6 +704,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if target.velocity.length_squared() < 1.0:
 		target.velocity = Vector2.from_angle(random.randf_range(0.0, TAU)) * random.randf_range(8.0, 20.0)
 	target.wreck_angular_velocity = random.randf_range(-0.45, 0.45)
+	target.wreck_motion_remaining = WRECK_MOTION_SECONDS
 	if absf(target.wreck_angular_velocity) < 0.12:
 		target.wreck_angular_velocity = 0.12 if target.wreck_angular_velocity >= 0.0 else -0.12
 	var explosion := Explosion.new()

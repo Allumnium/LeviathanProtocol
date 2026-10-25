@@ -107,7 +107,9 @@ func _setup_panel_tabs() -> void:
 		var button := panel_tab_buttons[index]
 		button.button_group = tab_button_group
 		button.pressed.connect(_on_panel_tab_button_pressed.bind(index))
-	panel_tab_buttons[BUILD_TAB_INDEX].disabled = true
+	var shipyard_available := GameState.is_shipyard_node(GameState.current_node_id)
+	panel_tab_buttons[BUILD_TAB_INDEX].disabled = not shipyard_available
+	panel_tab_buttons[BUILD_TAB_INDEX].get_node("Lock").visible = not shipyard_available
 	panel_tab_buttons[RESEARCH_TAB_INDEX].disabled = true
 
 	panel_tabs.tab_changed.connect(_on_panel_tab_changed)

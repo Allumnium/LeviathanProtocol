@@ -17,8 +17,11 @@ const MATERIAL_CREDIT_VALUES: Array[int] = [
 const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 const MATERIAL_REVEAL_SOUND: AudioStream = preload("res://assets/audio/sfx/dialogue_type.mp3")
 const REWARD_REVEAL_DURATION := 3.0
+const DAMAGE_DEALT_COLOR := Color(0.92, 0.24, 0.2)
+const DAMAGE_DEFLECTED_COLOR := Color(0.3, 0.66, 1.0)
+const REPAIR_DAMAGE_COLOR := Color(1.0, 0.66, 0.16)
 
-var _reward_icons: Array[TextureRect] = []
+var _reward_items: Array[Control] = []
 var _reward_reveal_elapsed := 0.0
 var _next_reward_icon := 0
 var _reward_reveal_interval := REWARD_REVEAL_DURATION
@@ -47,45 +50,45 @@ func show_report(
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(rows)
 	var slot_summaries := _summarize_by_slot(entries)
-	var maximum := 1.0
-	for summary in slot_summaries:
-		maximum = maxf(maximum, summary.damage)
 	for summary in slot_summaries:
 		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
 		rows.add_child(row)
 		var preview := preload("res://scripts/fleet_ship_preview.gd").new()
 		preview.owned = summary.ship
-		preview.custom_minimum_size = Vector2(68, 68)
+		preview.custom_minimum_size = Vector2(76, 76)
 		row.add_child(preview)
 		var details := VBoxContainer.new()
 		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		details.add_theme_constant_override("separation", 2)
 		row.add_child(details)
 		var summary_line := HBoxContainer.new()
-		summary_line.add_theme_constant_override("separation", 0)
+		summary_line.add_theme_constant_override("separation", 4)
 		details.add_child(summary_line)
-		var stats_label := Label.new()
-		stats_label.text = "%s · DEALT %.1f" % [summary.name, summary.damage]
-		stats_label.add_theme_font_size_override("font_size", 11)
-		summary_line.add_child(stats_label)
-		if summary.repair_damage > 0.0:
-			_add_summary_metric(
-				summary_line,
-				"DAMAGE FOR REPAIR: %d" % roundi(summary.repair_damage),
-				Color(1.0, 0.82, 0.25)
-			)
-		if summary.deflected > 0.0:
-			_add_summary_metric(
-				summary_line,
-				"DAMAGE DEFLECTED: %d" % roundi(summary.deflected),
-				Color(0.35, 0.75, 1.0)
-			)
+		var name_label := Label.new()
+		name_label.text = summary.name
+		name_label.add_theme_font_size_override("font_size", 11)
+		summary_line.add_child(name_label)
 		if summary.destroyed > 0:
-			_add_summary_metric(
-				summary_line,
-				"%d DESTROYED" % summary.destroyed,
-				Color(1.0, 0.22, 0.22)
-			)
-		_add_bar(details, summary.damage, maximum)
+			var destroyed_label := Label.new()
+			destroyed_label.text = "· %d DESTROYED" % summary.destroyed
+			destroyed_label.add_theme_font_size_override("font_size", 11)
+			destroyed_label.add_theme_color_override("font_color", DAMAGE_DEALT_COLOR)
+			summary_line.add_child(destroyed_label)
+		details.add_child(StatDisplayRow.new(
+			"DAMAGE DEALT", summary.damage, "%.1f" % summary.damage,
+			9, true, null, DAMAGE_DEALT_COLOR
+		))
+		if summary.deflected > 0.0:
+			details.add_child(StatDisplayRow.new(
+				"DAMAGE DEFLECTED", summary.deflected, str(roundi(summary.deflected)),
+				9, true, null, DAMAGE_DEFLECTED_COLOR
+			))
+		if summary.repair_damage > 0.0:
+			details.add_child(StatDisplayRow.new(
+				"REPAIRS NEEDED", summary.repair_damage, str(roundi(summary.repair_damage)),
+				9, true, null, REPAIR_DAMAGE_COLOR
+			))
 	var button_center := CenterContainer.new()
 	column.add_child(button_center)
 	var accept_button := Button.new()
@@ -99,31 +102,31 @@ func show_report(
 
 
 func _process(delta: float) -> void:
-	if _next_reward_icon >= _reward_icons.size():
+	if _next_reward_icon >= _reward_items.size():
 		return
 	_reward_reveal_elapsed += delta
-	while _reward_reveal_elapsed >= _reward_reveal_interval and _next_reward_icon < _reward_icons.size():
+	while _reward_reveal_elapsed >= _reward_reveal_interval and _next_reward_icon < _reward_items.size():
 		_reward_reveal_elapsed -= _reward_reveal_interval
 		_reveal_next_reward()
 
 
 func _input(event: InputEvent) -> void:
 	if (
-		_next_reward_icon >= _reward_icons.size()
+		_next_reward_icon >= _reward_items.size()
 		or not visible
 		or not (event is InputEventMouseButton)
 		or not event.pressed
 		or event.button_index != MOUSE_BUTTON_LEFT
 	):
 		return
-	while _next_reward_icon < _reward_icons.size():
+	while _next_reward_icon < _reward_items.size():
 		_reveal_next_reward(false)
 	AudioManager.play_sfx(MATERIAL_REVEAL_SOUND)
 	get_viewport().set_input_as_handled()
 
 
 func _reveal_next_reward(play_sound := true) -> void:
-	_reward_icons[_next_reward_icon].modulate.a = 1.0
+	_reward_items[_next_reward_icon].modulate.a = 1.0
 	if play_sound:
 		AudioManager.play_sfx(MATERIAL_REVEAL_SOUND)
 	_next_reward_icon += 1
@@ -163,19 +166,52 @@ func _add_material_rewards(parent: VBoxContainer, gained_materials: Array[int]) 
 	reward_row.add_theme_constant_override("h_separation", 2)
 	reward_row.add_theme_constant_override("v_separation", 2)
 	parent.add_child(reward_row)
-	for category in sorted_materials:
-		if category < 0 or category >= MATERIAL_ICONS.size():
-			continue
-		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(18, 18)
-		icon.texture = MATERIAL_ICONS[category]
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.modulate.a = 0.0
-		reward_row.add_child(icon)
-		_reward_icons.append(icon)
-	if not _reward_icons.is_empty():
-		_reward_reveal_interval = REWARD_REVEAL_DURATION / float(_reward_icons.size())
+	var available_width := maxf(size.x, get_viewport_rect().size.x - 80.0)
+	var icons_per_row := maxi(floori(available_width / 20.0), 1)
+	var use_grouped_counts := sorted_materials.size() > icons_per_row * 2
+	if use_grouped_counts:
+		var counts: Array[int] = [0, 0, 0, 0]
+		for category in sorted_materials:
+			if category >= 0 and category < counts.size():
+				counts[category] += 1
+		var categories: Array[int] = [0, 1, 2, 3]
+		categories.sort_custom(func(a: int, b: int) -> bool:
+			return MATERIAL_CREDIT_VALUES[a] > MATERIAL_CREDIT_VALUES[b])
+		for category in categories:
+			if counts[category] > 0:
+				_add_grouped_reward(reward_row, category, counts[category])
+	else:
+		for category in sorted_materials:
+			if category < 0 or category >= MATERIAL_ICONS.size():
+				continue
+			var icon := _create_reward_icon(category)
+			icon.modulate.a = 0.0
+			reward_row.add_child(icon)
+			_reward_items.append(icon)
+	if not _reward_items.is_empty():
+		_reward_reveal_interval = REWARD_REVEAL_DURATION / float(_reward_items.size())
+
+
+func _create_reward_icon(category: int) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(18, 18)
+	icon.texture = MATERIAL_ICONS[category]
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	return icon
+
+
+func _add_grouped_reward(parent: HFlowContainer, category: int, count: int) -> void:
+	var item := HBoxContainer.new()
+	item.add_theme_constant_override("separation", 2)
+	item.modulate.a = 0.0
+	item.add_child(_create_reward_icon(category))
+	var count_label := Label.new()
+	count_label.text = "x%d" % count
+	count_label.add_theme_font_size_override("font_size", 10)
+	item.add_child(count_label)
+	parent.add_child(item)
+	_reward_items.append(item)
 
 
 func _summarize_by_slot(entries: Array[Dictionary]) -> Array[Dictionary]:
@@ -206,27 +242,6 @@ func _summarize_by_slot(entries: Array[Dictionary]) -> Array[Dictionary]:
 	return summaries
 
 
-func _add_summary_metric(parent: HBoxContainer, text: String, color: Color) -> void:
-	var separator := Label.new()
-	separator.text = " · "
-	separator.add_theme_font_size_override("font_size", 11)
-	parent.add_child(separator)
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", 11)
-	label.add_theme_color_override("font_color", color)
-	parent.add_child(label)
-
-
 func _ship_type_name(display_name: String) -> String:
 	var pieces := display_name.rsplit(" ", true, 1)
 	return pieces[0] if pieces.size() == 2 and pieces[1].is_valid_int() else display_name
-
-
-func _add_bar(parent: Control, amount: float, maximum: float) -> void:
-	var bar := ProgressBar.new()
-	bar.max_value = maximum
-	bar.value = amount
-	bar.show_percentage = false
-	bar.custom_minimum_size.y = 5
-	parent.add_child(bar)

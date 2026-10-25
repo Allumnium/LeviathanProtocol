@@ -145,7 +145,7 @@ func _ready() -> void:
 	_refresh_tile_counts()
 
 	var selector_group := ButtonGroup.new()
-	selector_group.allow_unpress = false
+	selector_group.allow_unpress = true
 	red_build_button.button_group = selector_group
 	blue_build_button.button_group = selector_group
 	green_build_button.button_group = selector_group
@@ -1290,6 +1290,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
+	if event.keycode == KEY_ESCAPE:
+		_deselect_material()
+		get_viewport().set_input_as_handled()
+		return
 	if event.ctrl_pressed:
 		if event.keycode == KEY_Z:
 			_undo()
@@ -1315,4 +1319,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _select_material_button(button: TextureButton) -> void:
 	if not button.disabled:
-		button.button_pressed = true
+		button.button_pressed = not button.button_pressed
+
+
+func _deselect_material() -> void:
+	_is_placing = false
+	_last_placed_cell = INVALID_CELL
+	for button in [red_build_button, blue_build_button, green_build_button, core_build_button]:
+		button.button_pressed = false
+	_selected_source_id = NO_SOURCE_ID
+	_clear_preview()

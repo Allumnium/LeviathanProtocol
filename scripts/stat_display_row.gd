@@ -17,7 +17,8 @@ func _init(
 	formatted_value: String = "",
 	font_size: int = 11,
 	show_segments: bool = true,
-	value_icon: Texture2D = null
+	value_icon: Texture2D = null,
+	segment_color: Color = Color.TRANSPARENT
 ) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 1)
@@ -57,12 +58,15 @@ func _init(
 
 	var magnitude := absf(value)
 	var segment_count := int(ceil(magnitude / POINTS_PER_SEGMENT))
+	var resolved_segment_color := segment_color
+	if is_zero_approx(resolved_segment_color.a):
+		resolved_segment_color = SEGMENT_NEGATIVE_COLOR if value < 0.0 else SEGMENT_POSITIVE_COLOR
 	for index in range(segment_count):
 		var segment_value := minf(magnitude - index * POINTS_PER_SEGMENT, POINTS_PER_SEGMENT)
 		segments.add_child(
 			_create_segment(
 				segment_value / POINTS_PER_SEGMENT,
-				SEGMENT_NEGATIVE_COLOR if value < 0.0 else SEGMENT_POSITIVE_COLOR
+				resolved_segment_color
 			)
 		)
 	add_child(segments)

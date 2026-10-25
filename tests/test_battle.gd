@@ -1608,6 +1608,14 @@ func _test_builder_history(builder: Control) -> void:
 	builder._unhandled_key_input(key)
 	_check(builder._selected_source_id == builder.RED_SOURCE_ID,
 		"Number 1 must select the red material slot.")
+	builder._unhandled_key_input(key)
+	_check(builder._selected_source_id == builder.NO_SOURCE_ID,
+		"Selecting the active material again must deselect it.")
+	builder._unhandled_key_input(key)
+	key.keycode = KEY_ESCAPE
+	builder._unhandled_key_input(key)
+	_check(builder._selected_source_id == builder.NO_SOURCE_ID,
+		"Escape must deselect the active material.")
 	builder._selected_source_id = builder.GREEN_SOURCE_ID
 	builder._begin_stroke()
 	builder._apply_selected_tool(Vector2i(6, 6))
