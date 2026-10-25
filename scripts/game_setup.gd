@@ -7,6 +7,7 @@ signal start_requested(difficulty: int)
 @onready var difficulty_details: Label = $CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyDetails
 @onready var back_button: TextureButton = $CenterContainer/SetupModal/CloseX
 @onready var start_button: Button = $CenterContainer/SetupModal/Contents/Buttons/StartButton
+@onready var setup_modal: PanelContainer = $CenterContainer/SetupModal
 
 var selected_difficulty := GameState.Difficulty.MEDIUM
 
@@ -15,7 +16,14 @@ func _ready() -> void:
 	difficulty_button.pressed.connect(_on_difficulty_pressed)
 	back_button.pressed.connect(_on_back_pressed)
 	start_button.pressed.connect(_on_start_pressed)
+	visibility_changed.connect(_on_visibility_changed)
 	_update_difficulty_display()
+	_on_visibility_changed()
+
+
+func _on_visibility_changed() -> void:
+	if visible:
+		setup_modal.show()
 
 
 func _on_difficulty_pressed() -> void:

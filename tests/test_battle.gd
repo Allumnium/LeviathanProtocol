@@ -30,6 +30,9 @@ func _fleet(count: int, seed_value: int = 0) -> Array[RefCounted]:
 
 
 func _run() -> void:
+	var state := root.get_node("GameState")
+	var archive_test_path := "user://archive_progress_suite_%d.json" % Time.get_ticks_usec()
+	state.archive_progress_file_path = archive_test_path
 	await _test_main_menu_setup_flow()
 	_test_starter_drones()
 	_test_weapon_range()
@@ -42,6 +45,7 @@ func _run() -> void:
 	_test_run_loss()
 	_test_build_area()
 	_test_ship_design_storage()
+	_test_archive_progress_storage()
 	_test_mini_turret_firing()
 	_test_guaranteed_hits()
 	_test_retreat_and_focus()
@@ -58,6 +62,8 @@ func _run() -> void:
 			child.stop()
 			child.stream = null
 	await create_timer(0.1).timeout
+	if FileAccess.file_exists(archive_test_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(archive_test_path))
 	print("Battle tests finished: %d failures" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -66,11 +72,38 @@ func _test_main_menu_setup_flow() -> void:
 	var menu: Variant = load("res://scenes/main_menu.tscn").instantiate()
 	root.add_child(menu)
 	await process_frame
+	_check(menu.ship_designer_button != null and menu.ship_designer_button.text == "SHIP DESIGNER",
+		"The main menu must provide a standalone Ship Designer button.")
+	var settings_dialog := menu.settings_dialog as PopupPanel
+	var settings_close := settings_dialog.get_node("CloseX") as TextureButton
+	var auto_camera_button := settings_dialog.get_node(
+		"Contents/ContentArea/BattleAutoCameraRow/BattleAutoCameraButton"
+	) as Button
+	_check(settings_dialog.exclusive,
+		"Clicking outside the Settings popup must not dismiss it.")
+	_check(
+		settings_close.get_index() == settings_dialog.get_child_count() - 1
+			and settings_close.size == Vector2(24, 24)
+			and settings_close._has_point(Vector2(12, 23)),
+		"The complete visible Settings X must remain above the popup contents and clickable."
+	)
+	_check(
+		auto_camera_button != null
+			and auto_camera_button.custom_minimum_size == Vector2(180, 40)
+			and auto_camera_button.text in ["ON", "OFF"],
+		"Battle auto-camera must use the same framed button presentation as difficulty."
+	)
 	menu.play_button.pressed.emit()
+	var setup_close := menu.game_setup.back_button as TextureButton
 	_check(
 		menu.game_setup.visible and not menu.menu_ui.visible
 			and is_zero_approx(menu.starfield._warp_progress),
 		"Play must show mission setup before beginning the starfield warp."
+	)
+	_check(
+		setup_close.get_index() == setup_close.get_parent().get_child_count() - 1
+			and setup_close._has_point(Vector2(12, 23)),
+		"The complete visible Mission Setup X must be above its contents and clickable."
 	)
 	_check(menu.game_setup.difficulty_button.text == "NORMAL", "Mission setup must default to Normal difficulty.")
 	menu.game_setup.difficulty_button.pressed.emit()
@@ -79,13 +112,39 @@ func _test_main_menu_setup_flow() -> void:
 	_check(menu.game_setup.difficulty_button.text == "EASY", "Difficulty must cycle from Hard to Easy.")
 	menu.game_setup.difficulty_button.pressed.emit()
 	_check(menu.game_setup.difficulty_button.text == "NORMAL", "Difficulty must cycle from Easy to Normal.")
-	menu.game_setup.back_requested.emit()
+	menu.game_setup.back_button.pressed.emit()
 	_check(
 		not menu.game_setup.visible and menu.menu_ui.visible,
 		"Backing out of mission setup must restore the title menu."
 	)
+	menu.play_button.pressed.emit()
+	_check(
+		menu.game_setup.visible and menu.game_setup.setup_modal.visible,
+		"Reopening mission setup must restore its panel instead of leaving only the dark backdrop."
+	)
+	menu.game_setup.back_button.pressed.emit()
 	root.remove_child(menu)
 	menu.free()
+	var standalone_designer: Variant = load("res://scenes/ship_designer.tscn").instantiate()
+	root.add_child(standalone_designer)
+	await process_frame
+	_check(
+		standalone_designer.build_tab_button != null
+			and standalone_designer.build_tab_button.text == "SHIP BUILDER"
+			and standalone_designer.archive_tab_button != null
+			and standalone_designer.archive_tab_button.text == "ARCHIVE",
+		"The standalone designer must provide Ship Builder and Archive workspace tabs."
+	)
+	standalone_designer.archive_tab_button.pressed.emit()
+	_check(
+		standalone_designer.panel_tabs.current_tab == 1
+			and standalone_designer.archive_details.visible
+			and standalone_designer.archive_progress.visible
+			and not standalone_designer.build_controls.visible,
+		"The standalone Archive tab must reuse the three-panel workspace arrangement."
+	)
+	root.remove_child(standalone_designer)
+	standalone_designer.free()
 
 
 func _clear_test_fleet(state: Node) -> void:
@@ -200,9 +259,52 @@ func _test_thrust_movement() -> void:
 			and low_thrust_simulation.player.velocity.x < 40.0,
 		"A ship without a target must coast and decelerate gradually instead of stopping."
 	)
+	low_thrust_simulation.player.position = Vector2.ZERO
+	enemy.position = Vector2(400.0, 0.0)
+	var flyby_direction: Vector2 = low_thrust_simulation._flyby_direction(
+		low_thrust_simulation.player, enemy
+	)
+	var flyby_closest_approach := absf(
+		(enemy.position - low_thrust_simulation.player.position).cross(flyby_direction)
+	)
+	_check(
+		is_equal_approx(
+			flyby_closest_approach,
+			low_thrust_simulation.player.shortest_range()
+		),
+		"Pursuit must aim for a broadside pass at minimum weapon range."
+	)
+	low_thrust_simulation.player.velocity = -flyby_direction * 40.0
+	var reverse_test_speed := low_thrust_simulation.player.velocity.length()
+	low_thrust_simulation._apply_limited_reverse_thrust(
+		low_thrust_simulation.player, flyby_direction * low_thrust_simulation.player.speed, 0.5
+	)
+	_check(
+		low_thrust_simulation.player.velocity.length() < reverse_test_speed
+			and low_thrust_simulation.player.velocity.length() > 0.0,
+		"Reverse thrust must slow a bad approach without stopping the ship instantly."
+	)
 
 
 func _test_ship_cost() -> void:
+	var short_notch_cells: Array[Vector2i] = []
+	for y in range(5):
+		short_notch_cells.append(Vector2i(0, y))
+		short_notch_cells.append(Vector2i(4, y))
+	for x in range(1, 4):
+		short_notch_cells.append(Vector2i(x, 4))
+	var short_notch_hull := Ship.create_hull_polygon(short_notch_cells)
+	_check(Geometry2D.is_point_in_polygon(Vector2(2.5, 0.75), short_notch_hull),
+		"Hull wedges may bridge at most three empty grid cells.")
+	var long_notch_cells: Array[Vector2i] = []
+	for y in range(5):
+		long_notch_cells.append(Vector2i(0, y))
+		long_notch_cells.append(Vector2i(5, y))
+	for x in range(1, 5):
+		long_notch_cells.append(Vector2i(x, 4))
+	var long_notch_hull := Ship.create_hull_polygon(long_notch_cells)
+	_check(not Geometry2D.is_point_in_polygon(Vector2(3.0, 0.75), long_notch_hull),
+		"Hull edges must follow the occupied squares when a gap exceeds three cells.")
 	var state := root.get_node("GameState")
 	var top_layer_types := [
 		ShipPart.Type.COMMAND_CENTER,
@@ -217,6 +319,29 @@ func _test_ship_cost() -> void:
 			pattern.renders_on_top == (pattern.part_type in top_layer_types),
 			"Guns, thrusters, and the command core must render above the translucent hull."
 		)
+		var flipped_offsets := pattern.get_offsets_for_transform(0, true)
+		_check(
+			pattern.get_transform_for_offsets(flipped_offsets).x >= 0,
+			"Every component recipe must recognize its horizontal reflection."
+		)
+		if pattern.part_type == ShipPart.Type.COMMAND_CENTER:
+			var flipped_command := Ship.new()
+			for index in range(flipped_offsets.size()):
+				flipped_command.set_tile_at(
+					flipped_offsets[index], pattern.tile_categories[index]
+				)
+			flipped_command.add_part(ShipPart.new(
+				pattern.part_type,
+				pattern.category,
+				Vector2i.ZERO,
+				flipped_offsets,
+				pattern.stats
+			))
+			var reloaded_command := Ship.new()
+			_check(
+				reloaded_command.load_design_data(flipped_command.to_design_data()),
+				"Either green-purple command-center checkerboard must save and reload."
+			)
 	var ship := Ship.new()
 	ship.set_tile_at(Vector2i(0, 0), ShipPart.Category.OFFENSE)
 	ship.set_tile_at(Vector2i(1, 0), ShipPart.Category.DEFENSE)
@@ -244,6 +369,8 @@ func _test_ship_cost() -> void:
 		"The displayed material cost must exclude missing materials bought with credits.")
 	_check(state.get_construction_credit_cost(ship) == 12,
 		"A ship's credit cost must equal only the price of its missing materials.")
+	_check(state.get_design_material_costs(ship) == [1, 1, 1, 0],
+		"Library costs must show fixed blueprint materials regardless of current inventory.")
 	state.red_tiles_available = inventory[0]
 	state.blue_tiles_available = inventory[1]
 	state.green_tiles_available = inventory[2]
@@ -383,6 +510,39 @@ func _test_ship_design_storage() -> void:
 			ProjectSettings.globalize_path(test_file_path)
 		)
 		_check(cleanup_error == OK, "Could not clean up the temporary ship-design test file.")
+
+
+func _test_archive_progress_storage() -> void:
+	var state := root.get_node("GameState")
+	var original_discovered: Array[int] = state.discovered_part_types.duplicate()
+	var original_unviewed: Array[int] = state.unviewed_discovered_part_types.duplicate()
+	var test_file_path := "user://archive_progress_test_%d.json" % Time.get_ticks_usec()
+	var test_discovered: Array[int] = [ShipPart.Type.MINI_TURRET, ShipPart.Type.SHIELD]
+	var test_unviewed: Array[int] = [ShipPart.Type.SHIELD]
+	state.discovered_part_types = test_discovered
+	state.unviewed_discovered_part_types = test_unviewed
+	_check(
+		state._write_archive_progress(test_file_path)
+			and FileAccess.file_exists(test_file_path),
+		"Archive discoveries must save to a persistent client file."
+	)
+	state.discovered_part_types.clear()
+	state.unviewed_discovered_part_types.clear()
+	_check(state._load_archive_progress(test_file_path),
+		"Archive discoveries must reload from the client file.")
+	_check(
+		state.discovered_part_types.has(ShipPart.Type.MINI_TURRET)
+			and state.discovered_part_types.has(ShipPart.Type.SHIELD)
+			and state.unviewed_discovered_part_types == [ShipPart.Type.SHIELD],
+		"Reloading Archive progress must preserve discoveries and their unread state."
+	)
+	state.discovered_part_types = original_discovered
+	state.unviewed_discovered_part_types = original_unviewed
+	if FileAccess.file_exists(test_file_path):
+		var cleanup_error := DirAccess.remove_absolute(
+			ProjectSettings.globalize_path(test_file_path)
+		)
+		_check(cleanup_error == OK, "Could not clean up the temporary Archive progress file.")
 
 
 func _test_mini_turret_firing() -> void:
@@ -639,10 +799,12 @@ func _test_continuous_pursuit() -> void:
 	enemy.cooldowns[0] = 10000.0
 	simulation.player.heading = 0.0
 	simulation.player.velocity = Vector2.RIGHT * simulation.player.speed * 0.75
-	var speed_before := simulation.player.velocity.x
 	simulation._update_ship(simulation.player, 1.0 / 60.0)
-	_check(simulation.player.velocity.x >= speed_before,
-		"Entering weapon range must not cause a pursuing ship to brake.")
+	_check(
+		simulation.player.velocity.length() > 0.0
+			and absf(simulation.player.heading) > 0.001,
+		"A ship in weapon range must continue through a turning broadside pass."
+	)
 
 
 func _test_drop_distribution() -> void:
@@ -1008,6 +1170,16 @@ func _test_scene() -> void:
 				),
 			"Cycling the formation control must auto-arrange the fleet in the chosen pattern."
 		)
+		if not state.fleet.is_empty():
+			var expected_formation_centroid := Vector2.ZERO
+			for owned in state.fleet:
+				expected_formation_centroid += owned.formation * fleet_panel.board.SPACING
+			expected_formation_centroid /= float(state.fleet.size())
+			fleet_panel.board._fit()
+			_check(
+				fleet_panel.board.view_center.is_equal_approx(expected_formation_centroid),
+				"Automatic formation framing must center the camera on the fleet centroid."
+			)
 		fleet_panel.call("_open_picker", 0)
 		_check(
 			not fleet_panel.picker.title_label.visible,
@@ -1066,9 +1238,9 @@ func _test_scene() -> void:
 		var archive_progress: VBoxContainer = game_map.archive_progress
 		var archive_details: VBoxContainer = game_map.archive_details
 		_check(
-			archive_grid != null and archive_grid.columns == 6
+			archive_grid != null and archive_grid.columns >= 1
 				and archive_grid.get_child_count() == ShipPartPattern.get_catalog().size(),
-			"The Archive must show every component as a button in a six-column grid."
+			"The Archive must show every component in its responsive grid."
 		)
 		var archive_tab := panel_tabs.get_node("Archive")
 		var thruster_index: int = archive_tab._part_patterns.find_custom(
@@ -1185,7 +1357,6 @@ func _test_scene() -> void:
 		build_area.call("_on_load_design_pressed")
 		await process_frame
 		var load_dialog := build_area.get_node("LoadDesignDialog") as PopupPanel
-		var previous_runs := load_dialog.get_node("Contents/Pager/PreviousRuns") as CheckBox
 		var page_back := load_dialog.get_node("Contents/Pager/PreviousPageButton") as Button
 		var page_count_label := load_dialog.get_node("Contents/Pager/PageLabel") as Label
 		var page_forward := load_dialog.get_node("Contents/Pager/ForwardButton") as Button
@@ -1204,13 +1375,8 @@ func _test_scene() -> void:
 			load_dialog.visible,
 			"The ship-library modal must remain open when an outside action tries to dismiss it."
 		)
-		_check(
-			previous_runs.size_flags_horizontal == Control.SIZE_SHRINK_BEGIN
-				and previous_runs.has_theme_stylebox_override("normal")
-				and previous_runs.has_theme_icon_override("checked_pressed")
-				and previous_runs.has_theme_icon_override("unchecked_pressed"),
-			"The previous-runs checkbox must stay compact and visually consistent in every state."
-		)
+		_check(load_dialog.get_node_or_null("Contents/Pager/PreviousRuns") == null,
+			"The ship library must always include saved designs without a previous-runs checkbox.")
 		_check(
 			not page_back.visible and not page_count_label.visible and not page_forward.visible,
 			"Single-page ship libraries must hide their paging controls."
@@ -1249,7 +1415,7 @@ func _test_scene() -> void:
 					and cost_row.get_child_count() % 2 == 0
 					and cost_row.get_children().all(func(child: Node) -> bool:
 						return not (child is Label) or child.text != "0"),
-				"Each design row must show its preview, material costs, and credit cost."
+				"Each design row must show its preview and fixed material costs."
 			)
 			_check(
 				is_equal_approx(cost_row.global_position.x, drone_cost_row.global_position.x),
@@ -1262,6 +1428,14 @@ func _test_scene() -> void:
 				),
 				"Ship-library Select buttons must align even when deletion is unavailable."
 			)
+			var delete_button := row_contents.get_child(4) as TextureButton
+			delete_button.pressed.emit()
+			var delete_confirmation := load_dialog.get_node("DeleteConfirmOverlay") as Control
+			_check(delete_confirmation.visible,
+				"Deleting a saved design must require confirmation.")
+			(load_dialog.get_node(
+				"DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/CloseX"
+			) as TextureButton).pressed.emit()
 			var ship_before_ui_load: Ship = state.ship
 			var inventory_before_ui_load: Array[int] = [
 				state.red_tiles_available,
@@ -1500,11 +1674,10 @@ func _test_design_selection() -> void:
 		{"name": "New Frigate", "ship": blueprint.to_design_data()},
 	]
 	state.saved_ship_designs = fixtures
-	state.current_run_design_names.append("New Frigate")
-	_check(state.get_visible_ship_designs().size() == 2, "Previous-run designs must be hidden by default.")
-	_check(state.get_visible_ship_designs("FRIG").size() == 1 and state.get_visible_ship_designs("escort").is_empty(), "Search must be case-insensitive and respect the run filter.")
-	state.set_include_previous_designs(true)
-	_check(state.get_visible_ship_designs("escort").size() == 1, "The checkbox must reveal previous-run designs.")
+	_check(state.get_visible_ship_designs().size() == 3,
+		"The design library must always include every saved design plus the built-in Drone.")
+	_check(state.get_visible_ship_designs("FRIG").size() == 1 and state.get_visible_ship_designs("escort").size() == 1,
+		"Saved-design search must be case-insensitive across designs from every run.")
 	_check(not state.purchase_saved_ship("Unsaved"), "Construction must reject names that are not saved designs.")
 	_check(state.ship.tiles.is_empty() and state.purchase_saved_ship("Old Escort"), "The selected library design must construct independently of the editor.")
 	_check(state.ship.tiles.is_empty() and state.fleet[0].display_name.begins_with("Old Escort"), "Constructing a saved design must preserve the editor and use the selected name.")
@@ -1555,7 +1728,8 @@ func _test_design_selection() -> void:
 	_check(state.purchase_saved_ship("New Frigate") and not state.fleet[1].design.tiles.has(Vector2i(7, 7)), "Construction must use the saved snapshot rather than unsaved edits.")
 	state.start_new_run()
 	_clear_test_fleet(state)
-	_check(not state.include_previous_run_designs and state.get_visible_ship_designs().size() == 1 and state.get_visible_ship_designs()[0].name == "Drone", "A new run must reset the previous-run toggle and current-run design list.")
+	_check(state.get_visible_ship_designs().size() == 3,
+		"Starting a new run must not hide designs saved during previous runs.")
 	state.saved_ship_designs = originals
 	var audio := root.get_node("AudioManager")
 	_check(is_equal_approx(audio.get_bus_volume_percent(audio.MUSIC_BUS), 50.0), "Quieter audio must still show 50 percent by default.")
@@ -1633,6 +1807,21 @@ func _test_builder_history(builder: Control) -> void:
 	builder._unhandled_key_input(key)
 	_check(builder._selected_source_id == builder.NO_SOURCE_ID,
 		"Escape must deselect the active material.")
+	key.keycode = KEY_M
+	builder._unhandled_key_input(key)
+	_check(builder._mirror_enabled, "M must enable the builder mirror line.")
+	_check(
+		builder._get_mirrored_cell(Vector2i(2, 2))
+		== Vector2i(2, builder.map_dimensions.y - 3),
+		"The centered mirror line must reflect cells onto the opposite side."
+	)
+	builder._mirror_axis_half_step = 9
+	_check(
+		builder._get_mirrored_cell(Vector2i(2, 2)) == Vector2i(2, 6),
+		"The mirror axis must support half-grid positions."
+	)
+	builder._unhandled_key_input(key)
+	_check(not builder._mirror_enabled, "M must also disable the builder mirror line.")
 	builder._selected_source_id = builder.GREEN_SOURCE_ID
 	builder._begin_stroke()
 	builder._apply_selected_tool(Vector2i(6, 6))

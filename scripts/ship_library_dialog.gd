@@ -10,26 +10,35 @@ const MATERIAL_ICONS: Array[Texture2D] = [
 	preload("res://assets/ui/icons/green_square.png"),
 	preload("res://assets/core.png"),
 ]
-const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 const ROW_STYLE: StyleBox = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const PAGE_SIZE := 3
 
 @onready var title_label: Label = $Contents/Title
 @onready var search: LineEdit = $Contents/SearchRow/Search
 @onready var close_button: TextureButton = $CloseX
-@onready var previous_runs: CheckBox = $Contents/Pager/PreviousRuns
 @onready var rows: VBoxContainer = $Contents/ScrollContainer/SavedDesignRows
 @onready var empty_label: Label = $Contents/ScrollContainer/SavedDesignRows/EmptyDesignsLabel
 @onready var back_button: Button = $Contents/Pager/PreviousPageButton
 @onready var page_label: Label = $Contents/Pager/PageLabel
 @onready var forward_button: Button = $Contents/Pager/ForwardButton
 @onready var status_label: Label = $Contents/StatusLabel
+@onready var delete_confirmation: Control = $DeleteConfirmOverlay
+@onready var delete_confirmation_label: Label = (
+	$DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/WarningLabel
+)
+@onready var confirm_delete_button: Button = (
+	$DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ButtonCenter/DeleteButton
+)
+@onready var cancel_delete_button: TextureButton = (
+	$DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/CloseX
+)
 
 var action_text := "SELECT"
 var page := 0
 var choices: Array[Dictionary] = []
 var selection_validator: Callable
 var _allow_close := false
+var _pending_delete_name := ""
 
 
 func _ready() -> void:
@@ -41,7 +50,8 @@ func _ready() -> void:
 	search.text_changed.connect(func(_text: String) -> void:
 		page = 0
 		_refresh_rows())
-	previous_runs.toggled.connect(GameState.set_include_previous_designs)
+	confirm_delete_button.pressed.connect(_confirm_delete)
+	cancel_delete_button.pressed.connect(_cancel_delete)
 	GameState.tile_inventory_changed.connect(refresh_library)
 	back_button.pressed.connect(func() -> void:
 		page -= 1
@@ -50,7 +60,6 @@ func _ready() -> void:
 		page += 1
 		_refresh_rows())
 	GameState.design_library_changed.connect(refresh_library)
-	_style_checkbox(previous_runs)
 	for button in [back_button, forward_button]:
 		_style_pager_button(button)
 	refresh_library()
@@ -65,6 +74,7 @@ func open_library(new_action_text: String, validator: Callable = Callable()) -> 
 	search.text = ""
 	status_label.text = ""
 	status_label.visible = false
+	_cancel_delete()
 	page = 0
 	refresh_library()
 	popup_centered(Vector2i(480, 255))
@@ -97,7 +107,6 @@ func refresh_library() -> void:
 	if not is_node_ready():
 		return
 	choices.clear()
-	previous_runs.set_pressed_no_signal(GameState.include_previous_run_designs)
 	for entry in GameState.get_visible_ship_designs():
 		var blueprint := Ship.new()
 		if blueprint.load_design_data(entry.ship):
@@ -150,13 +159,10 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 	costs.add_theme_constant_override("separation", 3)
 	costs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	contents.add_child(costs)
-	var counts := GameState.get_construction_material_costs(choice.design)
+	var counts := GameState.get_design_material_costs(choice.design)
 	for category in range(MATERIAL_ICONS.size()):
 		if counts[category] > 0:
 			_add_cost_item(costs, MATERIAL_ICONS[category], counts[category])
-	var credit_cost := GameState.get_construction_credit_cost(choice.design)
-	if credit_cost > 0:
-		_add_cost_item(costs, CREDIT_ICON, credit_cost)
 	var action := Button.new()
 	var assigned_slot := GameState.fleet_design_slots.find(str(choice.name))
 	var is_assigned := action_text == "SELECT" and assigned_slot >= 0
@@ -173,18 +179,43 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 		design_selected.emit(choice.name, choice.design)
 		hide())
 	contents.add_child(action)
-	var remove := Button.new()
-	remove.icon = _trash_icon()
+	var remove := TextureButton.new()
+	remove.custom_minimum_size = Vector2(18, 22)
+	remove.texture_normal = _trash_icon(Color(0.93, 0.45, 0.45))
+	remove.texture_hover = _trash_icon(Color(1.0, 0.68, 0.62))
+	remove.texture_pressed = _trash_icon(Color(0.65, 0.2, 0.2))
+	remove.ignore_texture_size = true
+	remove.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	remove.disabled = choice.name == "Drone"
 	remove.modulate.a = 0.0 if remove.disabled else 1.0
 	remove.mouse_filter = Control.MOUSE_FILTER_IGNORE if remove.disabled else Control.MOUSE_FILTER_STOP
-	_style_button(remove)
 	remove.pressed.connect(func() -> void:
-		if not GameState.delete_saved_ship_design(choice.name):
-			status_label.text = "Could not delete the saved design."
-			status_label.visible = true)
+		_prompt_delete(str(choice.name)))
 	contents.add_child(remove)
 	return row
+
+
+func _prompt_delete(design_name: String) -> void:
+	_pending_delete_name = design_name
+	delete_confirmation_label.text = (
+		"ARE YOU SURE YOU WANT TO DELETE\nTHE DESIGN FOR %s?" % design_name.to_upper()
+	)
+	delete_confirmation.show()
+
+
+func _cancel_delete() -> void:
+	_pending_delete_name = ""
+	if is_instance_valid(delete_confirmation):
+		delete_confirmation.hide()
+
+
+func _confirm_delete() -> void:
+	var design_name := _pending_delete_name
+	_cancel_delete()
+	if design_name.is_empty() or GameState.delete_saved_ship_design(design_name):
+		return
+	status_label.text = "Could not delete the saved design."
+	status_label.visible = true
 
 
 func _add_cost_item(row: HBoxContainer, icon: Texture2D, amount: int) -> void:
@@ -224,22 +255,7 @@ static func _style_pager_button(button: Button) -> void:
 		button.add_theme_stylebox_override(state, style)
 
 
-static func _style_checkbox(checkbox: CheckBox) -> void:
-	for checked in [false, true]:
-		var image := Image.new()
-		var mark := '<path d="M3 7 L6 10 L11 3" fill="none" stroke="#cfdee4" stroke-width="2"/>' if checked else ""
-		image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"><rect x="1" y="1" width="12" height="12" rx="1" fill="#172128" stroke="#8ea5b2"/>%s</svg>' % mark)
-		var texture := ImageTexture.create_from_image(image)
-		var prefix := "checked" if checked else "unchecked"
-		for suffix in ["", "_disabled", "_pressed", "_hover"]:
-			checkbox.add_theme_icon_override(prefix + suffix, texture)
-	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
-		var style := StyleBoxEmpty.new()
-		style.set_content_margin_all(2)
-		checkbox.add_theme_stylebox_override(state, style)
-
-
-static func _trash_icon() -> Texture2D:
+static func _trash_icon(color: Color) -> Texture2D:
 	var image := Image.new()
-	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="16"><path d="M2 4h10M5 4V2h4v2M3 5l1 9h6l1-9M6 6v6M8 6v6" fill="none" stroke="#ed7272" stroke-width="1.5" stroke-linejoin="round"/></svg>')
+	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="14" height="16"><path d="M2 4h10M5 4V2h4v2M3 5l1 9h6l1-9M6 6v6M8 6v6" fill="none" stroke="#%s" stroke-width="1.5" stroke-linejoin="round"/></svg>' % color.to_html(false))
 	return ImageTexture.create_from_image(image)

@@ -119,7 +119,7 @@ func construction_error() -> String:
 		if part.type == ShipPart.Type.COMMAND_CENTER:
 			cores += 1
 	if cores != 1:
-		return "Requires one command center (2 × 2 green)."
+		return "Requires one command center (2 × 2 green and purple checkerboard)."
 	if connected_cells().size() != design.tiles.size():
 		return "Connect every block to the command center."
 	if get_stats().weapons.is_empty():

@@ -18,6 +18,9 @@ const SPEED_PER_THRUST := 4.0
 const MIN_TURN_RATE := 0.75
 const MAX_TURN_RATE := 1.5
 const PASSIVE_DRAG_PER_SECOND := 0.06
+const REVERSE_THRUST_FACTOR := 0.22
+const REVERSE_THRUST_ALIGNMENT_START := 0.35
+const FLYBY_MIN_CLEARANCE := 12.0
 const SOFT_BOUNDARY_MARGIN := 180.0
 const PLAYER_FORMATION_CENTER := Vector2(-420.0, 0.0)
 const PLAYER_FORMATION_COLUMNS := 3
@@ -61,6 +64,7 @@ class Combatant:
 	var wreck_angular_velocity := 0.0
 	var wreck_motion_remaining := 0.0
 	var target_refresh_remaining := 0.0
+	var flyby_side := 1.0
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -275,6 +279,7 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 	ship.shields = stats.shields
 	_refresh_mobility(ship)
 	ship.target_refresh_remaining = 0.0
+	ship.flyby_side = -1.0 if random.randf() < 0.5 else 1.0
 	for weapon in stats.weapons:
 		ship.cooldowns.append(0.0)
 	return ship
@@ -551,11 +556,10 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 	var direction := (
 		offset / distance if distance > 0.001 else Vector2.from_angle(ship.heading)
 	)
-	var radial_speed := ship.speed
+	var steering_direction := _flyby_direction(ship, ship.target)
 	if ship.retreat_time > 0.0:
-		radial_speed = -ship.speed
-	var desired := direction * radial_speed
-	desired += direction.orthogonal() * ship.speed * 0.4
+		steering_direction = -direction
+	var desired := steering_direction * ship.speed
 	var ship_cell := _spatial_cell(ship.position)
 	for cell_x in range(ship_cell.x - 1, ship_cell.x + 2):
 		for cell_y in range(ship_cell.y - 1, ship_cell.y + 2):
@@ -596,6 +600,8 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 	# than braking, so reversals and course corrections form broad flight arcs.
 	var forward := Vector2.from_angle(ship.heading)
 	_apply_passive_drag(ship, delta)
+	if ship.retreat_time <= 0.0 and not (withdrawing and ship.is_player):
+		_apply_limited_reverse_thrust(ship, desired_velocity, delta)
 	ship.velocity += forward * ship.acceleration * delta
 	ship.velocity = ship.velocity.limit_length(ship.speed)
 	ship.position += ship.velocity * delta
@@ -641,6 +647,50 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 
 func _apply_passive_drag(ship: Combatant, delta: float) -> void:
 	ship.velocity *= exp(-PASSIVE_DRAG_PER_SECOND * delta)
+
+
+func _flyby_direction(ship: Combatant, target: Combatant) -> Vector2:
+	var relative_target := target.position - ship.position
+	var distance := relative_target.length()
+	if distance <= 0.001:
+		return Vector2.from_angle(ship.heading)
+	var radial_direction := relative_target / distance
+	var pass_distance := maxf(
+		ship.shortest_range(),
+		ship.radius + target.radius + FLYBY_MIN_CLEARANCE
+	)
+	var tangent := radial_direction.orthogonal() * ship.flyby_side
+	if distance > pass_distance:
+		# Aim along a tangent to the minimum-range circle. This approaches the
+		# enemy without using its center as a collision-course waypoint.
+		var lateral_ratio := clampf(pass_distance / distance, 0.0, 1.0)
+		var forward_ratio := sqrt(maxf(1.0 - lateral_ratio * lateral_ratio, 0.0))
+		return (radial_direction * forward_ratio + tangent * lateral_ratio).normalized()
+	# Once inside the intended pass radius, keep crossing the target's flank and
+	# add a gradual outward correction instead of stopping in weapon range.
+	var outward_strength := clampf((pass_distance - distance) / pass_distance, 0.0, 1.0)
+	return (tangent - radial_direction * outward_strength).normalized()
+
+
+func _apply_limited_reverse_thrust(
+	ship: Combatant,
+	desired_velocity: Vector2,
+	delta: float
+) -> void:
+	var current_speed := ship.velocity.length()
+	if current_speed <= 0.001 or desired_velocity.length_squared() <= 0.001:
+		return
+	var alignment := ship.velocity.normalized().dot(desired_velocity.normalized())
+	if alignment >= REVERSE_THRUST_ALIGNMENT_START:
+		return
+	var braking_ratio := clampf(
+		(REVERSE_THRUST_ALIGNMENT_START - alignment)
+		/ (REVERSE_THRUST_ALIGNMENT_START + 1.0),
+		0.0,
+		1.0
+	)
+	var braking_speed := ship.acceleration * REVERSE_THRUST_FACTOR * braking_ratio * delta
+	ship.velocity = ship.velocity.normalized() * maxf(current_speed - braking_speed, 0.0)
 
 
 func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:

@@ -8,6 +8,7 @@
 [node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
 initial_position = 1
 size = Vector2i(500, 290)
+exclusive = true
 content_scale_factor = 1.0
 script = ExtResource("2_script")
 
@@ -76,14 +77,15 @@ theme_override_constants/separation = 8
 [node name="BattleAutoCameraLabel" type="Label" parent="Contents/ContentArea/BattleAutoCameraRow"]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Battle auto-camera"
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 11
 
-[node name="BattleAutoCameraToggle" type="CheckButton" parent="Contents/ContentArea/BattleAutoCameraRow"]
+[node name="BattleAutoCameraButton" type="Button" parent="Contents/ContentArea/BattleAutoCameraRow"]
+custom_minimum_size = Vector2(180, 40)
 layout_mode = 2
-size_flags_horizontal = 10
-button_pressed = true
+text = "ON"
 
 [node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="4"]
 custom_minimum_size = Vector2(0, 36)

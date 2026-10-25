@@ -5,7 +5,6 @@ const AUTO_BATTLE_SCENE_PATH := "res://scenes/auto_battle.tscn"
 const BUILD_TAB_INDEX := 1
 const RESEARCH_TAB_INDEX := 2
 const ARCHIVE_TAB_INDEX := 3
-const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 var fleet_controls := VBoxContainer.new()
 
 @onready var fleet_right_panel: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel
@@ -158,7 +157,6 @@ func _refresh_ship_stats() -> void:
 
 	_add_stat_row("Shields", stats.shields, _format_stat_value(stats.shields))
 	_add_stat_row("Integrity", stats.integrity, _format_stat_value(stats.integrity))
-	_add_stat_row("Cost", 0.0, str(GameState.get_construction_credit_cost(design)), false, CREDIT_ICON)
 	_add_stat_row("Thrust", stats.thrust, _format_stat_value(stats.thrust))
 	_add_stat_row("DPS", stats.dps, "%.2f" % stats.dps)
 

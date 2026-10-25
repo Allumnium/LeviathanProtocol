@@ -243,16 +243,36 @@ func _fit() -> void:
 	if dragging or camera_panning:
 		return
 	var bounds := Rect2(-Vector2(50, 20), Vector2(100, 40))
+	view_center = Vector2.ZERO
 	if not GameState.fleet.is_empty():
 		bounds = Rect2(GameState.fleet[0].formation * SPACING, Vector2.ZERO)
 		for owned in GameState.fleet:
 			bounds = bounds.expand(owned.formation * SPACING)
+		view_center = _fleet_centroid()
 	bounds = bounds.grow(40.0)
-	view_center = bounds.get_center()
 	custom_minimum_size.y = clampf(bounds.size.y, 64.0, 90.0)
-	view_scale = minf(maxf(size.x, 1.0) / bounds.size.x, maxf(size.y, 1.0) / bounds.size.y)
+	var required_half_extent := Vector2(50.0, 20.0)
+	if not GameState.fleet.is_empty():
+		required_half_extent = Vector2.ONE * 40.0
+		for owned in GameState.fleet:
+			var offset := (owned.formation * SPACING - view_center).abs()
+			required_half_extent.x = maxf(required_half_extent.x, offset.x + 40.0)
+			required_half_extent.y = maxf(required_half_extent.y, offset.y + 40.0)
+	view_scale = minf(
+		maxf(size.x, 1.0) / (required_half_extent.x * 2.0),
+		maxf(size.y, 1.0) / (required_half_extent.y * 2.0)
+	)
 	view_scale = minf(view_scale, 1.0)
 	_layout_ships()
+
+
+func _fleet_centroid() -> Vector2:
+	if GameState.fleet.is_empty():
+		return Vector2.ZERO
+	var centroid := Vector2.ZERO
+	for owned in GameState.fleet:
+		centroid += owned.formation * SPACING
+	return centroid / float(GameState.fleet.size())
 
 func _screen_position(owned: FleetShip) -> Vector2:
 	var world := owned.formation * SPACING
@@ -287,19 +307,19 @@ func _draw() -> void:
 
 
 func _ship_outline(owned: FleetShip) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	var half_cell := Vector2.ONE * owned.cell_size * view_scale * 0.5
+	var cells: Array[Vector2i] = []
 	var ship_center := _screen_position(owned)
 	for unit in owned.units:
 		if unit.hp <= 0.0:
 			continue
 		for cell in unit.cells:
-			var center := ship_center + owned.local_cell_position(cell) * view_scale
-			points.append(center - half_cell)
-			points.append(center + Vector2(half_cell.x, -half_cell.y))
-			points.append(center + half_cell)
-			points.append(center + Vector2(-half_cell.x, half_cell.y))
-	return Geometry2D.convex_hull(points) if not points.is_empty() else points
+			cells.append(cell)
+	var outline := Ship.create_hull_polygon(cells)
+	for index in range(outline.size()):
+		outline[index] = ship_center + (
+			(outline[index] - owned.center) * owned.cell_size * view_scale
+		)
+	return outline
 
 func _ship_at(point: Vector2) -> FleetShip:
 	for owned in GameState.fleet:

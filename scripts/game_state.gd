@@ -30,6 +30,8 @@ const STARTING_CREDITS := 1200
 const VICTORY_CREDIT_REWARD := 200
 const SAVED_SHIP_DESIGNS_PATH := "user://ship_designs.json"
 const SAVED_SHIP_DESIGNS_VERSION := 1
+const ARCHIVE_PROGRESS_PATH := "user://archive_progress.json"
+const ARCHIVE_PROGRESS_VERSION := 1
 const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
@@ -63,11 +65,11 @@ var green_tiles_available := STARTING_GREEN_TILE_COUNT
 var core_tiles_available := STARTING_CORE_TILE_COUNT
 var saved_ship_designs: Array[Dictionary] = []
 var current_run_design_names: Array[String] = []
-var include_previous_run_designs := false
 var fleet_design_slots: Array[String] = ["", "", ""]
 var fleet_formation_index := 0
 var battle_auto_camera := true
 var battle_fast_forward := false
+var archive_progress_file_path := ARCHIVE_PROGRESS_PATH
 
 
 func _ready() -> void:
@@ -75,6 +77,7 @@ func _ready() -> void:
 		_generate_campaign_graph()
 	get_tree().node_added.connect(_disable_non_text_keyboard_focus)
 	_disable_keyboard_focus_recursively(get_tree().root)
+	_load_archive_progress(archive_progress_file_path)
 	_load_saved_ship_designs()
 
 
@@ -128,7 +131,6 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	player_ship_count = 0
 	fleet.clear()
 	current_run_design_names.clear()
-	include_previous_run_designs = false
 	fleet_design_slots = ["", "", ""]
 	fleet_formation_index = 0
 	next_ship_id = 1
@@ -403,6 +405,86 @@ func _write_saved_ship_designs(
 	return true
 
 
+func _load_archive_progress(file_path: String = ARCHIVE_PROGRESS_PATH) -> bool:
+	if not FileAccess.file_exists(file_path):
+		discovered_part_types.clear()
+		unviewed_discovered_part_types.clear()
+		return true
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		push_error("Could not read Archive progress: %s" % error_string(FileAccess.get_open_error()))
+		return false
+	var serialized_file := file.get_as_text()
+	file.close()
+	var json := JSON.new()
+	var parse_error := json.parse(serialized_file)
+	if parse_error != OK:
+		push_error(
+			"Could not parse Archive progress at line %d: %s"
+			% [json.get_error_line(), json.get_error_message()]
+		)
+		return false
+	if typeof(json.data) != TYPE_DICTIONARY:
+		push_error("Archive progress must be stored in a JSON object.")
+		return false
+	var file_data: Dictionary = json.data
+	if (
+		not _is_integer_number(file_data.get("version"))
+		or int(file_data["version"]) != ARCHIVE_PROGRESS_VERSION
+	):
+		push_error("Archive progress uses an unsupported format version.")
+		return false
+	var serialized_discovered: Variant = file_data.get("discovered")
+	var serialized_unviewed: Variant = file_data.get("unviewed", [])
+	if typeof(serialized_discovered) != TYPE_ARRAY or typeof(serialized_unviewed) != TYPE_ARRAY:
+		push_error("Archive progress must contain discovered and unviewed arrays.")
+		return false
+	var valid_types: Dictionary[int, bool] = {}
+	for pattern in ShipPartPattern.get_catalog():
+		valid_types[pattern.part_type] = true
+	var loaded_discovered: Array[int] = []
+	for value in serialized_discovered:
+		if not _is_integer_number(value):
+			continue
+		var part_type := int(value)
+		if valid_types.has(part_type) and not loaded_discovered.has(part_type):
+			loaded_discovered.append(part_type)
+	var loaded_unviewed: Array[int] = []
+	for value in serialized_unviewed:
+		if not _is_integer_number(value):
+			continue
+		var part_type := int(value)
+		if loaded_discovered.has(part_type) and not loaded_unviewed.has(part_type):
+			loaded_unviewed.append(part_type)
+	discovered_part_types = loaded_discovered
+	unviewed_discovered_part_types = loaded_unviewed
+	discovered_parts_changed.emit()
+	unviewed_discoveries_changed.emit()
+	return true
+
+
+func _write_archive_progress(file_path: String = ARCHIVE_PROGRESS_PATH) -> bool:
+	var file := FileAccess.open(file_path, FileAccess.WRITE)
+	if file == null:
+		push_error("Could not save Archive progress: %s" % error_string(FileAccess.get_open_error()))
+		return false
+	var discovered := discovered_part_types.duplicate()
+	var unviewed := unviewed_discovered_part_types.duplicate()
+	discovered.sort()
+	unviewed.sort()
+	file.store_string(JSON.stringify({
+		"version": ARCHIVE_PROGRESS_VERSION,
+		"discovered": discovered,
+		"unviewed": unviewed,
+	}, "\t"))
+	var write_error := file.get_error()
+	file.close()
+	if write_error != OK:
+		push_error("Could not finish writing Archive progress: %s" % error_string(write_error))
+		return false
+	return true
+
+
 func _get_ship_tile_counts(target_ship: Ship) -> Array[int]:
 	var tile_counts: Array[int] = [0, 0, 0, 0]
 	for cell in target_ship.get_tile_cells():
@@ -454,6 +536,7 @@ func discover_part(part_type: int) -> void:
 
 	discovered_part_types.append(part_type)
 	unviewed_discovered_part_types.append(part_type)
+	_write_archive_progress(archive_progress_file_path)
 	discovered_parts_changed.emit()
 	unviewed_discoveries_changed.emit()
 
@@ -471,6 +554,7 @@ func mark_discoveries_viewed() -> void:
 		return
 
 	unviewed_discovered_part_types.clear()
+	_write_archive_progress(archive_progress_file_path)
 	unviewed_discoveries_changed.emit()
 
 
@@ -573,6 +657,10 @@ func get_construction_material_costs(blueprint: Ship = null) -> Array[int]:
 	for category in range(required.size()):
 		costs.append(mini(required[category], get_available_tile_count(category)))
 	return costs
+
+
+func get_design_material_costs(blueprint: Ship = null) -> Array[int]:
+	return _get_ship_tile_counts(ship if blueprint == null else blueprint)
 
 func purchase_material(category: int) -> bool:
 	if battle_pending or category < 0 or category >= MATERIAL_PRICES.size():
@@ -876,17 +964,10 @@ func get_visible_ship_designs(query: String = "") -> Array[Dictionary]:
 		var title: String = entry.name
 		if title == "Drone":
 			continue
-		if not include_previous_run_designs and not current_run_design_names.has(title):
-			continue
 		if not query.strip_edges().is_empty() and not title.to_lower().contains(query.strip_edges().to_lower()):
 			continue
 		result.append(entry.duplicate(true))
 	return result
-
-
-func set_include_previous_designs(enabled: bool) -> void:
-	include_previous_run_designs = enabled
-	design_library_changed.emit()
 
 
 func delete_saved_ship_design(design_name: String, file_path: String = SAVED_SHIP_DESIGNS_PATH) -> bool:

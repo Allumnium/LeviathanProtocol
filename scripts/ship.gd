@@ -8,6 +8,7 @@ const RED_TILE_CREDIT_COST := 5
 const BLUE_TILE_CREDIT_COST := 2
 const GREEN_TILE_CREDIT_COST := 10
 const CORE_TILE_CREDIT_COST := 15
+const MAX_HULL_BRIDGE_EMPTY_CELLS := 3
 
 var tiles: Dictionary[Vector2i, int] = {}
 var parts: Array[ShipPart] = []
@@ -93,15 +94,7 @@ func get_filled_hull_area() -> float:
 	if tiles.is_empty():
 		return 0.0
 
-	var tile_corners := PackedVector2Array()
-	for cell in get_tile_cells():
-		var top_left := Vector2(cell)
-		tile_corners.append(top_left)
-		tile_corners.append(top_left + Vector2.RIGHT)
-		tile_corners.append(top_left + Vector2.ONE)
-		tile_corners.append(top_left + Vector2.DOWN)
-
-	var hull := Geometry2D.convex_hull(tile_corners)
+	var hull := create_hull_polygon(get_tile_cells())
 	var excluded_cells: Dictionary[Vector2i, bool] = {}
 	for part in parts:
 		_add_hidden_cells(excluded_cells, part)
@@ -111,20 +104,143 @@ func get_filled_hull_area() -> float:
 	return maxf(_get_polygon_area(hull) - float(excluded_cells.size()), 0.0)
 
 
-func _get_polygon_area(polygon: PackedVector2Array) -> float:
+static func create_hull_polygon(cells: Array[Vector2i]) -> PackedVector2Array:
+	if cells.is_empty():
+		return PackedVector2Array()
+	var boundary_edges: Dictionary = {}
+	for cell in cells:
+		var top_left := cell
+		var top_right := cell + Vector2i.RIGHT
+		var bottom_right := cell + Vector2i.ONE
+		var bottom_left := cell + Vector2i.DOWN
+		_add_boundary_edge(boundary_edges, top_left, top_right)
+		_add_boundary_edge(boundary_edges, top_right, bottom_right)
+		_add_boundary_edge(boundary_edges, bottom_right, bottom_left)
+		_add_boundary_edge(boundary_edges, bottom_left, top_left)
+	var loops := _trace_boundary_loops(boundary_edges)
+	if loops.is_empty():
+		return PackedVector2Array()
+	var hull: PackedVector2Array = loops[0]
+	var largest_area := _polygon_area(hull)
+	for loop in loops:
+		var area := _polygon_area(loop)
+		if area > largest_area:
+			hull = loop
+			largest_area = area
+	if cells.size() < 3:
+		return _remove_collinear_points(hull)
+	var centers := PackedVector2Array()
+	for cell in cells:
+		centers.append(Vector2(cell) + Vector2.ONE * 0.5)
+	var triangle_indices := Geometry2D.triangulate_delaunay(centers)
+	var bridge_components: Array[PackedVector2Array] = []
+	for index in range(0, triangle_indices.size(), 3):
+		var triangle := PackedVector2Array([
+			centers[triangle_indices[index]],
+			centers[triangle_indices[index + 1]],
+			centers[triangle_indices[index + 2]],
+		])
+		if not _triangle_edges_are_short_enough(triangle):
+			continue
+		_merge_into_components(bridge_components, triangle)
+	for bridge in bridge_components:
+		if Geometry2D.is_polygon_clockwise(bridge) != Geometry2D.is_polygon_clockwise(hull):
+			bridge.reverse()
+		var merged := Geometry2D.merge_polygons(hull, bridge)
+		if merged.size() == 1:
+			hull = merged[0]
+	return _remove_collinear_points(hull)
+
+
+static func _merge_into_components(
+	components: Array[PackedVector2Array],
+	polygon: PackedVector2Array
+) -> void:
+	var combined := polygon
+	var index := 0
+	while index < components.size():
+		var candidate := components[index]
+		if Geometry2D.is_polygon_clockwise(candidate) != Geometry2D.is_polygon_clockwise(combined):
+			candidate.reverse()
+		var merged := Geometry2D.merge_polygons(candidate, combined)
+		if merged.size() != 1:
+			index += 1
+			continue
+		combined = merged[0]
+		components.remove_at(index)
+		index = 0
+	components.append(combined)
+
+
+static func _add_boundary_edge(edges: Dictionary, start: Vector2i, finish: Vector2i) -> void:
+	var reverse: Dictionary = edges.get(finish, {})
+	if reverse.has(start):
+		reverse.erase(start)
+		if reverse.is_empty():
+			edges.erase(finish)
+		return
+	var outgoing: Dictionary = edges.get(start, {})
+	outgoing[finish] = true
+	edges[start] = outgoing
+
+
+static func _trace_boundary_loops(edges: Dictionary) -> Array[PackedVector2Array]:
+	var loops: Array[PackedVector2Array] = []
+	while not edges.is_empty():
+		var start: Vector2i = edges.keys()[0]
+		var current := start
+		var loop := PackedVector2Array()
+		while true:
+			loop.append(Vector2(current))
+			var outgoing: Dictionary = edges.get(current, {})
+			if outgoing.is_empty():
+				break
+			var next: Vector2i = outgoing.keys()[0]
+			outgoing.erase(next)
+			if outgoing.is_empty():
+				edges.erase(current)
+			current = next
+			if current == start:
+				break
+		if loop.size() >= 3 and current == start:
+			loops.append(_remove_collinear_points(loop))
+	return loops
+
+
+static func _triangle_edges_are_short_enough(triangle: PackedVector2Array) -> bool:
+	var maximum_span := MAX_HULL_BRIDGE_EMPTY_CELLS + 1
+	for index in range(3):
+		var difference := triangle[index] - triangle[(index + 1) % 3]
+		if maxf(absf(difference.x), absf(difference.y)) > maximum_span:
+			return false
+	return true
+
+
+static func _remove_collinear_points(polygon: PackedVector2Array) -> PackedVector2Array:
+	if polygon.size() <= 3:
+		return polygon
+	var result := PackedVector2Array()
+	for index in range(polygon.size()):
+		var previous := polygon[(index - 1 + polygon.size()) % polygon.size()]
+		var current := polygon[index]
+		var next := polygon[(index + 1) % polygon.size()]
+		if not is_zero_approx((current - previous).cross(next - current)):
+			result.append(current)
+	return result
+
+
+static func _polygon_area(polygon: PackedVector2Array) -> float:
 	if polygon.size() < 3:
 		return 0.0
-
 	var twice_area := 0.0
 	for index in range(polygon.size()):
-		var next_index := (index + 1) % polygon.size()
-		var current_point := polygon[index]
-		var next_point := polygon[next_index]
-		twice_area += (
-			current_point.x * next_point.y
-			- next_point.x * current_point.y
-		)
+		var next := polygon[(index + 1) % polygon.size()]
+		twice_area += polygon[index].x * next.y - next.x * polygon[index].y
 	return absf(twice_area) * 0.5
+
+
+func _get_polygon_area(polygon: PackedVector2Array) -> float:
+	return _polygon_area(polygon)
 
 
 func _add_hidden_cells(
@@ -339,12 +455,14 @@ func load_design_data(serialized_design: Variant) -> bool:
 		):
 			return false
 
-		var quarter_turns := pattern.get_rotation_for_offsets(cell_offsets)
-		if quarter_turns < 0:
+		var pattern_transform := pattern.get_transform_for_offsets(cell_offsets)
+		if pattern_transform.x < 0:
 			push_error("Ship design part cells do not match its catalog pattern.")
 			return false
 		if (
-			pattern.get_hidden_tile_offsets_for_rotation(quarter_turns)
+			pattern.get_hidden_tile_offsets_for_transform(
+				pattern_transform.x, pattern_transform.y == 1
+			)
 			!= hidden_tile_offsets
 		):
 			push_error("Ship design hidden tiles do not match its catalog pattern.")

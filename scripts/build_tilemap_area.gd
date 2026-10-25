@@ -16,6 +16,9 @@ const ZOOM_STEP := 0.1
 const ZOOM_SMOOTHING := 12.0
 const KEYBOARD_PAN_SPEED := 420.0
 const MIDDLE_PAN_DRAG_THRESHOLD := 4.0
+const MIRROR_HANDLE_RADIUS := 9.0
+const MIRROR_LINE_COLOR := Color(0.35, 0.9, 1.0, 0.9)
+const MIRROR_HANDLE_COLOR := Color(0.04, 0.12, 0.16, 1.0)
 const PART_TRANSFORM_DURATION := 0.75
 const PART_FLASH_START_INTERVAL := 0.15
 const PART_FLASH_END_INTERVAL := 0.02
@@ -83,6 +86,7 @@ var _stroke_before: Dictionary = {}
 var _selected_source_id := NO_SOURCE_ID
 var _preview_cell := INVALID_CELL
 var _preview_source_id := NO_SOURCE_ID
+var _preview_mirror_half_step := -1
 var _tile_set: TileSet
 var _is_placing := false
 var _is_erasing := false
@@ -105,6 +109,12 @@ var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
 var _part_cell_outlines: Array[Panel] = []
 var _locked_cells: Dictionary[Vector2i, bool] = {}
 var _active_morph_count := 0
+var _mirror_enabled := false
+var _mirror_axis_half_step := 0
+var _is_dragging_mirror := false
+var _mirror_line: Line2D
+var _mirror_handle_fill: Polygon2D
+var _mirror_handle_ring: Line2D
 
 
 func _ready() -> void:
@@ -137,6 +147,7 @@ func _ready() -> void:
 	placed_layer.tile_set = _tile_set
 	move_ghost_layer.tile_set = _tile_set
 	preview_layer.tile_set = _tile_set
+	_create_mirror_line()
 	_fill_grid()
 	_part_patterns = ShipPartPattern.get_catalog()
 	_restore_ship_tiles()
@@ -316,6 +327,7 @@ func _process(delta: float) -> void:
 		if not _keyboard_navigation_blocked():
 			_pan_with_keyboard(delta)
 		_update_zoom(delta)
+	_refresh_mirror_visuals()
 	_update_preview()
 
 
@@ -333,6 +345,10 @@ func _input(event: InputEvent) -> void:
 		if local_motion_event == null:
 			return
 		var local_mouse_position := local_motion_event.position
+		if _is_dragging_mirror:
+			_set_mirror_axis_from_local_position(local_mouse_position)
+			accept_event()
+			return
 		if _is_moving_ship:
 			_update_ship_move_ghost(_get_cell_at_local_position(local_mouse_position))
 			_clear_preview()
@@ -362,6 +378,26 @@ func _input(event: InputEvent) -> void:
 	var mouse_button_event := event as InputEventMouseButton
 	if mouse_button_event == null:
 		return
+	if mouse_button_event.button_index == MOUSE_BUTTON_LEFT:
+		var mirror_local_event := make_input_local(mouse_button_event) as InputEventMouseButton
+		if mirror_local_event != null:
+			if (
+				mouse_button_event.pressed
+				and _mirror_enabled
+				and not _keyboard_navigation_blocked()
+				and _is_mouse_over_mirror_handle(mirror_local_event.position)
+			):
+				_is_dragging_mirror = true
+				_is_placing = false
+				_is_erasing = false
+				_clear_preview()
+				accept_event()
+				return
+			if not mouse_button_event.pressed and _is_dragging_mirror:
+				_set_mirror_axis_from_local_position(mirror_local_event.position)
+				_is_dragging_mirror = false
+				accept_event()
+				return
 	if (
 		mouse_button_event.button_index == MOUSE_BUTTON_LEFT
 		and (_selected_source_id == NO_SOURCE_ID or _is_moving_ship)
@@ -552,32 +588,53 @@ func _apply_line(start_cell: Vector2i, end_cell: Vector2i, erase_tiles: bool) ->
 
 
 func _apply_selected_tool(cell: Vector2i) -> void:
-	if _locked_cells.has(cell):
+	var changed := _apply_selected_tool_at(cell)
+	var mirrored_cell := _get_mirrored_cell(cell)
+	if mirrored_cell != INVALID_CELL:
+		changed = _apply_selected_tool_at(mirrored_cell) or changed
+	if not changed:
 		return
-
-	var existing_category := GameState.ship.get_tile_category_at(cell)
-	var category := _get_category_for_source_id(_selected_source_id)
-	if category == NO_CATEGORY:
-		return
-	if existing_category == category:
-		return
-	GameState.ship.set_tile_at(cell, category)
-	placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
 	AudioManager.play_sfx(PLACE_SFX)
 	_evaluate_part_patterns()
 
 
+func _apply_selected_tool_at(cell: Vector2i) -> bool:
+	if not _is_cell_in_build_area(cell):
+		return false
+	if _locked_cells.has(cell):
+		return false
+
+	var existing_category := GameState.ship.get_tile_category_at(cell)
+	var category := _get_category_for_source_id(_selected_source_id)
+	if category == NO_CATEGORY:
+		return false
+	if existing_category == category:
+		return false
+	GameState.ship.set_tile_at(cell, category)
+	placed_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
+	return true
+
+
 func _remove_tile_at(cell: Vector2i) -> void:
-	if cell == INVALID_CELL or _locked_cells.has(cell):
-		return
+	var changed := _remove_tile_at_single(cell)
+	var mirrored_cell := _get_mirrored_cell(cell)
+	if mirrored_cell != INVALID_CELL:
+		changed = _remove_tile_at_single(mirrored_cell) or changed
+	if changed:
+		_evaluate_part_patterns()
+
+
+func _remove_tile_at_single(cell: Vector2i) -> bool:
+	if not _is_cell_in_build_area(cell) or _locked_cells.has(cell):
+		return false
 
 	var category := GameState.ship.get_tile_category_at(cell)
 	if category == NO_CATEGORY:
-		return
+		return false
 
 	GameState.ship.remove_tile_at(cell)
 	placed_layer.erase_cell(cell)
-	_evaluate_part_patterns()
+	return true
 
 
 func _pick_tile_at(cell: Vector2i) -> void:
@@ -617,7 +674,9 @@ func _refresh_tile_counts() -> void:
 
 func _resize_build_area() -> void:
 	map_dimensions = Vector2i.ONE * GameState.build_area_size()
+	_mirror_axis_half_step = clampi(_mirror_axis_half_step, 0, map_dimensions.y * 2)
 	_fill_grid()
+	_refresh_mirror_visuals()
 	_initial_pan_position_set = false
 	_set_initial_pan_position()
 
@@ -642,26 +701,34 @@ func _try_morph_pattern(
 ) -> bool:
 	var rotation_count := 4 if pattern.can_rotate else 1
 	for quarter_turns in range(rotation_count):
-		var cell_offsets := pattern.get_offsets_for_rotation(quarter_turns)
-		if not _matches_pattern(origin, pattern, cell_offsets):
-			continue
+		for flip_index in range(2):
+			var horizontally_flipped := flip_index == 1
+			var cell_offsets := pattern.get_offsets_for_transform(
+				quarter_turns, horizontally_flipped
+			)
+			if not _matches_pattern(origin, pattern, cell_offsets):
+				continue
 
-		var part := ShipPart.new(
-			pattern.part_type,
-			pattern.category,
-			origin,
-			cell_offsets,
-			pattern.stats,
-			pattern.get_hidden_tile_offsets_for_rotation(quarter_turns)
-		)
-		if GameState.has_discovered_part(part.type):
-			if not GameState.ship.add_part(part):
-				push_error("Could not add a matched part to the ship.")
-				return false
-			_add_part_placeholder(part, pattern, quarter_turns)
-		else:
-			_begin_part_transformation(part)
-		return true
+			var part := ShipPart.new(
+				pattern.part_type,
+				pattern.category,
+				origin,
+				cell_offsets,
+				pattern.stats,
+				pattern.get_hidden_tile_offsets_for_transform(
+					quarter_turns, horizontally_flipped
+				)
+			)
+			if GameState.has_discovered_part(part.type):
+				if not GameState.ship.add_part(part):
+					push_error("Could not add a matched part to the ship.")
+					return false
+				_add_part_placeholder(
+					part, pattern, quarter_turns, horizontally_flipped
+				)
+			else:
+				_begin_part_transformation(part)
+			return true
 	return false
 
 
@@ -744,16 +811,10 @@ func _restore_ship_tiles() -> void:
 
 
 func _refresh_ship_hull() -> void:
-	var points := PackedVector2Array()
-	var half_tile_size := Vector2(tile_size) * 0.5
-	for cell in GameState.ship.get_tile_cells():
-		var center := grid_layer.map_to_local(cell)
-		points.append(center - half_tile_size)
-		points.append(Vector2(center.x + half_tile_size.x, center.y - half_tile_size.y))
-		points.append(center + half_tile_size)
-		points.append(Vector2(center.x - half_tile_size.x, center.y + half_tile_size.y))
-
-	hull_polygon.polygon = Geometry2D.convex_hull(points)
+	var hull := Ship.create_hull_polygon(GameState.ship.get_tile_cells())
+	for index in range(hull.size()):
+		hull[index] *= Vector2(tile_size)
+	hull_polygon.polygon = hull
 
 
 func _clear_part_placeholders() -> void:
@@ -768,20 +829,25 @@ func _clear_part_placeholders() -> void:
 func _add_part_placeholder(
 	part: ShipPart,
 	pattern: ShipPartPattern,
-	quarter_turns: int
+	quarter_turns: int,
+	horizontally_flipped: bool = false
 ) -> void:
 	var texture := _get_texture_for_part(part)
 	if texture == null:
 		return
 
 	var visual_cells: Array[Vector2i] = []
-	for offset in pattern.get_visual_offsets_for_rotation(quarter_turns):
+	for offset in pattern.get_visual_offsets_for_transform(
+		quarter_turns, horizontally_flipped
+	):
 		visual_cells.append(part.origin + offset)
 	if visual_cells.is_empty():
 		push_error("Cannot display a ship part with no visual cells.")
 		return
 
-	for offset in pattern.get_hidden_tile_offsets_for_rotation(quarter_turns):
+	for offset in pattern.get_hidden_tile_offsets_for_transform(
+		quarter_turns, horizontally_flipped
+	):
 		var cell := part.origin + offset
 		placed_layer.erase_cell(cell)
 		if is_zero_approx(pattern.hidden_tile_outline_color.a):
@@ -992,11 +1058,11 @@ func _restore_loaded_ship_design() -> void:
 		var pattern := _get_pattern_for_part(part)
 		if pattern == null:
 			continue
-		var quarter_turns := pattern.get_rotation_for_offsets(part.cell_offsets)
-		if quarter_turns < 0:
+		var transform := pattern.get_transform_for_offsets(part.cell_offsets)
+		if transform.x < 0:
 			push_error("Could not determine the rotation for %s." % pattern.display_name)
 			continue
-		_add_part_placeholder(part, pattern, quarter_turns)
+		_add_part_placeholder(part, pattern, transform.x, transform.y == 1)
 
 
 func _zoom_at(local_mouse_position: Vector2, zoom_delta: float) -> void:
@@ -1151,6 +1217,118 @@ func _is_mouse_over_selector_area(local_mouse_position: Vector2) -> bool:
 	)
 
 
+func _create_mirror_line() -> void:
+	_mirror_axis_half_step = map_dimensions.y
+	_mirror_line = Line2D.new()
+	_mirror_line.default_color = MIRROR_LINE_COLOR
+	_mirror_line.antialiased = false
+	_mirror_line.z_index = 40
+	pan_root.add_child(_mirror_line)
+
+	_mirror_handle_fill = Polygon2D.new()
+	_mirror_handle_fill.color = MIRROR_HANDLE_COLOR
+	_mirror_handle_fill.z_index = 41
+	_mirror_handle_fill.polygon = _circle_points(MIRROR_HANDLE_RADIUS, 20, false)
+	pan_root.add_child(_mirror_handle_fill)
+
+	_mirror_handle_ring = Line2D.new()
+	_mirror_handle_ring.default_color = MIRROR_LINE_COLOR
+	_mirror_handle_ring.antialiased = false
+	_mirror_handle_ring.closed = true
+	_mirror_handle_ring.z_index = 42
+	_mirror_handle_ring.points = _circle_points(MIRROR_HANDLE_RADIUS, 20, true)
+	pan_root.add_child(_mirror_handle_ring)
+	_refresh_mirror_visuals()
+
+
+func _circle_points(radius: float, point_count: int, close_shape: bool) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var count := point_count + 1 if close_shape else point_count
+	for index in range(count):
+		var angle := TAU * float(index % point_count) / float(point_count)
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+
+func _toggle_mirror_line() -> void:
+	_mirror_enabled = not _mirror_enabled
+	_is_dragging_mirror = false
+	_clear_preview()
+	_refresh_mirror_visuals()
+	_update_preview()
+
+
+func _refresh_mirror_visuals() -> void:
+	if _mirror_line == null:
+		return
+	var visible_now := _mirror_enabled and is_visible_in_tree()
+	_mirror_line.visible = visible_now
+	_mirror_handle_fill.visible = visible_now
+	_mirror_handle_ring.visible = visible_now
+	if not visible_now:
+		return
+	var zoom := maxf(pan_root.scale.x, 0.001)
+	var axis_y := float(_mirror_axis_half_step) * float(tile_size.y) * 0.5
+	var grid_width := float(map_dimensions.x * tile_size.x)
+	var handle_offset := (MIRROR_HANDLE_RADIUS + 5.0) / zoom
+	var handle_position := Vector2(grid_width + handle_offset, axis_y)
+	_mirror_line.width = 2.0 / zoom
+	_mirror_line.points = PackedVector2Array([
+		Vector2(0.0, axis_y),
+		handle_position,
+	])
+	_mirror_handle_fill.position = handle_position
+	_mirror_handle_ring.position = handle_position
+	_mirror_handle_fill.scale = Vector2.ONE / zoom
+	_mirror_handle_ring.scale = Vector2.ONE / zoom
+	_mirror_handle_ring.width = 2.0
+
+
+func _set_mirror_axis_from_local_position(local_mouse_position: Vector2) -> void:
+	var canvas_position := get_global_transform_with_canvas() * local_mouse_position
+	var pan_position := (
+		pan_root.get_global_transform_with_canvas().affine_inverse() * canvas_position
+	)
+	var next_half_step := roundi(pan_position.y * 2.0 / float(tile_size.y))
+	_mirror_axis_half_step = clampi(next_half_step, 0, map_dimensions.y * 2)
+	_clear_preview()
+	_refresh_mirror_visuals()
+
+
+func _is_mouse_over_mirror_handle(local_mouse_position: Vector2) -> bool:
+	if not _mirror_enabled:
+		return false
+	var canvas_position := get_global_transform_with_canvas() * local_mouse_position
+	var pan_position := (
+		pan_root.get_global_transform_with_canvas().affine_inverse() * canvas_position
+	)
+	var axis_y := float(_mirror_axis_half_step) * float(tile_size.y) * 0.5
+	var grid_width := float(map_dimensions.x * tile_size.x)
+	var handle_offset := (MIRROR_HANDLE_RADIUS + 5.0) / maxf(pan_root.scale.x, 0.001)
+	var handle_position := Vector2(grid_width + handle_offset, axis_y)
+	var radius_in_world := (MIRROR_HANDLE_RADIUS + 4.0) / maxf(pan_root.scale.x, 0.001)
+	return pan_position.distance_to(handle_position) <= radius_in_world
+
+
+func _get_mirrored_cell(cell: Vector2i) -> Vector2i:
+	if not _mirror_enabled or not _is_cell_in_build_area(cell):
+		return INVALID_CELL
+	var mirrored_cell := Vector2i(cell.x, _mirror_axis_half_step - cell.y - 1)
+	if mirrored_cell == cell or not _is_cell_in_build_area(mirrored_cell):
+		return INVALID_CELL
+	return mirrored_cell
+
+
+func _is_cell_in_build_area(cell: Vector2i) -> bool:
+	return (
+		cell != INVALID_CELL
+		and cell.x >= 0
+		and cell.y >= 0
+		and cell.x < map_dimensions.x
+		and cell.y < map_dimensions.y
+	)
+
+
 func _update_preview() -> void:
 	_update_preview_at(get_local_mouse_position())
 
@@ -1161,6 +1339,7 @@ func _update_preview_at(local_mouse_position: Vector2) -> void:
 		or _get_category_for_source_id(_selected_source_id) == NO_CATEGORY
 		or _is_erasing
 		or _is_panning
+		or _is_dragging_mirror
 		or not is_visible_in_tree()
 	):
 		_clear_preview()
@@ -1170,21 +1349,30 @@ func _update_preview_at(local_mouse_position: Vector2) -> void:
 	if cell == INVALID_CELL or _locked_cells.has(cell):
 		_clear_preview()
 		return
-	if cell == _preview_cell and _selected_source_id == _preview_source_id:
+	if (
+		cell == _preview_cell
+		and _selected_source_id == _preview_source_id
+		and _preview_mirror_half_step == (_mirror_axis_half_step if _mirror_enabled else -1)
+	):
 		return
 
 	preview_layer.clear()
 	preview_layer.set_cell(cell, _selected_source_id, Vector2i.ZERO)
+	var mirrored_cell := _get_mirrored_cell(cell)
+	if mirrored_cell != INVALID_CELL and not _locked_cells.has(mirrored_cell):
+		preview_layer.set_cell(mirrored_cell, _selected_source_id, Vector2i.ZERO)
 	_preview_cell = cell
 	_preview_source_id = _selected_source_id
+	_preview_mirror_half_step = _mirror_axis_half_step if _mirror_enabled else -1
 
 
 func _clear_preview() -> void:
-	if _preview_cell == INVALID_CELL:
+	if _preview_cell == INVALID_CELL and preview_layer.get_used_cells().is_empty():
 		return
 	preview_layer.clear()
 	_preview_cell = INVALID_CELL
 	_preview_source_id = NO_SOURCE_ID
+	_preview_mirror_half_step = -1
 
 
 func _set_initial_pan_position() -> void:
@@ -1292,6 +1480,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if event.keycode == KEY_ESCAPE:
 		_deselect_material()
+		get_viewport().set_input_as_handled()
+		return
+	if event.keycode == KEY_M:
+		_toggle_mirror_line()
 		get_viewport().set_input_as_handled()
 		return
 	if event.ctrl_pressed:

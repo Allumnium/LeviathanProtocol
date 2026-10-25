@@ -156,18 +156,11 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	var texture_tint := Color.WHITE
 	var render_heading := lerp_angle(player_ship.previous_heading, player_ship.heading, interpolation_alpha)
 	_set_ship_transform(render_position, render_heading, ship_scale)
-	var hull_points := PackedVector2Array()
-	for cell in cells:
-		var cell_top_left := Vector2(
-			float(cell.x) * BUILD_CELL_SIZE.x,
-			float(cell.y) * BUILD_CELL_SIZE.y
-		) - ship_center
-		hull_points.append(cell_top_left)
-		hull_points.append(cell_top_left + Vector2(BUILD_CELL_SIZE.x, 0.0))
-		hull_points.append(cell_top_left + BUILD_CELL_SIZE)
-		hull_points.append(cell_top_left + Vector2(0.0, BUILD_CELL_SIZE.y))
+	var hull_points := Ship.create_hull_polygon(cells)
+	for index in range(hull_points.size()):
+		hull_points[index] = hull_points[index] * BUILD_CELL_SIZE - ship_center
 	draw_colored_polygon(
-		Geometry2D.convex_hull(hull_points),
+		hull_points,
 		HULL_COLOR
 	)
 
@@ -237,7 +230,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 			texture_tint
 		)
 	if is_shield_flashing:
-		_draw_hull_outline(Geometry2D.convex_hull(hull_points))
+		_draw_hull_outline(hull_points)
 	draw_set_transform_matrix(world_transform())
 
 
@@ -268,11 +261,12 @@ func _get_visual_cells_for_part(
 	part: ShipPart,
 	pattern: ShipPartPattern
 ) -> Array[Vector2i]:
-	for quarter_turns in range(4):
-		if pattern.get_offsets_for_rotation(quarter_turns) != part.cell_offsets:
-			continue
+	var pattern_transform := pattern.get_transform_for_offsets(part.cell_offsets)
+	if pattern_transform.x >= 0:
 		var visual_cells: Array[Vector2i] = []
-		for offset in pattern.get_visual_offsets_for_rotation(quarter_turns):
+		for offset in pattern.get_visual_offsets_for_transform(
+			pattern_transform.x, pattern_transform.y == 1
+		):
 			visual_cells.append(part.origin + offset)
 		return visual_cells
 
@@ -362,18 +356,13 @@ func _get_owned_render_cache(owned: FleetShip) -> Dictionary:
 		return cached
 	var hidden: Dictionary = {}
 	var part_rects: Dictionary = {}
-	var hull_points := PackedVector2Array()
+	var hull_cells: Array[Vector2i] = []
 	for unit_index in range(owned.units.size()):
 		var unit: Dictionary = owned.units[unit_index]
 		if unit.hp <= 0.0:
 			continue
 		for cell in unit.cells:
-			var center := owned.local_cell_position(cell)
-			var half_cell := Vector2.ONE * owned.cell_size * 0.5
-			hull_points.append(center - half_cell)
-			hull_points.append(center + Vector2(half_cell.x, -half_cell.y))
-			hull_points.append(center + half_cell)
-			hull_points.append(center + Vector2(-half_cell.x, half_cell.y))
+			hull_cells.append(cell)
 		if unit.part == null:
 			continue
 		for cell in unit.part.get_hidden_tile_cells():
@@ -389,11 +378,14 @@ func _get_owned_render_cache(owned: FleetShip) -> Dictionary:
 			rect = rect.expand(owned.local_cell_position(cell) - half_cell)
 			rect = rect.expand(owned.local_cell_position(cell) + half_cell)
 		part_rects[unit_index] = rect
+	var hull := Ship.create_hull_polygon(hull_cells)
+	for index in range(hull.size()):
+		hull[index] = (hull[index] - owned.center) * owned.cell_size
 	cached = {
 		"revision": owned.visual_revision,
 		"hidden": hidden,
 		"part_rects": part_rects,
-		"hull": Geometry2D.convex_hull(hull_points)
+		"hull": hull
 	}
 	_owned_render_cache[owned] = cached
 	return cached

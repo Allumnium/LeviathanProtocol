@@ -7,6 +7,8 @@ const BLUE_MATERIAL_TEXTURE = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_MATERIAL_TEXTURE = preload("res://assets/ui/icons/green_square.png")
 const CORE_MATERIAL_TEXTURE = preload("res://assets/core.png")
 const TILE_SIZE := 44.0
+const GRID_MARGIN := 12.0
+const GRID_GAP := 4.0
 const MATERIAL_TILE_SIZE := 26.0
 const PATTERN_CELL_GAP := 1
 const ARCHIVE_PART_ORDER := [
@@ -30,15 +32,18 @@ var _part_buttons: Array[Button] = []
 var _progress_label: Label
 var _details: VBoxContainer
 var _selected_index := 0
+var _grid_layout_refresh_queued := false
 
 
 func _ready() -> void:
 	GameState.discovered_parts_changed.connect(_on_discovered_parts_changed)
+	resized.connect(_queue_grid_layout_refresh)
 	var button_group := ButtonGroup.new()
 	button_group.allow_unpress = false
 	for pattern in _get_ordered_catalog():
 		archive_grid.add_child(_create_part_button(pattern, button_group))
 	_refresh_discovery_masks()
+	_queue_grid_layout_refresh()
 
 
 func _get_ordered_catalog() -> Array[ShipPartPattern]:
@@ -103,6 +108,46 @@ func _create_part_button(pattern: ShipPartPattern, button_group: ButtonGroup) ->
 	if index == 0:
 		button.button_pressed = true
 	return button
+
+
+func _queue_grid_layout_refresh() -> void:
+	if _grid_layout_refresh_queued:
+		return
+	_grid_layout_refresh_queued = true
+	_refresh_grid_layout.call_deferred()
+
+
+func _refresh_grid_layout() -> void:
+	_grid_layout_refresh_queued = false
+	var item_count := _part_buttons.size()
+	if item_count == 0:
+		return
+	var available := Vector2(
+		maxf(size.x - GRID_MARGIN, 1.0),
+		maxf(size.y - GRID_MARGIN, 1.0)
+	)
+	var best_columns := 1
+	var best_tile_size := 0.0
+	for columns in range(1, item_count + 1):
+		var rows := ceili(float(item_count) / float(columns))
+		var width_per_tile := (
+			available.x - GRID_GAP * float(columns - 1)
+		) / float(columns)
+		var height_per_tile := (
+			available.y - GRID_GAP * float(rows - 1)
+		) / float(rows)
+		var candidate_size := minf(TILE_SIZE, minf(width_per_tile, height_per_tile))
+		if candidate_size > best_tile_size:
+			best_tile_size = candidate_size
+			best_columns = columns
+	archive_grid.columns = best_columns
+	best_tile_size = maxf(best_tile_size, 1.0)
+	for index in range(_part_buttons.size()):
+		_part_buttons[index].custom_minimum_size = Vector2.ONE * best_tile_size
+		_question_labels[index].add_theme_font_size_override(
+			"font_size",
+			maxi(5, mini(20, floori(best_tile_size * 0.45)))
+		)
 
 
 func _on_part_button_pressed(index: int) -> void:

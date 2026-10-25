@@ -1,12 +1,14 @@
 extends Control
 
 const GAME_MAP_SCENE_PATH := "res://scenes/game_map.tscn"
+const SHIP_DESIGNER_SCENE_PATH := "res://scenes/ship_designer.tscn"
 const PLAY_TRANSITION_DURATION := 4.0
 const GAME_TITLE_TEXT := "Leviathan Protocol"
 const WARP_SFX: AudioStreamMP3 = preload("res://assets/audio/sfx/warp.mp3")
 
 @onready var menu_ui: Control = $CenterContainer
 @onready var play_button: Button = $CenterContainer/MenuButtons/PlayButton
+@onready var ship_designer_button: Button = $CenterContainer/MenuButtons/ShipDesignerButton
 @onready var settings_button: TextureButton = $SettingsButton
 @onready var quit_button: Button = $CenterContainer/MenuButtons/QuitButton
 @onready var settings_dialog: PopupPanel = $SettingsDialog
@@ -21,6 +23,7 @@ var _is_starting_run := false
 func _ready() -> void:
 	AudioManager.play_menu_music()
 	play_button.pressed.connect(_on_play_pressed)
+	ship_designer_button.pressed.connect(_on_ship_designer_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
 	game_setup.back_requested.connect(_on_setup_back_requested)
@@ -42,6 +45,12 @@ func _on_setup_back_requested() -> void:
 	game_setup.hide()
 	menu_ui.show()
 	settings_button.show()
+
+
+func _on_ship_designer_pressed() -> void:
+	var error := get_tree().change_scene_to_file(SHIP_DESIGNER_SCENE_PATH)
+	if error != OK:
+		push_error("Could not open the ship designer scene. Error code: %s" % error)
 
 
 func _on_start_run_requested(difficulty: int) -> void:

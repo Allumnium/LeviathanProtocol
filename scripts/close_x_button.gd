@@ -18,6 +18,10 @@ func _ready() -> void:
 	button_up.connect(_on_button_up)
 	pressed.connect(_close_containing_modal)
 	_place_in_top_right()
+	# Most dialogs add a full-size Contents control after this shared button.
+	# GUI hit testing follows sibling order, so defer until the complete scene is
+	# assembled and keep the X above that overlapping content.
+	_ensure_above_siblings.call_deferred()
 
 
 func _has_point(point: Vector2) -> bool:
@@ -26,6 +30,12 @@ func _has_point(point: Vector2) -> bool:
 
 func _process(_delta: float) -> void:
 	_place_in_top_right()
+
+
+func _ensure_above_siblings() -> void:
+	if is_inside_tree():
+		move_to_front()
+		_place_in_top_right()
 
 
 func _place_in_top_right() -> void:

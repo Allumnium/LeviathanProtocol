@@ -252,47 +252,98 @@ static func get_catalog() -> Array[ShipPartPattern]:
 
 
 func get_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
-	return _get_offsets_for_rotation(cell_offsets, quarter_turns)
+	return get_offsets_for_transform(quarter_turns, false)
+
+
+func get_offsets_for_transform(
+	quarter_turns: int,
+	horizontally_flipped: bool
+) -> Array[Vector2i]:
+	return _get_offsets_for_transform(cell_offsets, quarter_turns, horizontally_flipped)
 
 
 func get_rotation_for_offsets(offsets: Array[Vector2i]) -> int:
+	return get_transform_for_offsets(offsets).x
+
+
+func get_transform_for_offsets(offsets: Array[Vector2i]) -> Vector2i:
 	var rotation_count := 4 if can_rotate else 1
 	for quarter_turns in range(rotation_count):
-		if get_offsets_for_rotation(quarter_turns) == offsets:
-			return quarter_turns
-	return -1
+		for flip_index in range(2):
+			if get_offsets_for_transform(quarter_turns, flip_index == 1) == offsets:
+				return Vector2i(quarter_turns, flip_index)
+	return Vector2i(-1, 0)
 
 
 func get_visual_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
-	return _get_offsets_for_rotation(visual_cell_offsets, quarter_turns)
+	return get_visual_offsets_for_transform(quarter_turns, false)
+
+
+func get_visual_offsets_for_transform(
+	quarter_turns: int,
+	horizontally_flipped: bool
+) -> Array[Vector2i]:
+	return _get_offsets_for_transform(
+		visual_cell_offsets,
+		quarter_turns,
+		horizontally_flipped
+	)
 
 
 func get_hidden_tile_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:
-	return _get_offsets_for_rotation(hidden_tile_offsets, quarter_turns)
+	return get_hidden_tile_offsets_for_transform(quarter_turns, false)
 
 
-func _get_offsets_for_rotation(
+func get_hidden_tile_offsets_for_transform(
+	quarter_turns: int,
+	horizontally_flipped: bool
+) -> Array[Vector2i]:
+	return _get_offsets_for_transform(
+		hidden_tile_offsets,
+		quarter_turns,
+		horizontally_flipped
+	)
+
+
+func _get_offsets_for_transform(
 	offsets: Array[Vector2i],
-	quarter_turns: int
+	quarter_turns: int,
+	horizontally_flipped: bool
 ) -> Array[Vector2i]:
 	if offsets.is_empty() or cell_offsets.is_empty():
 		return []
 
-	var first_rotated_cell := _rotate_offset(cell_offsets[0], quarter_turns)
-	var minimum_x := first_rotated_cell.x
-	var minimum_y := first_rotated_cell.y
+	var first_transformed_cell := _transform_offset(
+		cell_offsets[0], quarter_turns, horizontally_flipped
+	)
+	var minimum_x := first_transformed_cell.x
+	var minimum_y := first_transformed_cell.y
 	for offset in cell_offsets:
-		var rotated_offset := _rotate_offset(offset, quarter_turns)
-		minimum_x = mini(minimum_x, rotated_offset.x)
-		minimum_y = mini(minimum_y, rotated_offset.y)
+		var transformed_offset := _transform_offset(
+			offset, quarter_turns, horizontally_flipped
+		)
+		minimum_x = mini(minimum_x, transformed_offset.x)
+		minimum_y = mini(minimum_y, transformed_offset.y)
 
 	var normalized_offsets: Array[Vector2i] = []
 	var normalization_offset := Vector2i(minimum_x, minimum_y)
 	for offset in offsets:
 		normalized_offsets.append(
-			_rotate_offset(offset, quarter_turns) - normalization_offset
+			_transform_offset(offset, quarter_turns, horizontally_flipped)
+			- normalization_offset
 		)
 	return normalized_offsets
+
+
+func _transform_offset(
+	offset: Vector2i,
+	quarter_turns: int,
+	horizontally_flipped: bool
+) -> Vector2i:
+	var transformed := _rotate_offset(offset, quarter_turns)
+	if horizontally_flipped:
+		transformed.y = -transformed.y
+	return transformed
 
 
 func _rotate_offset(offset: Vector2i, quarter_turns: int) -> Vector2i:

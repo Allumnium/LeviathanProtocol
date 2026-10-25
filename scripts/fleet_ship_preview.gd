@@ -16,18 +16,17 @@ func _draw() -> void:
 	if owned == null:
 		return
 	var scale_factor := minf(size.x, size.y) / (Ship.BATTLE_MODEL_SIZE + 8.0)
-	var hull_points := PackedVector2Array()
+	var cells: Array[Vector2i] = []
 	for unit in owned.units:
 		if unit.hp <= 0.0:
 			continue
 		for cell in unit.cells:
-			var center := size * 0.5 + owned.local_cell_position(cell) * scale_factor
-			var half_cell := Vector2.ONE * owned.cell_size * scale_factor * 0.5
-			hull_points.append(center - half_cell)
-			hull_points.append(center + Vector2(half_cell.x, -half_cell.y))
-			hull_points.append(center + half_cell)
-			hull_points.append(center + Vector2(-half_cell.x, half_cell.y))
-	var hull := Geometry2D.convex_hull(hull_points)
+			cells.append(cell)
+	var hull := Ship.create_hull_polygon(cells)
+	for index in range(hull.size()):
+		hull[index] = size * 0.5 + (
+			(hull[index] - owned.center) * owned.cell_size * scale_factor
+		)
 	draw_colored_polygon(hull, HULL_BASE_COLOR)
 	draw_set_transform(size * 0.5, 0.0, Vector2.ONE * scale_factor)
 	var hidden_cells: Dictionary[Vector2i, bool] = {}
@@ -65,9 +64,13 @@ func _draw() -> void:
 
 
 func _draw_part(unit: Dictionary, part: ShipPart, pattern: ShipPartPattern) -> void:
-	var rotation := pattern.get_rotation_for_offsets(part.cell_offsets)
+	var pattern_transform := pattern.get_transform_for_offsets(part.cell_offsets)
+	if pattern_transform.x < 0:
+		return
 	var visual_cells: Array[Vector2i] = []
-	for offset in pattern.get_visual_offsets_for_rotation(rotation):
+	for offset in pattern.get_visual_offsets_for_transform(
+		pattern_transform.x, pattern_transform.y == 1
+	):
 		visual_cells.append(part.origin + offset)
 	if visual_cells.is_empty():
 		return

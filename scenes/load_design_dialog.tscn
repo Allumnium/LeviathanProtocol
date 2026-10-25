@@ -86,12 +86,6 @@ vertical_alignment = 1
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PreviousRuns" type="CheckBox" parent="Contents/Pager"]
-layout_mode = 2
-size_flags_horizontal = 0
-theme_override_font_sizes/font_size = 9
-text = "INCLUDE PREVIOUS RUNS"
-
 [node name="Spacer" type="Control" parent="Contents/Pager"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -119,3 +113,58 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="CloseX" parent="." instance=ExtResource("4_close")]
+
+[node name="DeleteConfirmOverlay" type="Control" parent="."]
+visible = false
+z_index = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Backdrop" type="ColorRect" parent="DeleteConfirmOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.78)
+
+[node name="CenterContainer" type="CenterContainer" parent="DeleteConfirmOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ConfirmationPanel" type="PanelContainer" parent="DeleteConfirmOverlay/CenterContainer"]
+custom_minimum_size = Vector2(340, 120)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_crisp_popup")
+
+[node name="CloseX" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel" instance=ExtResource("4_close")]
+
+[node name="Contents" type="VBoxContainer" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="WarningLabel" type="Label" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/Contents"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "ARE YOU SURE YOU WANT TO DELETE\nTHIS SHIP DESIGN?"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ButtonCenter" type="CenterContainer" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/Contents"]
+layout_mode = 2
+
+[node name="DeleteButton" type="Button" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/ButtonCenter"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "DELETE"

@@ -53,14 +53,9 @@ func _draw() -> void:
 	var ship_size := Vector2(column_count, row_count) * cell_size
 	var origin := (size - ship_size) * 0.5 - Vector2(minimum_x, minimum_y) * cell_size
 
-	var hull_points := PackedVector2Array()
-	for cell in cells:
-		var cell_origin := origin + Vector2(cell) * cell_size
-		hull_points.append(cell_origin)
-		hull_points.append(cell_origin + Vector2(cell_size, 0.0))
-		hull_points.append(cell_origin + Vector2.ONE * cell_size)
-		hull_points.append(cell_origin + Vector2(0.0, cell_size))
-	var hull := Geometry2D.convex_hull(hull_points)
+	var hull := Ship.create_hull_polygon(cells)
+	for index in range(hull.size()):
+		hull[index] = origin + hull[index] * cell_size
 	draw_colored_polygon(hull, HULL_COLOR)
 
 	var hidden_cells: Dictionary[Vector2i, bool] = {}
@@ -106,11 +101,13 @@ func _draw_part(part: ShipPart, origin: Vector2, cell_size: float) -> void:
 		push_error("No preview texture is assigned for %s." % pattern.display_name)
 		return
 
-	var quarter_turns := pattern.get_rotation_for_offsets(part.cell_offsets)
-	if quarter_turns < 0:
+	var pattern_transform := pattern.get_transform_for_offsets(part.cell_offsets)
+	if pattern_transform.x < 0:
 		push_error("Could not determine the rotation for %s." % pattern.display_name)
 		return
-	var visual_offsets := pattern.get_visual_offsets_for_rotation(quarter_turns)
+	var visual_offsets := pattern.get_visual_offsets_for_transform(
+		pattern_transform.x, pattern_transform.y == 1
+	)
 	if visual_offsets.is_empty():
 		push_error("Cannot display a ship part with no visual cells.")
 		return

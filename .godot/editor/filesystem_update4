@@ -14,3 +14,12 @@ res://scripts/game_state.gd
 res://scripts/game_map.gd
 res://scripts/build_tilemap_area.gd
 res://scripts/stat_display_row.gd
+res://scenes/load_design_dialog.tscn
+res://scripts/ship.gd
+res://scripts/main_menu.gd
+res://scripts/settings_dialog.gd
+res://scripts/archive_tab.gd
+res://scripts/standalone_ship_designer.gd
+res://scripts/game_setup.gd
+res://scripts/close_x_button.gd
+res://scripts/ship_part_pattern.gd
