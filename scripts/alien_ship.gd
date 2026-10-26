@@ -72,14 +72,10 @@ static func get_catalog() -> Array[AlienShip]:
 static func create_random_fleet(
 	ship_count: int,
 	difficulty_multiplier: float,
-	seed_value: int = -1,
-	player_ship_count: int = 1
+	seed_value: int = -1
 ) -> Array[AlienShip]:
 	if ship_count <= 0:
 		push_error("An alien fleet must contain at least one ship.")
-		return []
-	if player_ship_count <= 0:
-		push_error("Alien fleet balancing requires at least one player ship.")
 		return []
 	if difficulty_multiplier <= 0.0:
 		push_error("Alien difficulty scaling must be greater than zero.")
@@ -109,11 +105,11 @@ static func create_random_fleet(
 		var definition := catalog[random.randi_range(0, catalog.size() - 1)]
 		fleet.append(definition.scaled_for_difficulty(difficulty_multiplier))
 	_shuffle_fleet(fleet, random)
-	# Scale the shared encounter budget with the size of the player fleet.
+	# Retain the legacy fixed budget until the proximity allocator replaces it.
 	var total_health := 0.0
 	for alien in fleet:
 		total_health += alien.stats.integrity + alien.stats.shields
-	var health_scale := 21.25 * difficulty_multiplier * float(player_ship_count) / total_health
+	var health_scale := 21.25 * difficulty_multiplier / total_health
 	for alien in fleet:
 		alien.stats.integrity *= health_scale
 		alien.stats.shields *= health_scale
@@ -126,11 +122,7 @@ static func create_random_fleet(
 		cumulative_health += alien.stats.integrity + alien.stats.shields
 		expected_damage += alien.stats.dps * cumulative_health / 10.0
 	# Account for how long each enemy survives focused fire, not just starting fleet DPS.
-	var player_fleet_scale := float(player_ship_count)
-	var damage_scale := (
-		7.5 * difficulty_multiplier * difficulty_multiplier
-		* player_fleet_scale * player_fleet_scale / expected_damage
-	)
+	var damage_scale := 7.5 * difficulty_multiplier * difficulty_multiplier / expected_damage
 	for alien in fleet:
 		for weapon in alien.stats.weapons:
 			weapon.damage_per_shot *= damage_scale

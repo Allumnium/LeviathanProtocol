@@ -12,6 +12,8 @@ Run `powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_baseline.ps1`
 godot --headless --path . --import
 godot --headless --path . --script res://tests/test_definitions.gd
 godot --headless --path . --script res://tests/test_run_state.gd
+godot --headless --path . --script res://tests/test_transactions.gd
+godot --headless --path . --script res://tests/test_encounter_independence.gd
 godot --headless --path . --script res://tests/test_battle.gd
 ```
 
@@ -38,7 +40,7 @@ Final validation: `tests/run_baseline.ps1` completed with import exit 0 and batt
 
 - Existing Type IDs 0–8 and Category IDs 0–3 must remain stable. CORE material (3) will display as Civic; SPECIAL (2) is Tech. TechCategory.CORE will display as Foundation.
 - Builder cells are 26 × 26; battle rendering references Ship.BUILD_CELL_SIZE. Preserve recipe transforms, weapon heading and exhaust cells.
-- Enemy scaling currently occurs in GameState.set_destination and AlienShip.create_random_fleet. Tests explicitly expect fleet-scaled encounters and three starter Drones; replace those expectations when steps 5/6 and 18 land.
+- At the initial baseline, enemy scaling occurred in GameState.set_destination and AlienShip.create_random_fleet. Step 5 removed both player-fleet factors and updated those test expectations. Three starter Drones remain until step 18.
 - Archive and blueprint persistence exists; full versioned run persistence and transaction recovery still need implementation. Autoloads read saves before individual tests override paths, which is why process-level isolation matters.
 - Existing tests cover construction, archive storage, fleet ownership, withdrawal, combat and UI flows. Keep those regressions while adding focused state-machine checks.
 - Godot import updates tracked `.godot` editor caches. Treat those as generated audit side effects, not gameplay edits.
@@ -49,4 +51,4 @@ See `ASSET_MANIFEST.csv` for current raster assets and `EQUIPMENT_ASSET_STATUS.c
 
 Nine existing components have referenced art. Thruster sheets use a 3 × 3 atlas: frame 0 idle, frame 1 startup for 0.1 s, frames 2–8 loop at 12 fps. Static thruster exports are retained but the catalog uses animated sheets. Project filtering is nearest. Rotation/reflection is handled by recipe/renderer code; pivots and visual heading still require visual QA before art commissioning. Existing alien roles and station/star art are available. The remaining 47 equipment types need artwork; reuse procedural fog/targeting effects where appropriate.
 
-Step 2 is complete; see DEFINITIONS.md for its content boundaries and validation. Step 3's run/archive separation is documented in RUN_STATE.md. Atomic accounting remains step 4.
+Step 2 is documented in DEFINITIONS.md, step 3 in RUN_STATE.md, and steps 4–5 in ACCOUNTING.md. Next is frozen proximity encounter allocation in step 6.

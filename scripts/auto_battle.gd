@@ -33,7 +33,6 @@ var _dragging := false
 var _auto_camera_active := true
 var _camera_inactive_seconds := 0.0
 var _finished := false
-var _credited_drops := 0
 var withdraw_button: Button
 var _run_lost := false
 var _report_open := false
@@ -116,9 +115,6 @@ func _physics_process(delta: float) -> void:
 	_advance_fixed_simulation(delta, speed_multiplier)
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
-	while _credited_drops < simulation.collected_categories.size():
-		GameState.refund_tile(simulation.collected_categories[_credited_drops])
-		_credited_drops += 1
 	match simulation.phase:
 		BattleSimulation.Phase.COMBAT:
 			pass
@@ -307,17 +303,21 @@ func _begin_result_delay(won: bool) -> void:
 
 
 func _finish_battle(won: bool) -> void:
-	_finished = true
 	withdraw_button.hide()
 	battle_speed_controls.hide()
 	GameState.record_battle(simulation)
 	var credits_before := GameState.credits
 	if won:
-		if not GameState.complete_battle():
+		if not GameState.complete_battle(-1, simulation.collected_categories):
 			push_error("Could not record battle victory.")
+			_result_delay_remaining = RESULT_DELAY_SECONDS
 			return
 	else:
-		GameState.cancel_battle()
+		if not GameState.cancel_battle():
+			push_error("Could not save battle losses.")
+			_result_delay_remaining = RESULT_DELAY_SECONDS
+			return
+	_finished = true
 	_battle_credit_reward = maxi(GameState.credits - credits_before, 0)
 	_run_lost = GameState.is_run_lost()
 	_show_report(won)

@@ -198,12 +198,12 @@ func _test_player_fleet() -> void:
 				"Player and alien ships must start farther apart."
 			)
 
-	var scaled_fleet := AlienShip.create_random_fleet(18, 1.0, 20, 6)
+	var scaled_fleet := AlienShip.create_random_fleet(18, 1.0, 20)
 	var total_health := 0.0
 	for alien in scaled_fleet:
 		total_health += alien.stats.integrity + alien.stats.shields
-	_check(is_equal_approx(total_health, 127.5),
-		"Alien encounter health must scale with the player fleet.")
+	_check(is_equal_approx(total_health, 21.25),
+		"The legacy enemy budget must be independent of player fleet size.")
 	_check(simulation.aliens.all(func(alien: BattleSimulation.Combatant) -> bool: return is_equal_approx(alien.radius, 7.0)),
 		"Alien combat size and collision radius must be halved.")
 
@@ -910,10 +910,10 @@ func _test_scene() -> void:
 	var credits_before_victory: int = state.credits
 	_check(state.set_destination(1), "An armed ship should be able to deploy.")
 	_check(
-		state.battle_aliens.size() >= GameState.MIN_ALIEN_FLEET_SIZE * state.player_ship_count
+		state.battle_aliens.size() >= GameState.MIN_ALIEN_FLEET_SIZE
 			and state.battle_aliens.size()
-				<= GameState.MAX_ALIEN_FLEET_SIZE * state.player_ship_count,
-		"Deployment must multiply the base alien fleet by the player fleet size."
+				<= GameState.MAX_ALIEN_FLEET_SIZE,
+		"Deployment must use the fixed node encounter count regardless of player fleet size."
 	)
 	# This scene test checks controller settlement/UI, not randomized pursuit balance.
 	state.battle_aliens.clear()

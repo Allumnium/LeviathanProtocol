@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $runRoot = Join-Path $projectRoot ('.local/checks/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force (Join-Path $runRoot 'appdata') | Out-Null
+New-Item -ItemType File -Force (Join-Path $projectRoot '.local/.gdignore') | Out-Null
 $previousAppData = $env:APPDATA
 try {
     # Windows Godot resolves user:// through APPDATA. Isolate before autoloads run.
@@ -15,6 +16,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Definition suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_run_state.gd --log-file (Join-Path $runRoot 'run-state.log')
     if ($LASTEXITCODE -ne 0) { throw "Run state suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_transactions.gd --log-file (Join-Path $runRoot 'transactions.log')
+    if ($LASTEXITCODE -ne 0) { throw "Transaction suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_encounter_independence.gd --log-file (Join-Path $runRoot 'encounter-independence.log')
+    if ($LASTEXITCODE -ne 0) { throw "Encounter independence suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

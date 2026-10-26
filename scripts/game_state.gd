@@ -34,6 +34,7 @@ const SAVED_SHIP_DESIGNS_VERSION := 1
 const ARCHIVE_PROGRESS_PATH := "user://archive_progress.json"
 const ARCHIVE_PROGRESS_VERSION := 1
 const RUN_PROGRESS_VERSION := RunProgressData.VERSION
+const RUN_SAVE_PATH := "user://run_checkpoint.json"
 const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
@@ -79,6 +80,13 @@ var research_points := 0
 var research_branch_choices: Dictionary[String, String] = {}
 var story_flags: Dictionary[String, bool] = {}
 var run_seed := 0
+var run_id := ""
+var transaction_ledger: Dictionary = {}
+var economy_state: Dictionary = {}
+var run_save_path := RUN_SAVE_PATH
+var last_save_error := ""
+var _checkpoint_generation := -1
+var _checkpoint_store := AtomicRunStore.new()
 
 
 func _ready() -> void:
@@ -139,6 +147,10 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	research_points = 0
 	research_branch_choices.clear()
 	story_flags.clear()
+	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
+	transaction_ledger.clear()
+	economy_state.clear()
+	_checkpoint_generation = -1
 	_generate_campaign_graph()
 	current_node_id = 0
 	destination_node_id = -1
@@ -180,7 +192,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	credits_changed.emit()
 	player_ship_count_changed.emit()
 	research_changed.emit()
-	return true
+	return save_run_checkpoint()
 
 
 func _new_run_seed() -> int:
@@ -205,7 +217,7 @@ func run_progress_snapshot() -> Dictionary:
 	}
 
 
-func restore_run_progress(data: Variant) -> bool:
+func restore_run_progress(data: Variant, notify := true) -> bool:
 	# The future full save/ledger loader will restore this alongside fleet and graph
 	# state. Validate everything before mutating; Archive is never consulted here.
 	if not RunProgressData.validate(data).is_empty():
@@ -220,10 +232,117 @@ func restore_run_progress(data: Variant) -> bool:
 	fleet_design_slots.assign(data.active_design_families)
 	current_run_design_names.assign(data.current_run_design_names)
 	_generate_campaign_graph()
-	research_changed.emit()
-	credits_changed.emit()
-	design_library_changed.emit()
+	if notify:
+		research_changed.emit()
+		credits_changed.emit()
+		design_library_changed.emit()
 	return true
+
+
+func save_run_checkpoint() -> bool:
+	if run_id.is_empty():
+		return false
+	return _persist_checkpoint(RunCheckpoint.capture(self))
+
+
+func _persist_checkpoint(checkpoint: Dictionary) -> bool:
+	var result := _checkpoint_store.commit(run_save_path, checkpoint, RunCheckpoint.valid, _checkpoint_generation)
+	last_save_error = _checkpoint_store.last_error
+	if not result.ok:
+		return false
+	_checkpoint_generation = int(result.generation)
+	return true
+
+
+func load_run_checkpoint() -> bool:
+	var saved := _checkpoint_store.load_latest(run_save_path, RunCheckpoint.valid)
+	if saved.is_empty():
+		last_save_error = "No valid run checkpoint or backup."
+		return false
+	var decoded := RunCheckpoint.decode(saved.payload)
+	var data: Dictionary = decoded.data
+	# Validation/decoding finished before touching any live state or Archive.
+	restore_run_progress(data.progress, false)
+	run_id = data.run_id
+	transaction_ledger = data.ledger.duplicate(true)
+	economy_state = data.economy.duplicate(true)
+	_apply_accounting(data)
+	fleet.assign(decoded.fleet)
+	ship = decoded.editor
+	current_ship_design_name = data.editor_name
+	next_ship_id = int(data.next_ship_id)
+	laser_upgrade_level = int(data.laser_level)
+	build_area_level = int(data.build_level)
+	NODE_POSITIONS.clear()
+	for point in data.graph.positions:
+		NODE_POSITIONS.append(Vector2(point[0], point[1]))
+	NODE_COLUMNS.clear()
+	for column in data.graph.columns:
+		NODE_COLUMNS.append(int(column))
+	GRAPH_EDGES.clear()
+	for edge in data.graph.edges:
+		GRAPH_EDGES.append(Vector2i(int(edge[0]), int(edge[1])))
+	CONVERGENCE_NODE_IDS.clear()
+	for node in data.graph.convergences:
+		CONVERGENCE_NODE_IDS.append(int(node))
+	FINAL_NODE_ID = int(data.graph.final)
+	_apply_location(data, decoded.aliens)
+	_checkpoint_generation = int(saved.generation)
+	last_battle_report.clear()
+	active_part_transformations = 0
+	last_save_error = ""
+	_refresh_fleet()
+	_emit_accounting_changes()
+	design_library_changed.emit()
+	ship_stats_changed.emit()
+	build_area_changed.emit()
+	return true
+
+
+func commit_event(kind: String, source_id: String, credits_delta := 0,
+	material_delta: Array = [0, 0, 0, 0], rp_delta := 0, details: Dictionary = {}, economy_after: Variant = null) -> bool:
+	var result := TransactionLedger.apply(RunCheckpoint.capture(self), kind, source_id,
+		credits_delta, material_delta, rp_delta, details, economy_after)
+	if result.is_empty():
+		return false
+	if result.replayed:
+		return true
+	if not _persist_checkpoint(result.checkpoint):
+		return false
+	# Keep physical ship references alive while combat is running.
+	transaction_ledger = result.checkpoint.ledger
+	economy_state = result.checkpoint.economy.duplicate(true)
+	_apply_accounting(result.checkpoint)
+	_emit_accounting_changes()
+	return true
+
+
+func _apply_accounting(data: Dictionary) -> void:
+	credits = int(data.progress.credits)
+	research_points = int(data.progress.research_points)
+	red_tiles_available = int(data.inventory[0])
+	blue_tiles_available = int(data.inventory[1])
+	green_tiles_available = int(data.inventory[2])
+	core_tiles_available = int(data.inventory[3])
+
+
+func _emit_accounting_changes() -> void:
+	credits_changed.emit()
+	tile_inventory_changed.emit()
+	research_changed.emit()
+
+
+func _apply_location(data: Dictionary, aliens: Array = []) -> void:
+	current_node_id = int(data.location.current)
+	destination_node_id = int(data.location.destination)
+	planned_destination_node_id = int(data.location.planned)
+	visited_nodes.clear()
+	for node in data.location.visited:
+		visited_nodes.append(int(node))
+	battle_pending = data.location.pending
+	battle_aliens.clear()
+	for alien in aliens:
+		battle_aliens.append(alien)
 
 
 func _generate_campaign_graph() -> void:
@@ -991,13 +1110,15 @@ func set_destination(node_id: int) -> bool:
 	var difficulty_multiplier := get_difficulty_multiplier()
 	if difficulty_multiplier <= 0.0:
 		return false
-	var base_fleet_size := randi_range(MIN_ALIEN_FLEET_SIZE, MAX_ALIEN_FLEET_SIZE)
-	var fleet_size := base_fleet_size * player_ship_count
+	# No player fleet, equipment, resources or research enters encounter generation.
+	var encounter_seed := hash("%s/node/%d/difficulty/%d" % [str(run_seed), node_id, difficulty])
+	var random := RandomNumberGenerator.new()
+	random.seed = encounter_seed
+	var fleet_size := random.randi_range(MIN_ALIEN_FLEET_SIZE, MAX_ALIEN_FLEET_SIZE)
 	var next_battle_aliens: Array[AlienShipType] = AlienShipType.create_random_fleet(
 		fleet_size,
 		difficulty_multiplier,
-		-1,
-		player_ship_count
+		encounter_seed
 	)
 	if next_battle_aliens.size() != fleet_size:
 		push_error("Could not create the alien fleet for the selected destination.")
@@ -1009,10 +1130,16 @@ func set_destination(node_id: int) -> bool:
 	battle_aliens.clear()
 	for alien in next_battle_aliens:
 		battle_aliens.append(alien)
+	if not save_run_checkpoint():
+		destination_node_id = -1
+		planned_destination_node_id = -1
+		battle_pending = false
+		battle_aliens.clear()
+		return false
 	return true
 
 
-func complete_battle(surviving_player_ship_count: int = -1) -> bool:
+func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: Array = []) -> bool:
 	if not battle_pending:
 		push_error("Auto-battle finished without an active deployment.")
 		return false
@@ -1023,25 +1150,48 @@ func complete_battle(surviving_player_ship_count: int = -1) -> bool:
 		push_error("Battle victory reported an invalid surviving player ship count.")
 		return false
 
+	var materials: Array[int] = [0, 0, 0, 0]
+	for category in salvage_categories:
+		if not RunProgressData._integer(category) or category < 0 or category > 3:
+			return false
+		materials[int(category)] += 1
+	var result := TransactionLedger.apply(RunCheckpoint.capture(self), "victory", "node/%d" % destination_node_id,
+		VICTORY_CREDIT_REWARD, materials, 0)
+	if result.is_empty():
+		return false
+	var checkpoint: Dictionary = result.checkpoint
+	checkpoint.location.current = destination_node_id
+	if not checkpoint.location.visited.has(destination_node_id):
+		checkpoint.location.visited.append(destination_node_id)
+	checkpoint.location.destination = -1
+	checkpoint.location.planned = -1
+	checkpoint.location.pending = false
+	checkpoint.aliens.clear()
+	if not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
+	_apply_location(checkpoint)
 	if surviving_player_ship_count >= 0:
 		player_ship_count = surviving_player_ship_count
 		player_ship_count_changed.emit()
-	current_node_id = destination_node_id
-	if not visited_nodes.has(current_node_id):
-		visited_nodes.append(current_node_id)
-	destination_node_id = -1
-	planned_destination_node_id = -1
-	battle_pending = false
-	battle_aliens.clear()
-	credits += VICTORY_CREDIT_REWARD
-	credits_changed.emit()
+	_emit_accounting_changes()
 	return true
 
 
-func cancel_battle(surviving_player_ship_count: int = -1) -> void:
+func cancel_battle(surviving_player_ship_count: int = -1) -> bool:
 	if surviving_player_ship_count < -1 or surviving_player_ship_count > player_ship_count:
 		push_error("Battle cancellation reported an invalid surviving player ship count.")
-		return
+		return false
+	if not battle_pending:
+		return true
+	var checkpoint := RunCheckpoint.capture(self)
+	checkpoint.location.destination = -1
+	checkpoint.location.planned = -1
+	checkpoint.location.pending = false
+	checkpoint.aliens.clear()
+	if not _persist_checkpoint(checkpoint):
+		return false
 	if surviving_player_ship_count >= 0:
 		player_ship_count = surviving_player_ship_count
 		player_ship_count_changed.emit()
@@ -1049,6 +1199,7 @@ func cancel_battle(surviving_player_ship_count: int = -1) -> void:
 	planned_destination_node_id = -1
 	battle_pending = false
 	battle_aliens.clear()
+	return true
 
 
 func get_visible_ship_designs(query: String = "") -> Array[Dictionary]:
