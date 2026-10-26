@@ -6,6 +6,10 @@ extends RefCounted
 const REPAIR_PER_TILE := [2.0, 0.1, 4.0, 20]
 const NEIGHBORS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 var id := 0
+var family_id := ""
+var slot_role := "regular"
+var in_reserve := false
+var escort_target_id := 0
 var display_name := "Ship"
 var design: Ship
 var formation := Vector2.ZERO
@@ -13,7 +17,7 @@ var units: Array[Dictionary] = []
 var cell_units: Dictionary[Vector2i, int] = {}
 var core_index := -1
 var center := Vector2.ZERO
-var cell_size := 8.0
+var cell_size := ShipStats.BATTLE_CELL_SIZE
 var visual_revision := 0
 
 func initialize(blueprint: Ship, ship_id: int, title: String) -> void:
@@ -25,18 +29,16 @@ func initialize(blueprint: Ship, ship_id: int, title: String) -> void:
 	cell_units.clear()
 	core_index = -1
 	for part in design.parts:
-		var hp := maxf(1.0, float(part.cell_offsets.size()) + part.stats.integrity * ShipStats.INTEGRITY_MULTIPLIER)
+		var hp := ShipStats.component_integrity(part.cell_offsets.size(), part)
 		_add_unit(part.get_occupied_cells(), hp, part)
 		if part.type == ShipPart.Type.COMMAND_CENTER:
 			core_index = units.size() - 1
 	for cell in design.get_tile_cells():
 		if not cell_units.has(cell):
 			_add_unit([cell], 1.0, null)
-	var bounds := Rect2(Vector2(design.get_tile_cells()[0]), Vector2.ONE)
-	for cell in design.get_tile_cells():
-		bounds = bounds.expand(Vector2(cell)).expand(Vector2(cell) + Vector2.ONE)
-	center = bounds.get_center()
-	cell_size = Ship.BATTLE_MODEL_SIZE / maxf(bounds.size.x, bounds.size.y)
+	center = ShipStats.cell_bounds(design.get_tile_cells()).get_center()
+	cell_size = ShipStats.BATTLE_CELL_SIZE
+
 
 func _add_unit(cells: Array[Vector2i], hp: float, part: ShipPart) -> void:
 	for cell in cells:
@@ -53,31 +55,8 @@ func local_cell_position(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2.ONE * 0.5 - center) * cell_size
 
 func get_stats(laser_level: int = 0) -> ShipStats:
-	var result := ShipStats.new()
-	for unit in units:
-		if unit.hp <= 0.0:
-			continue
-		result.integrity += unit.hp
-		var part: ShipPart = unit.part
-		if part == null:
-			continue
-		result.shields += part.stats.shields
-		result.thrust += part.stats.thrust
-		result.weight += part.stats.weight
-		var mount := Vector2.ZERO
-		for cell in unit.cells:
-			mount += local_cell_position(cell)
-		mount /= float(unit.cells.size())
-		for weapon in part.stats.weapons:
-			var copy := weapon.copy()
-			copy.mount_offset = mount
-			copy.component_index = units.find(unit)
-			if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER]:
-				var multiplier := 1.0 + 0.1 * laser_level
-				copy.damage_per_shot *= multiplier
-				copy.fire_interval_seconds /= multiplier
-			result.weapons.append(copy)
-	return result
+	return ShipStats.from_units(units, center, laser_level)
+
 
 func repair_cost() -> int:
 	var total := 0.0

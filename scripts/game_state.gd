@@ -25,6 +25,8 @@ var NODE_COLUMNS: Array[int] = []
 var GRAPH_EDGES: Array[Vector2i] = []
 var CONVERGENCE_NODE_IDS: Array[int] = []
 var FINAL_NODE_ID := 0
+var campaign_dag: Dictionary = {}
+var campaign_active := false
 const MIN_ALIEN_FLEET_SIZE := 3
 const MAX_ALIEN_FLEET_SIZE := 8
 const STARTING_CREDITS := 1200
@@ -69,6 +71,7 @@ var core_tiles_available := STARTING_CORE_TILE_COUNT
 var saved_ship_designs: Array[Dictionary] = []
 var current_run_design_names: Array[String] = []
 var fleet_design_slots: Array[String] = ["", "", ""]
+var roster_state: Dictionary = FleetRules.empty_roster()
 var fleet_formation_index := 0
 var battle_auto_camera := true
 var battle_fast_forward := false
@@ -127,7 +130,7 @@ func _node_contains_visible_modal(node: Node, scene_root: Node) -> bool:
 		node != scene_root
 		and node is Control
 		and node.visible
-		and node.name in [&"GraphModal", &"VictoryDialog", &"DefeatDialog", &"QuitConfirmOverlay"]
+		and (node.name in [&"GraphModal", &"VictoryDialog", &"DefeatDialog", &"QuitConfirmOverlay"] or node.is_in_group("modal_ui"))
 	):
 		return true
 	for child in node.get_children():
@@ -136,7 +139,7 @@ func _node_contains_visible_modal(node: Node, scene_root: Node) -> bool:
 	return false
 
 
-func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1) -> bool:
+func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, use_campaign := true) -> bool:
 	if not [
 		Difficulty.EASY,
 		Difficulty.MEDIUM,
@@ -160,6 +163,14 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	economy_state.clear()
 	_checkpoint_generation = -1
 	_generate_campaign_graph()
+	campaign_dag = CampaignGraph.generate(run_seed)
+	if campaign_dag.is_empty():
+		push_error("Could not generate a valid campaign DAG.")
+		return false
+	campaign_active = use_campaign
+	if campaign_active:
+		campaign_dag = CampaignContent.populate(campaign_dag, run_seed)
+		_apply_campaign_geometry()
 	current_node_id = 0
 	destination_node_id = -1
 	planned_destination_node_id = -1
@@ -169,6 +180,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	fleet.clear()
 	current_run_design_names.clear()
 	fleet_design_slots = ["", "", ""]
+	roster_state = FleetRules.empty_roster()
 	fleet_formation_index = 0
 	next_ship_id = 1
 	laser_upgrade_level = 0
@@ -177,7 +189,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	current_ship_design_name = ""
 	credits = STARTING_CREDITS
 	difficulty = selected_difficulty as Difficulty
-	frozen_encounters = EncounterGenerator.freeze_graph(run_seed, difficulty, NODE_COLUMNS)
+	frozen_encounters = EncounterGenerator.freeze_campaign(run_seed, difficulty, campaign_dag) if campaign_active else EncounterGenerator.freeze_graph(run_seed, difficulty, NODE_COLUMNS)
 	battle_aliens.clear()
 	ship.clear()
 	red_tiles_available = STARTING_RED_TILE_COUNT
@@ -192,6 +204,8 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 		fleet.append(owned)
 		next_ship_id += 1
 	fleet_design_slots[0] = "Drone"
+	if campaign_active:
+		_adopt_legacy_roster()
 	for part in drone.parts:
 		discover_part(part.type)
 	_refresh_fleet()
@@ -201,6 +215,8 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	credits_changed.emit()
 	player_ship_count_changed.emit()
 	research_changed.emit()
+	if campaign_active:
+		return dispatch_arrival()
 	return save_run_checkpoint()
 
 
@@ -222,6 +238,7 @@ func run_progress_snapshot() -> Dictionary:
 		"branch_choices": research_branch_choices.duplicate(),
 		"story_flags": story_flags.duplicate(),
 		"active_design_families": fleet_design_slots.duplicate(),
+		"family_identity_version": 1 if campaign_active else 0,
 		"current_run_design_names": current_run_design_names.duplicate(),
 		"destroy_all_neutral_targets": destroy_all_neutral_targets,
 		"run_ended": run_ended,
@@ -244,7 +261,10 @@ func restore_run_progress(data: Variant, notify := true) -> bool:
 	current_run_design_names.assign(data.current_run_design_names)
 	destroy_all_neutral_targets = data.get("destroy_all_neutral_targets", false)
 	run_ended = data.get("run_ended", false)
-	_generate_campaign_graph()
+	if campaign_active and campaign_dag.get("seed", "") == data.seed:
+		_apply_campaign_geometry()
+	else:
+		_generate_campaign_graph()
 	if notify:
 		research_changed.emit()
 		credits_changed.emit()
@@ -283,7 +303,7 @@ func load_run_checkpoint() -> bool:
 		return false
 	var decoded := RunCheckpoint.decode(saved.payload)
 	var data: Dictionary = decoded.data
-	if saved.payload.version == 1:
+	if saved.payload.version == 1 or (saved.payload.get("campaign_active", false) and not saved.payload.has("fleet_roster")):
 		# Freeze migration results durably before exposing them to callers/previews.
 		var migrated := _checkpoint_store.commit(run_save_path, data, RunCheckpoint.valid, int(saved.generation))
 		if not migrated.ok:
@@ -297,8 +317,13 @@ func load_run_checkpoint() -> bool:
 	transaction_ledger = data.ledger.duplicate(true)
 	economy_state = data.economy.duplicate(true)
 	frozen_encounters = data.encounters.duplicate(true)
+	campaign_dag = data.get("campaign_graph", {}).duplicate(true)
+	campaign_active = data.get("campaign_active", false)
 	_apply_accounting(data)
 	fleet.assign(decoded.fleet)
+	roster_state = data.get("fleet_roster", FleetRules.empty_roster()).duplicate(true)
+	if campaign_active and not data.has("fleet_roster"):
+		_adopt_legacy_roster()
 	ship = decoded.editor
 	current_ship_design_name = data.editor_name
 	next_ship_id = int(data.next_ship_id)
@@ -426,6 +451,21 @@ func _generate_campaign_graph() -> void:
 				GRAPH_EDGES.append(Vector2i(previous_column_nodes[lane], column_nodes[lane]))
 		previous_column_nodes = column_nodes
 	FINAL_NODE_ID = previous_column_nodes[0]
+
+
+func _apply_campaign_geometry() -> void:
+	NODE_POSITIONS.clear()
+	NODE_COLUMNS.clear()
+	GRAPH_EDGES.clear()
+	CONVERGENCE_NODE_IDS.clear()
+	for node in campaign_dag.nodes:
+		NODE_POSITIONS.append(Vector2(node.position[0], node.position[1]))
+		NODE_COLUMNS.append(int(node.row))
+	for edge in campaign_dag.edges:
+		GRAPH_EDGES.append(Vector2i(int(edge[0]), int(edge[1])))
+	for id in campaign_dag.staging:
+		CONVERGENCE_NODE_IDS.append(int(id))
+	FINAL_NODE_ID = int(campaign_dag.final)
 
 
 func get_saved_ship_designs() -> Array[Dictionary]:
@@ -854,10 +894,14 @@ func refund_tile(category: int) -> void:
 	tile_inventory_changed.emit()
 
 
-func construction_error(blueprint: Ship = null) -> String:
+func construction_error(blueprint: Ship = null, role := "regular") -> String:
 	var design := ship if blueprint == null else blueprint
+	if role not in FleetRules.ROLES:
+		return "Unknown fleet slot role."
 	if run_ended:
 		return "This run has ended. Start a new run to construct ships."
+	if campaign_active and not is_shipyard_node(current_node_id):
+		return "Construction requires a secured port."
 	if battle_pending or (design == ship and active_part_transformations > 0):
 		return "Unavailable during deployment or transformation."
 	if design.tiles.is_empty():
@@ -867,9 +911,19 @@ func construction_error(blueprint: Ship = null) -> String:
 	var research_problem := design_research_error(design)
 	if not research_problem.is_empty():
 		return research_problem
+	if campaign_active:
+		var slot_problem := FleetRules.design_error(design, role)
+		if not slot_problem.is_empty():
+			return slot_problem
+		if role == "regular":
+			var family := family_for_design(design)
+			if (family.is_empty() or not roster_state.active.has(family)) and not roster_state.active.has(""):
+				return "Assign this family to one of the three regular slots first."
+		elif int(roster_state.support_ids[role]) != 0:
+			return "Reserve the existing %s ship before constructing another." % role.capitalize()
 	var candidate := FleetShip.new()
 	candidate.initialize(design, next_ship_id, "")
-	var problem := candidate.construction_error()
+	var problem := candidate.construction_error() if role == "regular" else ""
 	if not problem.is_empty():
 		return problem
 	if credits < get_construction_credit_cost(design):
@@ -907,6 +961,8 @@ func get_design_material_costs(blueprint: Ship = null) -> Array[int]:
 	return _get_ship_tile_counts(ship if blueprint == null else blueprint)
 
 func purchase_material(category: int) -> bool:
+	if campaign_active and not is_shipyard_node(current_node_id):
+		return false
 	if battle_pending or category < 0 or category >= MATERIAL_PRICES.size():
 		return false
 	var price: int = MATERIAL_PRICES[category]
@@ -922,15 +978,15 @@ func purchase_material(category: int) -> bool:
 	tile_inventory_changed.emit()
 	return true
 
-func purchase_saved_ship(design_name: String) -> bool:
+func purchase_saved_ship(design_name: String, role := "regular") -> bool:
 	for entry in get_visible_ship_designs():
 		if entry.name == design_name:
 			var blueprint := Ship.new()
-			if not blueprint.load_design_data(entry.ship) or not construction_error(blueprint).is_empty():
+			if not blueprint.load_design_data(entry.ship) or not construction_error(blueprint, role).is_empty():
 				return false
-			if not _ensure_fleet_design_slot(design_name):
+			if not campaign_active and not _ensure_fleet_design_slot(design_name):
 				return false
-			return purchase_ship(blueprint, design_name)
+			return purchase_ship(blueprint, design_name, role)
 	return false
 
 
@@ -943,9 +999,9 @@ func _ensure_fleet_design_slot(design_name: String) -> bool:
 	fleet_design_slots[empty_slot] = design_name
 	return true
 
-func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
+func purchase_ship(blueprint: Ship = null, design_name: String = "", role := "regular") -> bool:
 	var design := ship if blueprint == null else blueprint
-	if not construction_error(design).is_empty():
+	if not construction_error(design, role).is_empty():
 		return false
 	var construction_credit_cost := get_construction_credit_cost(design)
 	var owned := FleetShip.new()
@@ -955,6 +1011,17 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
 	if title.is_empty():
 		title = "Ship"
 	owned.initialize(design, next_ship_id, "%s %d" % [title, next_ship_id])
+	if campaign_active:
+		owned.slot_role = role
+		if role == "regular":
+			owned.family_id = _register_family(design, title)
+			if not roster_state.active.has(owned.family_id):
+				var index: int = roster_state.active.find("")
+				roster_state.active[index] = owned.family_id
+				fleet_design_slots[index] = title
+		else:
+			roster_state.support_ids[role] = owned.id
+			roster_state.support_names[role] = title
 	# Find room alongside the fleet without constraining placement to a grid.
 	for other in fleet:
 		owned.formation.x = maxf(owned.formation.x, other.formation.x + 1.0)
@@ -973,6 +1040,8 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "") -> bool:
 
 
 func repair_ship(owned: FleetShip) -> bool:
+	if campaign_active and not is_shipyard_node(current_node_id):
+		return false
 	if battle_pending or not fleet.has(owned) or not owned.is_alive():
 		return false
 	var price := owned.repair_cost()
@@ -1036,13 +1105,228 @@ func move_ship(owned: FleetShip, position: Vector2) -> void:
 
 
 func _refresh_fleet() -> void:
+	if campaign_active:
+		for role in ["science", "civic"]:
+			if not fleet.any(func(owned: FleetShip) -> bool: return owned.id == int(roster_state.support_ids[role])):
+				roster_state.support_ids[role] = 0
 	player_ship_count = fleet.size()
 	player_ship_count_changed.emit()
 	fleet_changed.emit()
 
 
+func family_for_design(design: Ship) -> String:
+	var key := FleetRules.fingerprint(design)
+	for id in roster_state.families:
+		if roster_state.families[id].blueprints.has(key):
+			return id
+	return ""
+
+
+func _register_family(design: Ship, title: String) -> String:
+	var existing := family_for_design(design)
+	if not existing.is_empty():
+		return existing
+	var id := "family/%d" % int(roster_state.next_family)
+	roster_state.next_family = int(roster_state.next_family) + 1
+	roster_state.families[id] = {"name": title, "blueprints": [FleetRules.fingerprint(design)], "design": design.to_design_data()}
+	return id
+
+
+func _adopt_legacy_roster() -> void:
+	roster_state = FleetRules.empty_roster()
+	fleet_design_slots = ["", "", ""]
+	for owned in fleet:
+		owned.slot_role = "regular"
+		owned.family_id = _register_family(owned.design, _fleet_ship_type_name(owned.display_name))
+		if not roster_state.active.has(owned.family_id) and roster_state.active.has(""):
+			var index: int = roster_state.active.find("")
+			roster_state.active[index] = owned.family_id
+			fleet_design_slots[index] = roster_state.families[owned.family_id].name
+
+
+func fleet_slot_name(index: int) -> String:
+	return fleet_design_slots[index] if index < 3 else str(roster_state.support_names["science" if index == 3 else "civic"])
+
+
+func assign_fleet_design(index: int, title: String, design: Ship, revision := false) -> bool:
+	if not campaign_active or index < 0 or index > 4 or title.is_empty() or battle_pending or not is_shipyard_node(current_node_id):
+		return false
+	var role := "regular" if index < 3 else ("science" if index == 3 else "civic")
+	if not FleetRules.design_error(design, role).is_empty():
+		return false
+	var before := roster_state.duplicate(true)
+	var names := fleet_design_slots.duplicate()
+	if index < 3:
+		var id := family_for_design(design)
+		if revision:
+			var current: String = roster_state.active[index]
+			if current.is_empty() or (not id.is_empty() and id != current):
+				return false
+			id = current
+			var key := FleetRules.fingerprint(design)
+			if not roster_state.families[id].blueprints.has(key):
+				roster_state.families[id].blueprints.append(key)
+			roster_state.families[id].design = design.to_design_data()
+		else:
+			id = _register_family(design, title)
+		var already: int = roster_state.active.find(id)
+		if already >= 0 and already != index:
+			roster_state = before
+			return false
+		roster_state.active[index] = id
+		fleet_design_slots[index] = title
+	else:
+		if roster_state.support_names[role] != title:
+			# Selection changes deployment, never the physical design or its HP.
+			roster_state.support_ids[role] = 0
+		roster_state.support_names[role] = title
+	if not save_run_checkpoint():
+		roster_state = before
+		fleet_design_slots.assign(names)
+		return false
+	fleet_changed.emit()
+	return true
+
+
+func set_ship_reserve(owned: FleetShip, reserve: bool) -> bool:
+	if not campaign_active or battle_pending or not fleet.has(owned) or not is_shipyard_node(current_node_id):
+		return false
+	if not reserve:
+		if owned.slot_role == "regular" and not roster_state.active.has(owned.family_id):
+			return false
+		if not FleetRules.operational_error(owned).is_empty():
+			return false
+		if owned.slot_role != "regular" and int(roster_state.support_ids[owned.slot_role]) not in [0, owned.id]:
+			return false
+	var before := roster_state.duplicate(true)
+	var was_reserve := owned.in_reserve
+	owned.in_reserve = reserve
+	if owned.slot_role != "regular":
+		if not reserve:
+			roster_state.support_ids[owned.slot_role] = owned.id
+		elif int(roster_state.support_ids[owned.slot_role]) == owned.id:
+			roster_state.support_ids[owned.slot_role] = 0
+	if not save_run_checkpoint():
+		owned.in_reserve = was_reserve
+		roster_state = before
+		return false
+	fleet_changed.emit()
+	return true
+
+
+func slot_blueprint(index: int) -> Ship:
+	if index >= 0 and index < 3 and not str(roster_state.active[index]).is_empty():
+		var design := Ship.new()
+		var family: Dictionary = roster_state.families[roster_state.active[index]]
+		if design.load_design_data(family.get("design", {})):
+			return design
+	return null
+
+
+func salvage_fleet_slot(index: int) -> bool:
+	if not campaign_active or battle_pending or not is_shipyard_node(current_node_id) or index < 0 or index > 4:
+		return false
+	var candidate: FleetShip
+	for owned in fleet:
+		var matches: bool = owned.family_id == roster_state.active[index] and owned.slot_role == "regular" if index < 3 else owned.id == int(roster_state.support_ids["science" if index == 3 else "civic"])
+		if matches and (candidate == null or _fleet_ship_damage_fraction(owned) > _fleet_ship_damage_fraction(candidate)):
+			candidate = owned
+	if candidate == null:
+		return false
+	# Only physically surviving material is returned; scuttling never rebuilds
+	# destroyed support equipment for free.
+	for cell in candidate.design.tiles:
+		if candidate.has_cell(cell):
+			match candidate.design.tiles[cell]:
+				0: red_tiles_available += 1
+				1: blue_tiles_available += 1
+				2: green_tiles_available += 1
+				3: core_tiles_available += 1
+	fleet.erase(candidate)
+	_refresh_fleet()
+	tile_inventory_changed.emit()
+	return true
+
+
+func fleet_slot_members(index: int) -> Array[FleetShip]:
+	var result: Array[FleetShip] = []
+	if index < 0 or index > 4:
+		return result
+	for owned in fleet:
+		if index < 3:
+			if owned.slot_role == "regular" and owned.family_id == roster_state.active[index]:
+				result.append(owned)
+		elif owned.id == int(roster_state.support_ids["science" if index == 3 else "civic"]):
+			result.append(owned)
+	return result
+
+
+func is_ship_deployed(owned: FleetShip) -> bool:
+	if not owned.is_alive():
+		return false
+	if not campaign_active:
+		return true
+	if owned.in_reserve:
+		return false
+	if owned.slot_role == "regular":
+		return roster_state.active.has(owned.family_id)
+	return int(roster_state.support_ids.get(owned.slot_role, 0)) == owned.id
+
+
+func set_escort_target(owned: FleetShip, host: FleetShip) -> bool:
+	if not campaign_active or battle_pending or not is_shipyard_node(current_node_id) or not fleet.has(owned) or not fleet.has(host):
+		return false
+	if owned.slot_role == "regular" or host.slot_role != "regular" or not is_ship_deployed(host):
+		return false
+	var before := owned.escort_target_id
+	owned.escort_target_id = host.id
+	if not save_run_checkpoint():
+		owned.escort_target_id = before
+		return false
+	fleet_changed.emit()
+	return true
+
+
+func get_deployed_fleet() -> Array[FleetShip]:
+	var result: Array[FleetShip] = []
+	for owned in fleet:
+		if is_ship_deployed(owned):
+			result.append(owned)
+	return result
+
+
+func deployment_capacity() -> int:
+	return FleetRules.capacity_for_act(current_act())
+
+
+func used_deployment_capacity() -> int:
+	var total := 0
+	for owned in get_deployed_fleet():
+		total += FleetRules.ship_capacity(owned)
+	return total
+
+
+func deployment_error() -> String:
+	if not campaign_active:
+		return ""
+	if not FleetRules.valid(roster_state, fleet):
+		return "Invalid fleet assignments. Reassign designs at a secured port."
+	for owned in get_deployed_fleet():
+		var problem := FleetRules.operational_error(owned)
+		if not problem.is_empty():
+			return problem
+		problem = design_research_error(owned.design)
+		if not problem.is_empty():
+			return problem
+	var used := used_deployment_capacity()
+	var limit := deployment_capacity()
+	if used > limit:
+		return "Deployment capacity %d/%d. Reserve ships at a secured port before departing." % [used, limit]
+	return ""
+
+
 func can_deploy() -> bool:
-	return not run_ended and not fleet.is_empty() and fleet.any(func(owned: FleetShip) -> bool:
+	return not run_ended and deployment_error().is_empty() and get_deployed_fleet().any(func(owned: FleetShip) -> bool:
 		return owned.is_alive() and not owned.get_stats(laser_upgrade_level).weapons.is_empty())
 
 
@@ -1123,6 +1407,169 @@ func get_reachable_nodes(from_node_id: int) -> Array[int]:
 	return reachable_nodes
 
 
+func campaign_node(node_id: int) -> Dictionary:
+	if not campaign_active or node_id < 0 or node_id >= campaign_dag.nodes.size():
+		return {}
+	return campaign_dag.nodes[node_id].duplicate(true)
+
+
+func current_act() -> int:
+	var node := campaign_node(current_node_id)
+	var act := maxi(1, int(node.get("act", 1)))
+	# Securing the act boss opens the next act's first fork immediately.
+	return mini(3, act + 1) if node.get("kind") == "boss" else act
+
+
+func node_visible(node_id: int) -> bool:
+	return not campaign_active or int(campaign_node(node_id).get("act", 4)) <= current_act()
+
+
+func edge_preview(source: int, target: int) -> Dictionary:
+	if campaign_active:
+		for route in campaign_dag.routes:
+			if int(route.from) == source and int(route.to) == target:
+				return route.duplicate(true)
+	return {}
+
+
+func node_preview(node_id: int) -> Dictionary:
+	var node := campaign_node(node_id)
+	if node.is_empty():
+		return {"title": "Sector %d" % (node_id + 1), "text": "Eliminate the hostile fleet."}
+	if not node_visible(node_id):
+		var act := int(node.act) - 1
+		return {"title": CampaignContent.THEMES[act], "text": "Boss: %s. Routes reveal on entry." % CampaignContent.BOSSES[act]}
+	var text: String = node.type.capitalize()
+	text += " • Inhabited • %s goods: %d cr/unit" % [node.goods_grade, int(node.goods_unit_value)] if node.inhabited else " • Uninhabited"
+	var encounter := get_frozen_encounter(node_id)
+	if not encounter.is_empty():
+		text += "\nThreat %.0f • %d credits • %d materials" % [float(encounter.budget), int(encounter.rewards.credits), _sum_materials(encounter.rewards.materials)]
+		if get_reachable_nodes(current_node_id).has(node_id):
+			var roles: Array[String] = []
+			for entry in encounter.roster:
+				if not roles.has(entry.role):
+					roles.append(entry.role)
+			var count: int = encounter.roster.size()
+			text += "\n%d–%d alien contacts • %s\nObjective: destroy marked hostile fleet. No announced special abilities." % [maxi(1, count - 1), count + 1, ", ".join(roles)]
+			text += "\nSalvage: Defense 35%, Offense 30%, Tech 20%, Civic 15% (rounded)."
+	else:
+		text += "\nNo battle or RP."
+		if node.type == "salvage":
+			text += " Recover %d materials." % _sum_materials(node.material_reward)
+	if get_reachable_nodes(current_node_id).has(node_id):
+		var route := edge_preview(current_node_id, node_id)
+		if not route.is_empty() and route.hazard != "none":
+			text += "\nCharted %s • safe passage. Mineral potential: %s; extraction unavailable." % [str(route.hazard).replace("_", " "), route.mining_potential]
+		else:
+			text += "\nSafe passage • asteroid density: none."
+		text += "\nPassenger tickets: 0 • cargo sale: 0" # No operational accommodation/holds yet.
+	if node_id == current_node_id:
+		text += "\nAct %d: %s" % [current_act(), CampaignContent.THEMES[current_act() - 1]]
+		if current_act() < 3:
+			text += "\nNext act: %s | Boss: %s. Routes reveal on entry." % [CampaignContent.THEMES[current_act()], CampaignContent.BOSSES[current_act()]]
+	return {"title": node.name, "text": text.replace("•", "|").replace("–", "-")}
+
+
+func _sum_materials(values: Array) -> int:
+	var total := 0
+	for amount in values:
+		total += int(amount)
+	return total
+
+
+func travel_to(node_id: int) -> bool:
+	if not campaign_active:
+		return set_destination(node_id)
+	if battle_pending or run_ended or not can_deploy() or not get_reachable_nodes(current_node_id).has(node_id):
+		return false
+	var node := campaign_node(node_id)
+	if node.kind in ["combat", "boss"]:
+		return set_destination(node_id)
+	var checkpoint := RunCheckpoint.capture(self)
+	var reward := TransactionLedger.apply(checkpoint, "node_reward", "node/%d" % node_id, 0, node.material_reward, 0)
+	if reward.is_empty():
+		return false
+	checkpoint = _secure_node(reward.checkpoint, node_id)
+	if checkpoint.is_empty():
+		return false
+	checkpoint.location.current = node_id
+	checkpoint.location.destination = -1
+	checkpoint.location.planned = -1
+	checkpoint.location.visited.append(node_id)
+	return _commit_campaign_checkpoint(checkpoint)
+
+
+func _secure_node(checkpoint: Dictionary, node_id: int) -> Dictionary:
+	var node := campaign_node(node_id)
+	if node.is_empty():
+		return {}
+	for id in node.story_ids:
+		checkpoint.progress.story_flags["delivered/" + id] = true
+	if node.kind == "boss":
+		checkpoint.progress.story_flags[["boss_i_defeated", "boss_ii_defeated", "boss_iii_defeated"][int(node.act) - 1]] = true
+	if node.inhabited:
+		var arrival := TransactionLedger.apply(checkpoint, "arrival", "node/%d" % node_id, 0, [0, 0, 0, 0], 0,
+			{"goods_grade": node.goods_grade, "goods_unit_value": node.goods_unit_value})
+		if arrival.is_empty():
+			return {}
+		checkpoint = arrival.checkpoint
+	return checkpoint
+
+
+func _commit_campaign_checkpoint(checkpoint: Dictionary) -> bool:
+	if not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
+	_apply_location(checkpoint)
+	story_flags.assign(checkpoint.progress.story_flags)
+	_emit_accounting_changes()
+	return true
+
+
+func dispatch_arrival() -> bool:
+	# Secured inhabited arrival only; opening a port is a separate read-only operation.
+	if not campaign_active or battle_pending or not visited_nodes.has(current_node_id) or not campaign_node(current_node_id).get("inhabited", false):
+		return false
+	var checkpoint := _secure_node(RunCheckpoint.capture(self), current_node_id)
+	return not checkpoint.is_empty() and _commit_campaign_checkpoint(checkpoint)
+
+
+func port_services() -> Dictionary:
+	if not is_shipyard_node(current_node_id):
+		return {}
+	return campaign_node(current_node_id)
+
+
+func commit_port_service(action: String, economy_after: Dictionary) -> bool:
+	if not campaign_active or port_services().is_empty() or action not in ["offload", "disembark"] or not RunCheckpoint._json_value(economy_after):
+		return false
+	return commit_event("port_service", "node/%d/%s" % [current_node_id, action], 0, [0, 0, 0, 0], 0, {}, economy_after)
+
+
+func story_archive() -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for id in CampaignContent.STORIES:
+		if story_flags.get("delivered/" + id, false):
+			var entry: Dictionary = CampaignContent.STORIES[id].duplicate()
+			entry.id = id
+			entries.append(entry)
+	return entries
+
+
+func mark_story_seen(ids: Array[String]) -> bool:
+	var before := story_flags.duplicate()
+	for id in ids:
+		if not story_flags.get("delivered/" + id, false):
+			return false
+	for id in ids:
+		story_flags["seen/" + id] = true
+	if not save_run_checkpoint():
+		story_flags.assign(before)
+		return false
+	return true
+
+
 func set_planned_destination(node_id: int) -> bool:
 	if battle_pending or not get_reachable_nodes(current_node_id).has(node_id):
 		return false
@@ -1131,6 +1578,8 @@ func set_planned_destination(node_id: int) -> bool:
 
 
 func is_shipyard_node(node_id: int) -> bool:
+	if campaign_active:
+		return not battle_pending and node_id == current_node_id and campaign_node(node_id).get("inhabited", false)
 	var convergence_index := CONVERGENCE_NODE_IDS.find(node_id)
 	return convergence_index == 0 or convergence_index == 1
 
@@ -1169,7 +1618,7 @@ func set_destination(node_id: int) -> bool:
 	if not get_reachable_nodes(current_node_id).has(node_id):
 		return false
 	var encounter := get_frozen_encounter(node_id)
-	if not EncounterGenerator.valid(encounter) or encounter.template_id != "patrol":
+	if not EncounterGenerator.valid(encounter) or encounter.template_id not in ["patrol", "elite", "boss_patrol"]:
 		return false
 	var next_battle_aliens := EncounterGenerator.initial_fleet(encounter)
 	if next_battle_aliens.is_empty():
@@ -1187,10 +1636,11 @@ func set_destination(node_id: int) -> bool:
 	progress.attempts = int(progress.attempts) + 1
 	progress.outcome = "active"
 	progress.ship_ids = []
-	for owned: FleetShip in fleet:
+	for owned: FleetShip in get_deployed_fleet():
 		progress.ship_ids.append(owned.id)
 	var deployment := RunCheckpoint.capture(self)
-	progress.deployment = {"fleet": deployment.fleet, "aliens": deployment.aliens,
+	var deployed_snapshots: Array = deployment.fleet.filter(func(entry: Dictionary) -> bool: return progress.ship_ids.has(int(entry.id)))
+	progress.deployment = {"fleet": deployed_snapshots, "aliens": deployment.aliens,
 		"seed": str(battle_simulation_seed()), "salvage_chance": allied_salvage_chance(),
 		"upgrade_level": laser_upgrade_level, "neutral_cleanup": destroy_all_neutral_targets,
 		"objectives": battle_objective_ids(), "materials": battle_material_rewards()}
@@ -1240,11 +1690,17 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 	checkpoint.location.pending = false
 	checkpoint.aliens.clear()
 	_set_encounter_outcome(checkpoint, "victory")
+	if campaign_active:
+		checkpoint = _secure_node(checkpoint, destination_node_id)
+		if checkpoint.is_empty():
+			return false
 	if not _persist_checkpoint(checkpoint):
 		return false
 	transaction_ledger = checkpoint.ledger
 	_apply_accounting(checkpoint)
 	_apply_location(checkpoint)
+	if campaign_active:
+		story_flags.assign(checkpoint.progress.story_flags)
 	encounter_progress = checkpoint.encounter_progress
 	if surviving_player_ship_count >= 0:
 		player_ship_count = surviving_player_ship_count
@@ -1316,7 +1772,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	record_battle(simulation)
 	if simulation.phase == BattleSimulation.Phase.VICTORY:
 		return complete_battle(-1, simulation.collected_categories)
-	return cancel_battle(-1, simulation.phase == BattleSimulation.Phase.DEFEAT)
+	return cancel_battle(-1, simulation.phase == BattleSimulation.Phase.DEFEAT and fleet.is_empty())
 
 
 func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dictionary) -> bool:

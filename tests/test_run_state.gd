@@ -31,7 +31,7 @@ func _run() -> void:
 	var state := root.get_node("GameState")
 	state.archive_progress_file_path = "user://run_state_archive_test.json"
 	state.saved_ship_designs.clear()
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 12345), "Start a seeded run.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 12345, false), "Start a seeded run.")
 	var initial_nodes: Array = state.NODE_POSITIONS.duplicate()
 	var initial_edges: Array = state.GRAPH_EDGES.duplicate()
 	var blueprint := _laser_blueprint()
@@ -72,7 +72,7 @@ func _run() -> void:
 	progress.story_flags.clear()
 	_check(state.story_flags.get("boss_i_defeated", false), "Snapshots must not alias run dictionaries.")
 
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 12345), "Restart the same seed.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 12345, false), "Restart the same seed.")
 	_check(state.NODE_POSITIONS == initial_nodes and state.GRAPH_EDGES == initial_edges, "Same run seed must reproduce the current graph.")
 	_check(state.current_research_ids == ["foundation"] and state.research_points == 0,
 		"New runs reset authorization and research points to Foundation.")

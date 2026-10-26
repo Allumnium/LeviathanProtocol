@@ -15,7 +15,8 @@ func _ready() -> void:
 func _draw() -> void:
 	if owned == null:
 		return
-	var scale_factor := minf(size.x, size.y) / (Ship.BATTLE_MODEL_SIZE + 8.0)
+	var footprint := ShipStats.cell_bounds(owned.design.get_tile_cells()).size * owned.cell_size
+	var scale_factor := minf(size.x / (footprint.x + 8.0), size.y / (footprint.y + 8.0))
 	var cells: Array[Vector2i] = []
 	for unit in owned.units:
 		if unit.hp <= 0.0:
@@ -64,7 +65,7 @@ func _draw() -> void:
 
 
 func _draw_part(unit: Dictionary, part: ShipPart, pattern: ShipPartPattern) -> void:
-	var pattern_transform := pattern.get_transform_for_offsets(part.cell_offsets)
+	var pattern_transform := part.get_transform(pattern)
 	if pattern_transform.x < 0:
 		return
 	var visual_cells: Array[Vector2i] = []

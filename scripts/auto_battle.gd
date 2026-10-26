@@ -50,7 +50,7 @@ var _simulation_accumulator := 0.0
 func _ready() -> void:
 	AudioManager.play_battle_music()
 	if not GameState.battle_pending or not simulation.setup_owned(
-		GameState.fleet, GameState.battle_aliens,
+		GameState.get_deployed_fleet(), GameState.battle_aliens,
 		GameState.allied_salvage_chance(), GameState.laser_upgrade_level, GameState.battle_simulation_seed()
 	):
 		push_error("Cannot open battle without a valid deployment.")

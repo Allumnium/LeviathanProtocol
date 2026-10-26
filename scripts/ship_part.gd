@@ -80,6 +80,10 @@ var origin: Vector2i
 var cell_offsets: Array[Vector2i] = []
 var hidden_tile_offsets: Array[Vector2i] = []
 var stats: ShipPartStats
+var definition_id := ""
+var rank := 1
+var quarter_turns := -1 # Legacy instances infer from their ordered offsets.
+var horizontally_flipped := false
 
 
 func _init(
@@ -88,7 +92,9 @@ func _init(
 	part_origin: Vector2i,
 	part_cell_offsets: Array[Vector2i],
 	part_stats: ShipPartStats,
-	part_hidden_tile_offsets: Array[Vector2i] = []
+	part_hidden_tile_offsets: Array[Vector2i] = [],
+	part_quarter_turns: int = -1,
+	part_horizontally_flipped: bool = false
 ) -> void:
 	if part_stats == null:
 		push_error("A ship part must have stat values.")
@@ -100,6 +106,20 @@ func _init(
 	cell_offsets = part_cell_offsets.duplicate()
 	hidden_tile_offsets = part_hidden_tile_offsets.duplicate()
 	stats = part_stats.copy()
+	definition_id = GameDefinitions.equipment(type).get("id", "")
+	quarter_turns = part_quarter_turns
+	horizontally_flipped = part_horizontally_flipped
+
+
+func get_transform(pattern: ShipPartPattern) -> Vector2i:
+	if quarter_turns >= 0:
+		return Vector2i(quarter_turns, 1 if horizontally_flipped else 0)
+	return pattern.get_transform_for_offsets(cell_offsets)
+
+
+func facing(pattern: ShipPartPattern) -> Vector2i:
+	var orientation := get_transform(pattern)
+	return MaterialRecipe.direction(Vector2i.RIGHT, orientation.x, orientation.y == 1)
 
 
 func get_occupied_cells() -> Array[Vector2i]:

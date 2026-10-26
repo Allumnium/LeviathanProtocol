@@ -2,6 +2,7 @@ class_name GraphView
 extends Control
 
 signal destination_selected(node_id: int)
+signal node_inspected(node_id: int)
 signal travel_finished
 
 const NODE_SIZE := Vector2(28.0, 28.0)
@@ -118,6 +119,11 @@ func _screen_to_world(screen_position: Vector2) -> Vector2:
 
 
 func _reset_camera() -> void:
+	if GameState.campaign_active:
+		var first_row := (GameState.current_act() - 1) * 8
+		camera_zoom = clampf(minf((size.x - 40.0) / 640.0, (size.y - 125.0) / WORLD_SIZE.y), 0.35, 1.0)
+		camera_position = Vector2(WORLD_SIZE.x * lerpf(0.035, 0.965, float(first_row + 4) / 24.0), WORLD_SIZE.y * 0.5 + 60.0 / camera_zoom)
+		return
 	camera_position = _node_center(current_node_id)
 	camera_zoom = clampf(
 		minf(size.y / WORLD_SIZE.y, 1.0),
@@ -150,7 +156,7 @@ func _representative_ship() -> FleetShip:
 	for design_name in GameState.fleet_design_slots:
 		if design_name.is_empty():
 			continue
-		for owned in GameState.fleet:
+		for owned in GameState.get_deployed_fleet():
 			if _ship_type_name(owned.display_name) == design_name:
 				return owned
 	return null
@@ -177,7 +183,13 @@ func _draw() -> void:
 	for star in stars:
 		draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
 	for edge in GameState.GRAPH_EDGES:
+		if not GameState.node_visible(edge.x) or not GameState.node_visible(edge.y):
+			continue
 		var edge_color := Color(0.42, 0.42, 0.42)
+		if GameState.visited_nodes.has(edge.x) and GameState.visited_nodes.has(edge.y):
+			edge_color = Color(0.25, 0.8, 0.55)
+		elif GameState.campaign_active and GameState.edge_preview(edge.x, edge.y).get("hazard", "none") != "none":
+			edge_color = Color(0.7, 0.5, 0.25)
 		if edge.x == current_node_id and edge.y == selected_node_id:
 			var pulse := 0.5 + 0.5 * sin(_elapsed_time * TAU * 0.5)
 			var brightness := lerpf(0.32, 0.9, pulse)
@@ -185,8 +197,12 @@ func _draw() -> void:
 		_draw_arrow(edge.x, edge.y, edge_color)
 
 	for node_id in range(GameState.NODE_POSITIONS.size()):
+		if not GameState.node_visible(node_id):
+			continue
 		var center := _node_center(node_id)
-		if GameState.CONVERGENCE_NODE_IDS.find(node_id) in [0, 1]:
+		if GameState.campaign_active:
+			_draw_campaign_node(node_id, center)
+		elif GameState.CONVERGENCE_NODE_IDS.find(node_id) in [0, 1]:
 			_draw_space_station(node_id, center)
 		else:
 			_draw_sector_star(node_id, center, Color(0.72, 0.72, 0.72))
@@ -280,14 +296,17 @@ func _gui_input(event: InputEvent) -> void:
 
 func _select_node_at(world_position: Vector2) -> void:
 	var nearest_node := -1
-	var nearest_distance := NODE_HIT_RADIUS
+	var nearest_distance := maxf(NODE_HIT_RADIUS, 12.0 / camera_zoom) if GameState.campaign_active else NODE_HIT_RADIUS
 	for node_id in range(GameState.NODE_POSITIONS.size()):
+		if not GameState.node_visible(node_id):
+			continue
 		var distance := _node_center(node_id).distance_to(world_position)
 		if distance <= nearest_distance:
 			nearest_distance = distance
 			nearest_node = node_id
 	if nearest_node < 0:
 		return
+	node_inspected.emit(nearest_node)
 	_node_click_remaining[nearest_node] = STAR_CLICK_DURATION
 	queue_redraw()
 	for node_id in GameState.get_reachable_nodes(current_node_id):
@@ -301,6 +320,43 @@ func _select_node_at(world_position: Vector2) -> void:
 func _node_center(node_id: int) -> Vector2:
 	var normalized_position: Vector2 = GameState.NODE_POSITIONS[node_id]
 	return Vector2(WORLD_SIZE.x * normalized_position.x, WORLD_SIZE.y * normalized_position.y)
+
+
+func _draw_campaign_node(node_id: int, center: Vector2) -> void:
+	var node := GameState.campaign_node(node_id)
+	var radius := 7.0 / camera_zoom
+	var color := Color(0.55, 0.7, 0.85)
+	if node.inhabited:
+		color = Color(0.35, 0.9, 0.7)
+	elif node.type in ["patrol", "elite", "boss"]:
+		color = Color(1.0, 0.65, 0.3) if node.type != "patrol" else Color(0.9, 0.65, 0.6)
+	if node.type in ["boss", "elite"]:
+		draw_colored_polygon(PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, 0), center + Vector2(0, radius), center + Vector2(-radius, 0)]), color)
+	elif node.inhabited:
+		draw_rect(Rect2(center - Vector2.ONE * radius, Vector2.ONE * radius * 2), color)
+	elif node.type == "salvage":
+		draw_colored_polygon(PackedVector2Array([center + Vector2(0, -radius), center + Vector2(radius, radius), center + Vector2(-radius, radius)]), color)
+	elif node.type == "signal":
+		draw_line(center - Vector2(radius, 0), center + Vector2(radius, 0), color, 2.0 / camera_zoom)
+		draw_line(center - Vector2(0, radius), center + Vector2(0, radius), color, 2.0 / camera_zoom)
+	else:
+		if node.type == "patrol":
+			draw_circle(center, radius, color, false, 1.5 / camera_zoom)
+		else:
+			draw_circle(center, radius, color)
+	if node_id == current_node_id or node_id == selected_node_id:
+		draw_arc(center, radius + 4.0 / camera_zoom, 0, TAU, 24, Color.WHITE, 1.0 / camera_zoom)
+
+
+func _get_tooltip(at_position: Vector2) -> String:
+	if not GameState.campaign_active:
+		return ""
+	var world := _screen_to_world(at_position)
+	for id in range(GameState.NODE_POSITIONS.size()):
+		if GameState.node_visible(id) and _node_center(id).distance_to(world) <= maxf(NODE_HIT_RADIUS, 12.0 / camera_zoom):
+			var preview := GameState.node_preview(id)
+			return preview.title + "\n" + preview.text
+	return "Drag to pan • Wheel to zoom"
 
 
 func _draw_arrow(from_node_id: int, to_node_id: int, color: Color) -> void:

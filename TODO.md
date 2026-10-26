@@ -41,7 +41,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 | Gate | Steps | Result |
 |---|---|---|
 | A | 1–9 | Reviewed: stable encounters, accounting, persistence and deterministic replay; see docs/BATTLE_LIFECYCLE.md |
-| B | 10–16 | Varied readable map, story and ports |
+| B | 10–16 | Reviewed: active 24-row map, truthful previews, story, secured arrivals and ports; see docs/CAMPAIGN_MAP.md |
 | C | 17–27 | Support fleet, research, recipes and adjacency |
 | D | 28–35 | Passengers, cargo and resource handling |
 | E | 36–49 | Visibility, abilities, asteroids, mining and travel |
@@ -99,45 +99,58 @@ Invariants: proximity-only enemy strength; three regular design families plus on
    **Result (2026-10-26):** Added tick-stamped, validated/deduplicated command envelopes, battle/attempt event IDs, destruction/objective/expenditure snapshots and detached authoritative diagnostics. Retreat and neutral-cleanup UI issue commands. Settled checkpoints retain deployment inputs and command/event/final-state journals. Replay tests compare production-clock normal/2x/accelerated batches, including physical component HP and salvage. Gate A reviewed in docs/BATTLE_LIFECYCLE.md; exact in-flight resume remains outside this milestone.
    **Validation (steps 8–9):** Full isolated baseline passed with 0 failures, including 864 encounter allocations, 600 battle regressions, repeated-withdrawal settlement and replay comparisons. Logs: .local/checks/49b577c0346d465488d507cd4e291fb3/. git diff --check passed.
 
-10. [ ] **Generate a varied map DAG.**
+10. [x] **Generate a varied map DAG.**
     Build three eight-row acts with 2–4-node ordinary rows, splits, merges, cross-lane edges and 4/5/5 mandatory combat rows.
     **Done when:** 1,000 seeds have no unreachable/dead-end/backward paths, missing forks/merges or mandatory elites.
+    **Result (2026-10-26):** Added scripts/campaign_graph.gd (+UID), versioned frozen DAGs in new-run checkpoints and backward-compatible loading. Generated three eight-row acts, varied 2–4-node ordinary rows, lane paths/cross-lane edges, two interior three-way forks per act, merges, staging/boss convergence and optional avoidable elites. The focused suite passed all 1,000 seeds with 1,000 distinct topologies and no fallback; independently checked every route's 24 visits/14 combats and 4/5/5 cadence, both reachability directions, corruption rejection and save/reload. A fixed valid fallback is tested. See docs/CAMPAIGN_GRAPH.md. Live travel remains on the legacy adapter until typed nodes and arrival/traversal handling in steps 11–16 can activate noncombat rows correctly.
+    **Validation:** Full isolated baseline passed with 0 failures, including 1,000 DAG seeds, 864 encounter allocations, replay and 600 battle regressions. Logs: .local/checks/cc0de0192ece4e088cb4d1a133a11446/. git diff --check passed.
 
-11. [ ] **Add node types, ports and goods properties.**
+11. [x] **Add node types, ports and goods properties.**
     Label inhabited nodes and freeze goods grade/unit value. Guarantee port access on Act I row 4 and Acts II/III row 3, plus staging row 7.
     **Done when:** every route has preparation access and uninhabited nodes cannot trigger arrival income.
+    **Result (2026-10-26):** Added frozen node types, explicit inhabitants, Basic/Uncommon/Rare origin goods at 3/6/10 credits, services and guaranteed port rows on every lane. New campaigns use actual global rows and frozen patrol/elite/boss-approach rosters. Historical layouts remain unchanged. Added 1,000 content-seed checks and service/arrival authorization tests.
 
-12. [ ] **Build truthful route previews.**
+12. [x] **Build truthful route previews.**
     Update graph_view.gd/game_map.gd with connections, roles, contact bands, objectives, hazards, material tendencies, inhabited status and goods value.
     **Done when:** encounters match previews, asteroid density is separate from alien contacts, and minimum-resolution UI remains readable.
+    **Result (2026-10-26):** Added shape/color map icons, legend, visited/selected routes, future-act concealment, themes/boss information, truthful frozen contact bands/roles/threat/rewards/objectives and separate travel/mineral forecasts. Scrollable previews and an explicit Travel button fit 640x360. Native captures inspected; bitmap glyph fallback and clipping corrected. Actual encounters remain ordinary marked-hostile objectives, with no advertised unimplemented boss phases.
 
-13. [ ] **Create story checkpoints.**
+13. [x] **Create story checkpoints.**
     Add Haven, Relay Outpost, Refuge Dock, Last Light, boss briefs, corrupted-ark reveal and archived/skippable text.
     **Done when:** every legal route delivers required story without an exclusive-research key.
+    **Result (2026-10-26):** Haven, Relay Outpost, Refuge Dock, Last Light, boss briefs, corrupted-ark reveal and ending are delivered with secured progression. Added skippable, modal story panels and a persistent Story Archive. Three complete route tests confirm delivery without any research branch.
 
-14. [ ] **Implement ports and arrival dispatch.**
+14. [x] **Implement ports and arrival dispatch.**
     Secure destinations before sending one arrival event; opening the port UI is a separate action. Add safe offload/disembark service hooks.
     **Done when:** reopening/reloading services never repeats arrivals and failed approaches never settle them.
+    **Result (2026-10-26):** Secured noncombat and victory progression atomically deliver story/arrival events; opening Port services is read-only. Added zero-payout, deduplicated safe offload/disembark hooks for later economy systems. Repair/construction/material services require a secured port. Tests cover reopening, every-row reload, failed approaches, service replay and failed writes. Passenger/cargo income remains zero until those components exist.
 
-15. [ ] **Preview edge hazards.**
+15. [x] **Preview edge hazards.**
     Store hazard type, duration, seed and mining potential on edges, initially using placeholders.
     **Done when:** risks are visible, safe alternatives exist and no edge silently adds an alien battle or RP.
+    **Result (2026-10-26):** Stored frozen hazard type, 20–40-second forecast duration, seed and separate mining potential. Charted fork edges retain safe alternatives and distinct map/preview cues. Forecasts are explicitly inactive/safe passage; actual hazard simulation remains later steps. Transit adds no hidden alien fight, damage, mining payout or RP.
 
-16. [ ] **Validate complete map traversal.**
+16. [x] **Validate complete map traversal.**
     Test act reveals, ports, route highlights and checkpoint transitions with placeholder encounters.
     **Done when:** full runs contain 24 visits and 14 objective battles, with correct save/load progression. Review Gate B.
+    **Result (2026-10-26):** Activated the DAG for new runs while preserving historical maps. Three full campaigns each produce 24 visits/14 battles, reload exact content/progression at every row, retry frozen encounters and deliver guaranteed ports/story. UI integration drives Travel into the real battle controller and settles the announced node. Gate B reviewed in docs/CAMPAIGN_MAP.md; specialized boss fights and active environment/economy systems remain later milestones.
+    **Validation (steps 11–16):** Full isolated baseline: 0 failures; 1,000 DAG seeds, 1,000 typed-content seeds, 1,080 allocations, three full routes and 600 battle regressions. Logs: .local/checks/8307670a31424fa798c765c3dbc61da7/. Follow-up boss-to-next-act visibility checks passed in .local/traversal-final.log. Native 640x360 map/story/port captures inspected; git diff --check passed.
 
-17. [ ] **Add regular and dedicated support slots.**
+17. [x] **Add regular and dedicated support slots.**
     Separate design families from physical copies/reserves. Science requires a lab and forbids passengers/cargo; Civic requires cargo/accommodation and forbids labs. Both restrict offensive hardware and forbid mining components.
     **Done when:** names/imports cannot bypass rules, and neither a fourth regular family nor a dedicated miner can deploy.
+    **Result (2026-10-26):** Added stable family IDs/revisions, owned/deployed/reserve separation, three regular slots plus Science/Civic selectors, physical singleton support IDs, authoritative construction/deployment validation and default Escort movement. Names, translation and blueprint ordering cannot create extra families or dedicated eligibility. Reserves retain HP and are excluded from battle/replay inputs; roster migration is durable and pending attempts remain settleable. New-campaign slot salvage returns surviving material only. Dedicated equipment remains unavailable until implemented; capacity/starters remain step 18. See docs/FLEET_SLOTS.md.
+    **Validation:** Full isolated baseline passed with 0 failures, including new slot/migration/Escort tests, both 1,000-seed map suites, 1,080 allocations and 600 battle regressions. Logs: .local/checks/a2293bdd97704efdbd8b6d1a19d257ab/. Follow-up UI refinements passed .local/slots-focused-final.log; native 640x360 captures inspected; git diff --check passed.
 
 18. [ ] **Implement capacity and starter ships.**
     Charge 2+ceil(occupied cells/12)+lab level per hull against capacities 30/42/54. Add two Drones, Science Vessel and Civic Tender with Escort behavior in builtin_ships.gd.
     **Done when:** all starters fit, Drones share a regular family, reserves contribute nothing and replacing lost support ships costs resources.
+    **Progress (2026-10-26):** Capacity is implemented: deployed physical hulls cost 2+ceil(surviving occupied cells/12)+active lab levels against act limits 30/42/54. Loose and assembled cells count; reserves/inactive families do not. Over-capacity ownership remains legal, but departures are blocked with a reason and port reserve controls restore eligibility. Fleet UI shows total/per-copy capacity and updates immediately. Full isolated regression passed (0 failures, including 600 battle cases); see docs/FLEET_SLOTS.md. **Still open:** four-ship starter activation and the 300-credit start. Labs, Crew Quarters and Cargo Holds still lack their scheduled effects; do not expose them as functioning purchasable equipment just to complete a starter layout. Finish their dependent milestones before switching the live starting fleet. Step 18 remains unchecked.
 
-19. [ ] **Centralize derived stats and component damage.**
+19. [x] **Centralize derived stats and component damage.**
     Share builder/battle mass, movement, actual hull footprint and equipment stats. Preserve disconnected intact parts.
     **Done when:** displayed and battle values agree, large hulls have larger collision footprints and disconnection regressions pass.
+    **Result (2026-10-26):** `ShipStats.from_units()` now supplies designer and physical battle HP, mass, equipment output, upgraded weapons, mounts, movement and footprint. Material cells have physical mass; empty visual hull infill does not. Battle uses fixed 8-unit cells and hull-sized collision radii; larger designs no longer shrink to 48 units. Damage refreshes all live stats and preserves surviving weapon cooldowns and disconnected intact equipment. Added Mass/Speed displays and size-aware previews. Full isolated regression passed (0 failures, 600 battle cases), plus focused stats and native 640×360 builder/battle checks. See docs/SHIP_STATS.md. Existing top-speed/weapon/shield/repair tuning remains step 26; step 18's starter activation remains open pending its component dependencies.
 
 20. [ ] **Validate stable recipe identity and transforms.**
     Canonicalize material footprints under rotation/reflection; store assembled IDs and facing. Preview larger loose-tile matches without consuming assembled parts.

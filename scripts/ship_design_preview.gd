@@ -101,7 +101,7 @@ func _draw_part(part: ShipPart, origin: Vector2, cell_size: float) -> void:
 		push_error("No preview texture is assigned for %s." % pattern.display_name)
 		return
 
-	var pattern_transform := pattern.get_transform_for_offsets(part.cell_offsets)
+	var pattern_transform := part.get_transform(pattern)
 	if pattern_transform.x < 0:
 		push_error("Could not determine the rotation for %s." % pattern.display_name)
 		return

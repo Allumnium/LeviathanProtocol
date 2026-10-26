@@ -211,6 +211,8 @@ func _sync_ships() -> void:
 	for owned in GameState.fleet:
 		var preview := preload("res://scripts/fleet_ship_preview.gd").new()
 		preview.owned = owned
+		if GameState.campaign_active and not GameState.is_ship_deployed(owned):
+			preview.modulate = Color(0.5, 0.5, 0.5, 0.6)
 		previews[owned] = preview
 		add_child(preview)
 	if formation_button != null:

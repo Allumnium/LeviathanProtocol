@@ -3,6 +3,7 @@ extends RefCounted
 
 const NO_TILE_CATEGORY := -1
 const BUILD_CELL_SIZE := Vector2(26.0, 26.0)
+# Nominal size of the original six-cell Drone; world geometry uses fixed cells.
 const BATTLE_MODEL_SIZE := 48.0
 const RED_TILE_CREDIT_COST := 5
 const BLUE_TILE_CREDIT_COST := 2
@@ -39,55 +40,21 @@ func get_tile_cells() -> Array[Vector2i]:
 	return cells
 
 
-func get_stats() -> ShipStats:
-	var stats := ShipStats.new()
-	var occupied_cells: Dictionary[Vector2i, bool] = {}
-	var cells := get_tile_cells()
-	var ship_center := Vector2.ZERO
-	var ship_scale := 0.0
-	if not cells.is_empty():
-		var minimum_x := cells[0].x
-		var minimum_y := cells[0].y
-		var maximum_x := cells[0].x
-		var maximum_y := cells[0].y
+func get_stats(laser_level := 0) -> ShipStats:
+	var units: Array[Dictionary] = []
+	var occupied: Dictionary = {}
+	var all_parts: Array[ShipPart] = parts.duplicate()
+	all_parts.append_array(_transitioning_parts)
+	for part in all_parts:
+		var cells := part.get_occupied_cells()
+		units.append({"cells": cells, "part": part,
+			"hp": ShipStats.component_integrity(cells.size(), part)})
 		for cell in cells:
-			minimum_x = mini(minimum_x, cell.x)
-			minimum_y = mini(minimum_y, cell.y)
-			maximum_x = maxi(maximum_x, cell.x)
-			maximum_y = maxi(maximum_y, cell.y)
-		ship_center = Vector2(
-			float(minimum_x + maximum_x + 1) * 0.5,
-			float(minimum_y + maximum_y + 1) * 0.5
-		)
-		var ship_size := Vector2(
-			float(maximum_x - minimum_x + 1) * BUILD_CELL_SIZE.x,
-			float(maximum_y - minimum_y + 1) * BUILD_CELL_SIZE.y
-		)
-		ship_scale = BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
-
-	for part in parts:
-		_add_part_stats(
-			stats,
-			occupied_cells,
-			part,
-			_get_weapon_mount_offset(part, ship_center, ship_scale)
-		)
-	for part in _transitioning_parts:
-		_add_part_stats(
-			stats,
-			occupied_cells,
-			part,
-			_get_weapon_mount_offset(part, ship_center, ship_scale)
-		)
-
-	for cell in cells:
-		if not occupied_cells.has(cell):
-			stats.weight += 1.0
-
-	var filled_hull_area := get_filled_hull_area()
-	stats.integrity += float(tiles.size())
-	stats.weight += filled_hull_area
-	return stats
+			occupied[cell] = true
+	for cell in get_tile_cells():
+		if not occupied.has(cell):
+			units.append({"cells": [cell], "part": null, "hp": 1.0})
+	return ShipStats.from_units(units, ShipStats.cell_bounds(get_tile_cells()).get_center(), laser_level)
 
 
 func get_filled_hull_area() -> float:
@@ -252,35 +219,6 @@ func _add_hidden_cells(
 			excluded_cells[cell] = true
 
 
-func _add_part_stats(
-	stats: ShipStats,
-	occupied_cells: Dictionary[Vector2i, bool],
-	part: ShipPart,
-	weapon_mount_offset: Vector2
-) -> void:
-	stats.add_equipment(part.stats, weapon_mount_offset)
-	for cell in part.get_occupied_cells():
-		occupied_cells[cell] = true
-
-
-func _get_weapon_mount_offset(
-	part: ShipPart,
-	ship_center: Vector2,
-	ship_scale: float
-) -> Vector2:
-	if ship_scale <= 0.0 or part.cell_offsets.is_empty():
-		return Vector2.ZERO
-
-	var part_center := Vector2.ZERO
-	for offset in part.cell_offsets:
-		part_center += Vector2(part.origin + offset) + Vector2.ONE * 0.5
-	part_center /= float(part.cell_offsets.size())
-	return Vector2(
-		(part_center.x - ship_center.x) * BUILD_CELL_SIZE.x * ship_scale,
-		(part_center.y - ship_center.y) * BUILD_CELL_SIZE.y * ship_scale
-	)
-
-
 func add_part(part: ShipPart) -> bool:
 	if part == null:
 		push_error("Cannot add a null part to the ship.")
@@ -347,9 +285,17 @@ func to_design_data() -> Dictionary:
 		serialized_tiles.append([cell.x, cell.y, get_tile_category_at(cell)])
 
 	var serialized_parts: Array[Dictionary] = []
+	var patterns: Dictionary = {}
+	for pattern in ShipPartPattern.get_catalog():
+		patterns[pattern.part_type] = pattern
 	for part in parts:
+		var orientation := part.get_transform(patterns[part.type]) if patterns.has(part.type) else Vector2i.ZERO
 		serialized_parts.append({
 			"type": part.type,
+			"definition_id": part.definition_id,
+			"rank": part.rank,
+			"quarter_turns": orientation.x,
+			"horizontally_flipped": orientation.y == 1,
 			"category": part.category,
 			"origin": [part.origin.x, part.origin.y],
 			"cell_offsets": _serialize_offsets(part.cell_offsets),
@@ -456,6 +402,24 @@ func load_design_data(serialized_design: Variant) -> bool:
 			return false
 
 		var pattern_transform := pattern.get_transform_for_offsets(cell_offsets)
+		if serialized_part.has("definition_id") and serialized_part.definition_id != pattern.definition_id:
+			push_error("Ship design equipment identity does not match its type.")
+			return false
+		if serialized_part.has("rank") and (not _is_integer_value(serialized_part.rank) or int(serialized_part.rank) != 1):
+			push_error("Ship design contains an unavailable equipment rank.")
+			return false
+		if serialized_part.has("quarter_turns") or serialized_part.has("horizontally_flipped"):
+			if not _is_integer_value(serialized_part.get("quarter_turns")) or not serialized_part.get("horizontally_flipped") is bool:
+				push_error("Ship design orientation must contain turns and reflection.")
+				return false
+			var turns := int(serialized_part.quarter_turns)
+			if turns < 0 or turns > 3 or (turns != 0 and not pattern.can_rotate):
+				push_error("Ship design contains an unsupported rotation.")
+				return false
+			pattern_transform = Vector2i(turns, 1 if serialized_part.horizontally_flipped else 0)
+			if pattern.get_offsets_for_transform(turns, serialized_part.horizontally_flipped) != cell_offsets:
+				push_error("Ship design orientation differs from its occupied cells.")
+				return false
 		if pattern_transform.x < 0:
 			push_error("Ship design part cells do not match its catalog pattern.")
 			return false
@@ -485,7 +449,9 @@ func load_design_data(serialized_design: Variant) -> bool:
 			origin,
 			cell_offsets,
 			pattern.stats,
-			hidden_tile_offsets
+			hidden_tile_offsets,
+			pattern_transform.x,
+			pattern_transform.y == 1
 		)
 		if not next_ship.add_part(part):
 			push_error("Ship design contains overlapping parts.")

@@ -132,7 +132,7 @@ func _draw() -> void:
 
 func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	var render_position := player_ship.previous_position.lerp(player_ship.position, interpolation_alpha)
-	if not _visible_world_rect.has_point(render_position):
+	if not _visible_world_rect.grow(player_ship.radius).has_point(render_position):
 		return
 	if player_ship.owned_ship != null:
 		_draw_voxel_ship(player_ship, render_position)
@@ -141,25 +141,8 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	if cells.is_empty():
 		return
 
-	var minimum_x := cells[0].x
-	var minimum_y := cells[0].y
-	var maximum_x := cells[0].x
-	var maximum_y := cells[0].y
-	for cell in cells:
-		minimum_x = mini(minimum_x, cell.x)
-		minimum_y = mini(minimum_y, cell.y)
-		maximum_x = maxi(maximum_x, cell.x)
-		maximum_y = maxi(maximum_y, cell.y)
-
-	var ship_size := Vector2(
-		float(maximum_x - minimum_x + 1) * BUILD_CELL_SIZE.x,
-		float(maximum_y - minimum_y + 1) * BUILD_CELL_SIZE.y
-	)
-	var ship_center := Vector2(
-		float(minimum_x + maximum_x + 1) * BUILD_CELL_SIZE.x * 0.5,
-		float(minimum_y + maximum_y + 1) * BUILD_CELL_SIZE.y * 0.5
-	)
-	var ship_scale := Ship.BATTLE_MODEL_SIZE / maxf(ship_size.x, ship_size.y)
+	var ship_center := ShipStats.cell_bounds(cells).get_center() * BUILD_CELL_SIZE
+	var ship_scale := ShipStats.BATTLE_CELL_SIZE / BUILD_CELL_SIZE.x
 	var is_shield_flashing := player_ship.shield_flash > 0.0
 	var texture_tint := Color.WHITE
 	var render_heading := lerp_angle(player_ship.previous_heading, player_ship.heading, interpolation_alpha)
@@ -285,7 +268,7 @@ func _get_visual_cells_for_part(
 	part: ShipPart,
 	pattern: ShipPartPattern
 ) -> Array[Vector2i]:
-	var pattern_transform := pattern.get_transform_for_offsets(part.cell_offsets)
+	var pattern_transform := part.get_transform(pattern)
 	if pattern_transform.x >= 0:
 		var visual_cells: Array[Vector2i] = []
 		for offset in pattern.get_visual_offsets_for_transform(

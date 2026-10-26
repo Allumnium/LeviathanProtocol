@@ -126,6 +126,8 @@ static func validate(value: Variant) -> Array[String]:
 		for rank in entry.get("ranks", []):
 			if not rank is Dictionary or not _positive_integer(rank.get("rank")) or not _valid_recipe(rank.get("recipe", "")):
 				errors.append("Invalid equipment rank: %s" % entry.id)
+	if errors.is_empty():
+		errors.append_array(MaterialRecipe.validate_registry(value.equipment))
 	for entry in value.research:
 		if not _nonnegative_integer(entry.get("cost_rp")) or not entry.get("grants") is Dictionary:
 			errors.append("Invalid research cost/grants: %s" % entry.id)

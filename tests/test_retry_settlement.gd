@@ -21,7 +21,7 @@ func _setup(state: Node) -> BattleSimulation:
 func _run() -> void:
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://retry_settlement/run.json"
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 1357), "Start retry fixture.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 1357, false), "Start retry fixture.")
 	var frozen: Variant = JSON.parse_string(JSON.stringify(state.get_frozen_encounter(1)))
 	var credits: int = state.credits
 	var rp: int = state.research_points
@@ -77,7 +77,7 @@ func _run() -> void:
 	_check(state.encounter_progress["1"].journal.snapshot.phase == BattleSimulation.Phase.VICTORY,
 		"The settled diagnostic journal persists with the payout.")
 
-	_check(state.start_new_run(), "Start terminal defeat fixture.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, -1, false), "Start terminal defeat fixture.")
 	sim = _setup(state)
 	for member in sim.players:
 		member.owned_ship.units[member.owned_ship.core_index].hp = 0.0
@@ -86,6 +86,6 @@ func _run() -> void:
 	_check(sim.phase == BattleSimulation.Phase.DEFEAT and state.settle_battle(sim), "Fleet wipe settles terminal defeat.")
 	_check(state.credits > 0 and state.is_run_lost() and not state.can_deploy(), "Remaining credits cannot undo terminal fleet defeat.")
 	_check(state.load_run_checkpoint() and state.run_ended and state.is_run_lost(), "Terminal defeat survives reload.")
-	_check(state.start_new_run() and not state.run_ended, "A new run resets terminal state.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, -1, false) and not state.run_ended, "A new run resets terminal state.")
 	print("Retry settlement tests finished: %d failures" % failures)
 	quit(0 if failures == 0 else 1)

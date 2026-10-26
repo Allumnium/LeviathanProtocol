@@ -158,7 +158,7 @@ func _clear_test_fleet(state: Node) -> void:
 
 func _test_starter_drones() -> void:
 	var state := root.get_node("GameState")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_check(state.fleet.size() == 3 and state.player_ship_count == 3 and state.can_deploy(), "New runs must begin with three deployable Drones.")
 	_check(state.credits == state.STARTING_CREDITS and state.red_tiles_available == state.STARTING_RED_TILE_COUNT and state.blue_tiles_available == state.STARTING_BLUE_TILE_COUNT and state.green_tiles_available == state.STARTING_GREEN_TILE_COUNT, "Starter ships must not consume starting resources.")
 	var drone: FleetShip = state.fleet[0]
@@ -169,7 +169,7 @@ func _test_starter_drones() -> void:
 	_check(state.fleet[1].units[0].hp > 0 and state.fleet[2].units[0].hp > 0, "Each starter Drone must own independent damage state.")
 	_check(state.load_saved_ship_design("Drone") and state.ship.tiles.size() == 34, "The built-in Drone must be loadable without a saved file.")
 	_check(not state.delete_saved_ship_design("Drone"), "The built-in Drone must be protected from deletion.")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_check(state.fleet.size() == 3 and state.fleet[0].repair_cost() == 0, "Restarting must replace, not accumulate, starter ships.")
 
 func _test_weapon_range() -> void:
@@ -885,7 +885,7 @@ func _test_balance() -> void:
 
 func _test_scene() -> void:
 	var state := root.get_node("GameState")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	_check(state.credits == GameState.STARTING_CREDITS,
 		"A new run must start with 1200 credits.")
@@ -1552,7 +1552,7 @@ func _fleet_blueprint() -> Ship:
 
 func _test_owned_fleet() -> void:
 	var state := root.get_node("GameState")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	state.ship = _fleet_blueprint()
 	var credits: int = state.credits
@@ -1718,7 +1718,7 @@ func _test_withdrawal() -> void:
 func _test_design_selection() -> void:
 	var state := root.get_node("GameState")
 	var originals: Array[Dictionary] = state.get_saved_ship_designs()
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	var blueprint := _fleet_blueprint()
 	var fixtures: Array[Dictionary] = [
@@ -1778,7 +1778,7 @@ func _test_design_selection() -> void:
 	state.ship.set_tile_at(Vector2i(7, 7), ShipPart.Category.DEFENSE)
 	state.green_tiles_available = 100
 	_check(state.purchase_saved_ship("New Frigate") and not state.fleet[1].design.tiles.has(Vector2i(7, 7)), "Construction must use the saved snapshot rather than unsaved edits.")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	_check(state.get_visible_ship_designs().size() == 3,
 		"Starting a new run must not hide designs saved during previous runs.")
@@ -1830,7 +1830,7 @@ func _test_settings_storage() -> void:
 
 func _test_material_shop() -> void:
 	var state := root.get_node("GameState")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	for category in range(state.MATERIAL_PRICES.size()):
 		var before: int = state.get_available_tile_count(category)
@@ -1844,23 +1844,23 @@ func _test_material_shop() -> void:
 	state.battle_pending = true
 	_check(not state.purchase_material(0) and state.credits == 100, "The shop must be unavailable during deployment.")
 	state.battle_pending = false
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 
 
 func _test_run_loss() -> void:
 	var state := root.get_node("GameState")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	state.credits = 0
 	_check(state.is_run_lost(), "An empty fleet with no affordable ship must lose the run.")
 	state.credits = 100000
 	_check(not state.is_run_lost(), "An empty fleet that can afford a ship must be allowed to rebuild.")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 
 func _test_build_area() -> void:
 	var state := root.get_node("GameState")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	_check(state.credits == 1200 and state.build_area_size() == 20, "New runs must start with 1200 credits and a 20 by 20 build area.")
 	var original_inventory := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available]
@@ -1872,7 +1872,7 @@ func _test_build_area() -> void:
 	_check(not state.design_fits_build_area(design), "The first out-of-bounds column must require an upgrade.")
 	state.blue_tiles_available = 0
 	_check(not state.purchase_build_area_upgrade() and state.build_area_size() == 22 and state.credits == 1150, "Unaffordable upgrades must not change size or credits.")
-	state.start_new_run()
+	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	_check(state.build_area_size() == 20, "Build upgrades must reset to the 20 by 20 base size for a new run.")
 

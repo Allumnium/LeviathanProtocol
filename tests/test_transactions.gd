@@ -22,7 +22,7 @@ func _write(path: String, content: String) -> void:
 func _run() -> void:
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://transaction_test/run.json"
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 2468), "Create an initial durable run.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 2468, false), "Create an initial durable run.")
 	var start_credits: int = state.credits
 	var start_materials: int = state.red_tiles_available
 	var owned: FleetShip = state.fleet[0]
@@ -120,7 +120,7 @@ func _run() -> void:
 	_check(state.commit_event("cargo_sale", "write-failure", 500, [0, 0, 0, 0], 0, {}, {}), "A failed event remains retryable.")
 
 	# Real victory settlement persists route progression, materials and credits once.
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 1357), "Start the victory scenario.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 1357, false), "Start the victory scenario.")
 	_check(state.set_destination(1), "Persist deployment and its actual current roster.")
 	var roster_size: int = state.battle_aliens.size()
 	_check(state.load_run_checkpoint() and state.battle_pending and state.battle_aliens.size() == roster_size,
@@ -138,7 +138,7 @@ func _run() -> void:
 		and state.credits == credit_before + int(frozen_reward.credits),
 		"Replaying the settled victory after reload cannot pay again.")
 	var previous_run: String = state.run_id
-	_check(state.start_new_run() and state.run_id != previous_run and state.transaction_ledger.is_empty(),
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, -1, false) and state.run_id != previous_run and state.transaction_ledger.is_empty(),
 		"New runs must have fresh event identity and no inherited ledger.")
 	print("Transaction tests finished: %d failures" % failures)
 	quit(1 if failures > 0 else 0)

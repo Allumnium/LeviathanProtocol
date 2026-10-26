@@ -28,6 +28,16 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Retry settlement suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle_replay.gd --log-file (Join-Path $runRoot 'battle-replay.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle replay suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_campaign_graph.gd --log-file (Join-Path $runRoot 'campaign-graph.log')
+    if ($LASTEXITCODE -ne 0) { throw "Campaign graph suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_campaign_traversal.gd --log-file (Join-Path $runRoot 'campaign-traversal.log')
+    if ($LASTEXITCODE -ne 0) { throw "Campaign traversal suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_fleet_slots.gd --log-file (Join-Path $runRoot 'fleet-slots.log')
+    if ($LASTEXITCODE -ne 0) { throw "Fleet slot suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_fleet_capacity.gd --log-file (Join-Path $runRoot 'fleet-capacity.log')
+    if ($LASTEXITCODE -ne 0) { throw "Fleet capacity suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_ship_stats.gd --log-file (Join-Path $runRoot 'ship-stats.log')
+    if ($LASTEXITCODE -ne 0) { throw "Shared ship stats suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

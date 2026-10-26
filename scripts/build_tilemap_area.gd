@@ -717,7 +717,9 @@ func _try_morph_pattern(
 				pattern.stats,
 				pattern.get_hidden_tile_offsets_for_transform(
 					quarter_turns, horizontally_flipped
-				)
+				),
+				quarter_turns,
+				horizontally_flipped
 			)
 			if GameState.has_discovered_part(part.type):
 				if not GameState.ship.add_part(part):
@@ -1058,7 +1060,7 @@ func _restore_loaded_ship_design() -> void:
 		var pattern := _get_pattern_for_part(part)
 		if pattern == null:
 			continue
-		var transform := pattern.get_transform_for_offsets(part.cell_offsets)
+		var transform := part.get_transform(pattern)
 		if transform.x < 0:
 			push_error("Could not determine the rotation for %s." % pattern.display_name)
 			continue

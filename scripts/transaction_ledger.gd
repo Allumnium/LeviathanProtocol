@@ -1,7 +1,7 @@
 class_name TransactionLedger
 extends RefCounted
 
-const KINDS := ["arrival", "casualty", "cargo_sale", "victory", "ore_pickup", "enemy_salvage"]
+const KINDS := ["arrival", "casualty", "cargo_sale", "victory", "ore_pickup", "enemy_salvage", "node_reward", "port_service"]
 
 
 static func apply(checkpoint: Dictionary, kind: String, source_id: String,

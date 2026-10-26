@@ -12,6 +12,7 @@ const LEGACY_COMBAT_ROWS := [1, 3, 5, 8, 9, 10, 12, 13, 16, 17, 18, 20, 21, 24]
 const TEMPLATES := {
 	"patrol": {"type": "standard", "required": ["fighter", "scout"], "waves": 1, "craft": 0, "organs": 0},
 	"elite": {"type": "elite", "required": ["sentinel", "fighter"], "waves": 1, "craft": 0, "organs": 0},
+	"boss_patrol": {"type": "boss", "required": ["sentinel", "fighter"], "waves": 1, "craft": 0, "organs": 0},
 	# Allocation frameworks only; later objective/boss milestones activate these.
 	"relay_defense": {"type": "standard", "required": ["fighter"], "waves": 3, "craft": 0, "organs": 0},
 	"boss_framework": {"type": "boss", "required": ["fighter"], "waves": 1, "craft": 4, "organs": 2},
@@ -137,6 +138,16 @@ static func freeze_graph(run_seed: int, difficulty: int, columns: Array) -> Dict
 		if column < 1 or column > LEGACY_COMBAT_ROWS.size():
 			return {}
 		result[str(node)] = generate(run_seed, node, LEGACY_COMBAT_ROWS[column - 1], difficulty, "patrol", column)
+	return result
+
+
+static func freeze_campaign(run_seed: int, difficulty: int, graph: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for node in graph.nodes:
+		if node.kind not in ["combat", "boss"]:
+			continue
+		var template := "boss_patrol" if node.kind == "boss" else ("elite" if node.elite else "patrol")
+		result[str(int(node.id))] = generate(run_seed, int(node.id), int(node.row), difficulty, template, int(node.combat_index))
 	return result
 
 

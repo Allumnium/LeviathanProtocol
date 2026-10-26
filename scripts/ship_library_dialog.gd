@@ -37,6 +37,7 @@ var action_text := "SELECT"
 var page := 0
 var choices: Array[Dictionary] = []
 var selection_validator: Callable
+var fleet_slot_role := "regular"
 var _allow_close := false
 var _pending_delete_name := ""
 
@@ -165,6 +166,13 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 			_add_cost_item(costs, MATERIAL_ICONS[category], counts[category])
 	var action := Button.new()
 	var assigned_slot := GameState.fleet_design_slots.find(str(choice.name))
+	if GameState.campaign_active:
+		if fleet_slot_role == "regular":
+			assigned_slot = GameState.roster_state.active.find(GameState.family_for_design(choice.design))
+			if GameState.family_for_design(choice.design).is_empty():
+				assigned_slot = -1
+		else:
+			assigned_slot = (3 if fleet_slot_role == "science" else 4) if GameState.roster_state.support_names[fleet_slot_role] == choice.name else -1
 	var is_assigned := action_text == "SELECT" and assigned_slot >= 0
 	action.text = "ASSIGNED TO SLOT %d" % (assigned_slot + 1) if is_assigned else action_text
 	action.custom_minimum_size.x = 112 if is_assigned else 68

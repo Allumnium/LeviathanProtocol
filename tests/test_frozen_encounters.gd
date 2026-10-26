@@ -58,7 +58,7 @@ func _run() -> void:
 
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://frozen_encounter_test/run.json"
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 77), "Freeze all encounters at run creation.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 77, false), "Freeze all encounters at run creation.")
 	var frozen: Dictionary = state.get_frozen_encounter(1)
 	var original := _canonical(state.frozen_encounters)
 	_check(frozen.global_row == 1 and state.get_frozen_encounter(state.FINAL_NODE_ID).global_row == 24,
@@ -95,7 +95,7 @@ func _run() -> void:
 
 	# Version-1 checkpoints did not store future-node rosters. Migrate once while
 	# retaining an already deployed legacy roster and its old 200-credit contract.
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 88) and state.set_destination(1), "Prepare a legacy migration fixture.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 88, false) and state.set_destination(1), "Prepare a legacy migration fixture.")
 	_check(state.commit_event("arrival", "legacy-port", 32), "Prepare a legacy ledger entry.")
 	var old: Dictionary = RunCheckpoint.capture(state)
 	old.version = 1
@@ -120,7 +120,7 @@ func _run() -> void:
 		var migrated_credits: int = state.credits
 		_check(state.commit_event("arrival", "legacy-port", 32) and state.credits == migrated_credits,
 			"Migration must preserve existing transaction deduplication.")
-	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 901) and state.set_destination(1), "Prepare a real opening encounter.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 901, false) and state.set_destination(1), "Prepare a real opening encounter.")
 	var simulation := BattleSimulation.new()
 	_check(simulation.setup_owned(state.fleet, state.battle_aliens, state.allied_salvage_chance(), 0, state.battle_simulation_seed()),
 		"Initialize the real starter fleet against allocated enemies.")

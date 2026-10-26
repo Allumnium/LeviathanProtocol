@@ -69,6 +69,8 @@ func _refresh_stats() -> void:
 	_add_stat("Integrity", stats.integrity)
 	_add_stat("Thrust", stats.thrust)
 	_add_stat("DPS", stats.dps, "%.2f" % stats.dps)
+	_add_stat("Mass", stats.weight)
+	_add_stat("Speed", stats.top_speed)
 
 
 func _add_stat(name: String, value: float, formatted := "") -> void:

@@ -268,6 +268,9 @@ static func get_catalog() -> Array[ShipPartPattern]:
 		ShipPart.Type.LARGE_THRUSTER,
 	]
 	for pattern in patterns:
+		# Preserve the current exhaust restriction while allowing other recipes
+		# to rotate with their material labels and explicit component facing.
+		pattern.can_rotate = pattern.part_type not in [ShipPart.Type.THRUSTER, ShipPart.Type.LARGE_THRUSTER]
 		pattern.renders_on_top = pattern.part_type in top_layer_types
 		if pattern.part_type == ShipPart.Type.DOUBLE_LASER:
 			pattern.tech_category = ShipPart.TechCategory.ENERGY

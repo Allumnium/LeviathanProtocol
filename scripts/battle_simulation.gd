@@ -15,9 +15,9 @@ enum Faction { PLAYER, ALIEN, NEUTRAL }
 
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
-const SPEED_PER_THRUST := 4.0
-const MIN_TURN_RATE := 0.75
-const MAX_TURN_RATE := 1.5
+const SPEED_PER_THRUST := ShipStats.SPEED_PER_THRUST
+const MIN_TURN_RATE := ShipStats.MIN_TURN_RATE
+const MAX_TURN_RATE := ShipStats.MAX_TURN_RATE
 const PASSIVE_DRAG_PER_SECOND := 0.06
 const REVERSE_THRUST_FACTOR := 0.22
 const REVERSE_THRUST_ALIGNMENT_START := 0.35
@@ -295,6 +295,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		member.stats = ships[index].get_stats(upgrade_level)
 		member.integrity = member.stats.integrity
 		member.shields = member.stats.shields
+		member.radius = member.stats.collision_radius
 		_refresh_mobility(member)
 		member.cooldowns.clear()
 		for weapon in member.stats.weapons:
@@ -561,6 +562,8 @@ func authoritative_snapshot() -> Dictionary:
 			for unit in member.owned_ship.units:
 				hp.append(unit.hp)
 		actors.append({"id": member.entity_id, "faction": member.faction, "tags": member.tags.duplicate(),
+			"slot_role": member.owned_ship.slot_role if member.owned_ship != null else "",
+			"escort_target_id": member.owned_ship.escort_target_id if member.owned_ship != null else 0,
 			"position": [member.position.x, member.position.y] if member.is_alive() else null,
 			"velocity": [member.velocity.x, member.velocity.y] if member.is_alive() else null,
 			"heading": member.heading if member.is_alive() else null, "integrity": member.integrity, "shields": member.shields,
@@ -630,6 +633,7 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 	ship.stats = stats
 	ship.integrity = stats.integrity
 	ship.shields = stats.shields
+	ship.radius = stats.collision_radius
 	_refresh_mobility(ship)
 	ship.target_refresh_remaining = 0.0
 	ship.flyby_side = -1.0 if random.randf() < 0.5 else 1.0
@@ -639,19 +643,9 @@ func _create_combatant(stats: ShipStats) -> Combatant:
 
 
 func _refresh_mobility(ship: Combatant) -> void:
-	ship.speed = maxf(ship.stats.thrust, 0.0) * SPEED_PER_THRUST
-	if ship.speed <= 0.0:
-		ship.acceleration = 0.0
-		ship.turn_rate = MIN_TURN_RATE
-		return
-	var thrust_to_weight := ship.stats.thrust / maxf(ship.stats.weight, 1.0)
-	var acceleration_factor := clampf(0.75 + thrust_to_weight * 0.06, 0.8, 1.8)
-	ship.acceleration = ship.speed * acceleration_factor
-	ship.turn_rate = clampf(
-		MIN_TURN_RATE + thrust_to_weight * 0.1,
-		MIN_TURN_RATE,
-		MAX_TURN_RATE
-	)
+	ship.speed = ship.stats.top_speed
+	ship.acceleration = ship.stats.acceleration
+	ship.turn_rate = ship.stats.turn_rate
 
 
 func advance(delta: float) -> void:
@@ -942,6 +936,11 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		offset / distance if distance > 0.001 else Vector2.from_angle(ship.heading)
 	)
 	var steering_direction := _flyby_direction(ship, ship.target)
+	var escort_distance := INF
+	if ship.owned_ship != null and ship.owned_ship.slot_role != "regular" and ship.commanded_target == null:
+		var anchor := _escort_anchor(ship)
+		escort_distance = ship.position.distance_to(anchor)
+		steering_direction = ship.position.direction_to(anchor)
 	if ship.retreat_time > 0.0:
 		steering_direction = -direction
 	var desired := steering_direction * ship.speed
@@ -987,7 +986,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	_apply_passive_drag(ship, delta)
 	if ship.retreat_time <= 0.0 and not (withdrawing and ship.is_player):
 		_apply_limited_reverse_thrust(ship, desired_velocity, delta)
-	ship.velocity += forward * ship.acceleration * delta
+	if escort_distance > 20.0 or ship.retreat_time > 0.0 or withdrawing:
+		ship.velocity += forward * ship.acceleration * delta
 	ship.velocity = ship.velocity.limit_length(ship.speed)
 	ship.position += ship.velocity * delta
 	if not allow_weapons:
@@ -1032,6 +1032,21 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				projectile.is_player = ship.is_player
 				projectiles.append(projectile)
 				_add_pending_damage(projectile.target, projectile.damage)
+
+
+func _escort_anchor(ship: Combatant) -> Vector2:
+	var host: Combatant
+	for candidate in players:
+		if candidate == ship or not candidate.is_alive() or candidate.owned_ship == null or candidate.owned_ship.slot_role != "regular":
+			continue
+		if candidate.owned_ship.id == ship.owned_ship.escort_target_id:
+			host = candidate
+			break
+		if host == null or candidate.position.distance_squared_to(ship.position) < host.position.distance_squared_to(ship.position):
+			host = candidate
+	if host == null:
+		return PLAYER_FORMATION_CENTER + ship.owned_ship.formation * 65.0
+	return host.position - Vector2.from_angle(host.heading) * 90.0
 
 
 func _apply_passive_drag(ship: Combatant, delta: float) -> void:
@@ -1133,6 +1148,27 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 	return null
 
 
+func _refresh_owned_stats(target: Combatant) -> void:
+	# Match cooldowns by physical source rather than by the changing weapon index.
+	var cooldowns_by_source: Dictionary = {}
+	for index in range(target.stats.weapons.size()):
+		var weapon := target.stats.weapons[index]
+		var key := "%d/%s" % [weapon.component_index, weapon.weapon_name]
+		if not cooldowns_by_source.has(key):
+			cooldowns_by_source[key] = []
+		cooldowns_by_source[key].append(target.cooldowns[index])
+	target.stats = target.owned_ship.get_stats(laser_upgrade_level)
+	target.integrity = target.stats.integrity if target.owned_ship.is_alive() else 0.0
+	target.shields = minf(target.shields, target.stats.shields)
+	target.radius = target.stats.collision_radius
+	target.cooldowns.clear()
+	for weapon in target.stats.weapons:
+		var key := "%d/%s" % [weapon.component_index, weapon.weapon_name]
+		var old: Array = cooldowns_by_source.get(key, [])
+		target.cooldowns.append(float(old.pop_front()) if not old.is_empty() else 0.0)
+	_refresh_mobility(target)
+
+
 func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "") -> void:
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
@@ -1155,12 +1191,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 				drop.position = target.position + owned.local_cell_position(removed_cell).rotated(target.heading)
 				drop.size = owned.cell_size
 				drops.append(drop)
-		var remaining := owned.get_stats(laser_upgrade_level)
-		target.integrity = remaining.integrity if owned.is_alive() else 0.0
-		target.stats.shields = remaining.shields
-		target.stats.thrust = remaining.thrust
-		target.shields = minf(target.shields, remaining.shields)
-		_refresh_mobility(target)
+		_refresh_owned_stats(target)
 	else:
 		var hull_damage := minf(target.integrity, damage - absorbed)
 		target.integrity -= hull_damage

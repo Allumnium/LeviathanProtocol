@@ -75,7 +75,7 @@ func _run() -> void:
 	_check(not sim.damage_entity(rock.entity_id, 10.0), "Drops cannot receive weapon damage.")
 
 	var state := root.get_node("GameState")
-	_check(state.start_new_run(), "Preference fixture starts a run.")
+	_check(state.start_new_run(GameState.Difficulty.MEDIUM, -1, false), "Preference fixture starts a run.")
 	_check(not state.destroy_all_neutral_targets, "New runs default to ordinary victory.")
 	_check(state.set_destroy_all_neutral_targets(true), "Cleanup preference saves.")
 	state.destroy_all_neutral_targets = false

@@ -29,8 +29,8 @@ var summary_host: VBoxContainer
 
 
 func _ready() -> void:
-	for index in range(SLOT_COUNT):
-		slots.append({"name": GameState.fleet_design_slots[index], "design": null})
+	for index in range(_slot_count()):
+		slots.append({"name": GameState.fleet_slot_name(index), "design": null})
 	board.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(board)
 	board.selection_changed.connect(func() -> void: selected_ship_changed.emit())
@@ -65,11 +65,23 @@ func _build_slot_controls() -> void:
 	var header := Label.new()
 	header.text = "SHIP TYPES"
 	header.add_theme_font_size_override("font_size", 14)
+	if GameState.campaign_active:
+		header.add_theme_font_override("font", ThemeDB.fallback_font)
+		header.add_theme_font_size_override("font_size", 12)
 	slot_host.add_child(header)
-	for index in range(SLOT_COUNT):
+	var rows := slot_host
+	if GameState.campaign_active:
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.custom_minimum_size.y = 80
+		slot_host.add_child(scroll)
+		rows = VBoxContainer.new()
+		rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(rows)
+	for index in range(_slot_count()):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
-		slot_host.add_child(row)
+		rows.add_child(row)
 		var salvage_host := CenterContainer.new()
 		salvage_host.custom_minimum_size = Vector2(20, 55)
 		row.add_child(salvage_host)
@@ -101,6 +113,8 @@ func _build_slot_controls() -> void:
 		var name_label := Label.new()
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		name_label.add_theme_font_size_override("font_size", 9)
+		if GameState.campaign_active:
+			name_label.add_theme_font_override("font", ThemeDB.fallback_font)
 		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		details.add_child(name_label)
 		var cost_rows := VBoxContainer.new()
@@ -131,7 +145,11 @@ func _build_slot_controls() -> void:
 
 func _open_picker(slot_index: int) -> void:
 	_activate_slot(slot_index)
-	picker.open_library("SELECT")
+	if GameState.campaign_active:
+		picker.fleet_slot_role = _slot_role(slot_index)
+		picker.open_library("SELECT", func(design: Ship) -> String: return FleetRules.design_error(design, _slot_role(slot_index)))
+	else:
+		picker.open_library("SELECT")
 
 
 func _on_picker_design_selected(design_name: String, design: Ship) -> void:
@@ -143,10 +161,19 @@ func _activate_slot(slot_index: int) -> void:
 	selected_title = slots[slot_index].name
 	selected_design = slots[slot_index].design
 	selected_design_changed.emit()
+	if GameState.campaign_active:
+		_refresh_summary()
 
 
 func _assign_slot(slot_index: int, choice: Dictionary) -> void:
-	if slot_index < 0 or slot_index >= SLOT_COUNT:
+	if slot_index < 0 or slot_index >= _slot_count():
+		return
+	if GameState.campaign_active:
+		if not GameState.assign_fleet_design(slot_index, choice.name, choice.design):
+			return
+		slots[slot_index] = {"name": choice.name, "design": choice.design}
+		_activate_slot(slot_index)
+		_refresh_slots()
 		return
 	for index in range(SLOT_COUNT):
 		if index != slot_index and slots[index].name == choice.name:
@@ -162,32 +189,48 @@ func _assign_slot(slot_index: int, choice: Dictionary) -> void:
 func _construct_slot(slot_index: int) -> void:
 	var slot: Dictionary = slots[slot_index]
 	if slot.design != null:
-		GameState.purchase_saved_ship(slot.name)
+		if GameState.campaign_active:
+			GameState.purchase_ship(slot.design, slot.name, _slot_role(slot_index))
+		else:
+			GameState.purchase_saved_ship(slot.name, _slot_role(slot_index))
 
 
 func _salvage_slot(slot_index: int) -> void:
 	var slot: Dictionary = slots[slot_index]
 	if slot.design != null:
-		GameState.salvage_ship_type(slot.name)
+		if GameState.campaign_active:
+			GameState.salvage_fleet_slot(slot_index)
+		else:
+			GameState.salvage_ship_type(slot.name)
 
 
 func _refresh_slots() -> void:
 	if slot_widgets.is_empty():
 		return
-	for index in range(SLOT_COUNT):
+	for index in range(_slot_count()):
 		var slot: Dictionary = slots[index]
 		var widget: Dictionary = slot_widgets[index]
 		var design: Ship = slot.design
 		widget.preview.set_ship(design)
 		widget.label.text = slot.name if design != null else "SELECT SHIP"
+		if index >= 3:
+			widget.label.text = _slot_role(index).to_upper() + "\n" + (slot.name if design != null else "SELECT")
+			widget.button.tooltip_text = "Science requires one operational lab; Civic requires cargo or berths. Dedicated ships forbid mining, strike craft and offensive capstones; maximum six Offense tiles."
 		_populate_cost_row(widget.cost, design)
 		widget.button.disabled = design != null and _fleet_has_type(slot.name)
+		if GameState.campaign_active:
+			widget.button.disabled = not GameState.is_shipyard_node(GameState.current_node_id)
 		widget.construct.visible = design != null
 		widget.salvage.visible = design != null
 		widget.salvage.disabled = design == null or not _fleet_has_type(slot.name) or GameState.battle_pending
+		if GameState.campaign_active:
+			widget.salvage.disabled = GameState.fleet_slot_members(index).is_empty() or not GameState.is_shipyard_node(GameState.current_node_id)
 		if design != null:
-			var error := GameState.construction_error(design)
+			var error := GameState.construction_error(design, _slot_role(index))
 			widget.construct.disabled = not error.is_empty()
+			widget.construct.tooltip_text = error
+			if GameState.campaign_active:
+				widget.construct.tooltip_text += ("\n" if not error.is_empty() else "") + "Deployment capacity: %d per intact copy. Excess capacity blocks departure; reserve ships at a port." % FleetRules.design_capacity(design)
 
 
 func _populate_cost_row(container: VBoxContainer, design: Ship) -> void:
@@ -236,7 +279,13 @@ func _refresh_summary() -> void:
 	var header := Label.new()
 	header.text = "FLEET SUMMARY"
 	header.add_theme_font_size_override("font_size", 14)
+	if GameState.campaign_active:
+		header.add_theme_font_override("font", ThemeDB.fallback_font)
+		header.add_theme_font_size_override("font_size", 12)
 	summary_host.add_child(header)
+	if GameState.campaign_active:
+		_refresh_roster_summary()
+		return
 	if GameState.fleet.is_empty():
 		var empty := Label.new()
 		empty.text = "No ships constructed"
@@ -279,6 +328,17 @@ func _refresh_choices() -> void:
 		var blueprint := Ship.new()
 		if blueprint.load_design_data(entry.ship):
 			choices.append({"name": entry.name, "design": blueprint})
+	if GameState.campaign_active:
+		for index in range(_slot_count()):
+			var name := GameState.fleet_slot_name(index)
+			var design: Ship = GameState.slot_blueprint(index) if index < 3 else null
+			for choice in choices:
+				if choice.name == name and design == null:
+					design = choice.design
+					break
+			slots[index] = {"name": name, "design": design}
+		_refresh_slots()
+		return
 	_seed_slots_from_fleet()
 	for index in range(SLOT_COUNT):
 		var name: String = slots[index].name
@@ -309,6 +369,75 @@ func _seed_slots_from_fleet() -> void:
 				slots[empty_index] = {"name": choice.name, "design": choice.design}
 				GameState.fleet_design_slots[empty_index] = choice.name
 				break
+
+
+func _slot_count() -> int:
+	return 5 if GameState.campaign_active else SLOT_COUNT
+
+
+func _slot_role(index: int) -> String:
+	return "regular" if index < 3 else ("science" if index == 3 else "civic")
+
+
+func _refresh_roster_summary() -> void:
+	var totals := Label.new()
+	totals.text = "%d deployed / %d owned" % [GameState.get_deployed_fleet().size(), GameState.fleet.size()]
+	if GameState.campaign_active:
+		totals.text += "\nCapacity %d / %d" % [GameState.used_deployment_capacity(), GameState.deployment_capacity()]
+		totals.tooltip_text = "Each deployed hull: 2 + ceil(occupied material cells / 12) + active lab levels. Reserves use no capacity."
+		if GameState.used_deployment_capacity() > GameState.deployment_capacity():
+			totals.modulate = Color(1.0, 0.45, 0.35)
+	totals.add_theme_font_size_override("font_size", 10)
+	totals.add_theme_font_override("font", ThemeDB.fallback_font)
+	summary_host.add_child(totals)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size.y = 40
+	summary_host.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	for owned in GameState.fleet:
+		var row := HBoxContainer.new()
+		list.add_child(row)
+		var label := Label.new()
+		label.text = owned.display_name
+		label.tooltip_text = "%s / %s" % [owned.slot_role.capitalize(), "Deployed" if GameState.is_ship_deployed(owned) else "Reserve"]
+		label.tooltip_text += "\nDeployment capacity: %d%s" % [FleetRules.ship_capacity(owned), "" if GameState.is_ship_deployed(owned) else " (not charged while reserved)"]
+		label.add_theme_font_size_override("font_size", 9)
+		label.add_theme_font_override("font", ThemeDB.fallback_font)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(label)
+		var toggle := Button.new()
+		toggle.text = "RESERVE" if GameState.is_ship_deployed(owned) else "DEPLOY"
+		toggle.add_theme_font_size_override("font_size", 9)
+		toggle.add_theme_font_override("font", ThemeDB.fallback_font)
+		toggle.custom_minimum_size.y = 22
+		for state in ["normal", "hover", "pressed", "disabled"]:
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(0.18, 0.26, 0.31) if state == "hover" else Color(0.10, 0.15, 0.19)
+			style.content_margin_left = 4
+			style.content_margin_right = 4
+			style.content_margin_top = 2
+			style.content_margin_bottom = 2
+			toggle.add_theme_stylebox_override(state, style)
+		toggle.disabled = not GameState.is_shipyard_node(GameState.current_node_id)
+		if owned.slot_role == "regular" and not GameState.roster_state.active.has(owned.family_id):
+			toggle.disabled = true
+			toggle.tooltip_text = "Assign this family to a regular slot first."
+		toggle.pressed.connect(func() -> void: GameState.set_ship_reserve(owned, GameState.is_ship_deployed(owned)))
+		row.add_child(toggle)
+	var revision := Button.new()
+	revision.text = "REGISTER REVISION"
+	revision.add_theme_font_size_override("font_size", 9)
+	revision.add_theme_font_override("font", ThemeDB.fallback_font)
+	revision.tooltip_text = "Register the current editor blueprint in the selected regular family. Construction still costs materials."
+	revision.disabled = active_slot < 0 or active_slot >= 3 or not GameState.is_shipyard_node(GameState.current_node_id)
+	revision.pressed.connect(func() -> void:
+		if GameState.assign_fleet_design(active_slot, slots[active_slot].name, GameState.ship, true):
+			_refresh_choices())
+	summary_host.add_child(revision)
 
 
 static func compact_button(button: Button) -> void:

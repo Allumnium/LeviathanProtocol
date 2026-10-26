@@ -30,11 +30,13 @@ static func validate(data: Variant) -> String:
 				return "Invalid name in %s." % key
 	if data.active_design_families.size() != 3:
 		return "Run progress requires three regular design families."
+	if not _integer(data.get("family_identity_version", 0)) or int(data.get("family_identity_version", 0)) not in [0, 1]:
+		return "Invalid family identity version."
 	var family_names: Array[String] = []
 	for name: String in data.active_design_families:
 		if name.is_empty():
 			continue
-		if family_names.has(name):
+		if family_names.has(name) and data.get("family_identity_version", 0) == 0:
 			return "Duplicate active design family."
 		family_names.append(name)
 	if not data.get("branch_choices") is Dictionary or not data.get("story_flags") is Dictionary:

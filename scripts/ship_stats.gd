@@ -2,11 +2,27 @@ class_name ShipStats
 extends RefCounted
 
 const INTEGRITY_MULTIPLIER := 1.0 / 3.0
+const BATTLE_CELL_SIZE := 8.0
+const SPEED_PER_THRUST := 4.0
+const MIN_TURN_RATE := 0.75
+const MAX_TURN_RATE := 1.5
 
 var shields := 0.0
 var integrity := 0.0
 var weight := 0.0
 var thrust := 0.0
+var occupied_cells := 0
+var footprint_size := Vector2.ZERO
+var collision_radius := 18.0
+var top_speed: float:
+	get:
+		return maxf(thrust, 0.0) * SPEED_PER_THRUST
+var acceleration: float:
+	get:
+		return top_speed * clampf(0.75 + thrust / maxf(weight, 1.0) * 0.06, 0.8, 1.8)
+var turn_rate: float:
+	get:
+		return clampf(MIN_TURN_RATE + thrust / maxf(weight, 1.0) * 0.1, MIN_TURN_RATE, MAX_TURN_RATE)
 var weapons: Array[ShipWeaponStats] = []
 var dps: float:
 	get:
@@ -14,6 +30,59 @@ var dps: float:
 		for weapon in weapons:
 			total_dps += weapon.get_dps()
 		return total_dps
+
+
+static func component_integrity(cells: int, part: ShipPart) -> float:
+	return maxf(1.0, cells + (part.stats.integrity * INTEGRITY_MULTIPLIER if part != null else 0.0))
+
+
+static func cell_bounds(cells: Array[Vector2i]) -> Rect2:
+	if cells.is_empty():
+		return Rect2()
+	var bounds := Rect2(Vector2(cells[0]), Vector2.ONE)
+	for cell in cells:
+		bounds = bounds.expand(Vector2(cell)).expand(Vector2(cell) + Vector2.ONE)
+	return bounds
+
+
+static func from_units(units: Array[Dictionary], center: Vector2, laser_level := 0) -> ShipStats:
+	var result := ShipStats.new()
+	var cells: Array[Vector2i] = []
+	var radius_squared := 0.0
+	for index in range(units.size()):
+		var unit := units[index]
+		if unit.hp <= 0.0:
+			continue
+		result.integrity += unit.hp
+		var mount := Vector2.ZERO
+		for cell: Vector2i in unit.cells:
+			cells.append(cell)
+			mount += (Vector2(cell) + Vector2.ONE * 0.5 - center) * BATTLE_CELL_SIZE
+			for corner in [Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN, Vector2.ONE]:
+				radius_squared = maxf(radius_squared, ((Vector2(cell) + corner - center) * BATTLE_CELL_SIZE).length_squared())
+		var part: ShipPart = unit.part
+		if part == null:
+			continue
+		result.shields += part.stats.shields
+		result.thrust += part.stats.thrust
+		result.weight += part.stats.weight
+		mount /= maxf(unit.cells.size(), 1)
+		for weapon in part.stats.weapons:
+			var copy := weapon.copy()
+			copy.mount_offset += mount
+			copy.component_index = index
+			if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER]:
+				var multiplier := 1.0 + 0.1 * laser_level
+				copy.damage_per_shot *= multiplier
+				copy.fire_interval_seconds /= multiplier
+			result.weapons.append(copy)
+	result.occupied_cells = cells.size()
+	# Every physical material cell has mass, including loose and exhaust cells.
+	# A visual hull polygon can bridge empty space; that space has no mass.
+	result.weight += cells.size()
+	result.footprint_size = cell_bounds(cells).size * BATTLE_CELL_SIZE
+	result.collision_radius = sqrt(radius_squared)
+	return result
 
 
 func add_equipment(

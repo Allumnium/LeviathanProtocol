@@ -21,7 +21,7 @@ func _run() -> void:
 			var expected_roster := ""
 			var expected_reward := -1
 			for count in [1, 4, 10]:
-				_check(state.start_new_run(difficulty, seed_value), "Start a reproducible encounter fixture.")
+				_check(state.start_new_run(difficulty, seed_value, false), "Start a reproducible encounter fixture.")
 				state.fleet.clear()
 				var blueprint: Ship = preload("res://scripts/builtin_ships.gd").drone()
 				# Change actual equipment for the largest fleet, alongside its resources/research.

@@ -30,6 +30,6 @@ Steps 1–9 now provide versioned definitions and save compatibility, current-ru
 
 `test_retry_settlement.gd` covers two withdrawals followed by success, damaged/destroyed ship persistence, reset enemies, finite-field pickup replay, failed settlement writes, one-time payment and terminal defeat. `test_battle_replay.gd` compares complete diagnostic state and events through the production clock at normal, 2× and accelerated batches, including physical component damage and salvage. Existing import, definition, metadata, transaction, encounter, objective and battle suites remain required.
 
-Campaign topology, labs, abilities and mining remain their later milestones. The existing legacy map bridge and three starter Drones remain intentional until their scheduled replacements. No future equipment or economy system is exposed as a purchasable stub.
+At Gate A, campaign topology, labs, abilities and mining remained later milestones. Steps 11–16 now activate the 24-row campaign (CAMPAIGN_MAP.md); historical maps retain their legacy bridge. Three starter Drones remain until step 18. No future equipment or economy system is exposed as a purchasable stub.
 
 Final validation (2026-10-26): the complete isolated baseline passed with zero failures, including 864 encounter allocations, 600 battle regressions, retry settlement and normal/accelerated replay. Logs: `.local/checks/49b577c0346d465488d507cd4e291fb3/`. `git diff --check` passed. The existing Windows certificate-store diagnostic remains unrelated to assertions; player saves were not used.
