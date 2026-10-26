@@ -127,14 +127,15 @@ func _run() -> void:
 		"Reload a pending deployment without rerolling that roster.")
 	var red_before: int = state.red_tiles_available
 	var credit_before: int = state.credits
+	var frozen_reward: Dictionary = state.get_frozen_encounter(1).rewards
 	_check(state.complete_battle(-1, [0, 0, 2]), "Commit one victory with salvage.")
-	_check(state.current_node_id == 1 and state.credits == credit_before + GameState.VICTORY_CREDIT_REWARD
-		and state.red_tiles_available == red_before + 2, "Victory amounts and progression must agree.")
+	_check(state.current_node_id == 1 and state.credits == credit_before + int(frozen_reward.credits)
+		and state.red_tiles_available == red_before + int(frozen_reward.materials[0]), "Victory amounts and progression must agree.")
 	_check(state.load_run_checkpoint() and state.current_node_id == 1 and not state.battle_pending,
 		"Reloading a victory cannot reopen its pending settlement.")
 	var source := "node/1"
-	_check(state.commit_event("victory", source, GameState.VICTORY_CREDIT_REWARD, [2, 0, 1, 0])
-		and state.credits == credit_before + GameState.VICTORY_CREDIT_REWARD,
+	_check(state.commit_event("victory", source, int(frozen_reward.credits), frozen_reward.materials)
+		and state.credits == credit_before + int(frozen_reward.credits),
 		"Replaying the settled victory after reload cannot pay again.")
 	var previous_run: String = state.run_id
 	_check(state.start_new_run() and state.run_id != previous_run and state.transaction_ledger.is_empty(),

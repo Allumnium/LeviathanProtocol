@@ -20,6 +20,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Transaction suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_encounter_independence.gd --log-file (Join-Path $runRoot 'encounter-independence.log')
     if ($LASTEXITCODE -ne 0) { throw "Encounter independence suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_frozen_encounters.gd --log-file (Join-Path $runRoot 'frozen-encounters.log')
+    if ($LASTEXITCODE -ne 0) { throw "Frozen encounter suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

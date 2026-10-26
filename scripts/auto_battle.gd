@@ -50,13 +50,14 @@ func _ready() -> void:
 	AudioManager.play_battle_music()
 	if not GameState.battle_pending or not simulation.setup_owned(
 		GameState.fleet, GameState.battle_aliens,
-		GameState.allied_salvage_chance(), GameState.laser_upgrade_level
+		GameState.allied_salvage_chance(), GameState.laser_upgrade_level, GameState.battle_simulation_seed()
 	):
 		push_error("Cannot open battle without a valid deployment.")
 		GameState.cancel_battle()
 		set_physics_process(false)
 		call_deferred("_return_to_map")
 		return
+	simulation.victory_materials = GameState.battle_material_rewards()
 	simulation.weapon_fired.connect(
 		AudioManager.play_sfx.bind(SHOOT_SOUND, 1.0, COMBAT_BLASTER_VOLUME_DB, 35)
 	)

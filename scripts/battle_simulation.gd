@@ -122,6 +122,7 @@ var beams: Array[Beam] = []
 var drops: Array[Drop] = []
 var explosions: Array[Explosion] = []
 var collected_categories: Array[int] = []
+var victory_materials: Array[int] = []
 var phase := Phase.COMBAT
 var elapsed := 0.0
 var random := RandomNumberGenerator.new()
@@ -165,6 +166,7 @@ func setup(
 	drops.clear()
 	explosions.clear()
 	collected_categories.clear()
+	victory_materials.clear()
 	for index in range(player_ship_count):
 		var player_ship := _create_combatant(player_stats)
 		player_ship.is_player = true
@@ -819,6 +821,13 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 
 
 func _collect_all_salvage() -> void:
+	# A frozen encounter pays its declared material bundle, independent of kill
+	# order/RNG. Ad-hoc simulation fixtures retain their existing drop behavior.
+	if not victory_materials.is_empty():
+		collected_categories.assign(victory_materials)
+		for drop in drops:
+			drop.collected = true
+		return
 	for drop in drops:
 		if drop.collected:
 			continue

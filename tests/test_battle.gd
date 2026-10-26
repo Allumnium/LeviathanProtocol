@@ -909,6 +909,7 @@ func _test_scene() -> void:
 	state.credits = credits_after_purchase
 	var credits_before_victory: int = state.credits
 	_check(state.set_destination(1), "An armed ship should be able to deploy.")
+	var expected_victory_credits: int = state.get_frozen_encounter(1).rewards.credits
 	_check(
 		state.battle_aliens.size() >= GameState.MIN_ALIEN_FLEET_SIZE
 			and state.battle_aliens.size()
@@ -1038,8 +1039,8 @@ func _test_scene() -> void:
 		"Only a completed victory should advance the map.")
 	_check(state.player_ship_count == 1,
 		"Surviving purchased ships must carry into the next battle.")
-	_check(state.credits == credits_before_victory + GameState.VICTORY_CREDIT_REWARD,
-		"A victory must award the fixed credit reward.")
+	_check(state.credits == credits_before_victory + expected_victory_credits,
+		"A victory must award the frozen node credit reward.")
 	var collected: Array[int] = [0, 0, 0, 0]
 	for category in battle.simulation.collected_categories:
 		collected[category] += 1

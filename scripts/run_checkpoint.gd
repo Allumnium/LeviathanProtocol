@@ -1,7 +1,7 @@
 class_name RunCheckpoint
 extends RefCounted
 
-const VERSION := 1
+const VERSION := 2
 
 
 static func capture(state: Node) -> Dictionary:
@@ -14,12 +14,7 @@ static func capture(state: Node) -> Dictionary:
 			"formation": [owned.formation.x, owned.formation.y], "hp": hp})
 	var aliens: Array = []
 	for alien: AlienShip in state.battle_aliens:
-		var weapons: Array = []
-		for weapon in alien.stats.weapons:
-			weapons.append([weapon.weapon_name, weapon.fire_interval_seconds, weapon.damage_per_shot,
-				weapon.projectiles_per_activation, weapon.range_units, weapon.is_projectile_weapon])
-		aliens.append({"name": alien.display_name, "stats": [alien.stats.shields,
-			alien.stats.integrity, alien.stats.weight, alien.stats.thrust], "weapons": weapons})
+		aliens.append(alien.to_snapshot())
 	var positions: Array = []
 	for point: Vector2 in state.NODE_POSITIONS:
 		positions.append([point.x, point.y])
@@ -32,6 +27,7 @@ static func capture(state: Node) -> Dictionary:
 		"fleet": ships, "editor": state.ship.to_design_data(), "editor_name": state.current_ship_design_name,
 		"next_ship_id": state.next_ship_id, "laser_level": state.laser_upgrade_level,
 		"build_level": state.build_area_level, "aliens": aliens,
+		"encounters": state.frozen_encounters.duplicate(true),
 		"graph": {"positions": positions, "columns": state.NODE_COLUMNS.duplicate(), "edges": edges,
 			"convergences": state.CONVERGENCE_NODE_IDS.duplicate(), "final": state.FINAL_NODE_ID},
 		"location": {"current": state.current_node_id, "destination": state.destination_node_id,
@@ -44,7 +40,7 @@ static func valid(data: Variant) -> bool:
 
 
 static func decode(data: Variant) -> Dictionary:
-	if not data is Dictionary or data.get("version") != VERSION:
+	if not data is Dictionary or (data.get("version") != VERSION and data.get("version") != 1):
 		return {}
 	if not data.get("run_id") is String or data.run_id.is_empty():
 		return {}
@@ -136,42 +132,41 @@ static func decode(data: Variant) -> Dictionary:
 			return {}
 	if location.pending and (location.destination < 0 or aliens.is_empty()):
 		return {}
+	if data.version == 1:
+		# Preserve the actual deployed legacy roster and its old reward contract.
+		data = data.duplicate(true)
+		data.version = VERSION
+		data.encounters = EncounterGenerator.freeze_graph(int(data.progress.seed), int(data.progress.difficulty), graph.columns)
+		if location.pending:
+			var key := str(int(location.destination))
+			if not data.encounters.has(key):
+				return {}
+			var frozen: Dictionary = data.encounters[key]
+			frozen.legacy = true
+			frozen.roster.clear()
+			frozen.spent = 0.0
+			frozen.wave_count = 1
+			frozen.rewards = {"credits": 200, "materials": [0, 0, 0, 0]}
+			data.aliens.clear()
+			for index in range(aliens.size()):
+				var unit: AlienShip = aliens[index]
+				unit.entity_id = "node/%s/legacy/%d" % [key, index]
+				unit.threat_cost = 0.0
+				frozen.roster.append(unit.to_snapshot())
+				data.aliens.append(unit.to_snapshot())
+	if not data.get("encounters") is Dictionary:
+		return {}
+	for node in range(count):
+		if int(graph.columns[node]) == 0:
+			continue
+		var frozen: Variant = data.encounters.get(str(node))
+		if not EncounterGenerator.valid(frozen) or int(frozen.node_id) != node:
+			return {}
 	return {"data": data, "fleet": fleet, "aliens": aliens, "editor": editor}
 
 
 static func _decode_alien(entry: Variant) -> AlienShip:
-	if not entry is Dictionary or not entry.get("name") is String or not entry.get("stats") is Array:
-		return null
-	if entry.stats.size() != 4 or not entry.get("weapons") is Array or entry.weapons.is_empty():
-		return null
-	for value in entry.stats:
-		if not _number(value) or value < 0:
-			return null
-	var result: AlienShip
-	for definition in AlienShip.get_catalog():
-		if definition.display_name == entry.name:
-			result = definition
-			break
-	if result == null or entry.stats[1] <= 0:
-		return null
-	var stats := ShipStats.new()
-	stats.shields = entry.stats[0]
-	stats.integrity = entry.stats[1]
-	stats.weight = entry.stats[2]
-	stats.thrust = entry.stats[3]
-	for weapon in entry.weapons:
-		if not weapon is Array or weapon.size() != 6 or not weapon[0] is String or not weapon[5] is bool:
-			return null
-		for index in [1, 2, 4]:
-			if not _number(weapon[index]) or weapon[index] <= 0:
-				return null
-		if not RunProgressData._integer(weapon[3]) or weapon[3] < 1:
-			return null
-		var stats_weapon := ShipWeaponStats.new(weapon[0], weapon[1], weapon[2], int(weapon[3]), weapon[4])
-		stats_weapon.is_projectile_weapon = weapon[5]
-		stats.weapons.append(stats_weapon)
-	result.stats = stats
-	return result
+	return AlienShip.from_snapshot(entry)
 
 
 static func _number(value: Variant) -> bool:

@@ -11,6 +11,18 @@ var display_name: String
 var texture: Texture2D
 var base_stats: ShipStats
 var stats: ShipStats
+var definition_id := "legacy"
+var role_id := ""
+var tier := 0
+var threat_cost := 0.0
+var entity_id := ""
+var entity_kind := "ship"
+var wave_index := 0
+
+const ROLE_COSTS := {"scout": 16.0, "fighter": 22.0, "sentinel": 30.0, "support": 26.0, "chrysalis": 32.0}
+const TIER_COST := [1.0, 2.25, 3.75]
+const TIER_HULL := [1.0, 1.8, 2.6]
+const TIER_DAMAGE := [1.0, 1.6, 2.2]
 
 
 func _init(
@@ -30,6 +42,7 @@ func _init(
 		return
 
 	display_name = p_display_name
+	role_id = p_display_name.to_snake_case()
 	texture = p_texture
 	base_stats = p_base_stats
 	stats = _scale_stats(difficulty_multiplier)
@@ -37,6 +50,100 @@ func _init(
 
 func scaled_for_difficulty(difficulty_multiplier: float) -> AlienShip:
 	return AlienShip.new(display_name, texture, base_stats, difficulty_multiplier)
+
+
+static func threat_variant(role: String, rank: int) -> AlienShip:
+	if not ROLE_COSTS.has(role) or rank < 0 or rank > 2:
+		return null
+	for definition in get_catalog():
+		if definition.role_id != role:
+			continue
+		definition.definition_id = "%s/tier_%d" % [role, rank]
+		definition.tier = rank
+		definition.threat_cost = ROLE_COSTS[role] * TIER_COST[rank]
+		definition.stats.integrity *= TIER_HULL[rank]
+		definition.stats.shields *= TIER_HULL[rank]
+		definition.stats.weight *= 1.0 + rank * 0.5
+		definition.stats.thrust *= 1.0 + rank * 0.125
+		for weapon in definition.stats.weapons:
+			weapon.damage_per_shot *= TIER_DAMAGE[rank]
+		return definition
+	return null
+
+
+func to_snapshot() -> Dictionary:
+	var weapons: Array = []
+	for weapon in stats.weapons:
+		weapons.append([weapon.weapon_name, weapon.fire_interval_seconds, weapon.damage_per_shot,
+			weapon.projectiles_per_activation, weapon.range_units, weapon.is_projectile_weapon])
+	return {"name": display_name, "stats": [stats.shields, stats.integrity, stats.weight, stats.thrust],
+		"weapons": weapons, "definition_id": definition_id, "role": role_id, "tier": tier,
+		"threat_cost": threat_cost, "entity_id": entity_id, "kind": entity_kind, "wave": wave_index}
+
+
+static func from_snapshot(entry: Variant) -> AlienShip:
+	if not snapshot_valid(entry):
+		return null
+	var result: AlienShip
+	for definition in get_catalog():
+		if definition.display_name == entry.name:
+			result = definition
+			break
+	if result == null:
+		return null
+	var restored := ShipStats.new()
+	restored.shields = entry.stats[0]
+	restored.integrity = entry.stats[1]
+	restored.weight = entry.stats[2]
+	restored.thrust = entry.stats[3]
+	for weapon in entry.weapons:
+		var restored_weapon := ShipWeaponStats.new(weapon[0], weapon[1], weapon[2], int(weapon[3]), weapon[4])
+		restored_weapon.is_projectile_weapon = weapon[5]
+		restored.weapons.append(restored_weapon)
+	result.stats = restored
+	result.definition_id = entry.get("definition_id", "legacy")
+	result.role_id = entry.get("role", result.role_id)
+	result.tier = int(entry.get("tier", 0))
+	result.threat_cost = float(entry.get("threat_cost", 0.0))
+	result.entity_id = entry.get("entity_id", "")
+	result.entity_kind = entry.get("kind", "ship")
+	result.wave_index = int(entry.get("wave", 0))
+	return result
+
+
+static func snapshot_valid(entry: Variant) -> bool:
+	if not entry is Dictionary or not entry.get("name") is String or not entry.get("stats") is Array:
+		return false
+	if entry.name not in ["Scout", "Fighter", "Sentinel", "Support", "Chrysalis"]:
+		return false
+	if entry.stats.size() != 4 or not entry.get("weapons") is Array or entry.weapons.is_empty():
+		return false
+	for value in entry.stats:
+		if not _finite_number(value) or value < 0:
+			return false
+	if entry.stats[1] <= 0:
+		return false
+	for key in ["definition_id", "role", "entity_id", "kind"]:
+		if entry.has(key) and not entry[key] is String:
+			return false
+	for key in ["tier", "wave"]:
+		if entry.has(key) and (not RunProgressData._integer(entry[key]) or entry[key] < 0):
+			return false
+	if entry.has("threat_cost") and (not _finite_number(entry.threat_cost) or entry.threat_cost < 0):
+		return false
+	for weapon in entry.weapons:
+		if not weapon is Array or weapon.size() != 6 or not weapon[0] is String or not weapon[5] is bool:
+			return false
+		for index in [1, 2, 4]:
+			if not _finite_number(weapon[index]) or weapon[index] <= 0:
+				return false
+		if not RunProgressData._integer(weapon[3]) or weapon[3] < 1:
+			return false
+	return true
+
+
+static func _finite_number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(value)
 
 
 static func get_catalog() -> Array[AlienShip]:
@@ -74,6 +181,8 @@ static func create_random_fleet(
 	difficulty_multiplier: float,
 	seed_value: int = -1
 ) -> Array[AlienShip]:
+	# Legacy/ad-hoc simulation helper. Campaign nodes use EncounterGenerator's
+	# frozen priced definitions, never this health/damage normalization.
 	if ship_count <= 0:
 		push_error("An alien fleet must contain at least one ship.")
 		return []
@@ -105,7 +214,7 @@ static func create_random_fleet(
 		var definition := catalog[random.randi_range(0, catalog.size() - 1)]
 		fleet.append(definition.scaled_for_difficulty(difficulty_multiplier))
 	_shuffle_fleet(fleet, random)
-	# Retain the legacy fixed budget until the proximity allocator replaces it.
+	# Preserve the legacy fixture budget independently of campaign allocation.
 	var total_health := 0.0
 	for alien in fleet:
 		total_health += alien.stats.integrity + alien.stats.shields

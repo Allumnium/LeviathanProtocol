@@ -14,6 +14,7 @@ godot --headless --path . --script res://tests/test_definitions.gd
 godot --headless --path . --script res://tests/test_run_state.gd
 godot --headless --path . --script res://tests/test_transactions.gd
 godot --headless --path . --script res://tests/test_encounter_independence.gd
+godot --headless --path . --script res://tests/test_frozen_encounters.gd
 godot --headless --path . --script res://tests/test_battle.gd
 ```
 
@@ -51,4 +52,4 @@ See `ASSET_MANIFEST.csv` for current raster assets and `EQUIPMENT_ASSET_STATUS.c
 
 Nine existing components have referenced art. Thruster sheets use a 3 × 3 atlas: frame 0 idle, frame 1 startup for 0.1 s, frames 2–8 loop at 12 fps. Static thruster exports are retained but the catalog uses animated sheets. Project filtering is nearest. Rotation/reflection is handled by recipe/renderer code; pivots and visual heading still require visual QA before art commissioning. Existing alien roles and station/star art are available. The remaining 47 equipment types need artwork; reuse procedural fog/targeting effects where appropriate.
 
-Step 2 is documented in DEFINITIONS.md, step 3 in RUN_STATE.md, and steps 4–5 in ACCOUNTING.md. Next is frozen proximity encounter allocation in step 6.
+Step 2 is documented in DEFINITIONS.md, step 3 in RUN_STATE.md, steps 4–5 in ACCOUNTING.md, and step 6 in ENCOUNTERS.md. Next is explicit entity/victory membership in step 7.

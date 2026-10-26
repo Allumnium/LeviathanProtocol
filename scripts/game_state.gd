@@ -87,6 +87,7 @@ var run_save_path := RUN_SAVE_PATH
 var last_save_error := ""
 var _checkpoint_generation := -1
 var _checkpoint_store := AtomicRunStore.new()
+var frozen_encounters: Dictionary = {}
 
 
 func _ready() -> void:
@@ -169,6 +170,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	current_ship_design_name = ""
 	credits = STARTING_CREDITS
 	difficulty = selected_difficulty as Difficulty
+	frozen_encounters = EncounterGenerator.freeze_graph(run_seed, difficulty, NODE_COLUMNS)
 	battle_aliens.clear()
 	ship.clear()
 	red_tiles_available = STARTING_RED_TILE_COUNT
@@ -261,11 +263,19 @@ func load_run_checkpoint() -> bool:
 		return false
 	var decoded := RunCheckpoint.decode(saved.payload)
 	var data: Dictionary = decoded.data
+	if saved.payload.version == 1:
+		# Freeze migration results durably before exposing them to callers/previews.
+		var migrated := _checkpoint_store.commit(run_save_path, data, RunCheckpoint.valid, int(saved.generation))
+		if not migrated.ok:
+			last_save_error = _checkpoint_store.last_error
+			return false
+		saved.generation = migrated.generation
 	# Validation/decoding finished before touching any live state or Archive.
 	restore_run_progress(data.progress, false)
 	run_id = data.run_id
 	transaction_ledger = data.ledger.duplicate(true)
 	economy_state = data.economy.duplicate(true)
+	frozen_encounters = data.encounters.duplicate(true)
 	_apply_accounting(data)
 	fleet.assign(decoded.fleet)
 	ship = decoded.editor
@@ -685,11 +695,11 @@ func _is_integer_number(value: Variant) -> bool:
 func get_difficulty_multiplier() -> float:
 	match difficulty:
 		Difficulty.EASY:
-			return 0.75
+			return 0.8
 		Difficulty.MEDIUM:
 			return 1.0
 		Difficulty.HARD:
-			return 1.5
+			return 1.25
 		_:
 			push_error("Unknown game difficulty: %s" % difficulty)
 			return 0.0
@@ -1102,25 +1112,35 @@ func is_shipyard_node(node_id: int) -> bool:
 	return convergence_index == 0 or convergence_index == 1
 
 
+func get_frozen_encounter(node_id: int) -> Dictionary:
+	return frozen_encounters.get(str(node_id), {}).duplicate(true)
+
+
+func battle_material_rewards() -> Array[int]:
+	var result: Array[int] = []
+	var encounter := get_frozen_encounter(destination_node_id)
+	if encounter.is_empty() or encounter.legacy:
+		return result
+	for category in range(4):
+		for unit in range(int(encounter.rewards.materials[category])):
+			result.append(category)
+	return result
+
+
+func battle_simulation_seed() -> int:
+	return int(get_frozen_encounter(destination_node_id).get("seed", "0"))
+
+
 func set_destination(node_id: int) -> bool:
 	if battle_pending or not can_deploy():
 		return false
 	if not get_reachable_nodes(current_node_id).has(node_id):
 		return false
-	var difficulty_multiplier := get_difficulty_multiplier()
-	if difficulty_multiplier <= 0.0:
+	var encounter := get_frozen_encounter(node_id)
+	if not EncounterGenerator.valid(encounter) or encounter.template_id != "patrol":
 		return false
-	# No player fleet, equipment, resources or research enters encounter generation.
-	var encounter_seed := hash("%s/node/%d/difficulty/%d" % [str(run_seed), node_id, difficulty])
-	var random := RandomNumberGenerator.new()
-	random.seed = encounter_seed
-	var fleet_size := random.randi_range(MIN_ALIEN_FLEET_SIZE, MAX_ALIEN_FLEET_SIZE)
-	var next_battle_aliens: Array[AlienShipType] = AlienShipType.create_random_fleet(
-		fleet_size,
-		difficulty_multiplier,
-		encounter_seed
-	)
-	if next_battle_aliens.size() != fleet_size:
+	var next_battle_aliens := EncounterGenerator.initial_fleet(encounter)
+	if next_battle_aliens.is_empty():
 		push_error("Could not create the alien fleet for the selected destination.")
 		return false
 
@@ -1151,12 +1171,17 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 		return false
 
 	var materials: Array[int] = [0, 0, 0, 0]
+	var encounter := get_frozen_encounter(destination_node_id)
+	if encounter.is_empty():
+		return false
+	if not encounter.legacy:
+		salvage_categories = battle_material_rewards()
 	for category in salvage_categories:
 		if not RunProgressData._integer(category) or category < 0 or category > 3:
 			return false
 		materials[int(category)] += 1
 	var result := TransactionLedger.apply(RunCheckpoint.capture(self), "victory", "node/%d" % destination_node_id,
-		VICTORY_CREDIT_REWARD, materials, 0)
+		int(encounter.rewards.credits), materials, 0)
 	if result.is_empty():
 		return false
 	var checkpoint: Dictionary = result.checkpoint
