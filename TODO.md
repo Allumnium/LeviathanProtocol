@@ -63,9 +63,10 @@ Invariants: proximity-only enemy strength; three regular design families plus on
    **Done when:** old blueprints load unchanged and future definitions do not appear as purchasable content.
    **Result (2026-10-26):** Added data/definitions.json, scripts/game_definitions.gd (+UID), docs/DEFINITIONS.md, tests/test_definitions.gd (+UID) and tests/fixtures/legacy_blueprints_v1.json. Updated ship_part.gd to pin IDs 0–8 and append planned IDs, ship_part_pattern.gd to attach definition identity and gate planned content, upgrades_panel.gd to display Foundation, and tests/run_baseline.ps1 to run definition checks. Civic material labels were already present. Import, definition tests and full battle suite passed (0 failures, 600 balance encounters); logs: .local/checks/af52f3e4351f43e19dc0a15498de12c7/. No future purchases or gameplay tuning activated. Generated .godot caches also updated during import.
 
-3. [ ] **Separate run state from archive knowledge.**
+3. [x] **Separate run state from archive knowledge.**
    Store current research, branch choices, active design families, story flags, signed credits and seed in game_state.gd.
    **Done when:** a new run preserves archived designs but resets authorization to build researched equipment.
+   **Result (2026-10-26):** Updated scripts/game_state.gd with Foundation-only run authorization, RP/branch/story metadata, seeded map generation, validated metadata snapshots/restoration, and construction/rebuild checks independent of Archive. Added scripts/run_progress_data.gd (+UID), tests/test_run_state.gd (+UID), and docs/RUN_STATE.md; updated definition/battle fixtures, runner, DEFINITIONS.md and BASELINE.md. Rejected library construction no longer occupies a family slot. Full isolated import, definition, run-state and battle suites passed with 0 failures, including 600 balance encounters; logs: .local/checks/445cb0a7d30d4ebf9204ba60d17fd634/. Metadata is ready for the full save/ledger format; automatic run saving and transaction recovery remain step 4. Generated .godot caches also updated during import.
 
 4. [ ] **Build atomic transaction accounting.**
    Add unique arrival, casualty, cargo sale, victory and ore pickup IDs; commit balance/inventory changes and ledger together with backup/recovery.

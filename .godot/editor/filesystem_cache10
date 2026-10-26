@@ -5,7 +5,7 @@ godot-import.log::TextFile::-1::1792910910::0::1::::<><><>0<>0<><>::
 godot-parse.log::TextFile::-1::1792907193::0::1::::<><><>0<>0<><>::
 godot-tests.log::TextFile::-1::1792970149::0::1::::<><><>0<>0<><>::
 LEVIATHAN_DESIGN_PLAN.md::TextFile::-1::1792988014::0::1::::<><><>0<>0<><>::
-TODO.md::TextFile::-1::1792988842::0::1::::<><><>0<>0<><>::
+TODO.md::TextFile::-1::1792989594::0::1::::<><><>0<>0<><>::
 ::res://assets/::1792969486
 armor_m.png::CompressedTexture2D::3834720320891863420::1792544142::1792544192::1::::<><><>0<>0<>88a6ca1b5c926b4947466257f6e10c94<>res://.godot/imported/armor_m.png-9cfba395867d8234f216ceaa81b307b6.ctex::
 bullet.png::CompressedTexture2D::1805495110985289813::1792960551::1792960623::1::::<><><>0<>0<>55381e48317a1886032479a277b2d59b<>res://.godot/imported/bullet.png-c68d06721d4ad8b0013707b0a51654af.ctex::
@@ -121,7 +121,7 @@ save_design_dialog.tscn::PackedScene::-1::1792892371::0::1::::<><><>0<>0<><>::re
 settings_dialog.tscn::PackedScene::2613827492648080658::1792951772::0::1::::<><><>0<>0<><>::uid://tpx12myxr54h::::res://scenes/modal_dialog.tscn<>uid://f1o1rko5ghnl::::res://scripts/settings_dialog.gd<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres<>res://scenes/close_x_button.tscn
 ship_designer.tscn::PackedScene::-1::1792952306::0::1::::<><><>0<>0<><>::
 victory_dialog.tscn::PackedScene::5955221624913099028::1792892401::0::1::::<><><>0<>0<><>::res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt<>uid://dda4r57psoolt::::res://themes/ui_theme.tres<>res://scenes/close_x_button.tscn
-::res://scripts/::1792989387
+::res://scripts/::1792989847
 alien_ship.gd::GDScript::239583269646182900::1792811817::0::1::::AlienShip<>RefCounted<><>0<>0<><>::
 archive_tab.gd::GDScript::8235263830509742978::1792951831::0::1::::<>Control<><>0<>0<><>::
 audio_manager.gd::GDScript::3212756527198988516::1792959813::0::1::::<>Node<><>0<>0<><>::
@@ -141,11 +141,12 @@ formation_board.gd::GDScript::4675463900592760438::1792970121::0::1::::<>Control
 game_definitions.gd::GDScript::8710801749901212812::1792989495::0::1::::GameDefinitions<>RefCounted<><>0<>0<><>::
 game_map.gd::GDScript::4495260791786718751::1792956983::0::1::::<>Control<><>0<>0<><>::
 game_setup.gd::GDScript::4342265988316508785::1792951999::0::1::::<>Control<><>0<>0<><>::
-game_state.gd::GDScript::6077380003634046097::1792959587::0::1::::<>Node<><>0<>0<><>::
+game_state.gd::GDScript::6077380003634046097::1792989791::0::1::::<>Node<><>0<>0<><>::
 graph_view.gd::GDScript::6255922151188688561::1792912059::0::1::::GraphView<>Control<><>0<>0<><>::
 locked_tab_icon.gd::GDScript::2149602188101802215::1792891150::0::1::::<>Control<><>0<>0<><>::
 main_menu.gd::GDScript::2537479360614773682::1792952267::0::1::::<>Control<><>0<>0<><>::
 main_menu_starfield.gd::GDScript::2685788357836567031::1792735391::0::1::::<>Control<><>0<>0<><>::
+run_progress_data.gd::GDScript::3627514524815040478::1792989875::0::1::::RunProgressData<>RefCounted<><>0<>0<><>::
 settings_dialog.gd::GDScript::405515417357400881::1792959814::0::1::::<>PopupPanel<><>0<>0<><>::
 ship.gd::GDScript::2196189535834771539::1792952626::0::1::::Ship<>RefCounted<><>0<>0<><>::
 ship_design_preview.gd::GDScript::7170628214278138445::1792952633::0::1::::<>Control<><>0<>0<><>::
@@ -159,10 +160,11 @@ standalone_ship_designer.gd::GDScript::3621353012811217830::1792952283::0::1::::
 stat_display_row.gd::GDScript::8667810644450149048::1792913546::0::1::::StatDisplayRow<>VBoxContainer<><>0<>0<><>::
 upgrades_panel.gd::GDScript::2821893187254153076::1792989234::0::1::::TechTreeView<>Control<><>0<>0<><>::
 ::res://styles/::1792387631
-::res://tests/::1792989387
-test_battle.gd::GDScript::7378119478052628735::1792988790::0::1::::<>SceneTree<><>0<>0<><>::
-test_definitions.gd::GDScript::3444206465674289741::1792989521::0::1::::<>SceneTree<><>0<>0<><>::
+::res://tests/::1792989847
+test_battle.gd::GDScript::7378119478052628735::1792989792::0::1::::<>SceneTree<><>0<>0<><>::
+test_definitions.gd::GDScript::3444206465674289741::1792989791::0::1::::<>SceneTree<><>0<>0<><>::
+test_run_state.gd::GDScript::5566591012862706193::1792989868::0::1::::<>SceneTree<><>0<>0<><>::
 ::res://tests/fixtures/::1792989385
-legacy_blueprints_v1.json::JSON::-1::1792989385::0::1::::<><><>0<>0<><>::
+legacy_blueprints_v1.json::JSON::-1::1792989573::0::1::::<><><>0<>0<><>::
 ::res://themes/::1792812541
 ui_theme.tres::Theme::7371621359120408881::1792891150::0::1::::<><><>0<>0<><>::uid://bqn2tsvmxlmkl::::res://assets/ui/panels/panel_nine_patch.tres<>uid://cuo4815jnqj5h::::res://assets/ui/buttons/button.png<>uid://cdj7cxq56vqxq::::res://assets/ui/buttons/button_pressed.png<>uid://dvjqfo0psdmk5::::res://assets/ui/buttons/button_highlighted.png<>uid://ceuy7glfq4gtg::::res://assets/ui/panels/simple_panel.png<>uid://die25xal5tb2i::::res://assets/ui/panels/compact_panel_nine_patch.tres<>uid://3oynvtt8h876::::res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt

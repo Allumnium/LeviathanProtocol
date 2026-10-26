@@ -11,6 +11,7 @@ Run `powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_baseline.ps1`
 ```text
 godot --headless --path . --import
 godot --headless --path . --script res://tests/test_definitions.gd
+godot --headless --path . --script res://tests/test_run_state.gd
 godot --headless --path . --script res://tests/test_battle.gd
 ```
 
@@ -48,4 +49,4 @@ See `ASSET_MANIFEST.csv` for current raster assets and `EQUIPMENT_ASSET_STATUS.c
 
 Nine existing components have referenced art. Thruster sheets use a 3 × 3 atlas: frame 0 idle, frame 1 startup for 0.1 s, frames 2–8 loop at 12 fps. Static thruster exports are retained but the catalog uses animated sheets. Project filtering is nearest. Rotation/reflection is handled by recipe/renderer code; pivots and visual heading still require visual QA before art commissioning. Existing alien roles and station/star art are available. The remaining 47 equipment types need artwork; reuse procedural fog/targeting effects where appropriate.
 
-Step 2 is now complete; see DEFINITIONS.md for its content boundaries and validation. Next: run/archive separation and atomic accounting in steps 3–4. No completion claims for those steps.
+Step 2 is complete; see DEFINITIONS.md for its content boundaries and validation. Step 3's run/archive separation is documented in RUN_STATE.md. Atomic accounting remains step 4.

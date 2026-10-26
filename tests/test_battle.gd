@@ -150,6 +150,8 @@ func _test_main_menu_setup_flow() -> void:
 
 func _clear_test_fleet(state: Node) -> void:
 	# Combat fixtures below deliberately exercise a single custom ship.
+	# Fixture research is explicit and must never come from Archive discovery.
+	state.current_research_ids.assign(["foundation", "applied_energy", "field_engineering"])
 	state.fleet.clear()
 	state.next_ship_id = 1
 	state._refresh_fleet()
@@ -327,8 +329,8 @@ func _test_ship_cost() -> void:
 		if pattern.part_type == ShipPart.Type.DOUBLE_LASER:
 			_check(pattern.prerequisite_types == [ShipPart.Type.LASER],
 				"Double Laser must depend on Laser in the technology tree.")
-		_check(state.is_equipment_available(pattern.part_type),
-			"Every part currently exposed by the builder must be marked available.")
+		_check(state.is_equipment_available(pattern.part_type) == state.is_equipment_researched(pattern.part_type),
+			"Working catalog equipment availability must follow current-run research.")
 		_check(
 			pattern.renders_on_top == (pattern.part_type in top_layer_types),
 			"Guns, thrusters, and the command core must render above the translucent hull."

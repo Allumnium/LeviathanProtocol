@@ -45,8 +45,9 @@ func _run() -> void:
 		_check(ShipPart.Type.get(definition.enum_key) == type_id, "Definition identity must match its serialized enum ID.")
 		_check(not numeric_ids.has(type_id), "Equipment IDs must be unique.")
 		numeric_ids.append(type_id)
-		_check(state.is_equipment_available(type_id) == (type_id < 9),
-			"Planned equipment must remain unavailable to the builder.")
+		var foundation_type := type_id in [0, 3, 4, 5, 6, 8]
+		_check(state.is_equipment_available(type_id) == foundation_type,
+			"Only implemented Foundation equipment is authorized in a fresh run.")
 	for pattern in catalog:
 		_check(pattern.definition_id == GameDefinitions.equipment(pattern.part_type).id,
 			"Live patterns must reference a stable definition.")

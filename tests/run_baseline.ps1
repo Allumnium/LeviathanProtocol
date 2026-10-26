@@ -13,6 +13,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Import failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_definitions.gd --log-file (Join-Path $runRoot 'definitions.log')
     if ($LASTEXITCODE -ne 0) { throw "Definition suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_run_state.gd --log-file (Join-Path $runRoot 'run-state.log')
+    if ($LASTEXITCODE -ne 0) { throw "Run state suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

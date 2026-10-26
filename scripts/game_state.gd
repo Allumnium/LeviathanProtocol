@@ -4,6 +4,7 @@ signal build_area_changed
 signal design_library_changed
 signal fleet_changed
 signal upgrades_changed
+signal research_changed
 
 signal tile_inventory_changed
 signal ship_stats_changed
@@ -32,6 +33,7 @@ const SAVED_SHIP_DESIGNS_PATH := "user://ship_designs.json"
 const SAVED_SHIP_DESIGNS_VERSION := 1
 const ARCHIVE_PROGRESS_PATH := "user://archive_progress.json"
 const ARCHIVE_PROGRESS_VERSION := 1
+const RUN_PROGRESS_VERSION := RunProgressData.VERSION
 const STARTING_RED_TILE_COUNT := 18
 const STARTING_BLUE_TILE_COUNT := 12
 const STARTING_GREEN_TILE_COUNT := 6
@@ -71,9 +73,17 @@ var battle_auto_camera := true
 var battle_fast_forward := false
 var archive_progress_file_path := ARCHIVE_PROGRESS_PATH
 
+# Run authorization is deliberately independent of Archive discoveries/designs.
+var current_research_ids: Array[String] = ["foundation"]
+var research_points := 0
+var research_branch_choices: Dictionary[String, String] = {}
+var story_flags: Dictionary[String, bool] = {}
+var run_seed := 0
+
 
 func _ready() -> void:
 	if NODE_POSITIONS.is_empty():
+		run_seed = _new_run_seed()
 		_generate_campaign_graph()
 	get_tree().node_added.connect(_disable_non_text_keyboard_focus)
 	_disable_keyboard_focus_recursively(get_tree().root)
@@ -113,7 +123,7 @@ func _node_contains_visible_modal(node: Node, scene_root: Node) -> bool:
 	return false
 
 
-func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
+func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1) -> bool:
 	if not [
 		Difficulty.EASY,
 		Difficulty.MEDIUM,
@@ -121,7 +131,14 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	].has(selected_difficulty):
 		push_error("Cannot start a run with an unknown difficulty.")
 		return false
+	if seed_value < -1:
+		return false
 
+	run_seed = _new_run_seed() if seed_value == -1 else seed_value
+	current_research_ids = ["foundation"]
+	research_points = 0
+	research_branch_choices.clear()
+	story_flags.clear()
 	_generate_campaign_graph()
 	current_node_id = 0
 	destination_node_id = -1
@@ -162,6 +179,50 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM) -> bool:
 	ship_stats_changed.emit()
 	credits_changed.emit()
 	player_ship_count_changed.emit()
+	research_changed.emit()
+	return true
+
+
+func _new_run_seed() -> int:
+	var random := RandomNumberGenerator.new()
+	random.randomize()
+	return random.randi()
+
+
+func run_progress_snapshot() -> Dictionary:
+	return {
+		"version": RUN_PROGRESS_VERSION,
+		# JSON numbers cannot represent every 64-bit seed exactly.
+		"seed": str(run_seed),
+		"difficulty": difficulty,
+		"credits": credits,
+		"research_points": research_points,
+		"research_ids": current_research_ids.duplicate(),
+		"branch_choices": research_branch_choices.duplicate(),
+		"story_flags": story_flags.duplicate(),
+		"active_design_families": fleet_design_slots.duplicate(),
+		"current_run_design_names": current_run_design_names.duplicate(),
+	}
+
+
+func restore_run_progress(data: Variant) -> bool:
+	# The future full save/ledger loader will restore this alongside fleet and graph
+	# state. Validate everything before mutating; Archive is never consulted here.
+	if not RunProgressData.validate(data).is_empty():
+		return false
+	run_seed = int(data.seed)
+	difficulty = int(data.difficulty) as Difficulty
+	credits = int(data.credits)
+	research_points = int(data.research_points)
+	current_research_ids.assign(data.research_ids)
+	research_branch_choices.assign(data.branch_choices)
+	story_flags.assign(data.story_flags)
+	fleet_design_slots.assign(data.active_design_families)
+	current_run_design_names.assign(data.current_run_design_names)
+	_generate_campaign_graph()
+	research_changed.emit()
+	credits_changed.emit()
+	design_library_changed.emit()
 	return true
 
 
@@ -171,7 +232,7 @@ func _generate_campaign_graph() -> void:
 	GRAPH_EDGES.clear()
 	CONVERGENCE_NODE_IDS.clear()
 	var random := RandomNumberGenerator.new()
-	random.randomize()
+	random.seed = run_seed
 	# Fifteen columns leave fourteen steps after the origin. Three 3–5 column
 	# sections ending at the final column therefore use one length 4 and two
 	# length 5 sections, shuffled for each run.
@@ -531,13 +592,31 @@ func get_available_tile_count(category: int) -> int:
 
 
 func is_equipment_available(part_type: int) -> bool:
-	# All equipment is currently available in the builder. Keeping this decision
-	# behind one query lets the research system introduce unlocks later without
-	# giving the builder and technology tree separate rules.
+	if not is_equipment_researched(part_type):
+		return false
 	for pattern in ShipPartPattern.get_catalog():
 		if pattern.part_type == part_type:
 			return true
 	return false
+
+
+func is_equipment_researched(part_type: int) -> bool:
+	var definition := GameDefinitions.equipment(part_type)
+	if definition.is_empty():
+		return false
+	for research_id in current_research_ids:
+		var research := GameDefinitions.find("research", research_id)
+		if not research.is_empty() and research.grants.equipment_ids.has(definition.id):
+			return true
+	return false
+
+
+func design_research_error(design: Ship) -> String:
+	for part in design.parts:
+		if not is_equipment_available(part.type):
+			var definition := GameDefinitions.equipment(part.type)
+			return "Requires current-run research: %s." % definition.get("display_name", "Unknown equipment")
+	return ""
 
 
 func discover_part(part_type: int) -> void:
@@ -633,6 +712,9 @@ func construction_error(blueprint: Ship = null) -> String:
 		return "Design a ship first."
 	if not design_fits_build_area(design):
 		return "Upgrade the build area to construct this design."
+	var research_problem := design_research_error(design)
+	if not research_problem.is_empty():
+		return research_problem
 	var candidate := FleetShip.new()
 	candidate.initialize(design, next_ship_id, "")
 	var problem := candidate.construction_error()
@@ -691,11 +773,12 @@ func purchase_material(category: int) -> bool:
 func purchase_saved_ship(design_name: String) -> bool:
 	for entry in get_visible_ship_designs():
 		if entry.name == design_name:
+			var blueprint := Ship.new()
+			if not blueprint.load_design_data(entry.ship) or not construction_error(blueprint).is_empty():
+				return false
 			if not _ensure_fleet_design_slot(design_name):
 				return false
-			var blueprint := Ship.new()
-			if blueprint.load_design_data(entry.ship):
-				return purchase_ship(blueprint, design_name)
+			return purchase_ship(blueprint, design_name)
 	return false
 
 
@@ -815,6 +898,8 @@ func can_afford_any_ship() -> bool:
 	for entry in get_visible_ship_designs():
 		var design := Ship.new()
 		if not design.load_design_data(entry.ship) or not design_fits_build_area(design):
+			continue
+		if not design_research_error(design).is_empty():
 			continue
 		var candidate := FleetShip.new()
 		candidate.initialize(design, next_ship_id, "")
