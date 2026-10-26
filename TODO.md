@@ -51,9 +51,10 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 ## Numbered development steps
 
-1. [ ] **Establish the baseline and asset inventory.**
+1. [x] **Establish the baseline and asset inventory.**
    Inspect project.godot, current git changes, builder scale, art and tests/test_battle.gd. Locate Godot; record headless import and test commands, including --headless --path . --script res://tests/test_battle.gd with isolated save paths.
    **Done when:** baseline failures are separated from new work, fixtures are backed up, and the manifest identifies reused/missing assets.
+   **Result (2026-10-26):** See docs/BASELINE.md, docs/ASSET_MANIFEST.csv and docs/EQUIPMENT_ASSET_STATUS.csv. Added tests/run_baseline.ps1, docs/.gdignore and .gitignore for isolated local artifacts. Godot 4.7.2 import exited 0; initial battle suite passed, but runner verification exposed four intermittent controller/report failures and a follow-on script error, recorded in BASELINE.md. Certificate-store diagnostic recorded separately. Save fixtures backed up under .local/baseline/fixtures; builder scale verified at 26 units. Import also updated generated .godot caches.
 
 2. [ ] **Introduce versioned definitions.**
    Define equipment, research grants, encounters, nodes/edges, abilities, environments and goods properties. Preserve existing enum values; rename displayed purple CORE to Civic and starting technology to Foundation.
