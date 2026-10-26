@@ -530,6 +530,16 @@ func get_available_tile_count(category: int) -> int:
 			return 0
 
 
+func is_equipment_available(part_type: int) -> bool:
+	# All equipment is currently available in the builder. Keeping this decision
+	# behind one query lets the research system introduce unlocks later without
+	# giving the builder and technology tree separate rules.
+	for pattern in ShipPartPattern.get_catalog():
+		if pattern.part_type == part_type:
+			return true
+	return false
+
+
 func discover_part(part_type: int) -> void:
 	if discovered_part_types.has(part_type):
 		return

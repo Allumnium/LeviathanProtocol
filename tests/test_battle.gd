@@ -46,6 +46,7 @@ func _run() -> void:
 	_test_build_area()
 	_test_ship_design_storage()
 	_test_archive_progress_storage()
+	_test_settings_storage()
 	_test_mini_turret_firing()
 	_test_guaranteed_hits()
 	_test_retreat_and_focus()
@@ -271,6 +272,7 @@ func _test_thrust_movement() -> void:
 		is_equal_approx(
 			flyby_closest_approach,
 			low_thrust_simulation.player.shortest_range()
+				* low_thrust_simulation.FLYBY_RANGE_FACTOR
 		),
 		"Pursuit must aim for a broadside pass at minimum weapon range."
 	)
@@ -315,6 +317,18 @@ func _test_ship_cost() -> void:
 		ShipPart.Type.LARGE_THRUSTER,
 	]
 	for pattern in ShipPartPattern.get_catalog():
+		var expected_tech_category := ShipPart.TechCategory.CORE
+		if pattern.part_type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.SHIELD]:
+			expected_tech_category = ShipPart.TechCategory.ENERGY
+		elif pattern.part_type == ShipPart.Type.LARGE_THRUSTER:
+			expected_tech_category = ShipPart.TechCategory.UTILITY
+		_check(pattern.tech_category == expected_tech_category,
+			"Every equipment pattern must belong to its intended technology branch.")
+		if pattern.part_type == ShipPart.Type.DOUBLE_LASER:
+			_check(pattern.prerequisite_types == [ShipPart.Type.LASER],
+				"Double Laser must depend on Laser in the technology tree.")
+		_check(state.is_equipment_available(pattern.part_type),
+			"Every part currently exposed by the builder must be marked available.")
 		_check(
 			pattern.renders_on_top == (pattern.part_type in top_layer_types),
 			"Guns, thrusters, and the command core must render above the translucent hull."
@@ -1084,10 +1098,9 @@ func _test_scene() -> void:
 	var ship_designer_lock := ship_designer_button.get_node_or_null("Lock") as Control
 	var research_lock := research_button.get_node_or_null("Lock") as Control
 	var ship_designer_lock_icon := ship_designer_lock.get_node_or_null("Icon") as TextureRect
-	var research_lock_icon := research_lock.get_node_or_null("Icon") as TextureRect
 	_check(
 		ship_designer_button.disabled
-			and research_button.disabled
+			and not research_button.disabled
 			and research_button.get_index() < ship_designer_button.get_index()
 			and ship_designer_lock != null
 			and ship_designer_lock_icon != null
@@ -1095,13 +1108,8 @@ func _test_scene() -> void:
 			and ship_designer_lock.anchor_right == 1.0
 			and ship_designer_lock.anchor_bottom == 1.0
 			and ship_designer_lock.tooltip_text == "Only available at Shipyards"
-			and research_lock != null
-			and research_lock_icon != null
-			and research_lock_icon.texture != null
-			and research_lock.anchor_right == 1.0
-			and research_lock.anchor_bottom == 1.0
-			and research_lock.tooltip_text == "Requires lab",
-		"Research and Ship Designer must start locked, show contextual locks, and appear in that order."
+			and research_lock == null,
+		"Research must remain unlocked while Ship Designer retains its contextual shipyard lock."
 	)
 	if panel_tabs != null and fleet_tab_button != null:
 		fleet_tab_button.pressed.emit()
@@ -1549,16 +1557,25 @@ func _test_owned_fleet() -> void:
 	var branching := _fleet_blueprint()
 	branching.set_tile_at(Vector2i(-1, 0), ShipPart.Category.DEFENSE)
 	_add_pattern(branching, ShipPart.Type.MINI_TURRET, Vector2i(-2, 0))
+	var disconnected_design := _fleet_blueprint()
+	_add_pattern(disconnected_design, ShipPart.Type.MINI_TURRET, Vector2i(-4, 0))
+	var disconnected := FleetShip.new()
+	disconnected.initialize(disconnected_design, 98, "Disconnected")
+	_check(disconnected.construction_error().is_empty(),
+		"Disconnected equipment must be valid for construction.")
 	var detached := FleetShip.new()
 	detached.initialize(branching, 99, "Bridge")
 	var result := detached.damage_cell(Vector2i(-1, 0), 100.0)
-	_check(result.removed.size() == 2 and not detached.has_cell(Vector2i(-2, 0)), "Destroying a bridge must detach the isolated section exactly once.")
-	_check(detached.damage_cell(Vector2i(-1, 0), 100.0).removed.is_empty(), "Lost sections must not generate duplicate salvage.")
+	_check(result.removed.size() == 1 and detached.has_cell(Vector2i(-2, 0)),
+		"Destroying a bridge must not destroy a disconnected intact section.")
+	_check(detached.damage_cell(Vector2i(-1, 0), 100.0).removed.is_empty(),
+		"Destroyed components must not generate duplicate salvage.")
 	var isolated := FleetShip.new()
 	isolated.initialize(_fleet_blueprint(), 101, "Isolated")
 	isolated.damage_cell(Vector2i(2, 0), 100.0)
 	isolated.damage_cell(Vector2i(2, 1), 100.0)
-	_check(not isolated.is_alive(), "A command center detached from every other component must lose the ship.")
+	_check(isolated.is_alive(),
+		"A surviving command center must keep operating without a connectivity requirement.")
 	var blue_only := FleetShip.new()
 	blue_only.initialize(branching, 100, "Armor")
 	blue_only.units[blue_only.cell_units[Vector2i(-1, 0)]].hp = 0.0
@@ -1732,8 +1749,48 @@ func _test_design_selection() -> void:
 		"Starting a new run must not hide designs saved during previous runs.")
 	state.saved_ship_designs = originals
 	var audio := root.get_node("AudioManager")
-	_check(is_equal_approx(audio.get_bus_volume_percent(audio.MUSIC_BUS), 50.0), "Quieter audio must still show 50 percent by default.")
+	_check(audio.get_bus_volume_percent(audio.MUSIC_BUS) >= 0.0
+		and audio.get_bus_volume_percent(audio.MUSIC_BUS) <= 100.0,
+		"Persisted audio volume must remain within the valid slider range.")
 	_check(is_equal_approx(AudioServer.get_bus_volume_db(AudioServer.get_bus_index(&"Master")), -6.0), "Output must be attenuated by 6 dB independently of slider values.")
+
+
+func _test_settings_storage() -> void:
+	var audio := root.get_node("AudioManager")
+	var state := root.get_node("GameState")
+	var test_path := "user://settings_suite_%d.cfg" % Time.get_ticks_usec()
+	var original_music: float = audio.get_bus_volume_percent(audio.MUSIC_BUS)
+	var original_ambience: float = audio.get_bus_volume_percent(audio.AMBIENCE_BUS)
+	var original_effects: float = audio.get_bus_volume_percent(audio.SFX_BUS)
+	var original_auto_camera: bool = state.battle_auto_camera
+	var original_fast_forward: bool = state.battle_fast_forward
+	audio.set_bus_volume_percent(audio.MUSIC_BUS, 31.0)
+	audio.set_bus_volume_percent(audio.AMBIENCE_BUS, 42.0)
+	audio.set_bus_volume_percent(audio.SFX_BUS, 53.0)
+	state.battle_auto_camera = false
+	state.battle_fast_forward = true
+	_check(audio.save_settings(test_path), "Settings must save to local storage.")
+	audio.set_bus_volume_percent(audio.MUSIC_BUS, 1.0)
+	audio.set_bus_volume_percent(audio.AMBIENCE_BUS, 1.0)
+	audio.set_bus_volume_percent(audio.SFX_BUS, 1.0)
+	state.battle_auto_camera = true
+	state.battle_fast_forward = false
+	audio.load_settings(test_path)
+	_check(
+		is_equal_approx(audio.get_bus_volume_percent(audio.MUSIC_BUS), 31.0)
+			and is_equal_approx(audio.get_bus_volume_percent(audio.AMBIENCE_BUS), 42.0)
+			and is_equal_approx(audio.get_bus_volume_percent(audio.SFX_BUS), 53.0)
+			and not state.battle_auto_camera
+			and state.battle_fast_forward,
+		"Audio and battle preferences must survive a settings reload."
+	)
+	audio.set_bus_volume_percent(audio.MUSIC_BUS, original_music)
+	audio.set_bus_volume_percent(audio.AMBIENCE_BUS, original_ambience)
+	audio.set_bus_volume_percent(audio.SFX_BUS, original_effects)
+	state.battle_auto_camera = original_auto_camera
+	state.battle_fast_forward = original_fast_forward
+	if FileAccess.file_exists(test_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path))
 
 
 func _test_material_shop() -> void:

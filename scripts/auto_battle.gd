@@ -153,10 +153,12 @@ func _on_pause_toggled(is_paused: bool) -> void:
 	if is_paused:
 		fast_forward_button.set_pressed_no_signal(false)
 		GameState.battle_fast_forward = false
+		AudioManager.save_settings()
 
 
 func _on_fast_forward_toggled(is_fast: bool) -> void:
 	GameState.battle_fast_forward = is_fast
+	AudioManager.save_settings()
 	if is_fast:
 		pause_button.set_pressed_no_signal(false)
 

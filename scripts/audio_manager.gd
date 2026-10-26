@@ -15,6 +15,8 @@ const MENU_THRUSTER_LARGE: AudioStreamMP3 = preload(
 const DEFAULT_VOLUME_PERCENT := 50.0
 const OUTPUT_GAIN_DB := -6.0
 const MAX_SFX_PLAYERS := 32
+const SETTINGS_PATH := "user://settings.cfg"
+const SETTINGS_VERSION := 1
 
 var _music_player: AudioStreamPlayer
 var _current_music_track: StringName = &""
@@ -29,9 +31,7 @@ func _ready() -> void:
 	_ensure_bus(MUSIC_BUS)
 	_ensure_bus(AMBIENCE_BUS)
 	_ensure_bus(SFX_BUS)
-	set_bus_volume_percent(MUSIC_BUS, DEFAULT_VOLUME_PERCENT)
-	set_bus_volume_percent(AMBIENCE_BUS, DEFAULT_VOLUME_PERCENT)
-	set_bus_volume_percent(SFX_BUS, DEFAULT_VOLUME_PERCENT)
+	load_settings()
 
 
 func get_bus_volume_percent(bus_name: StringName) -> float:
@@ -53,6 +53,56 @@ func set_bus_volume_percent(bus_name: StringName, volume_percent: float) -> void
 	var linear_volume := clampf(volume_percent, 0.0, 100.0) / 100.0
 	AudioServer.set_bus_volume_db(bus_index, linear_to_db(maxf(linear_volume, 0.0001)))
 	AudioServer.set_bus_mute(bus_index, is_zero_approx(linear_volume))
+
+
+func load_settings(file_path: String = SETTINGS_PATH) -> void:
+	var config := ConfigFile.new()
+	var load_error := config.load(file_path)
+	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
+		push_error("Could not load settings: %s" % error_string(load_error))
+	var music := _validated_volume(config.get_value(
+		"audio", "music", DEFAULT_VOLUME_PERCENT
+	))
+	var ambience := _validated_volume(config.get_value(
+		"audio", "ambience", DEFAULT_VOLUME_PERCENT
+	))
+	var effects := _validated_volume(config.get_value(
+		"audio", "effects", DEFAULT_VOLUME_PERCENT
+	))
+	set_bus_volume_percent(MUSIC_BUS, music)
+	set_bus_volume_percent(AMBIENCE_BUS, ambience)
+	set_bus_volume_percent(SFX_BUS, effects)
+	GameState.battle_auto_camera = _validated_bool(
+		config.get_value("battle", "auto_camera", true), true
+	)
+	GameState.battle_fast_forward = _validated_bool(
+		config.get_value("battle", "fast_forward", false), false
+	)
+
+
+func save_settings(file_path: String = SETTINGS_PATH) -> bool:
+	var config := ConfigFile.new()
+	config.set_value("settings", "version", SETTINGS_VERSION)
+	config.set_value("audio", "music", get_bus_volume_percent(MUSIC_BUS))
+	config.set_value("audio", "ambience", get_bus_volume_percent(AMBIENCE_BUS))
+	config.set_value("audio", "effects", get_bus_volume_percent(SFX_BUS))
+	config.set_value("battle", "auto_camera", GameState.battle_auto_camera)
+	config.set_value("battle", "fast_forward", GameState.battle_fast_forward)
+	var save_error := config.save(file_path)
+	if save_error != OK:
+		push_error("Could not save settings: %s" % error_string(save_error))
+		return false
+	return true
+
+
+func _validated_volume(value: Variant) -> float:
+	if typeof(value) not in [TYPE_INT, TYPE_FLOAT]:
+		return DEFAULT_VOLUME_PERCENT
+	return clampf(float(value), 0.0, 100.0)
+
+
+func _validated_bool(value: Variant, fallback: bool) -> bool:
+	return value if typeof(value) == TYPE_BOOL else fallback
 
 
 func play_sfx(

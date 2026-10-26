@@ -44,15 +44,7 @@ func _add_unit(cells: Array[Vector2i], hp: float, part: ShipPart) -> void:
 	units.append({"cells": cells, "hp": hp, "max_hp": hp, "part": part})
 
 func is_alive() -> bool:
-	if core_index < 0 or units[core_index].hp <= 0.0:
-		return false
-	# An isolated command center no longer controls a ship.
-	for cell in units[core_index].cells:
-		for offset in NEIGHBORS:
-			var neighbor: Vector2i = cell + offset
-			if has_cell(neighbor) and cell_units[neighbor] != core_index:
-				return true
-	return false
+	return core_index >= 0 and units[core_index].hp > 0.0
 
 func has_cell(cell: Vector2i) -> bool:
 	return cell_units.has(cell) and units[cell_units[cell]].hp > 0.0
@@ -120,8 +112,6 @@ func construction_error() -> String:
 			cores += 1
 	if cores != 1:
 		return "Requires one command center (2 × 2 green and purple checkerboard)."
-	if connected_cells().size() != design.tiles.size():
-		return "Connect every block to the command center."
 	if get_stats().weapons.is_empty():
 		return "Requires a weapon."
 	return ""
@@ -192,9 +182,4 @@ func damage_cell(cell: Vector2i, amount: float) -> Dictionary:
 		# erase every other intact block from its wreckage.
 		if cell_units[cell] == core_index:
 			return {"damage": dealt, "removed": removed}
-		var connected := connected_cells()
-		for other in units:
-			if other.hp > 0.0 and not connected.has(other.cells[0]):
-				other.hp = 0.0
-				removed.append_array(other.cells)
 	return {"damage": dealt, "removed": removed}

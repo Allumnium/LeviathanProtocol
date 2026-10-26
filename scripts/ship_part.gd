@@ -20,6 +20,12 @@ enum Category {
 	CORE,
 }
 
+enum TechCategory {
+	CORE,
+	ENERGY,
+	UTILITY,
+}
+
 var type: int
 var category: int
 var origin: Vector2i

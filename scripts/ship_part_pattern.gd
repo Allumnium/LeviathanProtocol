@@ -7,8 +7,8 @@ const LARGE_LASER_TEXTURE = preload("res://assets/laser_m.png")
 const ARMOR_TEXTURE = preload("res://assets/armor_m.png")
 const PLATE_TEXTURE = preload("res://assets/plate.png")
 const MINI_TURRET_TEXTURE = preload("res://assets/mini-turret.png")
-const THRUSTER_TEXTURE = preload("res://assets/thruster_s.png")
-const LARGE_THRUSTER_TEXTURE = preload("res://assets/thruster_l.png")
+const THRUSTER_SHEET = preload("res://assets/thruster_s_animated.png")
+const LARGE_THRUSTER_SHEET = preload("res://assets/thruster_l_animated.png")
 const COMMAND_CENTER_TEXTURE = preload("res://assets/commandcenter.png")
 
 var part_type: int
@@ -23,6 +23,8 @@ var can_rotate: bool
 var display_name: String
 var preview_texture: Texture2D
 var renders_on_top := false
+var tech_category: int
+var prerequisite_types: Array[int] = []
 
 
 func _init(
@@ -36,7 +38,8 @@ func _init(
 	pattern_tile_categories: Array[int] = [],
 	pattern_visual_cell_offsets: Array[Vector2i] = [],
 	pattern_hidden_tile_offsets: Array[Vector2i] = [],
-	pattern_hidden_tile_outline_color: Color = Color.TRANSPARENT
+	pattern_hidden_tile_outline_color: Color = Color.TRANSPARENT,
+	pattern_tech_category: int = ShipPart.TechCategory.CORE
 ) -> void:
 	part_type = pattern_part_type
 	category = pattern_category
@@ -52,6 +55,7 @@ func _init(
 	can_rotate = pattern_can_rotate
 	display_name = pattern_display_name
 	preview_texture = pattern_preview_texture
+	tech_category = pattern_tech_category
 	if pattern_tile_categories.is_empty():
 		for _cell_offset in cell_offsets:
 			tile_categories.append(pattern_category)
@@ -93,7 +97,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				Vector2i(4, 1),
 			],
 			"Large Thruster",
-			LARGE_THRUSTER_TEXTURE,
+			_thruster_idle_texture(LARGE_THRUSTER_SHEET),
 			ShipPartStats.new(0.0, 0.0, 10.0, 150.0),
 			false,
 			[
@@ -109,9 +113,13 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				ShipPart.Category.SPECIAL,
 			],
 			[
+				Vector2i(0, 0),
+				Vector2i(1, 0),
 				Vector2i(2, 0),
 				Vector2i(3, 0),
 				Vector2i(4, 0),
+				Vector2i(0, 1),
+				Vector2i(1, 1),
 				Vector2i(2, 1),
 				Vector2i(3, 1),
 				Vector2i(4, 1),
@@ -122,7 +130,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				Vector2i(0, 1),
 				Vector2i(1, 1),
 			],
-			Color(1.0, 0.15, 0.15, 1.0)
+			Color(1.0, 0.15, 0.15, 1.0),
+			ShipPart.TechCategory.UTILITY
 		)
 	)
 	patterns.append(
@@ -154,7 +163,11 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				ShipPart.Category.DEFENSE,
 				ShipPart.Category.DEFENSE,
 				ShipPart.Category.DEFENSE,
-			]
+			],
+			[],
+			[],
+			Color.TRANSPARENT,
+			ShipPart.TechCategory.ENERGY
 		)
 	)
 	patterns.append(
@@ -206,7 +219,13 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Laser",
 			LASER_TEXTURE,
-			ShipPartStats.with_weapon("Laser", 3.0, 5.0, 12.0, 1)
+			ShipPartStats.with_weapon("Laser", 3.0, 5.0, 12.0, 1),
+			false,
+			[],
+			[],
+			[],
+			Color.TRANSPARENT,
+			ShipPart.TechCategory.ENERGY
 		)
 	)
 	patterns.append(
@@ -215,7 +234,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			ShipPart.Category.SPECIAL,
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Thruster",
-			THRUSTER_TEXTURE,
+			_thruster_idle_texture(THRUSTER_SHEET),
 			ShipPartStats.new(0.0, 0.0, 3.0, 25.0),
 			false,
 			[
@@ -223,7 +242,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 				ShipPart.Category.OFFENSE,
 				ShipPart.Category.SPECIAL,
 			],
-			[Vector2i(2, 0)],
+			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			[Vector2i(0, 0), Vector2i(1, 0)],
 			Color(1.0, 0.15, 0.15, 1.0)
 		)
@@ -248,7 +267,20 @@ static func get_catalog() -> Array[ShipPartPattern]:
 	]
 	for pattern in patterns:
 		pattern.renders_on_top = pattern.part_type in top_layer_types
+		if pattern.part_type == ShipPart.Type.DOUBLE_LASER:
+			pattern.tech_category = ShipPart.TechCategory.ENERGY
+			pattern.prerequisite_types = [ShipPart.Type.LASER]
 	return patterns
+
+
+static func _thruster_idle_texture(sheet: Texture2D) -> AtlasTexture:
+	var texture := AtlasTexture.new()
+	texture.atlas = sheet
+	texture.region = Rect2(Vector2.ZERO, Vector2(
+		float(sheet.get_width()) / 3.0,
+		float(sheet.get_height()) / 3.0
+	))
+	return texture
 
 
 func get_offsets_for_rotation(quarter_turns: int) -> Array[Vector2i]:

@@ -38,18 +38,22 @@ func _ready() -> void:
 
 func _on_music_volume_changed(volume_percent: float) -> void:
 	AudioManager.set_bus_volume_percent(AudioManager.MUSIC_BUS, volume_percent)
+	AudioManager.save_settings()
 
 
 func _on_ambience_volume_changed(volume_percent: float) -> void:
 	AudioManager.set_bus_volume_percent(AudioManager.AMBIENCE_BUS, volume_percent)
+	AudioManager.save_settings()
 
 
 func _on_effects_volume_changed(volume_percent: float) -> void:
 	AudioManager.set_bus_volume_percent(AudioManager.SFX_BUS, volume_percent)
+	AudioManager.save_settings()
 
 
 func _on_battle_auto_camera_pressed() -> void:
 	GameState.battle_auto_camera = not GameState.battle_auto_camera
+	AudioManager.save_settings()
 	_update_battle_auto_camera_button()
 
 

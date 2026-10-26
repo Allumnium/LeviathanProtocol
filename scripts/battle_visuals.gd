@@ -14,6 +14,10 @@ const MINIGUN_BULLET_SCALE := 0.125
 const MINIGUN_BULLET_ROTATION_SPEED := TAU * 2.0
 const SHIELD_FLASH_TINT := Color(0.35, 0.7, 1.0, 1.0)
 const SHIELD_OUTLINE_COLOR := Color(0.45, 0.85, 1.0, 1.0)
+const SMALL_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_s_animated.png")
+const LARGE_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_l_animated.png")
+const THRUSTER_START_SECONDS := 0.1
+const THRUSTER_LOOP_FPS := 12.0
 
 var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
 var simulation: BattleSimulation
@@ -23,6 +27,7 @@ var interpolation_alpha := 1.0
 var stars := PackedVector2Array()
 var _owned_render_cache: Dictionary = {}
 var _visible_world_rect := Rect2()
+var _thruster_frames_by_type: Dictionary = {}
 
 
 func world_transform() -> Transform2D:
@@ -36,6 +41,8 @@ func _set_ship_transform(position: Vector2, angle: float, ship_scale: float = 1.
 
 
 func _ready() -> void:
+	_thruster_frames_by_type[ShipPart.Type.THRUSTER] = _create_thruster_frames(SMALL_THRUSTER_SHEET)
+	_thruster_frames_by_type[ShipPart.Type.LARGE_THRUSTER] = _create_thruster_frames(LARGE_THRUSTER_SHEET)
 	for pattern in ShipPartPattern.get_catalog():
 		_part_patterns_by_type[pattern.part_type] = pattern
 	var random := RandomNumberGenerator.new()
@@ -224,7 +231,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 			float(minimum_visual_y + maximum_visual_y + 1) * BUILD_CELL_SIZE.y * 0.5
 		) - ship_center
 		draw_texture_rect(
-			pattern.preview_texture,
+			_get_part_texture(pattern, player_ship, false),
 			Rect2(visual_center - visual_size * 0.5, visual_size),
 			false,
 			texture_tint
@@ -315,10 +322,10 @@ func _draw_voxel_ship(member: BattleSimulation.Combatant, render_position: Vecto
 				continue
 			draw_rect(rect, Color(0.15, 0.55, 1.0) if is_shield_flashing else (wreck_tint if is_wreck else HULL_COLOR))
 			draw_texture_rect(_get_tile_texture(owned.design.tiles[cell]), rect.grow(-0.2), false, ship_tint)
-		_draw_cached_part(unit_index, unit, part_rects, ship_tint, is_shield_flashing, is_wreck, false)
+		_draw_cached_part(member, unit_index, unit, part_rects, ship_tint, is_shield_flashing, is_wreck, false)
 	draw_colored_polygon(hull, HULL_OVERLAY_COLOR if not is_wreck else Color(0.38, 0.38, 0.4, 0.35))
 	for unit_index in range(owned.units.size()):
-		_draw_cached_part(unit_index, owned.units[unit_index], part_rects, ship_tint, is_shield_flashing, is_wreck, true)
+		_draw_cached_part(member, unit_index, owned.units[unit_index], part_rects, ship_tint, is_shield_flashing, is_wreck, true)
 	if is_shield_flashing:
 		_draw_hull_outline(hull)
 	draw_set_transform_matrix(world_transform())
@@ -333,6 +340,7 @@ func _draw_hull_outline(hull: PackedVector2Array) -> void:
 
 
 func _draw_cached_part(
+	member: BattleSimulation.Combatant,
 	unit_index: int,
 	unit: Dictionary,
 	part_rects: Dictionary,
@@ -347,7 +355,43 @@ func _draw_cached_part(
 	if pattern == null or pattern.renders_on_top != renders_on_top:
 		return
 	var part_tint := ship_tint if is_shield_flashing or is_wreck else (Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
-	draw_texture_rect(pattern.preview_texture, part_rects[unit_index], false, part_tint)
+	draw_texture_rect(_get_part_texture(pattern, member, is_wreck), part_rects[unit_index], false, part_tint)
+
+
+func _create_thruster_frames(sheet: Texture2D) -> Array[AtlasTexture]:
+	var frames: Array[AtlasTexture] = []
+	var frame_size := Vector2(
+		float(sheet.get_width()) / 3.0,
+		float(sheet.get_height()) / 3.0
+	)
+	for frame_index in range(9):
+		var frame := AtlasTexture.new()
+		frame.atlas = sheet
+		frame.region = Rect2(
+			Vector2(frame_index % 3, frame_index / 3) * frame_size,
+			frame_size
+		)
+		frames.append(frame)
+	return frames
+
+
+func _get_part_texture(
+	pattern: ShipPartPattern,
+	member: BattleSimulation.Combatant,
+	is_wreck: bool
+) -> Texture2D:
+	var frames: Array = _thruster_frames_by_type.get(pattern.part_type, [])
+	if frames.is_empty():
+		return pattern.preview_texture
+	if is_wreck or member == null or member.target == null or not member.is_alive():
+		return frames[0]
+	if member.thruster_activation_elapsed <= THRUSTER_START_SECONDS:
+		return frames[1]
+	var loop_frame := int(floor(
+		(member.thruster_activation_elapsed - THRUSTER_START_SECONDS)
+			* THRUSTER_LOOP_FPS
+	)) % 7
+	return frames[2 + loop_frame]
 
 
 func _get_owned_render_cache(owned: FleetShip) -> Dictionary:

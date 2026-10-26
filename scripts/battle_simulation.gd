@@ -21,6 +21,7 @@ const PASSIVE_DRAG_PER_SECOND := 0.06
 const REVERSE_THRUST_FACTOR := 0.22
 const REVERSE_THRUST_ALIGNMENT_START := 0.35
 const FLYBY_MIN_CLEARANCE := 12.0
+const FLYBY_RANGE_FACTOR := 0.70
 const SOFT_BOUNDARY_MARGIN := 180.0
 const PLAYER_FORMATION_CENTER := Vector2(-420.0, 0.0)
 const PLAYER_FORMATION_COLUMNS := 3
@@ -65,6 +66,7 @@ class Combatant:
 	var wreck_motion_remaining := 0.0
 	var target_refresh_remaining := 0.0
 	var flyby_side := 1.0
+	var thruster_activation_elapsed := 0.0
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -548,9 +550,11 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 		ship.target = _choose_target(ship)
 		ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null:
+		ship.thruster_activation_elapsed = 0.0
 		_apply_passive_drag(ship, delta)
 		ship.position += ship.velocity * delta
 		return
+	ship.thruster_activation_elapsed += delta
 	var offset := ship.target.position - ship.position
 	var distance := offset.length()
 	var direction := (
@@ -656,7 +660,7 @@ func _flyby_direction(ship: Combatant, target: Combatant) -> Vector2:
 		return Vector2.from_angle(ship.heading)
 	var radial_direction := relative_target / distance
 	var pass_distance := maxf(
-		ship.shortest_range(),
+		ship.shortest_range() * FLYBY_RANGE_FACTOR,
 		ship.radius + target.radius + FLYBY_MIN_CLEARANCE
 	)
 	var tangent := radial_direction.orthogonal() * ship.flyby_side

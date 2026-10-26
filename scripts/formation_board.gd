@@ -7,6 +7,12 @@ const MIN_VIEW_SCALE := 0.1
 const MAX_VIEW_SCALE := 3.0
 const ZOOM_FACTOR := 1.2
 const KEYBOARD_PAN_SPEED := 260.0
+const FORMATION_ASPECT_RATIO := 0.5
+const FORMATION_AREA_PADDING := 64.0
+const FORMATION_EDGE_MARGIN := 28.0
+const MIN_FORMATION_HEIGHT := 440.0
+const FORMATION_BOUNDARY_COLOR := Color(0.55, 0.68, 0.76, 0.8)
+const MIN_BOUNDARY_VISIBLE_PIXELS := 24.0
 const FORMATION_NAMES: Array[String] = [
 	"ECHELON (V)", "LINE", "DOUBLE LINE", "STAGGERED", "WEDGE", "HALF CIRCLE", "NONE",
 ]
@@ -83,6 +89,7 @@ func _process(delta: float) -> void:
 	if direction.is_zero_approx():
 		return
 	view_center += direction.normalized() * KEYBOARD_PAN_SPEED * delta / view_scale
+	_clamp_view_center()
 	_layout_ships()
 
 
@@ -100,6 +107,7 @@ func _apply_formation(notify_change: bool = true, fit_view: bool = true) -> void
 	if GameState.fleet.is_empty() or formation_index == NONE_FORMATION_INDEX:
 		return
 	var positions := _formation_positions(GameState.fleet.size(), formation_index)
+	positions = _fit_positions_to_boundary(positions)
 	positions.sort_custom(func(a: Vector2, b: Vector2) -> bool:
 		if not is_equal_approx(a.x, b.x):
 			return a.x > b.x
@@ -194,6 +202,8 @@ func _sync_ships() -> void:
 	last_fleet_size = GameState.fleet.size()
 	if fleet_size_changed and formation_index != NONE_FORMATION_INDEX:
 		_apply_formation(false, false)
+	elif fleet_size_changed:
+		_clamp_fleet_to_boundary()
 	for preview in previews.values():
 		remove_child(preview)
 		preview.queue_free()
@@ -238,31 +248,27 @@ func _zoom_out_to_fit_fleet() -> void:
 		available_half.y / required_half_extent.y
 	)
 	view_scale = maxf(minf(view_scale, fitting_scale), MIN_VIEW_SCALE)
+	_clamp_view_center()
 
 func _fit() -> void:
 	if dragging or camera_panning:
 		return
-	var bounds := Rect2(-Vector2(50, 20), Vector2(100, 40))
+	var bounds := _formation_bounds()
 	view_center = Vector2.ZERO
 	if not GameState.fleet.is_empty():
-		bounds = Rect2(GameState.fleet[0].formation * SPACING, Vector2.ZERO)
-		for owned in GameState.fleet:
-			bounds = bounds.expand(owned.formation * SPACING)
 		view_center = _fleet_centroid()
-	bounds = bounds.grow(40.0)
+	bounds = bounds.grow(8.0)
 	custom_minimum_size.y = clampf(bounds.size.y, 64.0, 90.0)
-	var required_half_extent := Vector2(50.0, 20.0)
-	if not GameState.fleet.is_empty():
-		required_half_extent = Vector2.ONE * 40.0
-		for owned in GameState.fleet:
-			var offset := (owned.formation * SPACING - view_center).abs()
-			required_half_extent.x = maxf(required_half_extent.x, offset.x + 40.0)
-			required_half_extent.y = maxf(required_half_extent.y, offset.y + 40.0)
+	var required_half_extent := Vector2(
+		maxf(absf(bounds.position.x - view_center.x), absf(bounds.end.x - view_center.x)),
+		maxf(absf(bounds.position.y - view_center.y), absf(bounds.end.y - view_center.y))
+	)
 	view_scale = minf(
 		maxf(size.x, 1.0) / (required_half_extent.x * 2.0),
 		maxf(size.y, 1.0) / (required_half_extent.y * 2.0)
 	)
 	view_scale = minf(view_scale, 1.0)
+	_clamp_view_center()
 	_layout_ships()
 
 
@@ -290,6 +296,13 @@ func _layout_ships() -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.15, 0.2, 0.25), false)
+	var world_bounds := _formation_bounds()
+	var boundary_rect := Rect2(
+		(world_bounds.position - view_center) * view_scale + size * 0.5,
+		world_bounds.size * view_scale
+	)
+	draw_rect(boundary_rect, Color(0.015, 0.02, 0.025, 0.55), true)
+	draw_rect(boundary_rect, FORMATION_BOUNDARY_COLOR, false, 1.0)
 	for owned in selected_ships:
 		var outline := _ship_outline(owned)
 		if outline.size() >= 3:
@@ -369,6 +382,7 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion:
 			var local_position := get_local_mouse_position()
 			view_center -= (local_position - camera_pan_last) / view_scale
+			_clamp_view_center()
 			camera_pan_last = local_position
 			_layout_ships()
 			get_viewport().set_input_as_handled()
@@ -397,7 +411,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion:
 		var current_world := (get_local_mouse_position() - size * 0.5) / view_scale + view_center
-		group_drag_offset = current_world - group_drag_start
+		group_drag_offset = _clamp_group_offset_to_boundary(current_world - group_drag_start)
 		_layout_ships()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
@@ -410,6 +424,7 @@ func _move_selected_group(world_offset: Vector2) -> void:
 	if world_offset.is_zero_approx():
 		_layout_ships()
 		return
+	world_offset = _clamp_group_offset_to_boundary(world_offset)
 	var destinations: Dictionary = {}
 	for ship in selected_ships:
 		destinations[ship] = (group_start_positions[ship] + world_offset) / SPACING
@@ -427,8 +442,105 @@ func _move_selected_group(world_offset: Vector2) -> void:
 	GameState.fleet_changed.emit()
 
 
+func _formation_bounds() -> Rect2:
+	var total_ship_area := 0.0
+	for owned in GameState.fleet:
+		var footprint := _ship_footprint(owned)
+		total_ship_area += footprint.x * footprint.y
+	var height := maxf(
+		MIN_FORMATION_HEIGHT,
+		sqrt(maxf(total_ship_area, 1.0) * FORMATION_AREA_PADDING / FORMATION_ASPECT_RATIO)
+	)
+	var dimensions := Vector2(height * FORMATION_ASPECT_RATIO, height)
+	return Rect2(-dimensions * 0.5, dimensions)
+
+
+func _ship_footprint(owned: FleetShip) -> Vector2:
+	if owned.design == null or owned.design.tiles.is_empty():
+		return Vector2.ONE * FORMATION_EDGE_MARGIN * 2.0
+	var cells := owned.design.get_tile_cells()
+	var minimum := cells[0]
+	var maximum := cells[0]
+	for cell in cells:
+		minimum.x = mini(minimum.x, cell.x)
+		minimum.y = mini(minimum.y, cell.y)
+		maximum.x = maxi(maximum.x, cell.x)
+		maximum.y = maxi(maximum.y, cell.y)
+	return Vector2(maximum - minimum + Vector2i.ONE) * owned.cell_size
+
+
+func _fit_positions_to_boundary(positions: Array[Vector2]) -> Array[Vector2]:
+	if positions.is_empty():
+		return positions
+	var centroid := Vector2.ZERO
+	for position in positions:
+		centroid += position * SPACING
+	centroid /= float(positions.size())
+	var required_half := Vector2.ONE
+	for position in positions:
+		var offset := (position * SPACING - centroid).abs()
+		required_half.x = maxf(required_half.x, offset.x)
+		required_half.y = maxf(required_half.y, offset.y)
+	var available_half := _formation_bounds().size * 0.5 - Vector2.ONE * FORMATION_EDGE_MARGIN
+	var scale_factor := minf(
+		1.0,
+		minf(available_half.x / required_half.x, available_half.y / required_half.y)
+	)
+	var fitted: Array[Vector2] = []
+	for position in positions:
+		fitted.append((position * SPACING - centroid) * scale_factor / SPACING)
+	return fitted
+
+
+func _clamp_group_offset_to_boundary(requested_offset: Vector2) -> Vector2:
+	if selected_ships.is_empty():
+		return requested_offset
+	var bounds := _formation_bounds().grow(-FORMATION_EDGE_MARGIN)
+	var minimum := Vector2(INF, INF)
+	var maximum := Vector2(-INF, -INF)
+	for ship in selected_ships:
+		var position: Vector2 = group_start_positions.get(ship, ship.formation * SPACING)
+		minimum.x = minf(minimum.x, position.x)
+		minimum.y = minf(minimum.y, position.y)
+		maximum.x = maxf(maximum.x, position.x)
+		maximum.y = maxf(maximum.y, position.y)
+	requested_offset.x = clampf(requested_offset.x,
+		bounds.position.x - minimum.x, bounds.end.x - maximum.x)
+	requested_offset.y = clampf(requested_offset.y,
+		bounds.position.y - minimum.y, bounds.end.y - maximum.y)
+	return requested_offset
+
+
+func _clamp_fleet_to_boundary() -> void:
+	var bounds := _formation_bounds().grow(-FORMATION_EDGE_MARGIN)
+	for owned in GameState.fleet:
+		var world := owned.formation * SPACING
+		world.x = clampf(world.x, bounds.position.x, bounds.end.x)
+		world.y = clampf(world.y, bounds.position.y, bounds.end.y)
+		owned.formation = world / SPACING
+
+
 func _zoom_at(screen_position: Vector2, factor: float) -> void:
 	var world_under_cursor := (screen_position - size * 0.5) / view_scale + view_center
 	view_scale = clampf(view_scale * factor, MIN_VIEW_SCALE, MAX_VIEW_SCALE)
 	view_center = world_under_cursor - (screen_position - size * 0.5) / view_scale
+	_clamp_view_center()
 	_layout_ships()
+
+
+func _clamp_view_center() -> void:
+	if size.x <= 0.0 or size.y <= 0.0 or view_scale <= 0.0:
+		return
+	var bounds := _formation_bounds()
+	var viewport_half := size / (view_scale * 2.0)
+	var minimum_visible_world := MIN_BOUNDARY_VISIBLE_PIXELS / view_scale
+	view_center.x = clampf(
+		view_center.x,
+		bounds.position.x - viewport_half.x + minimum_visible_world,
+		bounds.end.x + viewport_half.x - minimum_visible_world
+	)
+	view_center.y = clampf(
+		view_center.y,
+		bounds.position.y - viewport_half.y + minimum_visible_world,
+		bounds.end.y + viewport_half.y - minimum_visible_world
+	)
