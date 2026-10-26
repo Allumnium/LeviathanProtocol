@@ -11,6 +11,7 @@ signal shield_hit
 signal ship_destroyed(is_player: bool)
 
 enum Phase { COMBAT, VICTORY, DEFEAT, WITHDRAWN }
+enum Faction { PLAYER, ALIEN, NEUTRAL }
 
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
@@ -42,13 +43,28 @@ class Combatant:
 	var velocity := Vector2.ZERO
 	var heading := 0.0
 	var previous_heading := 0.0
-	var is_player := false
+	var entity_id := ""
+	var faction := Faction.ALIEN
+	var tags: Dictionary[String, bool] = {"combatant": true}
+	var targetable := true
+	var automatic_targetable := true
+	var is_player: bool:
+		get:
+			return faction == Faction.PLAYER
+		set(value):
+			faction = Faction.PLAYER if value else Faction.ALIEN
 	var stats: ShipStats
 	var integrity := 0.0
 	var shields := 0.0
 	var alien: AlienShip
 	var cooldowns: Array[float] = []
 	var _target: WeakRef
+	var _commanded_target: WeakRef
+	var commanded_target: Combatant:
+		get:
+			return _commanded_target.get_ref() as Combatant if _commanded_target != null else null
+		set(value):
+			_commanded_target = weakref(value) if value != null else null
 	var target: Combatant:
 		get:
 			return _target.get_ref() as Combatant if _target != null else null
@@ -70,6 +86,9 @@ class Combatant:
 
 	func is_alive() -> bool:
 		return integrity > 0.0
+
+	func has_tag(tag: String) -> bool:
+		return tags.get(tag, false)
 
 	func damage_deflected() -> float:
 		var result := shield_damage_taken
@@ -105,6 +124,9 @@ class Beam:
 	var lifetime := 0.16
 
 class Drop:
+	var entity_id := ""
+	var faction := Faction.NEUTRAL
+	var tags: Dictionary[String, bool] = {"drop": true}
 	var position := Vector2.ZERO
 	var category := ShipPart.Category.DEFENSE
 	var size := 8.0
@@ -117,6 +139,10 @@ class Explosion:
 var player: Combatant
 var players: Array[Combatant] = []
 var aliens: Array[Combatant] = []
+var other_entities: Array[Combatant] = []
+var entities: Dictionary[String, Combatant] = {}
+var objective_target_ids: Array[String] = []
+var destroy_all_neutral_targets := false
 var projectiles: Array[Projectile] = []
 var beams: Array[Beam] = []
 var drops: Array[Drop] = []
@@ -136,6 +162,14 @@ var _members: Array[Combatant] = []
 var _previous_velocities: Array[Vector2] = []
 var _pending_damage_by_target: Dictionary = {}
 var _spatial_cells: Dictionary = {}
+var battle_id := "battle"
+var tick_index := 0
+var _combat_elapsed := 0.0
+var command_log: Array[Dictionary] = []
+var event_log: Array[Dictionary] = []
+var _command_receipts: Dictionary = {}
+var _pending_commands: Array[Dictionary] = []
+var _next_command_id := 0
 
 
 func setup(
@@ -155,12 +189,25 @@ func setup(
 	else:
 		random.randomize()
 	withdrawing = false
+	battle_id = "seed/%d" % random.seed
+	tick_index = 0
+	_combat_elapsed = 0.0
+	command_log.clear()
+	event_log.clear()
+	_command_receipts.clear()
+	_pending_commands.clear()
+	_next_command_id = 0
 	retreat_remaining = 10.0
 	inactive_seconds = 0.0
 	phase = Phase.COMBAT
 	elapsed = 0.0
 	players.clear()
 	aliens.clear()
+	other_entities.clear()
+	_spatial_cells.clear()
+	entities.clear()
+	objective_target_ids.clear()
+	destroy_all_neutral_targets = false
 	projectiles.clear()
 	beams.clear()
 	drops.clear()
@@ -170,6 +217,7 @@ func setup(
 	for index in range(player_ship_count):
 		var player_ship := _create_combatant(player_stats)
 		player_ship.is_player = true
+		player_ship.entity_id = "player/%d" % index
 		player_ship.position = _get_formation_position(
 			index,
 			player_ship_count,
@@ -189,6 +237,11 @@ func setup(
 			return false
 		var alien := _create_combatant(definition.stats)
 		alien.alien = definition
+		alien.entity_id = definition.entity_id if not definition.entity_id.is_empty() else "alien/%d" % index
+		if definition.entity_kind == "craft":
+			alien.tags["summon"] = true
+		elif definition.entity_kind == "organ":
+			alien.tags["organ"] = true
 		alien.position = _get_formation_position(
 			index,
 			fleet.size(),
@@ -201,14 +254,20 @@ func setup(
 		alien.previous_heading = alien.heading
 		alien.radius = 7.0
 		aliens.append(alien)
+		if not alien.has_tag("summon"):
+			objective_target_ids.append(alien.entity_id)
 	_rebuild_member_cache()
-	return true
+	return entities.size() == _members.size()
 
 
 func _rebuild_member_cache() -> void:
 	_members.clear()
 	_members.append_array(players)
 	_members.append_array(aliens)
+	_members.append_array(other_entities)
+	entities.clear()
+	for member in _members:
+		entities[member.entity_id] = member
 	_previous_velocities.resize(_members.size())
 
 
@@ -232,6 +291,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 	for index in range(ships.size()):
 		var member := players[index]
 		member.owned_ship = ships[index]
+		member.entity_id = "player/ship/%d" % ships[index].id
 		member.stats = ships[index].get_stats(upgrade_level)
 		member.integrity = member.stats.integrity
 		member.shields = member.stats.shields
@@ -242,7 +302,296 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 			member.weapon_damage[weapon.weapon_name] = 0.0
 		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * 65.0
 		member.previous_position = member.position
+	_rebuild_member_cache()
+	return entities.size() == _members.size()
+
+
+func register_entity(entity: Combatant) -> bool:
+	if entity == null or entity.entity_id.is_empty() or entities.has(entity.entity_id):
+		return false
+	if entity.stats == null or not is_finite(entity.integrity) or entity.integrity <= 0.0:
+		return false
+	if not entity.position.is_finite() or not is_finite(entity.shields) or entity.shields < 0.0:
+		return false
+	if entity.faction not in [Faction.PLAYER, Faction.ALIEN, Faction.NEUTRAL]:
+		return false
+	entity.previous_position = entity.position
+	_refresh_mobility(entity)
+	if entity.cooldowns.size() != entity.stats.weapons.size():
+		entity.cooldowns.clear()
+		for weapon in entity.stats.weapons:
+			entity.cooldowns.append(0.0)
+	other_entities.append(entity)
+	_rebuild_member_cache()
+	_spatial_cells.clear()
 	return true
+
+
+func add_neutral_target(id: String, hp: float, position: Vector2) -> Combatant:
+	if not is_finite(hp) or hp <= 0.0 or not position.is_finite():
+		return null
+	var stats := ShipStats.new()
+	stats.integrity = hp
+	stats.weight = 1.0
+	var entity := _create_combatant(stats)
+	entity.entity_id = id
+	entity.faction = Faction.NEUTRAL
+	entity.tags.assign({"neutral": true, "hazard": true})
+	entity.position = position
+	if not register_entity(entity):
+		return null
+	return entity
+
+
+func set_objective_targets(ids: Array[String]) -> bool:
+	if phase != Phase.COMBAT:
+		return false
+	var next_ids: Array[String] = []
+	for id in ids:
+		var target: Combatant = entities.get(id)
+		if target == null or not target.targetable or target.has_tag("drop") or target.faction == Faction.PLAYER or next_ids.has(id):
+			return false
+		next_ids.append(id)
+	objective_target_ids = next_ids
+	return true
+
+
+func _neutral_cleanup_target(entity: Combatant) -> bool:
+	return entity.faction == Faction.NEUTRAL and entity.has_tag("neutral") and entity.targetable \
+		and not entity.has_tag("drop") and not entity.has_tag("decoy") and not entity.has_tag("summon")
+
+
+func remaining_victory_targets() -> Array[Combatant]:
+	var result: Array[Combatant] = []
+	for id in objective_target_ids:
+		var target: Combatant = entities.get(id)
+		if target != null and target.is_alive():
+			result.append(target)
+	if destroy_all_neutral_targets:
+		for entity in other_entities:
+			if entity.is_alive() and _neutral_cleanup_target(entity) and not result.has(entity):
+				result.append(entity)
+	return result
+
+
+func objective_complete() -> bool:
+	# Unknown objective identities fail closed, rather than becoming free victories.
+	for id in objective_target_ids:
+		if not entities.has(id):
+			return false
+	return remaining_victory_targets().is_empty()
+
+
+func set_destroy_all_neutral_targets(enabled: bool) -> bool:
+	if phase != Phase.COMBAT:
+		return false
+	destroy_all_neutral_targets = enabled
+	for member in players:
+		if member.commanded_target == null:
+			member.target = null
+			member.target_refresh_remaining = 0.0
+	return true
+
+
+func can_attack(source: Combatant, target: Combatant) -> bool:
+	if source == null or target == null or source == target:
+		return false
+	if entities.get(source.entity_id) != source or entities.get(target.entity_id) != target:
+		return false
+	return source.is_alive() and target.is_alive() and target.targetable and not target.has_tag("drop") \
+		and source.faction != target.faction
+
+
+func _hostile(source: Combatant, target: Combatant) -> bool:
+	return (source.faction == Faction.PLAYER and target.faction == Faction.ALIEN) \
+		or (source.faction == Faction.ALIEN and target.faction == Faction.PLAYER)
+
+
+func _auto_candidate(source: Combatant, target: Combatant) -> bool:
+	if not can_attack(source, target) or not target.automatic_targetable:
+		return false
+	if _hostile(source, target):
+		return true
+	if not destroy_all_neutral_targets or source.faction != Faction.PLAYER or not _neutral_cleanup_target(target):
+		return false
+	# Cleanup is player intent, not a change to faction hostility. Threats take priority.
+	for member in _members:
+		if _hostile(source, member) and can_attack(source, member) and member.automatic_targetable:
+			return false
+	return true
+
+
+func request_attack(source_id: String, target_id: String) -> bool:
+	var source: Combatant = entities.get(source_id)
+	var target: Combatant = entities.get(target_id)
+	if phase != Phase.COMBAT or not can_attack(source, target) or not source.has_tag("combatant"):
+		return false
+	source.commanded_target = target
+	source.target = target
+	source.target_refresh_remaining = 0.0
+	return true
+
+
+func clear_attack_order(source_id: String) -> bool:
+	var source: Combatant = entities.get(source_id)
+	if phase != Phase.COMBAT or source == null:
+		return false
+	source.commanded_target = null
+	source.target = null
+	source.target_refresh_remaining = 0.0
+	return true
+
+
+func damage_entity(id: String, amount: float, source_id := "") -> bool:
+	var target: Combatant = entities.get(id)
+	if phase != Phase.COMBAT or target == null or not target.is_alive() or not target.targetable or target.has_tag("drop"):
+		return false
+	if not is_finite(amount) or amount <= 0.0:
+		return false
+	var source: Combatant = entities.get(source_id)
+	if not source_id.is_empty() and not can_attack(source, target):
+		return false
+	_damage(target, amount, Vector2.ZERO if source == null else source.position, source, "Direct damage")
+	return true
+
+
+func issue_command(type: String, payload: Dictionary = {}) -> bool:
+	# UI calls this at the current simulation boundary. Replay queues the recorded tick.
+	while _command_receipts.has("%s/command/%d" % [battle_id, _next_command_id]):
+		_next_command_id += 1
+	var command := {"id": "%s/command/%d" % [battle_id, _next_command_id],
+		"tick": tick_index, "type": type, "payload": payload.duplicate(true)}
+	_next_command_id += 1
+	return execute_command(command)
+
+
+func _valid_command(command: Dictionary) -> bool:
+	if not command.get("id") is String or command.id.is_empty() or not RunProgressData._integer(command.get("tick")):
+		return false
+	if command.tick < 0 or not command.get("payload") is Dictionary or not RunCheckpoint._json_value(command.payload):
+		return false
+	var payload: Dictionary = command.payload
+	match command.get("type"):
+		"attack":
+			return payload.get("source") is String and payload.get("target") is String
+		"clear_attack":
+			return payload.get("source") is String
+		"neutral_cleanup":
+			return payload.get("enabled") is bool
+		"withdraw":
+			return payload.is_empty()
+	return false
+
+
+func queue_command(command: Dictionary) -> bool:
+	if not _valid_command(command):
+		return false
+	var fingerprint := _command_fingerprint(command)
+	if _command_receipts.has(command.id):
+		return _command_receipts[command.id].fingerprint == fingerprint and _command_receipts[command.id].status != "rejected"
+	if phase != Phase.COMBAT or command.tick < tick_index:
+		return false
+	_command_receipts[command.id] = {"fingerprint": fingerprint, "status": "queued"}
+	_pending_commands.append(command.duplicate(true))
+	command_log.append(command.duplicate(true))
+	return true
+
+
+func execute_command(command: Dictionary) -> bool:
+	if not _valid_command(command):
+		return false
+	var fingerprint := _command_fingerprint(command)
+	if _command_receipts.has(command.id):
+		return _command_receipts[command.id].fingerprint == fingerprint and _command_receipts[command.id].status == "accepted"
+	if phase != Phase.COMBAT or command.tick != tick_index:
+		return false
+	command_log.append(command.duplicate(true))
+	return _execute_recorded_command(command, fingerprint)
+
+
+func _execute_recorded_command(command: Dictionary, fingerprint: String) -> bool:
+	var payload: Dictionary = command.payload
+	var accepted := false
+	match command.type:
+		"attack":
+			accepted = request_attack(payload.source, payload.target)
+		"clear_attack":
+			accepted = clear_attack_order(payload.source)
+		"neutral_cleanup":
+			accepted = set_destroy_all_neutral_targets(payload.enabled)
+		"withdraw":
+			accepted = phase == Phase.COMBAT and not withdrawing
+			if accepted:
+				request_withdrawal()
+	_command_receipts[command.id] = {"fingerprint": fingerprint, "status": "accepted" if accepted else "rejected"}
+	_record_event("command", {"command_id": command.id, "accepted": accepted})
+	return accepted
+
+
+func _apply_pending_commands() -> void:
+	# Insertion order breaks ties at a shared tick; callers persist/replay that order.
+	for index in range(_pending_commands.size() - 1, -1, -1):
+		if _pending_commands[index].tick < tick_index:
+			_pending_commands.remove_at(index)
+	var due: Array[Dictionary] = []
+	for command in _pending_commands:
+		if command.tick == tick_index:
+			due.append(command)
+	for command in due:
+		_pending_commands.erase(command)
+		_execute_recorded_command(command, _command_fingerprint(command))
+
+
+func _command_fingerprint(command: Dictionary) -> String:
+	return JSON.stringify(JSON.parse_string(JSON.stringify([command.id, int(command.tick), command.type, command.payload])))
+
+
+func _record_event(type: String, details: Dictionary) -> void:
+	event_log.append({"id": "%s/event/%d" % [battle_id, event_log.size()], "tick": tick_index,
+		"type": type, "details": details.duplicate(true)})
+
+
+func authoritative_snapshot() -> Dictionary:
+	# Detached diagnostic state, not a mid-battle restore format. Visual interpolation,
+	# camera, effects and audio are deliberately absent from replay comparisons.
+	var actors: Array = []
+	for member in _members:
+		var hp: Array = []
+		if member.owned_ship != null:
+			for unit in member.owned_ship.units:
+				hp.append(unit.hp)
+		actors.append({"id": member.entity_id, "faction": member.faction, "tags": member.tags.duplicate(),
+			"position": [member.position.x, member.position.y] if member.is_alive() else null,
+			"velocity": [member.velocity.x, member.velocity.y] if member.is_alive() else null,
+			"heading": member.heading if member.is_alive() else null, "integrity": member.integrity, "shields": member.shields,
+			"cooldowns": member.cooldowns.duplicate(), "component_hp": hp,
+			"target": member.target.entity_id if member.target != null else "",
+			"order": member.commanded_target.entity_id if member.commanded_target != null else "",
+			"damage": member.damage_dealt, "taken": member.damage_taken,
+			"retreat": member.retreat_time, "retreat_cooldown": member.retreat_cooldown,
+			"since_damage": member.since_damage, "target_refresh": member.target_refresh_remaining})
+	var shots: Array = []
+	for shot in projectiles:
+		shots.append({"source": shot.source.entity_id if shot.source != null else "",
+			"target": shot.target.entity_id if shot.target != null else "", "damage": shot.damage,
+			"position": [shot.position.x, shot.position.y], "origin": [shot.origin.x, shot.origin.y], "weapon": shot.weapon_name})
+	var salvage: Array = []
+	for drop in drops:
+		salvage.append({"id": drop.entity_id, "category": drop.category, "collected": drop.collected,
+			"position": [drop.position.x, drop.position.y]})
+	return {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
+		"rng_state": str(random.state), "actors": actors, "projectiles": shots, "drops": salvage,
+		"objectives": objective_target_ids.duplicate(), "neutral_cleanup": destroy_all_neutral_targets,
+		"remaining_targets": _remaining_target_ids(), "withdrawing": withdrawing,
+		"retreat_remaining": retreat_remaining, "inactive": inactive_seconds,
+		"materials": collected_categories.duplicate(), "pending_commands": _pending_commands.duplicate(true)}
+
+
+func _remaining_target_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for target in remaining_victory_targets():
+		ids.append(target.entity_id)
+	return ids
 
 
 func _get_formation_position(
@@ -323,17 +672,24 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
+		_combat_elapsed += delta
+		_apply_pending_commands()
+		var previous_phase := phase
 		_damage_this_step = false
 		_rebuild_pending_projectile_damage()
 		_rebuild_spatial_index()
 		for index in range(_members.size()):
 			_previous_velocities[index] = _members[index].velocity
+		var resolving_victory := objective_complete()
 		for player_ship in players:
 			if player_ship.is_alive():
-				_update_ship(player_ship, delta)
+				_update_ship(player_ship, delta, not resolving_victory)
 		for alien in aliens:
 			if alien.is_alive():
-				_update_ship(alien, delta)
+				_update_ship(alien, delta, not resolving_victory)
+		for entity in other_entities:
+			if entity.is_alive() and entity.has_tag("combatant"):
+				_update_ship(entity, delta, not resolving_victory)
 		_update_projectiles(delta)
 		var accelerating := false
 		for index in range(_members.size()):
@@ -344,11 +700,28 @@ func advance(delta: float) -> void:
 			retreat_remaining -= delta
 		if living_player_count() == 0:
 			phase = Phase.DEFEAT
-		elif (withdrawing and retreat_remaining <= 0.0) or inactive_seconds >= 10.0:
+		elif withdrawing and retreat_remaining <= 0.0:
 			phase = Phase.WITHDRAWN
-		elif living_alien_count() == 0 and projectiles.is_empty():
+		elif objective_complete() and not _victory_projectiles_pending():
 			_collect_all_salvage()
 			phase = Phase.VICTORY
+		elif inactive_seconds >= 10.0:
+			phase = Phase.WITHDRAWN
+		if phase != previous_phase:
+			_record_event("objective", {"phase": phase, "remaining": _remaining_target_ids(),
+				"materials": collected_categories.duplicate()})
+		tick_index += 1
+
+
+func _victory_projectiles_pending() -> bool:
+	for projectile in projectiles:
+		if projectile.target == null or not projectile.target.is_alive():
+			continue
+		if projectile.target.faction == Faction.PLAYER or objective_target_ids.has(projectile.target.entity_id):
+			return true
+		if destroy_all_neutral_targets and _neutral_cleanup_target(projectile.target):
+			return true
+	return false
 
 
 func _update_wrecks(delta: float) -> void:
@@ -368,16 +741,14 @@ func _update_wrecks(delta: float) -> void:
 
 
 func _update_shield_flashes(delta: float) -> void:
-	for member in players:
-		member.shield_flash = maxf(0.0, member.shield_flash - delta)
-	for member in aliens:
+	for member in _members:
 		member.shield_flash = maxf(0.0, member.shield_flash - delta)
 
 
 func living_alien_count() -> int:
 	var count := 0
-	for alien in aliens:
-		if alien.is_alive():
+	for alien in _members:
+		if alien.faction == Faction.ALIEN and alien.has_tag("combatant") and alien.is_alive():
 			count += 1
 	return count
 
@@ -385,7 +756,7 @@ func living_alien_count() -> int:
 func living_player_count() -> int:
 	var count := 0
 	for player_ship in players:
-		if player_ship.is_alive():
+		if player_ship.is_alive() and not player_ship.has_tag("summon") and not player_ship.has_tag("decoy"):
 			count += 1
 	return count
 
@@ -410,7 +781,7 @@ func _choose_target(ship: Combatant) -> Combatant:
 					continue
 				var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
 				for enemy: Combatant in occupants:
-					if enemy.is_player == ship.is_player or not enemy.is_alive():
+					if not _auto_candidate(ship, enemy):
 						continue
 					var score := enemy.integrity + enemy.shields
 					if score < fallback_score:
@@ -427,13 +798,13 @@ func _choose_target(ship: Combatant) -> Combatant:
 
 
 func _choose_target_linear(ship: Combatant) -> Combatant:
-	var enemies: Array[Combatant] = aliens if ship.is_player else players
+	var enemies: Array[Combatant] = _members
 	var best: Combatant
 	var best_score := INF
 	var fallback: Combatant
 	var fallback_score := INF
 	for enemy in enemies:
-		if not enemy.is_alive():
+		if not _auto_candidate(ship, enemy):
 			continue
 		var score := enemy.integrity + enemy.shields
 		if score < fallback_score:
@@ -450,23 +821,28 @@ func _choose_weapon_target(
 	weapon_origin: Vector2,
 	weapon_range: float
 ) -> Combatant:
+	var ordered := ship.commanded_target
+	if ordered != null and can_attack(ship, ordered):
+		if weapon_origin.distance_squared_to(ordered.position) <= weapon_range * weapon_range \
+			and _pending_projectile_damage(ordered) < ordered.integrity + ordered.shields:
+			return ordered
+		return null
 	var current := ship.target
 	var range_squared := weapon_range * weapon_range
 	if (
 		current != null
-		and current.is_alive()
-		and current.is_player != ship.is_player
+		and _auto_candidate(ship, current)
 		and weapon_origin.distance_squared_to(current.position) <= range_squared
 		and _pending_projectile_damage(current) < current.integrity + current.shields
 	):
 		return current
 	if _spatial_cells.is_empty():
-		var enemies: Array[Combatant] = aliens if ship.is_player else players
+		var enemies: Array[Combatant] = _members
 		var fallback_best: Combatant
 		var fallback_score := INF
 		for enemy in enemies:
 			if (
-				not enemy.is_alive()
+				not _auto_candidate(ship, enemy)
 				or weapon_origin.distance_squared_to(enemy.position) > range_squared
 			):
 				continue
@@ -484,8 +860,7 @@ func _choose_weapon_target(
 			var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
 			for enemy: Combatant in occupants:
 				if (
-					enemy.is_player == ship.is_player
-					or not enemy.is_alive()
+					not _auto_candidate(ship, enemy)
 					or weapon_origin.distance_squared_to(enemy.position) > range_squared
 				):
 					continue
@@ -532,7 +907,7 @@ func _add_pending_damage(target: Combatant, amount: float) -> void:
 	)
 
 
-func _update_ship(ship: Combatant, delta: float) -> void:
+func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	if not ship.is_alive():
 		return
 	ship.since_damage += delta
@@ -545,7 +920,11 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 			ship.retreat_time = 2.5
 			ship.retreat_cooldown = 9.0
 	ship.target_refresh_remaining -= delta
-	if ship.target != null and not ship.target.is_alive():
+	if ship.commanded_target != null and not can_attack(ship, ship.commanded_target):
+		ship.commanded_target = null
+	if ship.commanded_target != null:
+		ship.target = ship.commanded_target
+	elif ship.target != null and not _auto_candidate(ship, ship.target):
 		ship.target = null
 		ship.target_refresh_remaining = random.randf_range(0.0, TARGET_REFRESH_INTERVAL)
 	if ship.target == null and ship.target_refresh_remaining <= 0.0:
@@ -611,6 +990,8 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 	ship.velocity += forward * ship.acceleration * delta
 	ship.velocity = ship.velocity.limit_length(ship.speed)
 	ship.position += ship.velocity * delta
+	if not allow_weapons:
+		return
 	for index in range(ship.stats.weapons.size()):
 		var weapon := ship.stats.weapons[index]
 		if ship.owned_ship != null and ship.owned_ship.units[weapon.component_index].hp <= 0.0:
@@ -624,6 +1005,8 @@ func _update_ship(ship: Combatant, delta: float) -> void:
 			continue
 		ship.target = weapon_target
 		ship.cooldowns[index] = weapon.fire_interval_seconds
+		_record_event("expenditure", {"source": ship.entity_id, "weapon_index": index,
+			"weapon": weapon.weapon_name, "cooldown": ship.cooldowns[index], "target": weapon_target.entity_id})
 		for shot_index in range(weapon.projectiles_per_activation):
 			ship.target = _choose_weapon_target(ship, weapon_origin, weapon.range_units)
 			if ship.target == null:
@@ -717,11 +1100,9 @@ func _update_projectiles(delta: float) -> void:
 func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 	var target: Combatant
 	var attacking_players := false
-	if living_alien_count() == 1:
-		for alien in aliens:
-			if alien.is_alive():
-				target = alien
-				break
+	var required := remaining_victory_targets()
+	if required.size() == 1:
+		target = required[0]
 		attacking_players = true
 	elif living_player_count() == 1:
 		for player_ship in players:
@@ -753,7 +1134,7 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 
 
 func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "") -> void:
-	if not target.is_alive():
+	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
 	var absorbed := minf(target.shields, damage)
 	target.shields -= absorbed
@@ -769,6 +1150,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		for removed_cell in result.removed:
 			if random.randf() < allied_drop_chance:
 				var drop := Drop.new()
+				drop.entity_id = "%s/wreck/%d/%d" % [target.entity_id, removed_cell.x, removed_cell.y]
 				drop.category = owned.design.tiles[removed_cell]
 				drop.position = target.position + owned.local_cell_position(removed_cell).rotated(target.heading)
 				drop.size = owned.cell_size
@@ -795,6 +1177,13 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		shield_hit.emit()
 	if target.is_alive():
 		return
+	var component_hp: Array = []
+	if target.owned_ship != null:
+		for unit in target.owned_ship.units:
+			component_hp.append(unit.hp)
+	_record_event("destruction", {"target": target.entity_id, "source": source.entity_id if source != null else "",
+		"integrity": target.integrity, "shields": target.shields, "component_hp": component_hp,
+		"remaining_objectives": _remaining_target_ids()})
 	if target.velocity.length_squared() < 1.0:
 		target.velocity = Vector2.from_angle(random.randf_range(0.0, TAU)) * random.randf_range(8.0, 20.0)
 	target.wreck_angular_velocity = random.randf_range(-0.45, 0.45)
@@ -804,9 +1193,12 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	var explosion := Explosion.new()
 	explosion.position = target.position
 	explosions.append(explosion)
-	ship_destroyed.emit(target.is_player)
-	if not target.is_player and random.randf() < DROP_CHANCE:
+	if target.has_tag("combatant"):
+		ship_destroyed.emit(target.is_player)
+	if target.faction == Faction.ALIEN and target.has_tag("combatant") and not target.has_tag("summon") \
+		and not target.has_tag("decoy") and not target.has_tag("hazard") and random.randf() < DROP_CHANCE:
 		var drop := Drop.new()
+		drop.entity_id = target.entity_id + "/salvage"
 		drop.position = target.position
 		var roll := random.randf()
 		if roll < 0.60:

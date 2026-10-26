@@ -24,6 +24,7 @@ const MAX_SIMULATION_STEPS_PER_FRAME := 6
 @onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
 @onready var pause_button: Button = $BattleSpeedControls/PauseButton
 @onready var fast_forward_button: Button = $BattleSpeedControls/FastForwardButton
+@onready var destroy_neutral_targets: CheckBox = $DestroyNeutralTargets
 @onready var defeat_dialog: Control = $DefeatDialog
 @onready var defeat_accept_button: Button = $DefeatDialog/CenterContainer/Panel/Contents/ButtonCenter/AcceptButton
 @onready var defeat_close_button: TextureButton = $DefeatDialog/CenterContainer/Panel/CloseX
@@ -58,6 +59,16 @@ func _ready() -> void:
 		call_deferred("_return_to_map")
 		return
 	simulation.victory_materials = GameState.battle_material_rewards()
+	simulation.battle_id = GameState.battle_identity()
+	if not simulation.set_objective_targets(GameState.battle_objective_ids()):
+		push_error("Battle objective refers to an unknown target.")
+		GameState.cancel_battle()
+		set_physics_process(false)
+		call_deferred("_return_to_map")
+		return
+	simulation.set_destroy_all_neutral_targets(GameState.destroy_all_neutral_targets)
+	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
+	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
 	simulation.weapon_fired.connect(
 		AudioManager.play_sfx.bind(SHOOT_SOUND, 1.0, COMBAT_BLASTER_VOLUME_DB, 35)
 	)
@@ -75,7 +86,7 @@ func _ready() -> void:
 	withdraw_button.offset_top = 8
 	withdraw_button.offset_bottom = 32
 	withdraw_button.pressed.connect(func() -> void:
-		simulation.request_withdrawal()
+		simulation.issue_command("withdraw")
 		withdraw_button.disabled = true)
 	add_child(withdraw_button)
 	withdraw_button.offset_left = -110
@@ -154,6 +165,16 @@ func _on_pause_toggled(is_paused: bool) -> void:
 		fast_forward_button.set_pressed_no_signal(false)
 		GameState.battle_fast_forward = false
 		AudioManager.save_settings()
+
+
+func _on_destroy_neutral_targets_toggled(enabled: bool) -> void:
+	if _finished or _report_open or _result_delay_remaining >= 0.0 or simulation.phase != BattleSimulation.Phase.COMBAT:
+		destroy_neutral_targets.set_pressed_no_signal(simulation.destroy_all_neutral_targets)
+		return
+	if not GameState.set_destroy_all_neutral_targets(enabled):
+		destroy_neutral_targets.set_pressed_no_signal(simulation.destroy_all_neutral_targets)
+		return
+	simulation.issue_command("neutral_cleanup", {"enabled": enabled})
 
 
 func _on_fast_forward_toggled(is_fast: bool) -> void:
@@ -301,23 +322,17 @@ func _begin_result_delay(won: bool) -> void:
 	_dragging = false
 	battle_speed_controls.hide()
 	withdraw_button.hide()
+	destroy_neutral_targets.disabled = true
 
 
 func _finish_battle(won: bool) -> void:
 	withdraw_button.hide()
 	battle_speed_controls.hide()
-	GameState.record_battle(simulation)
 	var credits_before := GameState.credits
-	if won:
-		if not GameState.complete_battle(-1, simulation.collected_categories):
-			push_error("Could not record battle victory.")
-			_result_delay_remaining = RESULT_DELAY_SECONDS
-			return
-	else:
-		if not GameState.cancel_battle():
-			push_error("Could not save battle losses.")
-			_result_delay_remaining = RESULT_DELAY_SECONDS
-			return
+	if not GameState.settle_battle(simulation):
+		push_error("Could not save battle outcome.")
+		_result_delay_remaining = RESULT_DELAY_SECONDS
+		return
 	_finished = true
 	_battle_credit_reward = maxi(GameState.credits - credits_before, 0)
 	_run_lost = GameState.is_run_lost()
@@ -340,7 +355,6 @@ func _on_report_closed() -> void:
 	_report_open = false
 	if _run_lost:
 		defeat_dialog.show()
-		defeat_accept_button.grab_focus()
 	else:
 		_return_to_map()
 

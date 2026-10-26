@@ -28,6 +28,7 @@ static func capture(state: Node) -> Dictionary:
 		"next_ship_id": state.next_ship_id, "laser_level": state.laser_upgrade_level,
 		"build_level": state.build_area_level, "aliens": aliens,
 		"encounters": state.frozen_encounters.duplicate(true),
+		"encounter_progress": state.encounter_progress.duplicate(true),
 		"graph": {"positions": positions, "columns": state.NODE_COLUMNS.duplicate(), "edges": edges,
 			"convergences": state.CONVERGENCE_NODE_IDS.duplicate(), "final": state.FINAL_NODE_ID},
 		"location": {"current": state.current_node_id, "destination": state.destination_node_id,
@@ -154,7 +155,13 @@ static func decode(data: Variant) -> Dictionary:
 				unit.threat_cost = 0.0
 				frozen.roster.append(unit.to_snapshot())
 				data.aliens.append(unit.to_snapshot())
+			var required_ids: Array[String] = []
+			for unit: AlienShip in aliens:
+				required_ids.append(unit.entity_id)
+			frozen.objective = {"type": "eliminate_targets", "required_target_ids": required_ids}
 	if not data.get("encounters") is Dictionary:
+		return {}
+	if not _valid_encounter_progress(data.get("encounter_progress", {}), count):
 		return {}
 	for node in range(count):
 		if int(graph.columns[node]) == 0:
@@ -163,6 +170,54 @@ static func decode(data: Variant) -> Dictionary:
 		if not EncounterGenerator.valid(frozen) or int(frozen.node_id) != node:
 			return {}
 	return {"data": data, "fleet": fleet, "aliens": aliens, "editor": editor}
+
+
+static func _valid_encounter_progress(value: Variant, count: int) -> bool:
+	if not value is Dictionary:
+		return false
+	for key in value:
+		if not key is String or not key.is_valid_int() or str(int(key)) != key or not _node(int(key), count):
+			return false
+		var entry: Variant = value[key]
+		if not entry is Dictionary or not RunProgressData._integer(entry.get("attempts")) or entry.attempts < 1:
+			return false
+		if entry.get("outcome") not in ["active", "withdrawn", "defeat", "victory"] or not entry.get("field") is Dictionary:
+			return false
+		if not _json_value(entry.field):
+			return false
+		if entry.has("journal") and (not entry.journal is Dictionary or not _json_value(entry.journal)):
+			return false
+		if entry.has("deployment") and (not entry.deployment is Dictionary or not _json_value(entry.deployment)):
+			return false
+		if entry.has("ship_ids"):
+			if not entry.ship_ids is Array:
+				return false
+			var ship_ids: Array[int] = []
+			for id in entry.ship_ids:
+				if not RunProgressData._integer(id) or id < 1 or int(id) in ship_ids:
+					return false
+				ship_ids.append(int(id))
+	return true
+
+
+static func _json_value(value: Variant, depth := 0) -> bool:
+	if depth > 32:
+		return false
+	if value == null or value is bool or value is String:
+		return true
+	if value is int or value is float:
+		return is_finite(value)
+	if value is Dictionary:
+		for key in value:
+			if not key is String or not _json_value(value[key], depth + 1):
+				return false
+		return true
+	if value is Array:
+		for item in value:
+			if not _json_value(item, depth + 1):
+				return false
+		return true
+	return false
 
 
 static func _decode_alien(entry: Variant) -> AlienShip:

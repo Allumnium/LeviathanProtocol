@@ -916,10 +916,7 @@ func _test_scene() -> void:
 				<= GameState.MAX_ALIEN_FLEET_SIZE,
 		"Deployment must use the fixed node encounter count regardless of player fleet size."
 	)
-	# This scene test checks controller settlement/UI, not randomized pursuit balance.
-	state.battle_aliens.clear()
-	for alien in _fleet(3, 90210):
-		state.battle_aliens.append(alien)
+	# The frozen roster is deterministic; weaken/position it below for the UI test.
 	var scene := load("res://scenes/auto_battle.tscn") as PackedScene
 	var battle := scene.instantiate()
 	root.add_child(battle)
@@ -927,6 +924,13 @@ func _test_scene() -> void:
 	await process_frame
 	battle.set_physics_process(false)
 	_check(battle.simulation.player != null, "Battle scene must initialize live combat.")
+	_check(not battle.destroy_neutral_targets.button_pressed, "Cleanup checkbox defaults off.")
+	battle.destroy_neutral_targets.button_pressed = true
+	_check(state.destroy_all_neutral_targets and battle.simulation.destroy_all_neutral_targets,
+		"The checkbox must update saved settings and live victory rules.")
+	battle.destroy_neutral_targets.button_pressed = false
+	_check(not state.destroy_all_neutral_targets and not battle.simulation.destroy_all_neutral_targets,
+		"The checkbox must restore ordinary victory rules.")
 	_check(
 		battle.get_node_or_null("CameraHelp") == null
 			and battle.pause_button.toggle_mode
@@ -1515,13 +1519,13 @@ func _test_scene() -> void:
 	_check(state.player_ship_count == 0,
 		"Destroyed ships must be removed from the purchased fleet.")
 	state.green_tiles_available = 10
-	_check(state.purchase_ship(), "A lost ship can be replaced with new materials.")
-	_check(state.player_ship_count == 1,
-		"Repurchasing after a loss must restore one ship to the fleet.")
+	_check(state.run_ended and not state.purchase_ship(), "A terminal fleet defeat cannot be undone by rebuilding.")
 	battle.get_child(battle.get_child_count() - 1).closed.emit()
+	_check(battle.defeat_dialog.visible, "Terminal defeat must display the end-of-run dialog.")
+	battle.defeat_accept_button.pressed.emit()
 	await scene_changed
-	_check(current_scene != null and current_scene.scene_file_path == "res://scenes/game_map.tscn",
-		"Continuing after defeat must return to the map.")
+	_check(current_scene != null and current_scene.scene_file_path == "res://scenes/main_menu.tscn",
+		"Continuing after terminal defeat must return to the main menu.")
 	current_scene.queue_free()
 	current_scene = null
 	state.cancel_battle()

@@ -40,7 +40,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 | Gate | Steps | Result |
 |---|---|---|
-| A | 1–9 | Stable encounters, accounting and persistence |
+| A | 1–9 | Reviewed: stable encounters, accounting, persistence and deterministic replay; see docs/BATTLE_LIFECYCLE.md |
 | B | 10–16 | Varied readable map, story and ports |
 | C | 17–27 | Support fleet, research, recipes and adjacency |
 | D | 28–35 | Passengers, cargo and resource handling |
@@ -83,17 +83,21 @@ Invariants: proximity-only enemy strength; three regular design families plus on
    **Done when:** reload/refit never rerolls a node and late budgets purchase stronger roles rather than unlimited ships.
    **Result (2026-10-26):** Added scripts/encounter_generator.gd (+UID), tests/test_frozen_encounters.gd (+UID), and docs/ENCOUNTERS.md. Updated AlienShip with priced tier definitions and snapshot codec; GameState freezes every current node and instantiates stored rosters/rewards; checkpoint v2 stores full encounters and durably migrates v1 while preserving deployed legacy stats/rewards/ledger. Battle setup uses a frozen simulation seed and victory material bundle. Updated controller, simulation, transaction/battle tests, runner and accounting/baseline notes. Verified formula examples, 864 row/difficulty/template/seed allocations, finite wave/craft/organ budgets, stronger late variants, historical snapshots, withdrawal/refit/reload stability, and a real Auto opening battle. Full isolated suites passed with 0 failures (36 fleet comparisons, 600 legacy balance regressions); logs: .local/checks/f57231dbdf4d47feaf3d57c4d19b2408/. Follow-up durable migration/ledger/opening checks passed in .local/frozen-focused5.log. Legacy map row bridging and inactive boss/wave frameworks are explicit in ENCOUNTERS.md; actual campaign topology/objectives remain later steps. Generated .godot caches changed during import.
 
-7. [ ] **Separate targeting from victory membership.**
+7. [x] **Separate targeting from victory membership.**
    Add faction/entity tags for combatants, neutrals, hazards, drops, decoys and summons; objectives explicitly identify required targets.
-   **Done when:** neutral test rocks are attackable but do not block ordinary victory.
+   **Done when:** neutral test rocks are attackable but do not block ordinary victory. The optional in-game “Destroy all neutral targets” checkbox makes eligible neutrals required and Auto clears them after hostiles.
+   **Result (2026-10-26):** Added stable entity IDs, factions/tags, explicit frozen objective membership, validated manual attack orders and shared damage handling. Default victory ignores neutral targets; a saved per-run checkbox enables neutral cleanup without additional rewards. Drops, decoys and summons are excluded from implicit cleanup. Neutral test actors render through the battle view; asteroid physics, ore and fragmentation remain later work. Added focused objective tests and live checkbox integration checks. Full isolated baseline passed with 0 failures, including 864 encounter allocations and 600 battle regressions; logs: .local/checks/833e8b2f1d62489091cd962aab32cc89/.
 
-8. [ ] **Implement retry, withdrawal and one-time victory.**
+8. [x] **Implement retry, withdrawal and one-time victory.**
    Reset enemies on retry but retain player losses; failures grant no RP/enemy salvage. Add persistent-field hooks for future mining.
    **Done when:** repeated failures followed by success pay once and preserve losses across save/load.
+   **Result (2026-10-26):** Added durable per-node attempts/outcomes, deployed ship identities and finite-field pickup transactions. The controller settles actual simulation outcomes, preserves surviving component HP and destroyed ships across retries, and records terminal fleet defeat even when credits remain. Enemy retries use the frozen full-health roster; failures pay no victory rewards. Added tests for two withdrawals then victory, reloads, pickup deduplication, failed settlement writes and terminal defeat; updated legacy controller expectations/dialog text. Lab RP and live mining remain later milestones.
 
-9. [ ] **Make simulation commands deterministic.**
+9. [x] **Make simulation commands deterministic.**
    Keep UI outside authoritative battle state; add command/event IDs and snapshots for destruction, objectives and expenditures.
    **Done when:** replay results match at normal/accelerated speed. Review Gate A.
+   **Result (2026-10-26):** Added tick-stamped, validated/deduplicated command envelopes, battle/attempt event IDs, destruction/objective/expenditure snapshots and detached authoritative diagnostics. Retreat and neutral-cleanup UI issue commands. Settled checkpoints retain deployment inputs and command/event/final-state journals. Replay tests compare production-clock normal/2x/accelerated batches, including physical component HP and salvage. Gate A reviewed in docs/BATTLE_LIFECYCLE.md; exact in-flight resume remains outside this milestone.
+   **Validation (steps 8–9):** Full isolated baseline passed with 0 failures, including 864 encounter allocations, 600 battle regressions, repeated-withdrawal settlement and replay comparisons. Logs: .local/checks/49b577c0346d465488d507cd4e291fb3/. git diff --check passed.
 
 10. [ ] **Generate a varied map DAG.**
     Build three eight-row acts with 2–4-node ordinary rows, splits, merges, cross-lane edges and 4/5/5 mandatory combat rows.

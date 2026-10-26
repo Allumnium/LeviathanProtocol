@@ -82,6 +82,7 @@ func _draw() -> void:
 	for player_ship in simulation.players:
 		_draw_player_ship(player_ship)
 	_draw_alien_fleet()
+	_draw_other_entities()
 	draw_set_transform_matrix(world_transform())
 	for beam in simulation.beams:
 		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(beam.target.position):
@@ -239,6 +240,22 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	if is_shield_flashing:
 		_draw_hull_outline(hull_points)
 	draw_set_transform_matrix(world_transform())
+
+
+func _draw_other_entities() -> void:
+	for entity in simulation.other_entities:
+		if not entity.is_alive():
+			continue
+		var position := entity.previous_position.lerp(entity.position, interpolation_alpha)
+		if not _visible_world_rect.has_point(position):
+			continue
+		var color := Color("929b9d")
+		if entity.faction == BattleSimulation.Faction.ALIEN:
+			color = Color("e88974")
+		elif entity.faction == BattleSimulation.Faction.PLAYER:
+			color = Color("73bddc")
+		draw_circle(position, entity.radius, color.darkened(0.55))
+		draw_arc(position, entity.radius, 0.0, TAU, 24, color, 1.0)
 
 
 func _draw_alien_fleet() -> void:

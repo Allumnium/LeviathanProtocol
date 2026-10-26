@@ -305,7 +305,7 @@ Enemy salvage has a frozen material pool equal to twice the base bundle (section
 
 Every asteroid root has a finite mineral budget partitioned across children. Pay only terminal-fragment pickups, using stable cumulative rounding per root/material, never rounding every fragment upward. Snapshot eligible extraction rate and unlocked material types when the root first takes damage; later upgrades do not reroll that root. Empty or unextractable rocks yield nothing. Spectroscopy Scan reveals contents; discovery persists on fragments.
 
-Miners automatically pursue visible, scanned, material-bearing rocks that current tech can extract. Ignore known empty rocks; collision avoidance overrides harvesting. Unknown rocks require Scan before automatic mining; allow explicit force-attack for clearing/prospecting. Ordinary combat ships ignore rocks unless ordered to attack or clearing an imminent collision. AI cannot read unscanned contents.
+Miners automatically pursue visible, scanned, material-bearing rocks that current tech can extract. Ignore known empty rocks; collision avoidance overrides harvesting. Unknown rocks require Scan before automatic mining; allow explicit force-attack for clearing/prospecting. Ordinary combat ships ignore rocks unless ordered to attack, clearing an imminent collision, or finishing cleanup with “Destroy all neutral targets” enabled. AI cannot read unscanned contents.
 
 **11. Optional active combat abilities**
 
@@ -481,7 +481,7 @@ Keep strategic route previews separate from tactical visibility. Fog cannot eras
 
 **20. Asteroids and non-alien targetable entities**
 
-Asteroids participate in the same damage/weapon-target pipeline as enemies, but carry neutral-hazard and optional-resource tags. This satisfies their role as attackable objects without making every harmless rock a mandatory kill. Ordinary victory counts only the encounter's declared hostile/objective entities. A mining objective can explicitly require a quota; optional cleanup after victory never grants another victory/RP reward.
+Asteroids participate in the same damage/weapon-target pipeline as enemies, but carry neutral-hazard and optional-resource tags. Ordinary victory counts only the encounter's declared hostile/objective entities. An in-game “Destroy all neutral targets” checkbox, off by default and saved per run, additionally requires all living targetable neutral objects; player Auto clears them after hostile threats. Drops, decoys and summons are excluded from this implicit cleanup requirement. A mining objective can explicitly require a quota. Neutral cleanup never grants another victory/RP reward.
 
 Initial deterministic rock classes: mass 8/4/2/1, radius 8 × sqrt(mass), HP 12 × mass. On destruction, a mass greater than 1 splits into two children of half mass; minimum-size rocks disappear into debris/pickups. Conserve mass and ore across splitting, and give children seeded separation velocities plus 0.5 s birth collision grace. Fracture is a visual explosion, not extra area damage unless a separately previewed volatile-rock tag says so.
 

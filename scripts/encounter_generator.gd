@@ -95,6 +95,10 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 	var material_pool: Array[int] = []
 	for amount in bundle:
 		material_pool.append(amount * 2)
+	var required_ids: Array[String] = []
+	for unit in roster:
+		if unit.kind == "ship":
+			required_ids.append(unit.entity_id)
 	return {"version": VERSION, "node_id": node_id, "global_row": global_row,
 		"proximity": float(global_row - 1) / 23.0, "template_id": template_id,
 		"encounter_type": template.type, "difficulty_multiplier": DIFFICULTY[difficulty],
@@ -102,6 +106,7 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		"budget": budget, "spent": spent, "unspent_tolerance": 16.0 * AlienShip.TIER_COST[rank],
 		"wave_count": template.waves, "required_roles": template.required.duplicate(),
 		"allowed_roles": roles.duplicate(), "environment_ids": [], "roster": roster, "legacy": false,
+		"objective": {"type": "eliminate_targets", "required_target_ids": required_ids},
 		"rewards": {"credits": roundi((90 + 10 * combat_index) * reward_multiplier), "materials": bundle,
 			"material_pool": material_pool, "initial_recovery_rate": 0.5}}
 
@@ -143,6 +148,18 @@ static func initial_fleet(encounter: Dictionary) -> Array[RefCounted]:
 			if unit != null:
 				fleet.append(unit)
 	return fleet
+
+
+static func objective_ids(encounter: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	if encounter.has("objective"):
+		result.assign(encounter.objective.required_target_ids)
+	else:
+		# Compatibility with frozen encounters saved before explicit objectives.
+		for entry in encounter.get("roster", []):
+			if entry.get("kind", "ship") == "ship":
+				result.append(entry.entity_id)
+	return result
 
 
 static func valid(encounter: Variant) -> bool:
@@ -195,6 +212,15 @@ static func valid(encounter: Variant) -> bool:
 				return false
 	if ships > MAX_SHIPS or waves.size() != int(encounter.wave_count):
 		return false
+	if encounter.has("objective"):
+		var objective: Variant = encounter.objective
+		if not objective is Dictionary or objective.get("type") != "eliminate_targets" or not objective.get("required_target_ids") is Array:
+			return false
+		var required_ids: Dictionary = {}
+		for id in objective.required_target_ids:
+			if not id is String or not ids.has(id) or required_ids.has(id):
+				return false
+			required_ids[id] = true
 	if not is_equal_approx(spent, encounter.spent) or spent > encounter.budget + 0.000001:
 		return false
 	if not encounter.legacy and encounter.budget - spent >= encounter.unspent_tolerance + 0.000001:

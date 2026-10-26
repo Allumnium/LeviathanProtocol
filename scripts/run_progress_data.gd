@@ -18,6 +18,10 @@ static func validate(data: Variant) -> String:
 			return "Run progress requires integer %s." % key
 	if data.research_points < 0 or int(data.difficulty) not in [0, 1, 2]:
 		return "Invalid research points or difficulty."
+	if data.has("destroy_all_neutral_targets") and not data.destroy_all_neutral_targets is bool:
+		return "Invalid neutral cleanup preference."
+	if data.has("run_ended") and not data.run_ended is bool:
+		return "Invalid terminal run state."
 	for key in ["research_ids", "active_design_families", "current_run_design_names"]:
 		if not data.get(key) is Array:
 			return "Run progress requires %s." % key

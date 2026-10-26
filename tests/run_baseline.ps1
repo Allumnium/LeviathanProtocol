@@ -22,6 +22,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Encounter independence suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_frozen_encounters.gd --log-file (Join-Path $runRoot 'frozen-encounters.log')
     if ($LASTEXITCODE -ne 0) { throw "Frozen encounter suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_entity_objectives.gd --log-file (Join-Path $runRoot 'entity-objectives.log')
+    if ($LASTEXITCODE -ne 0) { throw "Entity objective suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_retry_settlement.gd --log-file (Join-Path $runRoot 'retry-settlement.log')
+    if ($LASTEXITCODE -ne 0) { throw "Retry settlement suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_battle_replay.gd --log-file (Join-Path $runRoot 'battle-replay.log')
+    if ($LASTEXITCODE -ne 0) { throw "Battle replay suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

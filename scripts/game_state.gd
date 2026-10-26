@@ -88,6 +88,10 @@ var last_save_error := ""
 var _checkpoint_generation := -1
 var _checkpoint_store := AtomicRunStore.new()
 var frozen_encounters: Dictionary = {}
+var destroy_all_neutral_targets := false
+var run_ended := false
+# Durable per-node attempts and future finite mining fields, independent of enemy resets.
+var encounter_progress: Dictionary = {}
 
 
 func _ready() -> void:
@@ -148,6 +152,9 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	research_points = 0
 	research_branch_choices.clear()
 	story_flags.clear()
+	destroy_all_neutral_targets = false
+	run_ended = false
+	encounter_progress.clear()
 	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
 	transaction_ledger.clear()
 	economy_state.clear()
@@ -216,6 +223,8 @@ func run_progress_snapshot() -> Dictionary:
 		"story_flags": story_flags.duplicate(),
 		"active_design_families": fleet_design_slots.duplicate(),
 		"current_run_design_names": current_run_design_names.duplicate(),
+		"destroy_all_neutral_targets": destroy_all_neutral_targets,
+		"run_ended": run_ended,
 	}
 
 
@@ -233,6 +242,8 @@ func restore_run_progress(data: Variant, notify := true) -> bool:
 	story_flags.assign(data.story_flags)
 	fleet_design_slots.assign(data.active_design_families)
 	current_run_design_names.assign(data.current_run_design_names)
+	destroy_all_neutral_targets = data.get("destroy_all_neutral_targets", false)
+	run_ended = data.get("run_ended", false)
 	_generate_campaign_graph()
 	if notify:
 		research_changed.emit()
@@ -245,6 +256,15 @@ func save_run_checkpoint() -> bool:
 	if run_id.is_empty():
 		return false
 	return _persist_checkpoint(RunCheckpoint.capture(self))
+
+
+func set_destroy_all_neutral_targets(enabled: bool) -> bool:
+	var previous := destroy_all_neutral_targets
+	destroy_all_neutral_targets = enabled
+	if not save_run_checkpoint():
+		destroy_all_neutral_targets = previous
+		return false
+	return true
 
 
 func _persist_checkpoint(checkpoint: Dictionary) -> bool:
@@ -272,6 +292,7 @@ func load_run_checkpoint() -> bool:
 		saved.generation = migrated.generation
 	# Validation/decoding finished before touching any live state or Archive.
 	restore_run_progress(data.progress, false)
+	encounter_progress = data.get("encounter_progress", {}).duplicate(true)
 	run_id = data.run_id
 	transaction_ledger = data.ledger.duplicate(true)
 	economy_state = data.economy.duplicate(true)
@@ -835,6 +856,8 @@ func refund_tile(category: int) -> void:
 
 func construction_error(blueprint: Ship = null) -> String:
 	var design := ship if blueprint == null else blueprint
+	if run_ended:
+		return "This run has ended. Start a new run to construct ships."
 	if battle_pending or (design == ship and active_part_transformations > 0):
 		return "Unavailable during deployment or transformation."
 	if design.tiles.is_empty():
@@ -1019,7 +1042,7 @@ func _refresh_fleet() -> void:
 
 
 func can_deploy() -> bool:
-	return not fleet.is_empty() and fleet.any(func(owned: FleetShip) -> bool:
+	return not run_ended and not fleet.is_empty() and fleet.any(func(owned: FleetShip) -> bool:
 		return owned.is_alive() and not owned.get_stats(laser_upgrade_level).weapons.is_empty())
 
 
@@ -1038,7 +1061,7 @@ func can_afford_any_ship() -> bool:
 
 
 func is_run_lost() -> bool:
-	return fleet.is_empty() and not can_deploy() and not can_afford_any_ship()
+	return run_ended or (fleet.is_empty() and not can_deploy() and not can_afford_any_ship())
 
 
 func allied_salvage_chance() -> float:
@@ -1131,6 +1154,15 @@ func battle_simulation_seed() -> int:
 	return int(get_frozen_encounter(destination_node_id).get("seed", "0"))
 
 
+func battle_identity() -> String:
+	var progress: Dictionary = encounter_progress.get(str(destination_node_id), {})
+	return "%s/node/%d/attempt/%d" % [run_id, destination_node_id, int(progress.get("attempts", 1))]
+
+
+func battle_objective_ids() -> Array[String]:
+	return EncounterGenerator.objective_ids(get_frozen_encounter(destination_node_id))
+
+
 func set_destination(node_id: int) -> bool:
 	if battle_pending or not can_deploy():
 		return false
@@ -1150,7 +1182,22 @@ func set_destination(node_id: int) -> bool:
 	battle_aliens.clear()
 	for alien in next_battle_aliens:
 		battle_aliens.append(alien)
+	var previous_progress: Dictionary = encounter_progress.duplicate(true)
+	var progress: Dictionary = encounter_progress.get(str(node_id), {"attempts": 0, "outcome": "withdrawn", "field": {}}).duplicate(true)
+	progress.attempts = int(progress.attempts) + 1
+	progress.outcome = "active"
+	progress.ship_ids = []
+	for owned: FleetShip in fleet:
+		progress.ship_ids.append(owned.id)
+	var deployment := RunCheckpoint.capture(self)
+	progress.deployment = {"fleet": deployment.fleet, "aliens": deployment.aliens,
+		"seed": str(battle_simulation_seed()), "salvage_chance": allied_salvage_chance(),
+		"upgrade_level": laser_upgrade_level, "neutral_cleanup": destroy_all_neutral_targets,
+		"objectives": battle_objective_ids(), "materials": battle_material_rewards()}
+	progress.erase("journal")
+	encounter_progress[str(node_id)] = progress
 	if not save_run_checkpoint():
+		encounter_progress = previous_progress
 		destination_node_id = -1
 		planned_destination_node_id = -1
 		battle_pending = false
@@ -1192,11 +1239,13 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 	checkpoint.location.planned = -1
 	checkpoint.location.pending = false
 	checkpoint.aliens.clear()
+	_set_encounter_outcome(checkpoint, "victory")
 	if not _persist_checkpoint(checkpoint):
 		return false
 	transaction_ledger = checkpoint.ledger
 	_apply_accounting(checkpoint)
 	_apply_location(checkpoint)
+	encounter_progress = checkpoint.encounter_progress
 	if surviving_player_ship_count >= 0:
 		player_ship_count = surviving_player_ship_count
 		player_ship_count_changed.emit()
@@ -1204,7 +1253,7 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 	return true
 
 
-func cancel_battle(surviving_player_ship_count: int = -1) -> bool:
+func cancel_battle(surviving_player_ship_count: int = -1, terminal_defeat := false) -> bool:
 	if surviving_player_ship_count < -1 or surviving_player_ship_count > player_ship_count:
 		push_error("Battle cancellation reported an invalid surviving player ship count.")
 		return false
@@ -1215,8 +1264,12 @@ func cancel_battle(surviving_player_ship_count: int = -1) -> bool:
 	checkpoint.location.planned = -1
 	checkpoint.location.pending = false
 	checkpoint.aliens.clear()
+	_set_encounter_outcome(checkpoint, "defeat" if terminal_defeat else "withdrawn")
+	checkpoint.progress.run_ended = run_ended or terminal_defeat
 	if not _persist_checkpoint(checkpoint):
 		return false
+	run_ended = checkpoint.progress.run_ended
+	encounter_progress = checkpoint.encounter_progress
 	if surviving_player_ship_count >= 0:
 		player_ship_count = surviving_player_ship_count
 		player_ship_count_changed.emit()
@@ -1224,6 +1277,72 @@ func cancel_battle(surviving_player_ship_count: int = -1) -> bool:
 	planned_destination_node_id = -1
 	battle_pending = false
 	battle_aliens.clear()
+	return true
+
+
+func _set_encounter_outcome(checkpoint: Dictionary, outcome: String) -> void:
+	var key := str(destination_node_id)
+	if not checkpoint.encounter_progress.has(key):
+		checkpoint.encounter_progress[key] = {"attempts": 1, "outcome": outcome, "field": {}}
+	checkpoint.encounter_progress[key].outcome = outcome
+
+
+func settle_battle(simulation: BattleSimulation) -> bool:
+	if not battle_pending or simulation.phase not in [BattleSimulation.Phase.VICTORY, BattleSimulation.Phase.WITHDRAWN, BattleSimulation.Phase.DEFEAT]:
+		return false
+	# Setup owns the same physical ships; never settle an unrelated simulation.
+	var progress: Dictionary = encounter_progress.get(str(destination_node_id), {})
+	var expected_ids: Array[int] = []
+	for id in progress.get("ship_ids", []):
+		expected_ids.append(int(id))
+	if expected_ids.is_empty():
+		for owned: FleetShip in fleet:
+			expected_ids.append(owned.id)
+	if simulation.players.size() != expected_ids.size():
+		return false
+	var seen_ids: Array[int] = []
+	for member in simulation.players:
+		if member.owned_ship == null or not expected_ids.has(member.owned_ship.id) or seen_ids.has(member.owned_ship.id):
+			return false
+		if not fleet.has(member.owned_ship) and member.is_alive():
+			return false
+		seen_ids.append(member.owned_ship.id)
+	if not encounter_progress.has(str(destination_node_id)):
+		encounter_progress[str(destination_node_id)] = {"attempts": 1, "outcome": "active", "field": {}}
+	encounter_progress[str(destination_node_id)].journal = {"battle_id": simulation.battle_id,
+		"deployment": progress.get("deployment", {}).duplicate(true),
+		"commands": simulation.command_log.duplicate(true), "events": simulation.event_log.duplicate(true),
+		"snapshot": simulation.authoritative_snapshot()}
+	record_battle(simulation)
+	if simulation.phase == BattleSimulation.Phase.VICTORY:
+		return complete_battle(-1, simulation.collected_categories)
+	return cancel_battle(-1, simulation.phase == BattleSimulation.Phase.DEFEAT)
+
+
+func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dictionary) -> bool:
+	# Future mining commits the finite field and pickup ledger in one generation.
+	# A withdrawal/retry preserves this field while enemies reset from the frozen roster.
+	if not battle_pending or pickup_id.is_empty() or not RunCheckpoint._json_value(field_after):
+		return false
+	for amount in materials:
+		if not RunProgressData._integer(amount) or amount < 0:
+			return false
+	var checkpoint := RunCheckpoint.capture(self)
+	var key := str(destination_node_id)
+	if not checkpoint.encounter_progress.has(key):
+		checkpoint.encounter_progress[key] = {"attempts": 1, "outcome": "active", "field": {}}
+	var result := TransactionLedger.apply(checkpoint, "ore_pickup", "node/%s/%s" % [key, pickup_id], 0, materials, 0, {"field": field_after})
+	if result.is_empty():
+		return false
+	checkpoint = result.checkpoint
+	if not result.replayed:
+		checkpoint.encounter_progress[key].field = field_after.duplicate(true)
+	if not RunCheckpoint.valid(checkpoint) or not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	encounter_progress = checkpoint.encounter_progress
+	_apply_accounting(checkpoint)
+	_emit_accounting_changes()
 	return true
 
 

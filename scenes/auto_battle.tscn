@@ -43,6 +43,16 @@ grow_horizontal = 2
 theme_override_constants/separation = 4
 alignment = 1
 
+[node name="DestroyNeutralTargets" type="CheckBox" parent="."]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 232.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 10
+text = "Destroy all neutral targets"
+tooltip_text = "Keep the battle active until all targetable neutral objects are destroyed. The fleet clears them after hostile threats."
+
 [node name="PauseButton" type="Button" parent="BattleSpeedControls"]
 custom_minimum_size = Vector2(72, 26)
 layout_mode = 2
