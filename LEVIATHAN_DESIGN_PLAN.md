@@ -1,6 +1,6 @@
 **Leviathan Protocol — implementation handoff**
 
-Design baseline: October 25, 2026. This document supersedes the earlier proposal. It specifies proposed behavior, not functionality already implemented. Numerical balance values are initial tuning targets. Implement the milestones in order; do not attempt the entire catalog in one change.
+Design baseline: October 26, 2026. This document supersedes the earlier proposal. It specifies proposed behavior, not functionality already implemented. Numerical balance values are initial tuning targets. Implement the milestones in order; do not attempt the entire catalog in one change.
 
 **1. Product decisions and scope**
 
@@ -10,7 +10,7 @@ Design baseline: October 25, 2026. This document supersedes the earlier proposal
 - Start with two Drones, one Science Vessel, and one Civic Tender. The Drones share one regular design slot. Dedicated slots persist if their ship is lost; the ships themselves are destructible and replaceable.
 - All deployed ships, including dedicated support ships, consume deployment capacity. Dedicated slots do not provide free combat power.
 - Purple/Core material is **Civic**. Keep its existing serialized numeric category; change display terminology without breaking saves. Use **Foundation** for initially known technology to avoid confusing it with Civic material.
-- Target 48 distinct equipment types in the complete catalog. Forty was a guideline. Equipment ranks do not count as additional types.
+- Target 56 distinct equipment types in this proposal. Forty is a guideline, not a cap. Equipment ranks do not count as additional types; a research node can grant several components or a general concept.
 - Preserve the existing component damage model. Intact disconnected equipment remains operational; destruction removes the component and its adjacency effects. Do not introduce cascading disconnection deaths in this project. Update contradictory help text.
 - Ship design is free. Construction, repairs, refits, research, and deployment limits create the economic decisions.
 - Research and branch commitments reset per run. Blueprints and encyclopedia knowledge persist, but cannot bypass current-run unlocks.
@@ -21,7 +21,7 @@ Humanity already understands the underlying technology. Research is field engine
 
 The fleet is a civilian-backed expedition following a moving anomaly through failing jump lanes. Its Science Vessel interprets the signal; its Civic Tender handles supplies, paying expedition passengers, and optional rescue work. The Leviathan is an ancient autonomous ark whose corrupted preservation system is consuming settlements and assimilating ships. Its guardians are coordinated by a signal network. The expedition must break that network and reach the ark's command core.
 
-Tourists are informed expedition passengers, observers, and patrons. Rescued civilians are separate story objectives: never automatically convert refugees into paying tourists. Boarding paying passengers is optional.
+Passenger identity and journey purpose are left to the imagination. Track aggregate occupancy and luxury, not individual contracts. At each inhabited arrival, survivors disembark and new passengers fill operational accommodation, paying upfront. Rescued civilians remain separate story objectives. Last Light follows the same arrival rules; offer a free final disembark action before departure.
 
 | Act | Story and environment | Fixed checkpoints and unlocks |
 |---|---|---|
@@ -66,14 +66,18 @@ Node types and previews:
 | Relay defense | Hold an objective through finite announced waves | Wave count, total threat, enemy roles |
 | Port/shipyard | Repair, refit, buy resources, board/disembark passengers | Services and indicative prices |
 | Salvage field | Choose a guaranteed material bundle or a costed recovery option | Material tendencies and costs; no surprise battle |
-| Scenic survey | Safe optional tourist fare opportunity and story observation | Passenger eligibility, reward, no RP |
+| Scenic survey | Story observation, sensor information, or a fixed exploration reward | Explicit reward; no passenger income unless inhabited; no RP |
 | Signal/event | Choose between explicit resource, repair, information, or story outcomes | Stakes before commitment; unknown story text does not hide mechanical penalties |
 | Staging checkpoint | Guaranteed preparation and story delivery | Full services, next boss briefing |
 | Boss | Fixed story encounter | Identity, broad phases, major telegraphs, reward/unlock |
 
 All nodes in the current act show type, broad threat, reward tendency, and connections. Directly reachable nodes additionally show enemy role tags, a truthful contact-count range, objective, hazard, and known major abilities. Future acts show their theme and boss; reveal their route graph on entry. Exact hidden numbers must remain inside advertised bands.
 
-The Science Vessel can improve information two steps ahead; it must not be required to understand the immediate next node. Provide route highlighting, a persistent legend, icon shapes plus colors, and enough hit area for the current small-resolution UI. Example preview: “Interception — 5–7 contacts — carrier / missile escorts — ion storm — destroy carrier within 75 s — Tech-rich salvage.”
+The Science Vessel can improve information two steps ahead; it must not be required to understand the immediate next node. Provide route highlighting, a persistent legend, icon shapes plus colors, and enough hit area for the current small-resolution UI. Example preview: “Interception — 5–7 alien contacts — carrier / missile escorts — ion storm — destroy carrier within 75 s — Tech-rich salvage.” Asteroids have a separate density/mineral-potential preview and never inflate the alien contact band.
+
+Every node explicitly stores whether it is inhabited and its goods grade: Basic, Uncommon, or Rare. Ports, inhabited planets, the starting anchorage, and staging checkpoints are inhabited. Other nodes are not unless labeled. Show passenger ticket estimates, cargo sale value, and the origin goods unit value before traveling. Freeze these properties with the graph.
+
+Edges can carry a clearly previewed travel hazard or optional mining field. Safe travel is a short transition. Hazardous travel uses the battle simulation for a bounded 20–40 seconds, with movement, Scan, mining, and defensive abilities but no unannounced alien fight or RP payout. This does not add to the 14 objective battles. Offer a safe alternative at hazardous forks, never a hidden toll. Stop hazard simulation while menus or paused targeting are open.
 
 **4. Threat scaling: proximity only**
 
@@ -86,7 +90,7 @@ Initial encounter budget:
 
 Use encounter multipliers 1.0 for standard objectives, 1.4 for elites, and 1.8 for bosses. Start with difficulty multipliers 0.8 / 1.0 / 1.25. Budget examples on Normal are roughly 100 at row 1, 293 for the first boss, 514 for the second boss, and 900 for the Leviathan. These are content-allocation units, not HP multipliers.
 
-Each enemy definition has a threat cost that includes weapons, durability, mobility, and abilities. Encounter templates specify required roles and legal reinforcements. Spend the budget on those definitions. Introduce stronger variants as proximity increases; do not spend the whole late-game budget on hundreds of Scouts. Initial soft limits: 24 regular enemy ships, with bosses using a body plus organs and escorts; 64 total simultaneous combat entities including drones. Unspent budget is acceptable within a defined template tolerance.
+Each enemy definition has a threat cost that includes weapons, durability, mobility, and abilities. Encounter templates specify required roles and legal reinforcements. Spend the budget on those definitions. Introduce stronger variants as proximity increases; do not spend the whole late-game budget on hundreds of Scouts. Initial soft limits: 24 regular enemy ships, with bosses using a body plus organs and escorts; 64 total simultaneous ship/organ/craft entities including drones; asteroids have a separate 96-fragment limit. Unspent budget is acceptable within a defined template tolerance.
 
 Waves and spawned craft are included in the encounter's total budget. Boss phases are not three independently full-budget encounters. Difficulty must not secretly modify a frozen node after preview.
 
@@ -103,7 +107,7 @@ Dedicated ships:
 | Science | One active Research Lab | Exactly one ship; maximum six Offense material tiles; no strike-craft bays or offensive capstones; no passenger berths or Cargo Hold | Command Center, lab I, Crew Quarters, Shield, Thruster, two Mini Turrets, protective plates |
 | Civic | Cargo Hold or passenger accommodation | Exactly one ship; maximum six Offense material tiles; no labs, strike-craft bays, or offensive capstones | Command Center, Cargo Hold, Crew Quarters, Shield, Thruster, two Mini Turrets, protective plates |
 
-Regular ships can carry any legally researched equipment, including labs, passengers, and logistics. Equipment restrictions are for the two bonus slots, not global class locks. Offensive capstones are Stellar Lance, Singularity Projector, Siege Mass Driver, and Hive Carrier Core. Other capstones are permitted in dedicated slots if the hull and deployment limits allow them.
+Regular ships can carry any legally researched equipment, including labs, passengers, logistics, and mining hardware. Mining Laser, Extraction Drill, Ore Processor, Seismic Cutter, and Planetcracker Core are restricted to regular slots: there is no dedicated mining slot and neither bonus support slot can serve as a miner. Offensive capstones are Stellar Lance, Singularity Projector, Siege Mass Driver, and Hive Carrier Core; Planetcracker is also prohibited in dedicated slots. Other capstones are permitted there if hull and deployment limits allow them.
 
 All hulls require exactly one Command Center. The dedicated ship designation must be validated from the loadout, not merely the saved name. Default support behavior is Escort: remain behind a selected regular ship, avoid pursuit, and retreat locally under threat. Dedicated ships are not invulnerable and cannot be replaced for free by repeatedly scuttling them.
 
@@ -138,33 +142,54 @@ Initial retuning targets: Laser approximately 3 DPS, Double Laser approximately 
 
 Initial repair cost per fully damaged material tile: O 1, D 0.2, T 3, C 2. Round the final repair invoice upward, not each tile. Surviving damaged components can be repaired. Between-battle reconstruction of destroyed components requires their material cost, automatically buying shortages if affordable; it must not create cheaper infinite materials through repair-and-salvage. Dismantling refunds surviving material only. A full structural unit exists until its HP reaches zero, matching the current atomic component model.
 
-**7. Research economy and branch rules**
+**7. Research economy, concepts, and branch rules**
 
-Foundation equipment is known from the start. The archive records discoveries but is not an authorization source for construction. Validate research in the builder, imported blueprints, refits, construction, and deployment.
+Foundation is known at run start. Archive knowledge never authorizes construction. Validate current research in assembly, blueprint import, refit, construction, and deployment. Research nodes grant lists of recipes, ranks, abilities, and passive modifiers; equipment is not the tree's organizing unit.
 
-One lab can operate per ship. Capture each deployed lab's level and research support bonuses at battle start. Research payout on first successful completion of the encounter is:
+Only one lab operates per hull. Snapshot operational deployed labs at battle start; reserves contribute nothing. Pay once on first objective victory:
 
     RP = 20 * sum(lab_level * (1 + analysis_bonus + observatory_bonus))
 
-Analysis Array and Quantum Observatory each provide +25% to one adjacent lab; duplicate sources do not stack. Maximum research efficiency is 150%. No crew, combat firing-rate buff, passenger, drone, or reserve ship modifies this formula. Losing a deployed lab does not reduce that battle's earned payout. Withdrawal and failed objectives grant no RP; later success can pay once. A permanent total-fleet defeat ends the run. Research is not awarded at noncombat nodes.
+Analysis Array and Quantum Observatory each add 25% to one adjacent lab, strongest source only; maximum multiplier 1.5. Crew improves the lab's combat analysis rate, not RP. Destroyed deployed labs still earn their snapshotted output on victory. Failure, withdrawal, travel, mining, and noncombat stops award no RP. Lab I produces 20, lab II 40, lab III 60, and fully supported lab III 90 RP. A second regular-slot science ship can increase output but competes with combat/mining designs and deployment capacity.
 
-Examples: lab I = 20 RP; lab III = 60; lab III with one support module = 75; lab III with both = 90; two fully supported lab III ships = 180. Extra scientific equipment therefore increases output while preserving proportionality to effective laboratory level.
+Lab ranks are one equipment type: I recipe CCT/CTT is known; II CCT/CTT/CTT costs 40 RP; III CCTT/CCTT/CTTT costs 80 RP and requires boss I. Upgrading requires a physical refit, not a free hull expansion.
 
-| Laboratory rank | Recipe | Unlock cost | Gate |
-|---|---|---:|---|
-| I | CCT/CTT | Known | Start |
-| II | CCT/CTT/CTT | 40 RP | Lab I |
-| III | CCTT/CCTT/CTTT | 80 RP | Lab II; first boss defeated |
+The following table is the complete shared research registry. Costs are tuning values. A comma in grants means one purchase unlocks all listed items. Dependencies are AND unless explicitly stated otherwise.
 
-Ranks unlock larger recipes. Each hull must be physically refitted. Replacing a healthy smaller lab credits its intact material value. Lab rank upgrades are not additional equipment types.
+| Research | RP | Prerequisites | Grants |
+|---|---:|---|---|
+| Foundation | 0 | Start | Equipment 1–8 and 43; Scan ability |
+| Applied Energy | 20 | Foundation | Laser, Double Laser |
+| Field Engineering | 20 | Foundation | Large Thruster, Repair Station |
+| Guided Munitions | 20 | Foundation | Point-Defense Turret, Missile Rack |
+| Laboratory II | 40 | Foundation | Lab II rank |
+| Laboratory III | 80 | Laboratory II, boss I | Lab III rank |
+| Energy Manipulation | 40 | Applied Energy | +10% firing/recharge rate for beam and shield equipment; ordinary +30% efficiency cap applies |
+| Civil Hospitality | 20 | Foundation | Passenger Cabin, Observation Deck |
+| Luxury Habitation | 80 | Civil Hospitality | Luxury Suites |
+| Grand Hospitality | 200 | Luxury Habitation, boss II | Grand Promenade |
+| Material Handling | 40 | Foundation | Tractor Array; collection radius improvement |
+| Selective Recovery | 80 | Material Handling | Sorting Refinery; choose salvage material preference |
+| Industrial Integration | 160 | Selective Recovery, boss II | Industrial Foundry |
+| Freight Engineering | 60 | Material Handling | Cargo Hold capacity 10 → 15; existing loads do not spontaneously grow |
+| Analysis Methods | 60 | Laboratory II | Analysis Array; two-step map intelligence |
+| Quantum Observation | 120 | Analysis Methods, Laboratory III, boss II | Quantum Observatory, Forecast |
+| Sensor Networks | 20 | Foundation | Sensor Array, Radar Relay |
+| Cloaking Theory | 80 | Sensor Networks | Cloak Generator; shared cloak rules |
+| Mineral Spectroscopy | 20 | Foundation | Scan identifies ore type, quantity, and extractability |
+| Basic Extraction | 40 | Mineral Spectroscopy | Mining Laser, Extraction Drill; extract Defense and Offense |
+| Deep Extraction | 80 | Basic Extraction | Ore Processor, Seismic Cutter; extract Tech and Civic |
+| Planetary Fracture | 200 | Deep Extraction, boss II | Planetcracker Core |
 
-Shared unlocks cost 20 RP each. Four combat families each have two mutually exclusive three-node paths costing 60, 120, and 240 RP. Buying the first node commits that family for the run; the three nodes within the selected path are sequential. Final combat nodes require the second boss. Choices across families are independent. No respec or opposite-branch salvage equipment in the first release; show the full consequences before committing.
+Add four independent exclusive combat families (table in section 8): each offers two three-node paths, costing 60/120/240 RP sequentially. Each node grants its matching component and listed ability. First purchase commits only that family; opposite paths lock for the run. Third nodes require boss II. Display exclusions and downstream rewards before confirmation. No respec in the first version. General research and economic paths are not exclusive.
 
-Tourism, logistics, and science support are independent sequential paths; they do not exclude the combat families or each other. One capstone component per physical ship, including economic/science capstones. A capstone's fleet-wide buff does not stack with duplicates; shared ability cooldowns prevent copies from multiplying activations.
+This yields 45 purchasable research nodes plus Foundation for 56 equipment types and three lab ranks. After four family commitments, 33 purchasable nodes remain accessible. Use collapsible families and tier columns; emphasize near-term options. Depth comes from prerequisites, timing, and doctrines rather than a separate button per component.
 
-Baseline pacing without science support: battles 1–2 fund lab II (40); battles 3–5 fund Laser, Double Laser, and lab III (120); battle 6 funds Focusing Lens (60); battles 7–8 fund Beam Lance (120); battles 9–12 fund Stellar Lance (240). This leaves battle 13 and the Leviathan to use it. Adding Analysis Array costs one lab-III battle's income and earns an extra 15 RP per subsequent lab-III battle: a four-battle economic payback. Quantum Observatory has a longer RP payback and also supplies a major defensive combat ability; it is not compulsory research acceleration.
+Allow one capstone component per physical hull across all paths. Fleet auras use strongest source and cooldowns are shared by ability type. An exclusive endpoint must be powerful without becoming the only answer to a boss.
 
-**8. Complete equipment catalog — 48 types**
+Worked baseline: battles 1–2 buy lab II (40); battles 3–5 supply 120, buying Applied Energy (20) and lab III (80) after boss I, leaving 20. Battle 6 supplies 60 and buys first combat branch node (60); battles 7–8 buy its second (120); battles 9–12 buy its endpoint (240). This leaves 20 RP and battles 13–14 to use it. Analysis Array takes four subsequent lab-III victories to repay its 60 RP cost through +15 RP/victory. Mining and trade generate materials/credits, not RP. Test broader science fleets before increasing costs.
+
+**8. Complete equipment catalog — 56 types**
 
 These row numbers are documentation labels, not serialized enum values. Preserve existing equipment IDs and append new stable IDs. A slash starts a recipe row; a period is outside the footprint and may contain unrelated hull tiles. Rotation/reflection transform both footprint and material labels. Weapon facing and exhaust direction transform with the recipe. Initially preserve existing engine exhaust restrictions; do not silently remove occupied exhaust material cells from costing.
 
@@ -177,13 +202,13 @@ These row numbers are documentation labels, not serialized enum values. Preserve
 | 5 | Thruster | OOT | Known. Basic movement. |
 | 6 | Shield Generator | DDD/DTD/DDD | Known. Renewable protection with a recharge interruption. |
 | 7 | Crew Quarters | CC | Known. Bounded adjacency operating-rate bonus. |
-| 8 | Research Lab | CCT/CTT | Known. RP, automatic weak-point analysis, and targeted Scan ability; improved ranks above. |
-| 9 | Laser | OOO | 20 RP. Reliable ranged beam; prerequisite is Mini Turret. |
-| 10 | Double Laser | OOO/OOO | 20 RP after Laser. Better damage density, concentrated vulnerability. |
-| 11 | Large Thruster | OOOTT/OOOTT | 20 RP after Thruster. Efficient heavy-hull propulsion. |
-| 12 | Repair Station | CD/.D | 20 RP after Crew Quarters. Repairs up to two adjacent damaged components, using a finite reserve. |
-| 13 | Point-Defense Turret | OD/DT | 20 RP after Mini Turret. Intercepts missiles and strike craft; weak hull damage. |
-| 14 | Missile Rack | OOT/OTT | 20 RP after Mini Turret. Long-range burst; interceptable. |
+| 8 | Research Lab | CCT/CTT | Known; ranks in section 7. RP and automatic weak-point analysis: +5% damage against one visible alien target, refresh every 8 s, strongest source only. Scan is a general Foundation ability. |
+| 9 | Laser | OOO | Applied Energy. Reliable ranged beam. |
+| 10 | Double Laser | OOO/OOO | Applied Energy. Better damage density; concentrated vulnerability. |
+| 11 | Large Thruster | OOOTT/OOOTT | Field Engineering. Heavy-hull propulsion. |
+| 12 | Repair Station | CD/.D | Field Engineering. Repairs two adjacent components using a finite reserve. |
+| 13 | Point-Defense Turret | OD/DT | Guided Munitions. Intercepts missiles/strike craft; weak hull damage. |
+| 14 | Missile Rack | OOT/OTT | Guided Munitions. Long-range interceptable burst. |
 | 15 | Focusing Lens | OT/TT | Optics I. Improves two adjacent beam weapons' damage/range; longer windup. |
 | 16 | Beam Lance | OTO/TTT | Optics II. Charged shot through exposed components. |
 | 17 | Stellar Lance | OOTOO/TTCTT/ODDDO | Optics III, capstone. Targeted piercing beam through aligned ships and organs. |
@@ -208,16 +233,24 @@ These row numbers are documentation labels, not serialized enum values. Preserve
 | 36 | ECM Suite | .C./TTT | Covert I. Breaks a bounded number of missile locks and weakens enemy target coordination. |
 | 37 | Phase Drive | CCT/CTT/TTD | Covert II. Short targeted reposition, with valid-space and range checks. |
 | 38 | Ghost Network | CCTCC/CTTTC/TTDTT/CTTTC/CCTCC | Covert III, capstone. Conceals nearby allies briefly and creates finite decoys. |
-| 39 | Passenger Cabin | CC/CD | Tourism I, 20 RP after Crew Quarters. Four berths; base fare 3 credits per survivor per eligible stop. |
-| 40 | Observation Deck | CTC/CDC | Tourism II, 60 RP. +1 fare for passengers in up to two adjacent cabins; must touch a hull exterior edge. |
-| 41 | Luxury Suites | CCC/CTC/DDD | Tourism III, 120 RP. Four berths; base fare 4; improved durability over ordinary cabins. |
-| 42 | Grand Promenade | CCCCC/CTCTC/CDDDC/CTCTC/CCCCC | Tourism IV, 240 RP after second boss; capstone. +1 fare aboard host, one emergency passenger rescue per battle, and Sanctuary ability. |
-| 43 | Cargo Hold | DCC/DCC | Known. +10 percentage points to eligible material recovery. Required starting Civic Tender component. |
-| 44 | Tractor Array | DTT/CTT | Logistics II, 40 RP after Cargo Hold. +15 recovery points; targeted Tether ability. |
-| 45 | Sorting Refinery | DCT/CTD/TDC | Logistics III, 80 RP. +15 recovery points; choose the material preference for bonus salvage. |
-| 46 | Industrial Foundry | DDCDD/CTTTC/DTOTD/CTTTC/DDCDD | Logistics IV, 160 RP after second boss; capstone. +20 recovery points; turns bonus recovery into chosen material bundles; Field Patch ability. |
-| 47 | Analysis Array | CTTC/TCTT | Science support I, 60 RP after lab II. +25% output of one adjacent lab; improved two-step map intelligence. |
-| 48 | Quantum Observatory | CTTTC/TCTCT/TCCTT/TCTCT/CTTTC | Science support II, 120 RP after Analysis Array and lab III; capstone. A further +25% output of one adjacent lab and Forecast ability. |
+| 39 | Passenger Cabin | CC/CD | Civil Hospitality. Four places, luxury 1. |
+| 40 | Observation Deck | CTC/CDC | Civil Hospitality. +1 luxury to two adjacent accommodations; exterior edge required. |
+| 41 | Luxury Suites | CCC/CTC/DDD | Luxury Habitation. Four places, luxury 2; greater durability. |
+| 42 | Grand Promenade | CCCCC/CTCTC/CDDDC/CTCTC/CCCCC | Grand Hospitality; capstone. +1 host luxury, Sanctuary ability. |
+| 43 | Cargo Hold | DCC/DCC | Known. Ten trade-goods capacity, upgraded to 15 by Freight Engineering. |
+| 44 | Tractor Array | DTT/CTT | Material Handling. Doubles host pickup radius; Tether ability. |
+| 45 | Sorting Refinery | DCT/CTD/TDC | Selective Recovery. +15 percentage points construction-material recovery; material preference. |
+| 46 | Industrial Foundry | DDCDD/CTTTC/DTOTD/CTTTC/DDCDD | Industrial Integration; capstone. +25 recovery points; Field Patch ability. |
+| 47 | Analysis Array | CTTC/TCTT | Analysis Methods. +25% to one adjacent lab; two-step map intelligence. |
+| 48 | Quantum Observatory | CTTTC/TCTCT/TCCTT/TCTCT/CTTTC | Quantum Observation; capstone. Further +25% to one adjacent lab; Forecast ability. |
+| 49 | Sensor Array | TCT/TTT | Sensor Networks. Host sight 260 → 400; radar 480 → 720. Strongest source only. |
+| 50 | Radar Relay | TCT/CTC | Sensor Networks. +120 radar range for nearby allies within 240; no added visual detail. |
+| 51 | Cloak Generator | TCT/CDC/TCT | Cloaking Theory. Automatic cloak after 8 s without attacking/taking damage; Scan and proximity counter it. |
+| 52 | Mining Laser | OOT/DDD | Basic Extraction. Ranged rock destruction; 75% extraction. Regular slots only. |
+| 53 | Extraction Drill | ODT/DDT | Basic Extraction. Close-range 100% extraction; must approach hazardous rocks. Regular slots only. |
+| 54 | Ore Processor | DCD/CTC/DTD | Deep Extraction. +15 recovery points for asteroid ore; strongest source only. Regular slots only. |
+| 55 | Seismic Cutter | OOTD/DTTC | Deep Extraction. Targeted rock-cluster fracture; low ship damage. Regular slots only. |
+| 56 | Planetcracker Core | DDTDD/DOTOD/TCCCT/DOTOD/DDTDD | Planetary Fracture; capstone. Large controlled fracture, 100% extraction, limited rate. Regular slots only. |
 
 Combat family prerequisites:
 
@@ -228,74 +261,80 @@ Combat family prerequisites:
 | Force projection | Ammunition Magazine → Railgun → Siege Mass Driver | Flight Deck → Torpedo Bomber Bay → Hive Carrier Core | Missile Rack for either path |
 | Fleet operations | Command Uplink → Tactical Computer → Admiralty Nexus | ECM Suite → Phase Drive → Ghost Network | Research Lab for either path |
 
-The Lab absorbs the earlier standalone Scanner role. Focusing Lens and specific adjacency modules replace the earlier generic Reactor bonus. Do not add those two older proposal entries accidentally, which would produce a different catalog.
+Scan comes from Foundation; Sensor Array and Radar Relay improve information coverage. The Research Lab retains an independent weak-point-analysis passive. Focusing Lens specializes energy weapons while Energy Manipulation is a general research modifier. Section 7 is authoritative for purchase costs and prerequisites; catalog rows describe components.
 
-Research paths reuse exact recipes only across mutually exclusive branches. This catalog has 36 distinct base recipes for 48 types, plus two lab-rank recipes. Verify canonical rotation/reflection keys before shipping. Existing assembled components keep their identity when research changes. New assembly considers only unlocked recipes; previews resolve overlapping candidates before commitment. Larger loose-tile recipes get preview priority, but never consume already assembled components without explicit disassembly. Blueprints store stable component identities as well as materials and transforms.
+Research paths reuse exact recipes only across mutually exclusive branches. This catalog has 44 distinct base recipes for 56 types, plus two lab-rank recipes. Verify canonical rotation/reflection keys before shipping. Existing assembled components keep their identity when research changes. New assembly considers only unlocked recipes; previews resolve overlapping candidates before commitment. Larger loose-tile recipes get preview priority, but never consume already assembled components without explicit disassembly. Blueprints store stable component identities as well as materials and transforms.
 
-**9. Tourism: income, contracts, and casualties**
+**9. Passengers: capacity, luxury, upfront tickets, and losses**
 
-Passengers are persistent run entities assigned to a specific cabin component. They are not inferred from cabin capacity every battle. Boarding takes place at a port. The player chooses how many passengers to accept after seeing fare and risk. Initial limits: eight paying passengers per physical ship and 24 across the deployed fleet. Dedicated Science Vessels cannot board them.
+Track occupied places per accommodation component, not individual people, destinations, contracts, or bonds. Passenger Cabin and Luxury Suites each hold four passengers. A normal cabin has luxury 1; suites have luxury 2. Observation Deck adds one luxury level to up to two orthogonally adjacent accommodation components and must touch a hull exterior edge. Grand Promenade adds one luxury level to accommodation on its host. Identical sources do not stack. Clamp final luxury to 1–3.
 
-Each passenger contract covers at most three paid stops. A qualifying stop is a first victory at a combat node or a marked Scenic Survey node. A passenger must be aboard a deployed ship and alive at settlement. No fares for reserve ships, failed objectives, withdrawal, repeated nodes, or waiting. Each node pays each passenger at most once.
+Initial ticket prices are 8 / 12 / 16 credits per passenger at luxury 1 / 2 / 3. Evaluate luxury when boarding; tickets are not recurring combat rewards.
 
-Fare per surviving passenger is the cabin's base rate (3 ordinary, 4 luxury), plus 1 for a qualifying adjacent Observation Deck, plus 1 if an intact Grand Promenade is aboard the host. Cap at 6. Compute amenities from the surviving layout at settlement, and show the calculation. Paid stops count individually per passenger. After three paid stops, the passenger remains aboard without further fare until disembarking; no automatic refill.
+At every newly reached, secured inhabited node, including the start:
+1. Safely disembark surviving passengers.
+2. Fill all operational accommodation on deployed ships.
+3. Pay each newly boarded passenger's ticket immediately.
+4. Save one arrival transaction before opening the port interface.
 
-At boarding, escrow a **20-credit safety bond per passenger** from spendable credits. Return the bond when that passenger safely disembarks or is evacuated. On death, forfeit it as the casualty penalty. Do not also deduct a second 20 credits. Track escrow separately from spendable money and from earned profit. No negative-balance debt system is required.
+An intact four-place cabin pays 32 per inhabited visit; a luxury-3 four-place cabin pays 64. Uninhabited battles, scenic views, and salvage fields do not pay tickets. Reopening the UI, reloading, repairing, or refitting at the same arrival never triggers another payout. Newly built cabins wait until the next inhabited arrival. Reserves cannot board; safely offload before reserving or removing occupied accommodation. A later genuine visit would pay again, but the campaign map is forward-only.
 
-This prevents deliberate deaths from being profitable: even the maximum lifetime fare is 3 × 6 = 18, less than the 20-credit forfeiture. Cabin and ship losses add further cost. Example: four ordinary passengers survive one victory, earn 12 credits, and keep 80 credits in escrow. If one dies on the next fight, the three survivors earn 9; the dead passenger's 20-credit bond is lost once.
+Each passenger killed costs a fixed 20 credits immediately, exactly once. Credits CAN go negative, without interest or an automatic game over. Destroying an occupied cabin kills its occupants; destroying its host kills all remaining occupants without recounting earlier deaths. Partial damage does not kill passengers. Repaired or reconstructed cabins restore empty capacity, not passengers. Tickets are not refunded in addition to the loss fee.
 
-Destroying a cabin kills the passengers assigned to it unless a successful evacuation or a remaining Grand Promenade rescue charge saves them. Destroying the host kills all remaining aboard. Damaged cabins do not randomly kill passengers before destruction. Passenger IDs, statuses, contract counters, escrow, and settlements persist across saves. Repairs never resurrect passengers or create replacement bookings.
+Show occupied/available capacity, luxury, expected boarding income, and loss fees. Example: board four at luxury 1 for +32; lose their cabin for -80; net -48 before other income. Grand Promenade supplies Sanctuary protection, not insurance or another tourism subsystem.
 
-Cabins provide the Evacuate tactical ability. Successful evacuation removes the selected cabin's passengers from the fleet immediately, refunds their bonds at settlement, and forfeits that stop's fares. Escape pods are abstract in the first implementation: do not add shootable passenger entities yet. Grand Promenade automatically performs one emergency rescue of all host passengers on the first otherwise-fatal passenger event per battle. Rescue creates no new passengers or fares.
+Future income offsets debt. Positive-credit purchases require sufficient credits; free actions and construction using only owned materials remain possible in debt. Safe disembarkation at inhabited nodes is free and does not trigger a refund or fresh payout. Players can leave Last Light without civilians.
 
-Passengers can transfer or disembark at ports. Offer a clear disembark action at Last Light before the final boss. Grand Promenade's Sanctuary ability still works without passengers, so the tourism endpoint retains combat value after responsible disembarkation. Story rescues have explicit separate rewards and must not use tourist fares or bonds.
+**10. Cargo trade, material handling, and mining**
 
-**10. Logistics: finding more material without mandatory cargo bookkeeping**
+Cargo goods and the four construction materials are different inventories. Cargo occupies holds and represents future credits. Building materials retain the existing general inventory; do not impose cargo capacity on them.
 
-The base material inventory remains unlimited. Cargo Hold grants recovery capability, not a small inventory cap that forces players to discard routine rewards.
+Each Cargo Hold adds 10 units, or 15 with Freight Engineering. At an inhabited arrival, automatically SELL surviving cargo at its stored origin value, THEN refill operational deployed holds for free with that node's goods. The user explicitly selected this order. Origin properties: Basic Goods = 3 credits/unit, Uncommon Goods = 6, Rare Goods = 10 initially. Values freeze when loaded; destination prices do not change them. No contracts or market simulation.
 
-Recovery bonus = strongest active Cargo Hold contribution (10%) + strongest Tractor Array (15%) + strongest Sorting Refinery (15%) + strongest Industrial Foundry (20%), for a maximum of 60%. Duplicates of a component do not add contributions. Each contributing component must be deployed and operational at battle end. Capturing its identity at deployment prevents constructing it after the battle to claim that reward.
+The first port loads cargo but sells nothing unless cargo was already held. Ten Basic Goods show potential value 30; delivering seven earns 21, then fills with the destination's grade. Losing cargo incurs no fee. Show “Credits: -12 | Cargo: 60 (10/10)” and explain that cargo value is not spendable yet.
 
-For a victory, first generate the node's fixed base eligible enemy/environment material bundle. Extra material count = floor(base_total × recovery_bonus + saved_fraction). Carry the fractional remainder forward in the run so small bundles do not lose all low-percentage bonuses. Example: 20 eligible material units with the full chain gives 12 extra units.
+Store quantity, grade, and unit value per hold. Destroying a hold loses its contents; host destruction clears only remaining contents. Partial damage loses none. Reconstruction gives empty capacity. Removing loaded holds requires safe sale/offload at an inhabited node or explicit discard elsewhere; neither operation boards passengers or refills cargo. Only the once-per-arrival transaction refills. Arrival sale and offloading share a ledger to prevent double sales. Sell/offload before reserving cargo ships.
 
-Only the fixed node reward bundle is eligible. Player wrecks, dismantled ships, purchased material, spawned drones, reconstructed components, and previous bonus salvage are never inputs. Do not award bonus rolls per enemy spawn or per battlefield pickup. This prevents salvage multiplication and carrier farming.
+Tractor Array increases pickup reach and unlocks Tether. Sorting Refinery adds 15 percentage points to construction-material recovery and a preference within the frozen salvage pool. Industrial Foundry adds 25 points and Field Patch. These do not change trade grade, passenger prices, or RP. Duplicate same-type modules use the strongest source; total recovery cannot exceed 100%.
 
-Without Refinery, distribute bonus units using the node's fixed material weights and reward seed. With Refinery, allocate half of bonus units to the selected preferred material and distribute the remainder normally. With Foundry, allocate all bonus units according to a player-selected four-material weighting preset. Changing preference does not reroll the bonus count. Selection locks at deployment; reward settlement is idempotent.
+Mining consumes a regular design slot, either as a hybrid or a specialist. Neither bonus support ship can fit mining hardware. Science can scan for miners; Civic can carry goods and help collection.
 
-Tractor Array also offers battlefield control; Foundry also supplies emergency repair. This keeps a Civic Tender relevant in the final battle even when more construction materials no longer matter. Laboratory bonuses, logistics, and fares are independent economies, each with its own readable report.
+Basic Extraction permits Offense and Defense recovery; Deep Extraction adds Tech and Civic. Mining Laser starts at 12 rock DPS/range 300 and recovers 75%; Extraction Drill starts at 24 rock DPS/range 45 and recovers 100%. Measure tool range from the firing component to the rock surface. Other weapons recover 25% only when eligible operational mining equipment is deployed. Ore Processor adds 15 percentage points; refinery/foundry modifiers add as above, capped at 100%. Seismic Cutter damages a selected cluster with Mining Laser recovery. Planetcracker produces a larger controlled fracture at 100% recovery, bounded by finite ore. Mining tools have 25% of equivalent combat weapon DPS against ships; they must not replace every gun.
+
+Enemy salvage has a frozen material pool equal to twice the base bundle (section 14), recovered at 50% plus refinery/foundry modifiers, capped at 100%. Thus the starting payout remains the base bundle. Tractor collects drops; construction materials need no Cargo Hold. Only original enemy hulls and budgeted reinforcements contribute salvage pools; summoned craft and player wrecks never create repeatable bonus salvage.
+
+Every asteroid root has a finite mineral budget partitioned across children. Pay only terminal-fragment pickups, using stable cumulative rounding per root/material, never rounding every fragment upward. Snapshot eligible extraction rate and unlocked material types when the root first takes damage; later upgrades do not reroll that root. Empty or unextractable rocks yield nothing. Spectroscopy Scan reveals contents; discovery persists on fragments.
+
+Miners automatically pursue visible, scanned, material-bearing rocks that current tech can extract. Ignore known empty rocks; collision avoidance overrides harvesting. Unknown rocks require Scan before automatic mining; allow explicit force-attack for clearing/prospecting. Ordinary combat ships ignore rocks unless ordered to attack or clearing an imminent collision. AI cannot read unscanned contents.
 
 **11. Optional active combat abilities**
 
-Keep movement, ordinary weapons, repairs, and default targeting automatic. Add up to four equipped tactical ability types per fleet. Each slot can be set to Manual or Auto. Auto is the default for new players. Fleet formation, target priority, and withdrawal remain separate controls and do not consume tactical slots.
+Use a bottom battle action bar with cooldown wedges, source count, disabled reason, target preview, hotkeys, and tooltips. Pin up to six actions with overflow for the rest; do not hide an unlocked action merely because a seventh component is fitted. Scan is always available while a Command Center survives. Other actions require their researched source to remain operational. Fleet control remains available alongside the bar.
 
-Use a shared **Command Energy** meter: start at 60, maximum 100, regeneration 1.5 per simulation second. It does not scale with ship count. Identical ability types share a fleet cooldown, even when several ships mount the source. The player can choose the emitting ship; otherwise choose the closest valid source. Additional sources improve coverage/redundancy, not energy or activation count. Dedicated ships use these same four slots.
+Use cooldowns and explicit limited repair/sortie reserves; do not add a shared Command Energy currency in this version. Cooldowns are fleet-shared per ability type and use simulation time. Multiple sources offer position/coverage choices, not multiplied activations. Choose the nearest valid source automatically with optional manual override. Destroying a source cancels its unfinished cast; replacing a source never resets cooldown.
 
-| Ability/source | Initial energy / cooldown | Target and behavior |
-|---|---|---|
-| Scan / Lab | 15 / 12 s | Enemy ship or exposed organ; +20% damage received for 5 s. Replaces, rather than stacks with, the lab's passive +5% analysis mark. |
-| Ion Pulse / Ion Emitter | 25 / 18 s | Interrupt one charging system and slow its next cycle; boss rules below. |
-| Gravity Well / Gravitic Snare | 30 / 20 s | Small area slow for 5 s; maximum 40% movement reduction. |
-| Stellar Shot / Stellar Lance | 50 / 24 s | Aim a line; 3 s visible windup, then penetrating damage. |
-| Collapse / Singularity Projector | 50 / 28 s | Area pull, limited slow, delayed explosion. |
-| Aegis / Aegis Citadel | 40 / 24 s | Protect allies near source for 6 s using a finite barrier reserve. |
-| Restoration / Ark Core | 60 / once per battle | Repair 25% of each nearby ally's initial hull capacity; reconstruct at most one non-command component per target. Never resurrect a ship or passenger. |
-| Siege Volley / Mass Driver | 50 / 24 s | Target ship/organ; host anchors during a 3 s firing sequence. |
-| Launch Strike / Hive Core | 40 / 24 s | Designate target for a mixed strike wave; consumes finite sortie reserve. |
-| Coordinated Offensive / Admiralty Nexus | 40 / 24 s | Nearby allies gain +60% firing rate against marked target for 6 s; a signature effect separate from ordinary adjacency. |
-| Jam / ECM | 25 / 18 s | Break at most six eligible missile locks in a target area; beams are unaffected. |
-| Phase Jump / Phase Drive | 30 / 22 s | Move host to a valid nearby point; no teleport through arena boundaries or objective restrictions. |
-| Ghost Screen / Ghost Network | 45 / 28 s | Brief concealment plus finite decoys for nearby allies; area damage and scanners counter it. |
-| Evacuate / passenger accommodation | 20 / 10 s | One cabin; 1.5 s preparation. If the cabin dies first and no rescue charge applies, occupants die. |
-| Sanctuary / Grand Promenade | 40 / 28 s | Nearby allies take 50% less hull damage for 5 s; useful after passengers disembark. |
-| Tether / Tractor Array | 20 / 16 s | Slow one small/medium enemy or weaken one marked environmental obstacle; bosses receive only reduced movement effect. |
-| Field Patch / Industrial Foundry | 35 / 24 s | Repair a targeted allied component from a fixed per-battle repair reserve; never consumes or generates saleable materials. |
-| Forecast / Quantum Observatory | 40 / 28 s | Nearby allies gain 40% damage reduction for 6 s. |
+Pause on target selection if enabled. Validate sight/range/target/source on commit; invalid or cancelled commands consume nothing. A committed cast consumes cooldown even if interrupted. Ordinary actions start ready; capstone actions begin with half their cooldown remaining in a new encounter, preventing instant opening deletion. Persist cooldowns through travel, retries, and saves; elapsed simulation time advances them. Refit/menu visits never reset them.
 
-Abilities must support pausing and targeting. Selecting a manual target pauses by default; allow disabling that preference. Show range, area, source, cost, cooldown, and invalid-target reason. Queue one command per ability while paused; execute in stable input order on simulation resume. Spend energy and start cooldown only when a command actually executes with a valid source and target. If its source dies or target becomes invalid, cancel without spending. Cooldowns, energy, telegraphs, casts, and durations use simulation time, never wall-clock time. Log commands for deterministic replay.
+| Action / source | Initial cooldown | Target and effect |
+|---|---:|---|
+| Scan / Foundation | 25 s | Place radius-180 circle within 450 of a friendly Command Center; reveal area and cloaked entities for 6 s. Spectroscopy adds persistent ore identification. No damage bonus. |
+| Focus Mark / Command Uplink | 20 s | Visible enemy within 500; +20% allied damage for 5 s, strongest mark only. Lab analysis does not stack with it. |
+| Ion Pulse / Ion Emitter | 24 s | Visible target within 300; interrupt charge and suppress shield regeneration for 4 s. Boss interruption follows boss limits. |
+| Gravity Well / Gravitic Snare | 30 s | Visible radius-100 area within 350; slow movement/turning 35% for 5 s; no boss immobilization. |
+| Tether / Tractor Array | 20 s | Visible rock, pickup, or nonboss enemy within 300; slow and pull toward a chosen safe point for 3 s; preserve rock collision danger. |
+| Phase Step / Phase Drive | 30 s | Move host up to 120 into explored, currently visible free space; cannot cross arena boundary or overlap entities. |
+| ECM Burst / ECM Suite | 25 s | Break up to six enemy missile locks within 160; no invulnerability. |
+| Sanctuary / Grand Promenade | 35 s | Allies within 180 gain 35% damage reduction for 6 s; applies normally to occupied cabins. |
+| Field Patch / Industrial Foundry | 40 s | Repair nearby surviving parts for at most 15% of host aggregate max HP per cast; finite battle reserve 30%; no passengers/cargo resurrection. |
+| Forecast / Quantum Observatory | 40 s | Show enemy targeting intent for 6 s; allies within 200 gain 25% damage reduction for 4 s. Does not reveal unseen ships. |
+| Seismic Cut / Seismic Cutter | 30 s | Visible radius-100 rock cluster within 350; deal 60 rock damage, only 15 against ships. |
+| Planetcrack / Planetcracker Core | 60 s | Visible radius-220 area within 450; deal 200 rock damage, only 50 against ships. Fragments still exist; finite ore budget remains. |
 
-Auto targeting examples: Scan the current priority target; Aegis when multiple allies face a telegraphed volley; Evacuate a cabin below 25% HP; Phase Jump away from an announced danger area; Ark when several allies are substantially damaged. Auto and Manual use identical costs and rules. Normal difficulty must be completable with Auto enabled; manual timing offers an advantage rather than being mandatory to survive scripted attacks.
+Combat endpoints add major actions: Stellar Lance (45 s, long piercing line after 2 s warning); Singularity (50 s, 3 s pull then area burst); Aegis (45 s, finite shield field for 8 s); Ark Restoration (60 s, repair 25% aggregate fleet max HP and reconstruct at most one non-command component per surviving hull); Siege Volley (45 s, heavy penetrating volley with 3 s host anchoring); Hive Sortie (45 s, finite mixed squadron); Admiralty Offensive (45 s, +30% allied operating rate for 6 s under the ordinary efficiency cap); Ghost Veil (45 s, cloak nearby allies for 6 s under normal reveal rules, at most three non-damaging decoys). Ark reserves limit total reconstruction to two components per battle. Each carrier starts with a finite, displayed craft reserve and never manufactures endless salvage.
 
-Apply a maximum 60% combined ordinary damage reduction. Aegis absorption has finite capacity and cannot trigger another Aegis recursively. Redirected or prevented damage cannot create new damage events that re-trigger itself. Bosses receive half-duration control effects, and after a successful charge interruption gain 6 s of interruption resistance. Their escorts and exposed organs remain ordinary targets. Never grant blanket immunity to an entire researched path.
+Capstone damage should initially deliver about 6–8 seconds of an equivalent-cost conventional weapon battery's output, then be tuned against telegraphs, area coverage, and cooldown. Do not silently substitute unlimited healing or summons for missing balancing.
+
+Every equipment effect must have a useful passive/automatic function. Provide optional Auto per ability: defensive casts at explicit HP/threat thresholds, attacks on visible valid targets, Scan on unknown visible rocks or radar uncertainty (never hidden mineral contents). Manual play improves timing; Normal must remain viable on Auto. A player can disable Auto for every action.
 
 **12. Enemy and objective roster**
 
@@ -317,7 +356,7 @@ Introduce roles separately in Act I, pair them in Act II, and combine three or f
 
 Initial environment set: asteroid cover with visible line-of-fire effects; ion storms with announced shield-recharge suppression intervals; moving debris with marked impact areas; gravity currents that modify steering; nebula patches that shorten sensors for both sides. Implement two before expanding to five. Never make a hazard merely an invisible stat penalty. Basic automatic danger avoidance must exist before shipping avoidance-dependent hazards.
 
-Failure/retreat policy: a surviving fleet may retry the same frozen node. Enemy state resets for that retry; player losses and expended persistent resources remain. No research, fare, victory credits, or bonus recovery until the first success. Do not grant ordinary enemy salvage on an unsuccessful attempt. Previously destroyed player material is never refunded twice. A terminal fleet defeat ends the run. This policy must be implemented before escort/interception objectives are introduced.
+Failure/retreat policy: a surviving fleet may retry the same frozen node. Enemy state resets for that retry; player losses and expended persistent resources remain. No RP, victory credits, or enemy salvage until first success. Passenger deaths and cargo losses apply immediately. Collected asteroid ore persists even on withdrawal, with its finite field/ledger also persisted; retries cannot regenerate rocks or ore. Passenger tickets and trade occur only at secured inhabited arrivals. Previously destroyed player material is never refunded twice. A terminal fleet defeat ends the run. This policy must be implemented before escort/interception objectives are introduced.
 
 **13. Boss encounter specifications**
 
@@ -341,71 +380,72 @@ All branches need at least two viable answers across fleet design, automatic beh
 
 Victory credits initially equal 90 + 10 × combat index, where combat index advances from 1 to 14. This reward schedule is unrelated to enemy adaptation. Elites multiply credits/material bundle by 1.4; bosses by 1.5. RP uses laboratory output without an elite multiplier. Noncombat rewards are fixed in their node definitions.
 
-Base material bundle size starts at 12 / 18 / 24 per act. Initial weights are Defense 35%, Offense 30%, Tech 20%, Civic 15%, with visible route-specific adjustments. Deterministic rounding should preserve the intended bundle total; logistics adds its separate bonus afterward. Avoid Civic becoming a mandatory bottleneck. Ports sell all four types, and build costs can automatically purchase shortages with a preview.
+Base material bundle size starts at 12 / 18 / 24 per act. Initial weights are Defense 35%, Offense 30%, Tech 20%, Civic 15%, with visible route-specific adjustments. Deterministic rounding preserves the bundle total; the finite-pool recovery formula in section 10 adds the logistics yield. Avoid Civic becoming a mandatory bottleneck. Ports sell all four types, and build costs can automatically purchase shortages with a preview.
 
-Science is the long-term technology investment. Tourism yields spendable credits with casualty exposure and locked safety bonds. Logistics yields construction materials. All three require deployment space, components, and protection. Their bonuses must be reported separately so players understand their payback.
+Science buys long-term technology. Passenger accommodation pays tickets on inhabited arrivals with death penalties. Cargo pays only on delivery. Mining and recovery yield construction materials. All consume hull/deployment space and need protection; report their returns separately.
 
 Target ordinary battle duration 45–90 s and boss duration 90–150 s at normal speed. A normal run has 14 battles plus ten noncombat/preparation stops; allow fast-forward and optional ability Auto mode. Target one major combat capstone before battle 13 for a focused baseline science fleet. Extra science can buy breadth or a second endpoint, but should not trivially complete all four chosen combat paths before the final act.
 
 **15. Data and implementation boundaries**
 
-Use explicit data definitions rather than adding special cases throughout UI scripts. Suggested records:
+Use explicit definitions and simulation-owned state. UI renders state and issues validated commands; it must not award resources or reveal hidden entities.
 
-- EquipmentDefinition: stable ID, material footprint, allowed transforms, base stats, passive effects, abilities, prerequisite IDs, exclusive family/path, capstone flag, role restrictions.
-- ResearchNode: ID, RP cost, prerequisites, story gate, granted recipe/rank, exclusion group.
-- CampaignNode: stable node ID, act/row/proximity, type, outgoing IDs, template ID, frozen roster seed/data, rewards, objective, hazard, preview bands, completion state.
-- EncounterDefinition: budget, role roster, formations, finite waves, boss organs, success/failure rules.
-- AbilityDefinition and AbilityState: source rules, target schema, energy, cooldown, charges, execution behavior, auto policy, current timers.
-- PassengerContract: stable passenger ID, host/cabin ID, fare class, paid-stop count, escrow, alive/evacuated/dead/disembarked state.
-- RewardLedger: encounter ID, completion state, RP snapshot, base bundle, logistics snapshot/fraction, passenger settlement, committed transaction ID.
-- RunState: seed, graph, research, chosen branches, fleet/reserves, dedicated slots, deployment capacity, passenger contracts, spendable credits/escrow, reward ledger, current node.
+- EquipmentDefinition: stable ID, footprint/transforms, stats, effects, ability IDs, capstone and role flags.
+- ResearchNode: cost, prerequisite IDs, story gates, exclusions, arrays of granted equipment/ranks/abilities/modifiers.
+- CampaignNode/Edge: persistent ID, act/row/proximity, connections, inhabited flag, goods grade/unit value, frozen encounters/rewards, hazard and travel duration, previews, completion.
+- AbilityDefinition/State: source/target rules, range/radius, cooldown, finite reserves, automatic policy, current cast.
+- AccommodationState: stable component ID, capacity, occupants, current luxury; no individual passenger identity.
+- CargoState: stable hold ID, capacity, quantity, origin node, grade, stored unit value.
+- VisibilityState: per-team sight/radar coverage, current contacts, explored mask, last-seen timestamps, detected-cloak timers; keep full world state inaccessible to UI queries.
+- AsteroidState: root/fragment IDs, mass, velocity, HP, finite ore partition, discovery, extraction snapshot, pickups already claimed.
+- EnvironmentDefinition/State: region, effect, phase/timer, preview tags; use simulation time.
+- TransactionLedger: arrival ID, sold quantities, refill, boarding income, casualty event IDs, encounter victory/RP snapshot, ore pickup IDs. Write amounts and resulting balances atomically.
+- RunState: version, seed, saved graph, progression, research/exclusions, fleet/reserves, support slots, signed credits, construction inventory, economy states, encounter/environment persistence.
 
-Relevant current files:
+Current integration points:
 
-| File | Planned responsibility |
+| File | Responsibility |
 |---|---|
-| scripts/game_state.gd | Run progression, research, fleet slots, node transitions, one-time settlement |
-| scripts/alien_ship.gd | Data-based enemies; remove every player-fleet scaling input |
-| scripts/graph_view.gd | Variable map graph, icons, previews, route highlighting |
-| scripts/game_map.gd | Selected-node briefing, ports, passenger/research/economy UI |
-| scripts/ship_part.gd and ship_part_pattern.gd | Stable equipment identity, recipes, effect metadata |
-| scripts/build_tilemap_area.gd | Research-gated assembly, collision previews, stable assembled parts, adjacency display |
-| scripts/ship.gd and fleet_ship.gd | Shared derived stats, live component effects, dedicated-loadout validation, passengers |
-| scripts/builtin_ships.gd | Default Drone, Science Vessel, Civic Tender |
-| scripts/battle_simulation.gd | Deterministic abilities, effects, objectives, organs, finite spawns |
-| scripts/auto_battle.gd and battle_visuals.gd | Tactical controls, targeting previews, telegraphs, readable effects |
-| scripts/battle_report.gd | Damage, protection, repairs, interceptions, RP, passengers, credits, salvage |
-| scripts/upgrades_panel.gd | Research purchases, paths, exclusions, recipes, payoff previews |
-| tests/test_battle.gd | Existing regression coverage; extend/split into focused suites as needed |
+| scripts/game_state.gd | Run state, transitions, idempotent arrivals/rewards, signed credits |
+| scripts/alien_ship.gd | Enemy definitions; remove fleet-count scaling |
+| scripts/graph_view.gd; scripts/game_map.gd | Varied graph, previews, goods/inhabited properties, ports |
+| scripts/ship_part.gd; scripts/ship_part_pattern.gd | Stable identities, recipes, effect metadata |
+| scripts/build_tilemap_area.gd | Unlock validation, recipe previews, adjacency |
+| scripts/ship.gd; scripts/fleet_ship.gd | Shared derived stats, role restrictions, occupancy/load |
+| scripts/builtin_ships.gd | Drone, Science Vessel, Civic Tender |
+| scripts/battle_simulation.gd | Visibility, hazards, neutral targets, abilities, objectives, fragments |
+| scripts/auto_battle.gd; scripts/battle_visuals.gd | Filtered rendering, bottom bar, telegraphs, Scan/mineral overlays |
+| scripts/battle_report.gd | Separate RP, trade, tickets, losses, mining, enemy salvage |
+| scripts/upgrades_panel.gd | Grouped concepts, multi-unlocks, branch consequences |
+| tests/test_battle.gd | Preserve regressions; add focused suites for new state machines |
 
-Preserve existing numeric enum identities and blueprint compatibility. Append new IDs; never renumber from the catalog table. Version new saves. Legacy designs load into the archive but remain unbuildable if their components are not researched. Store the generated run graph rather than regenerating it from current algorithms on load. Write reward transactions and run saves atomically, with a recovery backup. Do not overwrite unrelated working-tree changes; this repository already contains ongoing changes.
+Extract focused helpers/resources from large scripts as needed; do not force every system into one file. Keep the authoritative rules callable in headless tests. Preserve numeric material/equipment IDs. Version saves; legacy archived designs load but cannot bypass unlocks. Store generated graphs and transaction results, not just seeds. Back up saves and recover interrupted transactions. Preserve unrelated working-tree changes.
 
-**16. Ordered implementation milestones and acceptance gates**
+**16. Ordered implementation milestones**
 
-| Milestone | Deliverable | Acceptance criteria before moving on |
-|---|---|---|
-| M1 — Fixed encounter progression | Frozen seeded encounter data; proximity budgets; remove adaptive scaling | For the same seed/node/difficulty, fleets of 1, 4, and 10 ships produce identical enemy rosters, stats, waves, rewards, and previews. Reloading does not reroll. |
-| M2 — New map and story skeleton | Three eight-row acts, typed nodes, previews, checkpoints, placeholder bosses | Validate 1,000 seeds for reachability, forward-only edges, 4/5/5 mandatory fights, ports, meaningful forks, and no mandatory elites. UI handles 2–4-node rows. |
-| M3 — Foundation research and support fleet | Science/Civic slots, starter ships, lab ranks, Cargo Hold, RP, deployment capacity | Start with four ships and three distinct design families; dedicated slots reject illegal hulls. RP examples reproduce exactly, including destroyed deployed labs and zero reserve contribution. Branch/research restrictions cannot be bypassed through imports. |
-| M4 — Recipes and adjacency | Crew, stable assembly, shared stat calculation, first useful research purchases | Bonuses obey contact/recipient/stack limits; losing a component removes effects. Unlocking tech cannot silently morph existing parts. All allowed transforms preserve recipe meaning. |
-| M5 — Tactical abilities | Four-slot bar, Command Energy, pause targeting, Scan, Ion Pulse, Evacuate, auto policies | Commands replay deterministically. Paused/fast-forward behavior uses simulation time. Invalid commands spend nothing. Duplicate sources do not multiply cooldowns. Normal battles work with Auto. |
-| M6 — Tourism and logistics | Contracts, fares, escrow, casualty settlement, full material recovery chain | Three-stop/18-credit fare cap and 20-credit forfeiture hold; death is charged once; repair does not resurrect passengers. Twenty eligible materials with full logistics yields twelve bonus units. No bonus from player wrecks or summoned units. |
-| M7 — First complete act | Distinct existing enemies, two hazards, escort/interception objectives, Warden | Preview matches actual threat. First act is completable with several ordinary fleet layouts. Failure/retreat yields no repeatable rewards. Warden has multiple viable counters. |
-| M8 — Full research and Act II | Four mutually exclusive combat families; all intermediate equipment; Brood Architect | Every recipe has a validated unlock path and transform signature. Opposite-branch recipes cannot coexist. Carrier reserves and repair/reconstruction are finite. |
-| M9 — Act III and final endpoints | All 48 types, full support paths, capstones, Leviathan, ending | Final organs persist across phases; no full heal or mandatory exclusive counter. A capstone can be obtained and used before the final boss. Tourism/logistics/science endpoints retain a combat purpose. |
-| M10 — Balance and presentation | Full-run simulations, reports, tutorial, persistence, final tuning | Comparable investments support multiple successful fleet doctrines. All economies and losses are explained. Existing regression tests pass or are deliberately updated for documented design changes. |
+TODO.md owns the numbered implementation sequence and its acceptance checks. Deliver progressively:
+1. Stable encounters, persistence, and outcome accounting.
+2. Readable map, story checkpoints, inhabited arrivals.
+3. Dedicated support ships, research, stable recipes, adjacency.
+4. Passenger/cargo economy and material handling.
+5. Visibility, Scan/abilities, neutral asteroids, mining and travel hazards.
+6. Complete Act I vertical slice.
+7. Intermediate doctrines, cloak, Act II, and capstones.
+8. Full Leviathan campaign, economy/AI balancing, assets, and release validation.
 
-Each milestone should be a small sequence of reviewable changes with its own relevant tests. Use placeholder art until behavior is stable. Do not defer map/encounter determinism, research validation, or reward idempotence until the content phase.
+Gate new research on actual working effects. Use placeholder art while systems settle. Do not expose purchases that only change a label or unlock a nonfunctional component.
 
 **17. Balance validation and completion definition**
 
-Run deterministic comparisons at equal starting resources for at least: balanced escort/science, siege, carrier, mobile disruption, tourism-heavy, logistics-heavy, and distributed research fleets. Test both Auto and Manual abilities. Vary route, enemy formations, and seeds rather than optimizing against one encounter.
+Compare equal-resource fleets across balanced escort/science, siege, carrier, mobile disruption, tourism, trade, mining, and distributed research. Include regular fleets with no mining, no tourism, or no manually activated abilities. Rotate seeds/routes rather than balancing against one encounter.
 
-Record purchase frequency; branch win rates; first capstone timing; battle length; ships lost; passenger profit/casualties; science and logistics payback; repair expenditure; unused materials; damage prevented; repair delivered; interceptions; adjacency uptime; and ability impact. No universal target win rate is assumed before establishing player skill and intended difficulty.
+Record capstone timing, branch choice/win rate, battle duration, passenger net income/deaths/debt duration, delivered/lost cargo, mined materials per minute, extraction efficiency, science payback, repairs, unused materials, ability impact, adjacency uptime, visibility uptime, and collision damage to each faction. An extra scientist or miner must cost enough deployment/combat opportunity to remain a choice. Compare specialized equipment to the same investment in ordinary weapons.
 
-Required regression scenarios include zero passengers, full escrow, destroyed cabins, evacuation during a lethal volley, lost support ships, duplicated ability sources, disconnected intact modules, reconstruction of a buff source, reserve ships, imported locked blueprints, repeated failed objectives, reload during settlement, and a boss phase transition while an ability is charging.
+Regression examples: four luxury-1 passengers board for 32; losing their cabin costs 80 even if balance goes negative; host death does not charge twice. Ten Basic Goods deliver 30, then load destination goods; three units lost means only 21 delivered and no fee. UI reopening and reload never replay arrivals. Repair never creates passengers or cargo. A mined root cannot yield more than its budget across children, retries, and reloads. Fog must not leak hidden units through targeting, tooltips, damage indicators, minimap, or AI. Cloaked threats have Foundation Scan and proximity counters.
 
-The first meaningful playable milestone is: two Drones, a Science Vessel, and a Civic Tender can choose between clearly previewed routes, fight an encounter whose strength does not change with their fleet, earn understandable research/material rewards, and make a consequential refit. The complete release adds tourism, targeted decisions, all research paths, and the three-boss story without undermining that loop.
+Also test reserve ships, lost support ships, duplicate ability sources, intact disconnected modules, reconstruction of buff sources, locked blueprint imports, all exclusive recipe pairs, travel withdrawal, simulation speed, boss transitions during casts, and capstone availability before battle 13. Run automated economy/graph checks plus actual playtests; simulations alone cannot establish readability or fun.
+
+Release requires three complete acts, all catalog effects and unlocks implemented, useful economics without a mandatory investment path, readable encounters and hazards, multiple boss counters, and safe save/load. Passing tests does not make these initial tuning values final.
 
 **18. Design references**
 
@@ -415,3 +455,60 @@ The first meaningful playable milestone is: two Drones, a Science Vessel, and a 
 - Slay the Spire 2: route legibility and planning. Mega Crit specifically discusses larger, colored map icons and map drawing; this plan's enemy-preview schema is our own design. https://megacrit.com/news/2024-11-07-neowsletter-issue-4/
 
 The references inform the proposal; they are not evidence that these exact numbers or combinations are already balanced. Complete the implementation gates and playtesting before treating tuning values as final.
+
+**19. Fog of war, radar, and cloak**
+
+Adopt Cosmoteer's documented distinction between local sight, dark unseen space, and generic radar contacts, plus Sensor Arrays extending sight. Its official Classic 0.11.0 changelog also describes dropping component targeting when sight is lost. Source: [Cosmoteer official changelog](https://cosmoteer.net/history.html). The finite radar ranges, mineral discovery, and cloaking below are this game's proposed extensions, not claims about current Cosmoteer behavior.
+
+All ranges below use battle-world units and need one shared conversion to current scene scale. Each operational Command Center gives sight 260 and radar 480. Sensor Array changes these to 400/720. Radar Relay adds 120 radar range to allies within 240; duplicate relays do not stack. Team visibility is the union of its surviving sources. These effects work identically for enemy factions. Sources do not recursively amplify one another.
+
+| Information state | Presentation | Permitted targeting |
+|---|---|---|
+| Unexplored, outside radar | Dark space; no live entity details | Move or ground-target Scan |
+| Explored but currently unseen | Dim terrain memory; no live ship updates | Move; explicitly ground-target areas where an ability permits |
+| Radar contact outside sight | Generic pulsing dot; no identity, HP, parts, ore, or exact loadout | Investigate or Scan; no precise weapon lock |
+| In sight, not cloaked | Current hull, visible parts, HP and targeting | Normal valid attacks |
+| Previously seen, now unseen | Clearly stale last-known marker, expires after 5 s | No lock or live tracking |
+| Scanned area | Temporary full local visibility for 6 s | Normal targeting while revealed; ore knowledge persists afterward |
+
+Cloak Generator activates after 8 s without firing or taking damage, concealing normal radar and visual contact outside 60-unit proximity. Weapon fire, damage, Scan, or proximity reveal a cloaked ship for 6 s; firing/damage also restart the 8 s recloak delay. A friendly cloak never hides the ship from its own UI. Scan beats cloak without requiring an exclusive branch. Ghost Veil applies these same reveal rules to nearby allies; it cannot grant uninterrupted firing invisibility.
+
+Target locks drop when visibility is lost. A projectile already fired continues to its last known aim point or ballistic path; it must not magically track hidden live coordinates. Area effects can hit hidden units through simulation, but must not reveal identity/HP in tooltips or reports until legitimately detected. Decoys have contact/target identities but no salvage or RP.
+
+Scan can be centered in unseen space within source range; it is deliberately useful for searching. Radar does not reveal ore. With Mineral Spectroscopy, a Scan labels rocks empty, extractable, or tech-locked, with material and estimated yield. Persistent knowledge does not grant permanent live tracking of a moving rock outside visibility. Scan every unknown visible rock is a valid Auto policy; reading its secret contents before casting is not.
+
+Keep strategic route previews separate from tactical visibility. Fog cannot erase promised next-node threat/hazard information. Introduce normal radar in Act I, nebulae and a weak cloak enemy in Act II, and coordinated cloaked hunters in Act III only after teaching Scan. Fog masks, minimap contacts, offscreen indicators, tooltips, selection, health bars, and AI must all use the same visibility query.
+
+**20. Asteroids and non-alien targetable entities**
+
+Asteroids participate in the same damage/weapon-target pipeline as enemies, but carry neutral-hazard and optional-resource tags. This satisfies their role as attackable objects without making every harmless rock a mandatory kill. Ordinary victory counts only the encounter's declared hostile/objective entities. A mining objective can explicitly require a quota; optional cleanup after victory never grants another victory/RP reward.
+
+Initial deterministic rock classes: mass 8/4/2/1, radius 8 × sqrt(mass), HP 12 × mass. On destruction, a mass greater than 1 splits into two children of half mass; minimum-size rocks disappear into debris/pickups. Conserve mass and ore across splitting, and give children seeded separation velocities plus 0.5 s birth collision grace. Fracture is a visual explosion, not extra area damage unless a separately previewed volatile-rock tag says so.
+
+A collision inflicts 6 × mass damage on the contacted ship component, ally or alien, and removes 25% of the rock's maximum HP. Resolve each rock/ship pair at most once per 0.75 s while overlapping; separate bodies to avoid persistent unavoidable grinding. Rock damage is based on the mass before impact, before any resulting fragmentation. Large rocks are dangerous and durable, not convenient free damage sinks. Add visible trajectories/proximity warnings and automatic avoidance before making dense fields mandatory.
+
+Use up to 96 live rocks in addition to the ship/craft entity budget. Initial fields must contain at most 48 roots to leave fragmentation headroom. If splitting would exceed the limit, retain a pending fracture until space opens; the parent remains an inert non-colliding, non-targetable fragment container, with its mass/ore budget preserved. Do not delete mineral value or create invisible colliders. Profile heavy fields, carrier fleets, Scan, and fragmentation together.
+
+Seed root identity, ore budget, empty/ore distribution, motion, and hazard regions with the node/edge. Once entered, persist field damage, fragment lineage, discovered contents, pickups, and consumed ore across withdrawals/retries. Enemy ships may reset for retry; asteroid resources never regenerate. Save collected construction materials and pickup ledger together. Destruction by aliens can leave recoverable fragments, but cannot duplicate resource budgets.
+
+Initial fields should contain 40–60% empty roots, clearly described as a tuning target. Scan saves mining time; do not force players to waste minutes shooting every empty rock. Give a mining field a visible optional time budget and a “continue journey” control. No infinite respawning rocks. Asteroids obscure physical shots through ordinary collision, but do not add complex line-of-sight occlusion to the first fog implementation.
+
+**21. Passive environmental effects and encounter variety**
+
+Start with asteroids and ion storms, then add gravity currents and nebulae. Effects operate in travel and battle through the same simulation system and affect both sides unless a preview explicitly describes an asymmetric source.
+
+| Environment | Initial rule | Player choices and preview |
+|---|---|---|
+| Asteroid drift | Moving, destructible collision hazards; optional ore | Density, motion direction, mineral potential; avoid, Scan, mine, or use as physical cover |
+| Ion storm | Every 15 s, telegraph 3 s then suppress shield recharge by 50% for 5 s | Visible timer/region; armor, timing, repositioning, repair |
+| Gravity current | Visible vector field adds bounded drift up to 20% of base ship speed | Approach angle, thrust, formation, Phase Step; does not disable steering |
+| Sensor nebula | Inside patch, sight and radar range reduced 35% for either faction; Scan circle unaffected | Scout, Scan, close engagement, alternate route |
+| Volatile debris | Explicitly tagged rocks detonate in a visible radius on destruction | Keep distance, deliberate chain reaction, Tether; rare until fragment limits are tested |
+
+Normal encounters use at most one environmental modifier initially; asteroids count as that modifier. Elites and Act III can combine two only after combined previews and avoidance work. Budget dangerous terrain as part of the node's frozen threat, not a free difficulty increase added after roster generation. Tune a template's enemy allocation downward for hazardous terrain; never inspect the player fleet to choose that adjustment.
+
+Build level variety through objective and geometry, not only larger rosters: an open patrol, narrow drifting field, finite-wave relay defense, fleeing carrier interception, neutral convoy crossing, optional resource survey, and cloak ambush with clearly advertised contact uncertainty. Use at least three geometries per act and avoid repeating an objective on consecutive ordinary battle rows. Mandatory objective timers start when the encounter begins, pause with simulation, and are visible in briefing and battle.
+
+Travel does not secretly add mandatory alien encounters. Environmental casualties/cargo loss are real and immediately recorded; asteroid material pickups persist. Safe edges remain available so economic fleets can choose risk. On reaching an inhabited destination, settle arrivals only after travel and any declared hostile objective are secured. A failed approach never sells cargo or boards passengers.
+
+Implement one complete example of each system before expanding content. The first integrated route should let players preview a drift field, Scan ore, send a regular-slot miner while escorts avoid rocks, reach a port, sell surviving cargo, board passengers, and spend battle-earned RP on a grouped research node.
