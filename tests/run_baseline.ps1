@@ -11,6 +11,8 @@ try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     & $Godot --headless --path $projectRoot --import --log-file (Join-Path $runRoot 'import.log')
     if ($LASTEXITCODE -ne 0) { throw "Import failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_definitions.gd --log-file (Join-Path $runRoot 'definitions.log')
+    if ($LASTEXITCODE -ne 0) { throw "Definition suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

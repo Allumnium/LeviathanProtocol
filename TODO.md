@@ -56,9 +56,12 @@ Invariants: proximity-only enemy strength; three regular design families plus on
    **Done when:** baseline failures are separated from new work, fixtures are backed up, and the manifest identifies reused/missing assets.
    **Result (2026-10-26):** See docs/BASELINE.md, docs/ASSET_MANIFEST.csv and docs/EQUIPMENT_ASSET_STATUS.csv. Added tests/run_baseline.ps1, docs/.gdignore and .gitignore for isolated local artifacts. Godot 4.7.2 import exited 0; initial battle suite passed, but runner verification exposed four intermittent controller/report failures and a follow-on script error, recorded in BASELINE.md. Certificate-store diagnostic recorded separately. Save fixtures backed up under .local/baseline/fixtures; builder scale verified at 26 units. Import also updated generated .godot caches.
 
-2. [ ] **Introduce versioned definitions.**
+   **Baseline follow-up (2026-10-26):** Fixed spent cinematic-shot cleanup in physics; stabilized the controller/UI fixture and report lookup in tests/test_battle.gd. Focused controller check and full isolated import/battle suite passed, including 600 balance encounters. Final full run: 0 failures; details/log path in docs/BASELINE.md.
+
+2. [x] **Introduce versioned definitions.**
    Define equipment, research grants, encounters, nodes/edges, abilities, environments and goods properties. Preserve existing enum values; rename displayed purple CORE to Civic and starting technology to Foundation.
    **Done when:** old blueprints load unchanged and future definitions do not appear as purchasable content.
+   **Result (2026-10-26):** Added data/definitions.json, scripts/game_definitions.gd (+UID), docs/DEFINITIONS.md, tests/test_definitions.gd (+UID) and tests/fixtures/legacy_blueprints_v1.json. Updated ship_part.gd to pin IDs 0–8 and append planned IDs, ship_part_pattern.gd to attach definition identity and gate planned content, upgrades_panel.gd to display Foundation, and tests/run_baseline.ps1 to run definition checks. Civic material labels were already present. Import, definition tests and full battle suite passed (0 failures, 600 balance encounters); logs: .local/checks/af52f3e4351f43e19dc0a15498de12c7/. No future purchases or gameplay tuning activated. Generated .godot caches also updated during import.
 
 3. [ ] **Separate run state from archive knowledge.**
    Store current research, branch choices, active design families, story flags, signed credits and seed in game_state.gd.

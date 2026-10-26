@@ -103,6 +103,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if pause_button.button_pressed:
 		return
+	# Simulation speed must not depend on the render callback clearing a spent shot.
+	if _cinematic_projectile != null and not simulation.projectiles.has(_cinematic_projectile):
+		_cinematic_projectile = null
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
 	var speed_multiplier := (

@@ -1,0 +1,11 @@
+[
+  {"tiles":[[0,0,1],[1,0,1],[0,1,1],[1,1,1]],"parts":[{"origin":[0,0],"category":1,"hidden_tile_offsets":[],"type":0,"cell_offsets":[[0,0],[1,0],[0,1],[1,1]]}]},
+  {"tiles":[[0,0,0],[1,0,0],[2,0,0]],"parts":[{"origin":[0,0],"category":0,"hidden_tile_offsets":[],"type":1,"cell_offsets":[[0,0],[1,0],[2,0]]}]},
+  {"tiles":[[0,0,0],[1,0,0],[2,0,0],[0,1,0],[1,1,0],[2,1,0]],"parts":[{"origin":[0,0],"category":0,"hidden_tile_offsets":[],"type":2,"cell_offsets":[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]]}]},
+  {"tiles":[[0,0,1]],"parts":[{"origin":[0,0],"category":1,"hidden_tile_offsets":[],"type":3,"cell_offsets":[[0,0]]}]},
+  {"tiles":[[0,0,1],[1,0,1],[2,0,1],[0,1,1],[1,1,2],[2,1,1],[0,2,1],[1,2,1],[2,2,1]],"parts":[{"origin":[0,0],"category":2,"hidden_tile_offsets":[],"type":4,"cell_offsets":[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]]}]},
+  {"tiles":[[0,0,0]],"parts":[{"origin":[0,0],"category":0,"hidden_tile_offsets":[],"type":5,"cell_offsets":[[0,0]]}]},
+  {"tiles":[[0,0,0],[1,0,0],[2,0,2]],"parts":[{"origin":[0,0],"category":2,"hidden_tile_offsets":[[0,0],[1,0]],"type":6,"cell_offsets":[[0,0],[1,0],[2,0]]}]},
+  {"tiles":[[0,0,0],[1,0,0],[2,0,0],[3,0,2],[4,0,2],[0,1,0],[1,1,0],[2,1,0],[3,1,2],[4,1,2]],"parts":[{"origin":[0,0],"category":2,"hidden_tile_offsets":[[0,0],[1,0],[0,1],[1,1]],"type":7,"cell_offsets":[[0,0],[1,0],[2,0],[3,0],[4,0],[0,1],[1,1],[2,1],[3,1],[4,1]]}]},
+  {"tiles":[[0,0,3],[1,0,2],[0,1,2],[1,1,3]],"parts":[{"origin":[0,0],"category":2,"hidden_tile_offsets":[],"type":8,"cell_offsets":[[0,0],[1,0],[0,1],[1,1]]}]}
+]

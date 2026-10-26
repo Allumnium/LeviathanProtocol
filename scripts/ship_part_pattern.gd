@@ -25,6 +25,8 @@ var preview_texture: Texture2D
 var renders_on_top := false
 var tech_category: int
 var prerequisite_types: Array[int] = []
+var definition_id := ""
+var definition_revision := 0
 
 
 func _init(
@@ -270,7 +272,15 @@ static func get_catalog() -> Array[ShipPartPattern]:
 		if pattern.part_type == ShipPart.Type.DOUBLE_LASER:
 			pattern.tech_category = ShipPart.TechCategory.ENERGY
 			pattern.prerequisite_types = [ShipPart.Type.LASER]
-	return patterns
+	var implemented_patterns: Array[ShipPartPattern] = []
+	for pattern in patterns:
+		var definition := GameDefinitions.equipment(pattern.part_type)
+		if definition.is_empty() or not definition.implemented:
+			continue
+		pattern.definition_id = definition.id
+		pattern.definition_revision = int(definition.revision)
+		implemented_patterns.append(pattern)
+	return implemented_patterns
 
 
 static func _thruster_idle_texture(sheet: Texture2D) -> AtlasTexture:

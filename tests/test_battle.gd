@@ -913,6 +913,10 @@ func _test_scene() -> void:
 				<= GameState.MAX_ALIEN_FLEET_SIZE * state.player_ship_count,
 		"Deployment must multiply the base alien fleet by the player fleet size."
 	)
+	# This scene test checks controller settlement/UI, not randomized pursuit balance.
+	state.battle_aliens.clear()
+	for alien in _fleet(3, 90210):
+		state.battle_aliens.append(alien)
 	var scene := load("res://scenes/auto_battle.tscn") as PackedScene
 	var battle := scene.instantiate()
 	root.add_child(battle)
@@ -953,7 +957,20 @@ func _test_scene() -> void:
 		enemy.cooldowns[0] = 10000.0
 		enemy.integrity = 1.0
 		enemy.shields = 0.0
+		enemy.speed = 0.0
+		enemy.velocity = Vector2.ZERO
+		enemy.position = battle.simulation.player.position + Vector2(100.0, 0.0)
+		enemy.previous_position = enemy.position
 	_test_battle_sounds(battle)
+	# A spent cinematic shot must stop slowing physics even without a render frame.
+	# The controller is driven synchronously below, so _process cannot clear it.
+	battle._cinematic_projectile = BattleSimulation.Projectile.new()
+	battle._simulation_accumulator = 0.0
+	var elapsed_before_spent_shot: float = battle.simulation.elapsed
+	battle._physics_process(battle.SIMULATION_TICK_SECONDS)
+	_check(is_equal_approx(
+		battle.simulation.elapsed, elapsed_before_spent_shot + battle.SIMULATION_TICK_SECONDS
+	), "A spent finishing shot must restore normal speed on the next physics tick.")
 	var zoom_before: float = battle.visuals.camera_zoom
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
@@ -1031,7 +1048,18 @@ func _test_scene() -> void:
 		"Collected salvage must be credited to the correct inventory exactly once.")
 	_check(current_scene == battle and not state.last_battle_report.is_empty(),
 		"The report must remain open until Continue is selected.")
-	var report := battle.get_child(battle.get_child_count() - 1)
+	var report: Node
+	var report_script := load("res://scripts/battle_report.gd")
+	for child in battle.get_children():
+		if child.get_script() == report_script:
+			report = child
+			break
+	_check(report != null, "Completed battle must create a battle report panel.")
+	if report == null:
+		print("Controller diagnostic: phase=%s elapsed=%s aliens=%s projectiles=%s finished=%s" % [
+			battle.simulation.phase, battle.simulation.elapsed,
+			battle.simulation.living_alien_count(), battle.simulation.projectiles.size(), battle._finished])
+		return
 	report.closed.emit()
 	await scene_changed
 	var game_map := current_scene

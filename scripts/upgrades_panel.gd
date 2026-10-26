@@ -232,7 +232,7 @@ func _category_name(category: int) -> String:
 	match category:
 		ShipPart.TechCategory.ENERGY: return "ENERGY"
 		ShipPart.TechCategory.UTILITY: return "UTILITY"
-		_: return "CORE"
+		_: return "FOUNDATION"
 
 
 func _category_color(category: int) -> Color:

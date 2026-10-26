@@ -10,6 +10,7 @@ Run `powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_baseline.ps1`
 
 ```text
 godot --headless --path . --import
+godot --headless --path . --script res://tests/test_definitions.gd
 godot --headless --path . --script res://tests/test_battle.gd
 ```
 
@@ -18,6 +19,19 @@ Actual initial results: import exit 0; battle suite exit 0, **0 failures**. The 
 Initial logs and isolated saves: `.local/baseline/`. Copies of existing archive_progress.json, settings.cfg and ship_designs.json are in `.local/baseline/fixtures/`. These private local artifacts are ignored by git. No tests used the player's real save directory.
 
 Runner verification repeated import successfully, but the battle suite exited 1 with four failures in `_test_scene`: automatic combat/salvage completion, map advancement, victory credits and report lifetime. It also raised an invalid `closed` property access on Button at test line 1035 after the completion assertions failed. Logs: `.local/checks/e0c456965ad542adabf90c1e66f8ae66/`. No gameplay code changed between the passing and failing runs. Treat the controller test as an intermittent baseline issue; investigate its randomness/timing and report lookup before using it as a reliable gate. The runner correctly propagates failure. The real blueprint save hash still matches its backup.
+
+### Controller baseline follow-up
+
+Investigation found two independent problems:
+
+- Finishing-shot slow motion retained a spent projectile until `_process` cleared it. Synchronous physics stepping can therefore remain at 0.1x speed without render frames. `auto_battle.gd` now clears a spent cinematic projectile before choosing physics speed. A regression injects a spent shot and checks that the next physics tick advances at normal speed.
+- Random encounter generation also made the settlement/UI test depend on pursuit balance: focused diagnostics reproduced COMBAT after 120 simulation seconds with one alien still alive and no projectiles. The test now checks deployment generation separately, then uses three seeded, stationary, nearby low-HP targets with weapons on cooldown for the controller/UI scenario. The 600-encounter balance suite and dedicated pursuit tests retain their existing coverage.
+
+The report lookup now identifies the report script instead of assuming the final child is a report. Missing reports produce a phase/elapsed/enemy/projectile diagnostic and a failed assertion rather than an invalid Button signal access. Focused controller check passed with zero failures. Godot also emitted ObjectDB/resource shutdown warnings; these are separate from controller assertions and are not claimed fixed.
+
+Changed files: scripts/auto_battle.gd, tests/test_battle.gd, docs/BASELINE.md and TODO.md. No serialized IDs, saves or economy rules changed.
+
+Final validation: `tests/run_baseline.ps1` completed with import exit 0 and battle suite exit 0, zero failures, including all 600 balance encounters and the controller regression. Logs: `.local/checks/a9bd96eebce241348f50181df4ad845c/`. The certificate-store diagnostic remains. `git diff --check` passed. Generated .godot caches changed during imports.
 
 ## Compatibility and integration findings
 
@@ -34,4 +48,4 @@ See `ASSET_MANIFEST.csv` for current raster assets and `EQUIPMENT_ASSET_STATUS.c
 
 Nine existing components have referenced art. Thruster sheets use a 3 × 3 atlas: frame 0 idle, frame 1 startup for 0.1 s, frames 2–8 loop at 12 fps. Static thruster exports are retained but the catalog uses animated sheets. Project filtering is nearest. Rotation/reflection is handled by recipe/renderer code; pivots and visual heading still require visual QA before art commissioning. Existing alien roles and station/star art are available. The remaining 47 equipment types need artwork; reuse procedural fog/targeting effects where appropriate.
 
-Next: step 2, versioned definitions without exposing future purchases; then run/archive separation and atomic accounting in steps 3–4. No completion claims for those steps.
+Step 2 is now complete; see DEFINITIONS.md for its content boundaries and validation. Next: run/archive separation and atomic accounting in steps 3–4. No completion claims for those steps.
