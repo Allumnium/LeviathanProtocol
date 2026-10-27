@@ -1340,7 +1340,8 @@ func _test_scene() -> void:
 		var history_controls := build_area.get_node("HistoryControls") as HBoxContainer
 		_check(
 			design_controls != null
-				and design_controls.get_child_count() == 2
+				and design_controls.get_child_count() == 3
+				and build_area.assembly_menu != null
 				and selector_row != null
 				and selector_row.columns == 4
 				and selector_row.get_child_count() == 8

@@ -105,6 +105,10 @@ var _zoom_anchor_position := Vector2.ZERO
 var _zoom_anchor_map_position := Vector2.ZERO
 var _zoom_anchor_active := false
 var _part_patterns: Array[ShipPartPattern] = []
+var auto_assemble := true
+var assembly_menu: MenuButton
+var recipe_matches: Array[Dictionary] = []
+var recipe_preview_outlines: Array[Line2D] = []
 var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
 var _part_cell_outlines: Array[Panel] = []
 var _locked_cells: Dictionary[Vector2i, bool] = {}
@@ -187,9 +191,95 @@ func _ready() -> void:
 	GameState.part_transformations_changed.connect(_refresh_history_buttons)
 	_refresh_history_buttons()
 	_refresh_design_controls()
+	_setup_assembly_menu()
 
 	resized.connect(_on_resized)
 	call_deferred("_set_initial_pan_position")
+
+
+func _setup_assembly_menu() -> void:
+	assembly_menu = MenuButton.new()
+	assembly_menu.text = "ASSEMBLY"
+	assembly_menu.custom_minimum_size.y = 22
+	assembly_menu.add_theme_font_override("font", ThemeDB.fallback_font)
+	assembly_menu.add_theme_font_size_override("font_size", 10)
+	assembly_menu.tooltip_text = "Preserve assembled parts. Disable Auto and disassemble to plan larger loose-tile recipes. Hover a match to preview its cells."
+	design_controls.add_child(assembly_menu)
+	design_controls.move_child(assembly_menu, 0)
+	var popup := assembly_menu.get_popup()
+	popup.max_size = Vector2i(600, 280)
+	popup.add_theme_font_override("font", ThemeDB.fallback_font)
+	popup.add_theme_font_size_override("font_size", 11)
+	popup.about_to_popup.connect(_refresh_assembly_menu)
+	popup.id_pressed.connect(_assembly_action)
+	popup.id_focused.connect(_preview_recipe)
+	popup.popup_hide.connect(_clear_recipe_preview)
+	_refresh_design_controls()
+
+
+func _refresh_assembly_menu() -> void:
+	var popup := assembly_menu.get_popup()
+	popup.clear()
+	popup.add_check_item("Auto-assemble loose tiles", 0)
+	popup.set_item_checked(0, auto_assemble)
+	popup.add_item("Assemble loose matches (largest first)", 1)
+	popup.add_item("Disassemble all; keep material", 2)
+	popup.add_separator()
+	popup.add_item("Loose-tile matches (hover to preview)", 4)
+	popup.set_item_disabled(popup.item_count - 1, true)
+	recipe_matches = MaterialRecipe.loose_matches(GameState.ship, _part_patterns, _locked_cells)
+	for index in range(mini(recipe_matches.size(), 32)):
+		var candidate := recipe_matches[index]
+		popup.add_item("%s (%d cells) at %d,%d" % [candidate.pattern.display_name, candidate.cells.size(), candidate.origin.x, candidate.origin.y], 100 + index)
+	if recipe_matches.is_empty():
+		popup.add_item("No loose-tile matches", 3)
+		popup.set_item_disabled(popup.item_count - 1, true)
+
+
+func _clear_recipe_preview() -> void:
+	for outline in recipe_preview_outlines:
+		outline.queue_free()
+	recipe_preview_outlines.clear()
+
+
+func _preview_recipe(id: int) -> void:
+	_clear_recipe_preview()
+	var index := id - 100
+	if index < 0 or index >= recipe_matches.size():
+		return
+	for cell: Vector2i in recipe_matches[index].cells:
+		var outline := Line2D.new()
+		outline.position = Vector2(cell) * Vector2(tile_size)
+		outline.points = PackedVector2Array([Vector2.ZERO, Vector2(tile_size.x, 0), Vector2(tile_size), Vector2(0, tile_size.y), Vector2.ZERO])
+		outline.width = 2.0
+		outline.default_color = Color(1.0, 0.85, 0.25)
+		animation_layer.add_child(outline)
+		recipe_preview_outlines.append(outline)
+
+
+func _assembly_action(id: int) -> void:
+	if GameState.active_part_transformations > 0:
+		return
+	if id == 0:
+		auto_assemble = not auto_assemble
+		return
+	var before := _history_state()
+	if id == 1:
+		_evaluate_part_patterns(true)
+	elif id == 2:
+		auto_assemble = false
+		GameState.ship.clear_parts()
+		_evaluate_part_patterns()
+	elif id >= 100 and id - 100 < recipe_matches.size():
+		var candidate := recipe_matches[id - 100]
+		_try_morph_pattern(candidate.origin, candidate.pattern, Vector2i(candidate.turns, 1 if candidate.flipped else 0))
+	else:
+		return
+	while GameState.active_part_transformations > 0:
+		await GameState.part_transformations_changed
+	_restore_loaded_ship_design()
+	GameState.ship_stats_changed.emit()
+	_record_change(before)
 
 
 func move_controls_to(container: VBoxContainer) -> void:
@@ -681,12 +771,33 @@ func _resize_build_area() -> void:
 	_set_initial_pan_position()
 
 
-func _evaluate_part_patterns() -> void:
+func _evaluate_part_patterns(force_assembly := false) -> void:
 	_clear_part_placeholders()
 	_restore_ship_tiles()
 	_refresh_ship_hull()
-	GameState.ship.clear_parts()
-	for pattern in _part_patterns:
+	# Editing unrelated material must not replace already assembled identities.
+	var intact: Array[ShipPart] = []
+	for part in GameState.ship.parts:
+		var pattern := _get_pattern_for_part(part)
+		if pattern == null:
+			continue
+		var valid := true
+		for index in range(part.cell_offsets.size()):
+			if GameState.ship.get_tile_category_at(part.origin + part.cell_offsets[index]) != pattern.tile_categories[index]:
+				valid = false
+				break
+		if valid:
+			intact.append(part)
+	GameState.ship.parts = intact
+	for part in intact:
+		var pattern := _get_pattern_for_part(part)
+		var orientation := part.get_transform(pattern)
+		_add_part_placeholder(part, pattern, orientation.x, orientation.y == 1)
+	var ordered := _part_patterns.duplicate()
+	ordered.sort_custom(func(a: ShipPartPattern, b: ShipPartPattern) -> bool: return a.cell_offsets.size() > b.cell_offsets.size())
+	for pattern in ordered:
+		if not auto_assemble and not force_assembly:
+			break
 		if pattern.tile_categories.size() != pattern.cell_offsets.size():
 			continue
 		for y in range(map_dimensions.y):
@@ -697,11 +808,14 @@ func _evaluate_part_patterns() -> void:
 
 func _try_morph_pattern(
 	origin: Vector2i,
-	pattern: ShipPartPattern
+	pattern: ShipPartPattern,
+	orientation_hint := Vector2i(-1, 0)
 ) -> bool:
 	var rotation_count := 4 if pattern.can_rotate else 1
 	for quarter_turns in range(rotation_count):
 		for flip_index in range(2):
+			if orientation_hint.x >= 0 and orientation_hint != Vector2i(quarter_turns, flip_index):
+				continue
 			var horizontally_flipped := flip_index == 1
 			var cell_offsets := pattern.get_offsets_for_transform(
 				quarter_turns, horizontally_flipped
@@ -960,6 +1074,7 @@ func _complete_part_transformation(
 		_locked_cells.erase(cell)
 
 	GameState.ship.remove_transitioning_part(part)
+	GameState.ship.add_part(part)
 	_evaluate_part_patterns()
 	_active_morph_count -= 1
 	GameState.end_part_transformation()
@@ -987,6 +1102,8 @@ func _refresh_design_controls() -> void:
 	var can_change_design := GameState.active_part_transformations == 0
 	save_design_button.disabled = not can_change_design or GameState.ship.tiles.is_empty()
 	load_design_button.disabled = not can_change_design
+	if assembly_menu != null:
+		assembly_menu.disabled = not can_change_design
 
 
 func _on_save_design_pressed() -> void:
@@ -1139,6 +1256,8 @@ func _move_ship_by(cell_offset: Vector2i) -> bool:
 		moved_tiles[moved_cell] = GameState.ship.tiles[cell]
 	var before := _history_state()
 	GameState.ship.tiles = moved_tiles
+	for part in GameState.ship.parts:
+		part.origin += cell_offset
 	_evaluate_part_patterns()
 	_record_change(before)
 	return true
@@ -1419,7 +1538,7 @@ func _clamp_pan_position() -> void:
 
 
 func _history_state() -> Dictionary:
-	return {"tiles": GameState.ship.tiles.duplicate(), "name": GameState.current_ship_design_name}
+	return {"design": GameState.ship.to_design_data(), "name": GameState.current_ship_design_name}
 
 func _begin_stroke() -> void:
 	_finish_stroke()
@@ -1451,10 +1570,11 @@ func _restore_history(state: Dictionary) -> void:
 	_last_placed_cell = INVALID_CELL
 	_last_erased_cell = INVALID_CELL
 	GameState.ship = Ship.new()
-	GameState.ship.tiles.assign(state.tiles)
+	GameState.ship.load_design_data(state.design)
 	GameState.current_ship_design_name = state.name
 	_clear_preview()
-	_evaluate_part_patterns()
+	_restore_loaded_ship_design()
+	GameState.ship_stats_changed.emit()
 	_refresh_history_buttons()
 
 func _undo() -> void:

@@ -56,6 +56,8 @@ var route_travel_button: Button
 var campaign_overlay: PanelContainer
 var port_button: Button
 var story_button: Button
+var research_groups: VBoxContainer
+var research_details: VBoxContainer
 
 
 func _ready() -> void:
@@ -78,6 +80,20 @@ func _ready() -> void:
 	fleet_controls.add_theme_constant_override("separation", 5)
 	$Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents.add_child(fleet_controls)
 	fleet_panel.bind_external_panels(fleet_controls, fleet_summary)
+	if GameState.campaign_active:
+		research_groups = VBoxContainer.new()
+		research_details = VBoxContainer.new()
+		research_groups.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		research_details.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		$Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents.add_child(research_groups)
+		$Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost.add_child(research_details)
+		research_details.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		research_details.offset_left = 6
+		research_details.offset_top = 4
+		research_details.offset_right = -6
+		research_details.offset_bottom = -4
+		panel_tabs.get_node("Upgrades").grouped_view.bind_external_panels(research_groups, research_details)
+		panel_tabs.get_node("Upgrades").grouped_view.set_external_panels_visible(panel_tabs.current_tab == RESEARCH_TAB_INDEX)
 	build_area.move_controls_to(build_controls)
 	archive_details.reparent(
 		$Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents
@@ -129,6 +145,8 @@ func _on_panel_tab_button_pressed(tab_index: int) -> void:
 
 
 func _on_panel_tab_changed(tab_index: int) -> void:
+	if GameState.campaign_active and research_groups != null:
+		panel_tabs.get_node("Upgrades").grouped_view.set_external_panels_visible(tab_index == RESEARCH_TAB_INDEX)
 	fleet_right_panel.visible = tab_index == 0
 	panel_tabs.get_node("Fleet").set_external_panels_visible(tab_index == 0)
 	build_controls.visible = tab_index == BUILD_TAB_INDEX

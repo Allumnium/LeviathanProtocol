@@ -124,7 +124,7 @@ static func validate(value: Variant) -> Array[String]:
 		for ability_id in entry.get("ability_ids", []):
 			_check_reference(ids, "abilities", ability_id, errors)
 		for rank in entry.get("ranks", []):
-			if not rank is Dictionary or not _positive_integer(rank.get("rank")) or not _valid_recipe(rank.get("recipe", "")):
+			if not rank is Dictionary or not _positive_integer(rank.get("rank")) or not rank.get("recipe") is String or not _valid_recipe(rank.recipe):
 				errors.append("Invalid equipment rank: %s" % entry.id)
 	if errors.is_empty():
 		errors.append_array(MaterialRecipe.validate_registry(value.equipment))
@@ -151,6 +151,8 @@ static func validate(value: Variant) -> Array[String]:
 					errors.append("Invalid granted rank: %s" % entry.id)
 			else:
 				errors.append("Invalid rank grant: %s" % entry.id)
+	if errors.is_empty():
+		errors.append_array(ResearchRules.validate_registry(value))
 	for entry in value.abilities:
 		_check_reference(ids, "equipment", entry.get("source_equipment_id"), errors)
 		if not _nonnegative_integer(entry.get("cooldown_seconds")):
@@ -178,7 +180,7 @@ static func _positive_integer(value: Variant) -> bool:
 
 
 static func _nonnegative_integer(value: Variant) -> bool:
-	return (value is int or value is float) and value >= 0 and value == floor(value)
+	return (value is int or value is float) and is_finite(float(value)) and value >= 0 and value == floor(value)
 
 
 static func _valid_recipe(recipe: String) -> bool:

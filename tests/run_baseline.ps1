@@ -14,6 +14,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Import failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_definitions.gd --log-file (Join-Path $runRoot 'definitions.log')
     if ($LASTEXITCODE -ne 0) { throw "Definition suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_research.gd --log-file (Join-Path $runRoot 'research.log')
+    if ($LASTEXITCODE -ne 0) { throw "Research definition suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_research_ui.gd --log-file (Join-Path $runRoot 'research-ui.log')
+    if ($LASTEXITCODE -ne 0) { throw "Grouped research UI suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_run_state.gd --log-file (Join-Path $runRoot 'run-state.log')
     if ($LASTEXITCODE -ne 0) { throw "Run state suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_transactions.gd --log-file (Join-Path $runRoot 'transactions.log')
@@ -38,6 +42,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Fleet capacity suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_ship_stats.gd --log-file (Join-Path $runRoot 'ship-stats.log')
     if ($LASTEXITCODE -ne 0) { throw "Shared ship stats suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_recipes.gd --log-file (Join-Path $runRoot 'recipes.log')
+    if ($LASTEXITCODE -ne 0) { throw "Recipe suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

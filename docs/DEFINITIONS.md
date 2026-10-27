@@ -15,7 +15,7 @@ Stable string IDs are used for content references. Equipment also has an explici
 
 The current live component catalog still supplies working stats, textures and recipe transforms. `ShipPartPattern` attaches definition identity/revision and filters out unimplemented equipment. A registry entry alone cannot add an assembly recipe, a blueprint-load path or a purchasable research option. Only the nine working components are marked implemented; research purchases, abilities, encounters, nodes, edges, environments and goods remain staged. Future implementation must mark content ready only after its effects and persistence work. Planned recipes/tuning do not change current combat stats, prices or starting ships. Step 3 separately activates Foundation-only run authorization.
 
-`GameDefinitions.validate` checks the version envelope, domain field types, stable/numeric identity uniqueness, recipes and references. It does not yet validate recipe ambiguity, research pacing, generated graph topology or runtime effects; those have later TODO gates.
+`GameDefinitions.validate` checks the version envelope, domain field types, stable/numeric identity uniqueness, recipes and references. Step 20 adds canonical recipe/rank ambiguity checks through `MaterialRecipe`; see RECIPES.md. Step 21 adds research graph, family/exclusion, rank, typed concept and complete grant-source validation through `ResearchRules`; see RESEARCH.md. Research pacing and runtime effects remain later TODO gates. Generated graph topology has its own campaign checks.
 
 ## Verification
 

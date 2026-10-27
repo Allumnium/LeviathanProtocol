@@ -20,9 +20,15 @@ var camera_zoom := 1.0
 var _dragging := false
 var _initial_view_fitted := false
 var _catalog_by_category: Dictionary = {}
+var grouped_view: Control
 
 
 func _ready() -> void:
+	if GameState.campaign_active:
+		grouped_view = load("res://scripts/research_panel.gd").new()
+		add_child(grouped_view)
+		grouped_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		return
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
@@ -36,6 +42,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if grouped_view != null:
+		return
 	if not is_visible_in_tree() or _input_is_blocked():
 		return
 	var direction := Vector2(
@@ -50,6 +58,8 @@ func _process(delta: float) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	if grouped_view != null:
+		return
 	if _input_is_blocked():
 		return
 	if event is InputEventMouseButton:
@@ -78,6 +88,8 @@ func _notification(what: int) -> void:
 
 
 func _draw() -> void:
+	if grouped_view != null:
+		return
 	draw_set_transform(size * 0.5 - camera_position * camera_zoom, 0.0, Vector2.ONE * camera_zoom)
 	var layouts := _tree_layout()
 	var core_nodes: Array = layouts[ShipPart.TechCategory.CORE]

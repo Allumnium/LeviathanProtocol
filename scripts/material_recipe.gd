@@ -69,7 +69,11 @@ static func validate_registry(equipment: Array) -> Array[String]:
 	var signatures: Dictionary = {}
 	for entry: Dictionary in equipment:
 		var recipes: Array = [{"rank": 1, "recipe": entry.recipe}]
+		var declared_ranks: Array[int] = []
 		for rank: Dictionary in entry.ranks:
+			if declared_ranks.has(int(rank.rank)):
+				errors.append("Duplicate declared rank: %s/%d" % [entry.id, int(rank.rank)])
+			declared_ranks.append(int(rank.rank))
 			if int(rank.rank) == 1:
 				if rank.recipe != entry.recipe:
 					errors.append("Rank I differs from base recipe: %s" % entry.id)
@@ -107,3 +111,41 @@ static func validate_registry(equipment: Array) -> Array[String]:
 		if not found:
 			errors.append("Missing exclusive recipe pair: %s/%s" % pair)
 	return errors
+
+static func loose_matches(design: Ship, patterns: Array[ShipPartPattern], locked: Dictionary = {}) -> Array[Dictionary]:
+	var matches: Array[Dictionary] = []
+	var seen: Dictionary = {}
+	for pattern in patterns:
+		for turns in range(4 if pattern.can_rotate else 1):
+			for flip in range(2):
+				var offsets := pattern.get_offsets_for_transform(turns, flip == 1)
+				if offsets.is_empty():
+					continue
+				for anchor: Vector2i in design.tiles:
+					var origin: Vector2i = anchor - offsets[0]
+					var cells: Array[Vector2i] = []
+					var valid := true
+					for index in range(offsets.size()):
+						var cell: Vector2i = origin + offsets[index]
+						if locked.has(cell) or design.get_part_at(cell) != null or design.get_tile_category_at(cell) != pattern.tile_categories[index]:
+							valid = false
+							break
+						cells.append(cell)
+					if not valid:
+						continue
+					var labels: Array[String] = []
+					for cell in cells:
+						labels.append("%d,%d" % [cell.x, cell.y])
+					labels.sort()
+					var key := "%d:%s" % [pattern.part_type, ";".join(labels)]
+					if seen.has(key):
+						continue
+					seen[key] = true
+					matches.append({"pattern": pattern, "origin": origin, "turns": turns, "flipped": flip == 1, "cells": cells})
+	matches.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.cells.size() != b.cells.size():
+			return a.cells.size() > b.cells.size()
+		if a.pattern.part_type != b.pattern.part_type:
+			return a.pattern.part_type < b.pattern.part_type
+		return a.origin.y < b.origin.y if a.origin.y != b.origin.y else a.origin.x < b.origin.x)
+	return matches

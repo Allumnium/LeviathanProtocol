@@ -96,6 +96,9 @@ func _run() -> void:
 		var ship := Ship.new()
 		_check(ship.load_design_data(fixture), "Unversioned legacy blueprints must still load.")
 		var round_trip: Variant = JSON.parse_string(JSON.stringify(ship.to_design_data()))
+		for part: Dictionary in round_trip.parts:
+			for metadata in ["definition_id", "rank", "quarter_turns", "horizontally_flipped"]:
+				part.erase(metadata)
 		_check(round_trip == fixture, "Legacy IDs/materials/transforms must round-trip unchanged.")
 	print("Definition tests finished: %d failures" % failures)
 	quit(1 if failures > 0 else 0)

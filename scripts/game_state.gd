@@ -794,11 +794,11 @@ func is_equipment_researched(part_type: int) -> bool:
 	var definition := GameDefinitions.equipment(part_type)
 	if definition.is_empty():
 		return false
-	for research_id in current_research_ids:
-		var research := GameDefinitions.find("research", research_id)
-		if not research.is_empty() and research.grants.equipment_ids.has(definition.id):
-			return true
-	return false
+	return research_grants().equipment_ids.has(definition.id)
+
+
+func research_grants() -> Dictionary:
+	return ResearchRules.resolve(current_research_ids)
 
 
 func design_research_error(design: Ship) -> String:
