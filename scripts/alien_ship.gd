@@ -75,7 +75,7 @@ func to_snapshot() -> Dictionary:
 	var weapons: Array = []
 	for weapon in stats.weapons:
 		weapons.append([weapon.weapon_name, weapon.fire_interval_seconds, weapon.damage_per_shot,
-			weapon.projectiles_per_activation, weapon.range_units, weapon.is_projectile_weapon])
+			weapon.projectiles_per_activation, weapon.range_units, weapon.is_projectile_weapon, weapon.interceptable])
 	return {"name": display_name, "stats": [stats.shields, stats.integrity, stats.weight, stats.thrust],
 		"weapons": weapons, "definition_id": definition_id, "role": role_id, "tier": tier,
 		"threat_cost": threat_cost, "entity_id": entity_id, "kind": entity_kind, "wave": wave_index}
@@ -99,6 +99,7 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 	for weapon in entry.weapons:
 		var restored_weapon := ShipWeaponStats.new(weapon[0], weapon[1], weapon[2], int(weapon[3]), weapon[4])
 		restored_weapon.is_projectile_weapon = weapon[5]
+		restored_weapon.interceptable = weapon[6] if weapon.size() > 6 else false
 		restored.weapons.append(restored_weapon)
 	result.stats = restored
 	result.definition_id = entry.get("definition_id", "legacy")
@@ -132,7 +133,9 @@ static func snapshot_valid(entry: Variant) -> bool:
 	if entry.has("threat_cost") and (not _finite_number(entry.threat_cost) or entry.threat_cost < 0):
 		return false
 	for weapon in entry.weapons:
-		if not weapon is Array or weapon.size() != 6 or not weapon[0] is String or not weapon[5] is bool:
+		if not weapon is Array or weapon.size() not in [6, 7] or not weapon[0] is String or not weapon[5] is bool:
+			return false
+		if weapon.size() == 7 and not weapon[6] is bool:
 			return false
 		for index in [1, 2, 4]:
 			if not _finite_number(weapon[index]) or weapon[index] <= 0:
@@ -151,7 +154,7 @@ static func get_catalog() -> Array[AlienShip]:
 		AlienShip.new(
 			"Chrysalis",
 			CHRYSALIS_TEXTURE,
-			_create_base_stats(2.0, 12.0, 28.0, 9.0, "Spore Launcher", 1.5, 1.0, 200.0)
+			_create_base_stats(2.0, 12.0, 28.0, 9.0, "Spore Launcher", 1.5, 1.0, 200.0, true)
 		),
 		AlienShip.new(
 			"Fighter",
@@ -267,7 +270,8 @@ static func _create_base_stats(
 	weapon_name: String,
 	fire_interval_seconds: float,
 	damage_per_shot: float,
-	range_units: float
+	range_units: float,
+	interceptable := false
 ) -> ShipStats:
 	var new_stats := ShipStats.new()
 	new_stats.shields = shields
@@ -277,4 +281,5 @@ static func _create_base_stats(
 	new_stats.weapons.append(
 		ShipWeaponStats.new(weapon_name, fire_interval_seconds, damage_per_shot, 1, range_units)
 	)
+	new_stats.weapons[0].interceptable = interceptable
 	return new_stats

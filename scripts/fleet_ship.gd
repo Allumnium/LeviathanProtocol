@@ -56,8 +56,8 @@ func has_cell(cell: Vector2i) -> bool:
 func local_cell_position(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2.ONE * 0.5 - center) * cell_size
 
-func get_stats(laser_level: int = 0) -> ShipStats:
-	return ShipStats.from_units(units, center, laser_level)
+func get_stats(laser_level: int = 0, energy_efficiency := 0.0) -> ShipStats:
+	return ShipStats.from_units(units, center, laser_level, energy_efficiency)
 
 
 func repair_cost() -> int:

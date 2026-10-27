@@ -28,6 +28,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Adjacency suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_tuning.gd --log-file (Join-Path $runRoot 'tuning.log')
     if ($LASTEXITCODE -ne 0) { throw "Baseline tuning suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_shared_research.gd --log-file (Join-Path $runRoot 'shared-research.log')
+    if ($LASTEXITCODE -ne 0) { throw "Shared research suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_passengers.gd --log-file (Join-Path $runRoot 'passengers.log')
+    if ($LASTEXITCODE -ne 0) { throw "Passenger state suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_boarding.gd --log-file (Join-Path $runRoot 'boarding.log')
+    if ($LASTEXITCODE -ne 0) { throw "Passenger boarding suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_transactions.gd --log-file (Join-Path $runRoot 'transactions.log')
     if ($LASTEXITCODE -ne 0) { throw "Transaction suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_encounter_independence.gd --log-file (Join-Path $runRoot 'encounter-independence.log')

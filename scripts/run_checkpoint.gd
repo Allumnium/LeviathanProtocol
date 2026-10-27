@@ -105,6 +105,8 @@ static func decode(data: Variant) -> Dictionary:
 		if id >= int(data.next_ship_id):
 			return {}
 	var aliens: Array[RefCounted] = []
+	if not PassengerRules.valid(data.economy, fleet):
+		return {}
 	for entry in data.aliens:
 		var alien := _decode_alien(entry)
 		if alien == null:
@@ -261,10 +263,21 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 			return false
 		if not _json_value(entry.field):
 			return false
+		if entry.field.has("repair_reserves") and not SharedSupport.valid_reserves(entry.field.repair_reserves):
+			return false
+		if entry.field.has("repair_pool") and not SharedSupport.valid_pool(entry.field.repair_pool):
+			return false
 		if entry.has("journal") and (not entry.journal is Dictionary or not _json_value(entry.journal)):
 			return false
 		if entry.has("deployment") and (not entry.deployment is Dictionary or not _json_value(entry.deployment)):
 			return false
+		if entry.get("deployment", {}).has("shared_context"):
+			var context: Variant = entry.deployment.shared_context
+			if not context is Dictionary or not _number(context.get("energy_efficiency")) or context.energy_efficiency < 0 or context.energy_efficiency > 0.3 \
+				or not SharedSupport.valid_reserves(context.get("repair_reserves")):
+				return false
+			if not SharedSupport.valid_pool(context.get("repair_pool", {"capacity": 0, "spent": 0.0})):
+				return false
 		if entry.has("ship_ids"):
 			if not entry.ship_ids is Array:
 				return false

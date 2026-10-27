@@ -29,7 +29,7 @@ func _run() -> void:
 	_check(state.start_new_run(1, 42), "Start isolated research UI run.")
 	var live := GameDefinitions.snapshot()
 	var current := ResearchViewModel.nodes(live, ["foundation"], {}, {}, 1000)
-	_check(current.size() == 1 and current[0].id == "foundation", "Future research stays hidden regardless of RP or satisfied prerequisites.")
+	_check(current.size() == 7 and _find(current, "optics_i").is_empty(), "Functional shared research appears while future branches remain hidden.")
 	var live_detail := ResearchViewModel.details(live, "foundation", ["foundation"])
 	_check(live_detail.contains("Command Center") and live_detail.contains("Research Lab") and not live_detail.contains("Ability: Scan"), "Owned Foundation exposes only implemented grants.")
 	# Enable a detached fixture registry, never production definitions/effects.
@@ -67,7 +67,7 @@ func _run() -> void:
 	if is_instance_valid(map.campaign_overlay):
 		map.campaign_overlay.queue_free()
 	var view: Control = map.panel_tabs.get_node("Upgrades").grouped_view
-	_check(view != null and view.nodes.size() == 1 and not map.research_groups.visible, "New campaign mounts the gated grouped UI without showing it on Fleet.")
+	_check(view != null and view.nodes.size() == 7 and not map.research_groups.visible, "New campaign mounts the grouped UI without showing it on Fleet.")
 	map.panel_tabs.current_tab = 2
 	_check(map.research_groups.visible and map.research_details.visible and not map.build_controls.visible, "Research tab activates its family and detail sidebars.")
 	var before: Dictionary = state.run_progress_snapshot()
@@ -116,7 +116,7 @@ func _run() -> void:
 	view.registry = live
 	state.research_points = 73
 	state.research_changed.emit()
-	_check(view.nodes.size() == 1 and view.rp_label.text.contains("73 RP"), "Research signals refresh state and restore production gating.")
+	_check(view.nodes.size() == 7 and view.rp_label.text.contains("73 RP"), "Research signals refresh state and restore production gating.")
 	map.panel_tabs.current_tab = 0
 	_check(not map.research_groups.visible and not map.research_details.visible, "Research sidebars hide on other tabs.")
 	map.queue_free()

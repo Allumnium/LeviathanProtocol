@@ -88,6 +88,7 @@ var run_seed := 0
 var run_id := ""
 var transaction_ledger: Dictionary = {}
 var economy_state: Dictionary = {}
+
 var run_save_path := RUN_SAVE_PATH
 var last_save_error := ""
 var _checkpoint_generation := -1
@@ -317,7 +318,6 @@ func load_run_checkpoint() -> bool:
 	encounter_progress = data.get("encounter_progress", {}).duplicate(true)
 	run_id = data.run_id
 	transaction_ledger = data.ledger.duplicate(true)
-	economy_state = data.economy.duplicate(true)
 	frozen_encounters = data.encounters.duplicate(true)
 	campaign_dag = data.get("campaign_graph", {}).duplicate(true)
 	campaign_active = data.get("campaign_active", false)
@@ -369,13 +369,13 @@ func commit_event(kind: String, source_id: String, credits_delta := 0,
 		return false
 	# Keep physical ship references alive while combat is running.
 	transaction_ledger = result.checkpoint.ledger
-	economy_state = result.checkpoint.economy.duplicate(true)
 	_apply_accounting(result.checkpoint)
 	_emit_accounting_changes()
 	return true
 
 
 func _apply_accounting(data: Dictionary) -> void:
+	economy_state = data.economy.duplicate(true)
 	credits = int(data.progress.credits)
 	research_points = int(data.progress.research_points)
 	red_tiles_available = int(data.inventory[0])
@@ -812,6 +812,63 @@ func research_grants() -> Dictionary:
 		_research_grant_cache = ResearchRules.resolve(current_research_ids)
 	_research_grant_key = key
 	return _research_grant_cache.duplicate(true)
+
+func passenger_manifest() -> Array[Dictionary]:
+	return PassengerRules.snapshot(fleet, economy_state)
+
+func energy_efficiency() -> float:
+	return float(research_grants().modifiers.get("energy_efficiency", {}).get("value", 0.0))
+
+func purchase_research(id: String) -> bool:
+	if not campaign_active or battle_pending or run_ended:
+		return false
+	var requirements := ResearchRules.requirements(id, current_research_ids, story_flags, research_branch_choices)
+	if not requirements.known or not requirements.implemented or requirements.owned \
+		or not requirements.missing_prerequisites.is_empty() or not requirements.missing_story_gates.is_empty() \
+		or not requirements.conflicts.is_empty() or requirements.branch_conflict:
+		return false
+	var definition := GameDefinitions.find("research", id)
+	if int(definition.cost_rp) > research_points:
+		return false
+	var result := TransactionLedger.apply(RunCheckpoint.capture(self), "research", id, 0, [0, 0, 0, 0], -int(definition.cost_rp), {"research_id": id})
+	if result.is_empty() or result.replayed:
+		return false
+	var checkpoint: Dictionary = result.checkpoint
+	checkpoint.progress.research_ids.append(id)
+	if not definition.family_id.is_empty():
+		checkpoint.progress.branch_choices[definition.family_id] = definition.path_id
+	if not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	current_research_ids.assign(checkpoint.progress.research_ids)
+	research_branch_choices.assign(checkpoint.progress.branch_choices)
+	_apply_accounting(checkpoint)
+	_emit_accounting_changes()
+	ship_stats_changed.emit()
+	return true
+
+func battle_support_context() -> Dictionary:
+	var progress: Dictionary = encounter_progress.get(str(destination_node_id), {})
+	var context: Dictionary = progress.get("deployment", {}).get("shared_context", {"energy_efficiency": energy_efficiency(),
+		"repair_reserves": progress.get("field", {}).get("repair_reserves", {}).duplicate(true)}).duplicate(true)
+	if progress.get("field", {}).has("repair_reserves"):
+		context.repair_reserves = progress.field.repair_reserves.duplicate(true)
+	context["repair_pool"] = progress.get("field", {}).get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)
+	return context
+
+func update_battle_support(simulation: BattleSimulation) -> void:
+	if not battle_pending or simulation.repair_reserves.is_empty() or not encounter_progress.has(str(destination_node_id)) or not SharedSupport.valid_reserves(simulation.repair_reserves):
+		return
+	var ids: Array[int] = []
+	for id in encounter_progress[str(destination_node_id)].get("ship_ids", []):
+		ids.append(int(id))
+	if ids.size() != simulation.players.size():
+		return
+	for member in simulation.players:
+		if member.owned_ship == null or not ids.has(member.owned_ship.id):
+			return
+	encounter_progress[str(destination_node_id)].field["repair_reserves"] = simulation.repair_reserves.duplicate(true)
+	encounter_progress[str(destination_node_id)].field["repair_pool"] = {"capacity": simulation.repair_capacity, "spent": simulation.repair_spent}
 
 
 func design_research_error(design: Ship) -> String:
@@ -1571,11 +1628,13 @@ func _secure_node(checkpoint: Dictionary, node_id: int) -> Dictionary:
 	if node.kind == "boss":
 		checkpoint.progress.story_flags[["boss_i_defeated", "boss_ii_defeated", "boss_iii_defeated"][int(node.act) - 1]] = true
 	if node.inhabited:
-		var arrival := TransactionLedger.apply(checkpoint, "arrival", "node/%d" % node_id, 0, [0, 0, 0, 0], 0,
-			{"goods_grade": node.goods_grade, "goods_unit_value": node.goods_unit_value})
-		if arrival.is_empty():
-			return {}
-		checkpoint = arrival.checkpoint
+		var physical: Array[FleetShip] = []
+		if ArrivalRules.has_accommodation(checkpoint):
+			var decoded := RunCheckpoint.decode(checkpoint)
+			if decoded.is_empty():
+				return {}
+			physical.assign(decoded.fleet)
+		checkpoint = ArrivalRules.apply(checkpoint, node, physical)
 	return checkpoint
 
 
@@ -1708,6 +1767,9 @@ func set_destination(node_id: int) -> bool:
 		"upgrade_level": laser_upgrade_level, "neutral_cleanup": destroy_all_neutral_targets,
 		"objectives": battle_objective_ids(), "materials": battle_material_rewards()}
 	progress.science_snapshot = ScienceRules.snapshot(get_deployed_fleet())
+	progress.deployment["shared_context"] = {"energy_efficiency": energy_efficiency(),
+		"repair_reserves": progress.field.get("repair_reserves", {}).duplicate(true),
+		"repair_pool": progress.field.get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)}
 	progress.erase("journal")
 	encounter_progress[str(node_id)] = progress
 	if not save_run_checkpoint():
@@ -1838,6 +1900,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 		"deployment": progress.get("deployment", {}).duplicate(true),
 		"commands": simulation.command_log.duplicate(true), "events": simulation.event_log.duplicate(true),
 		"snapshot": simulation.authoritative_snapshot()}
+	update_battle_support(simulation)
 	record_battle(simulation)
 	if simulation.phase == BattleSimulation.Phase.VICTORY:
 		return complete_battle(-1, simulation.collected_categories)
@@ -1854,6 +1917,10 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 			return false
 	var checkpoint := RunCheckpoint.capture(self)
 	var key := str(destination_node_id)
+	field_after = field_after.duplicate(true)
+	# Repair expenditure is durable battle state, not part of ore pickup identity.
+	field_after.erase("repair_reserves")
+	field_after.erase("repair_pool")
 	if not checkpoint.encounter_progress.has(key):
 		checkpoint.encounter_progress[key] = {"attempts": 1, "outcome": "active", "field": {}}
 	var result := TransactionLedger.apply(checkpoint, "ore_pickup", "node/%s/%s" % [key, pickup_id], 0, materials, 0, {"field": field_after})
@@ -1861,6 +1928,9 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 		return false
 	checkpoint = result.checkpoint
 	if not result.replayed:
+		if checkpoint.encounter_progress[key].field.has("repair_reserves"):
+			field_after["repair_reserves"] = checkpoint.encounter_progress[key].field.repair_reserves.duplicate(true)
+			field_after["repair_pool"] = checkpoint.encounter_progress[key].field.get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)
 		checkpoint.encounter_progress[key].field = field_after.duplicate(true)
 	if not RunCheckpoint.valid(checkpoint) or not _persist_checkpoint(checkpoint):
 		return false

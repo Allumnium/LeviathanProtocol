@@ -96,6 +96,10 @@ static func details(registry: Dictionary, id: String, visible_ids: Array) -> Str
 		if not equipment.implemented:
 			continue
 		lines.append("• %s\n  %s" % [equipment.display_name, String(equipment.recipe).replace("/", "\n  ")])
+		match equipment.id:
+			"repair_station": lines.append("  2 HP/s to two adjacent surviving components; 20 HP per node. No reconstruction.")
+			"point_defense_turret": lines.append("  Intercepts missiles within 160; weak hull fire.")
+			"missile_rack": lines.append("  Three interceptable missiles per burst; range 340.")
 	for rank: Dictionary in node.grants.ranks:
 		var equipment := find(registry, "equipment", rank.equipment_id)
 		if not equipment.implemented:

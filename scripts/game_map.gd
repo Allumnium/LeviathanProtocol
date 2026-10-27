@@ -177,7 +177,7 @@ func _refresh_ship_stats() -> void:
 	if panel_tabs.current_tab == 0:
 		var selected: Ship = panel_tabs.get_node("Fleet").selected_design
 		design = selected if selected != null else Ship.new()
-	var stats := design.get_stats(GameState.laser_upgrade_level)
+	var stats := design.get_stats(GameState.laser_upgrade_level, GameState.energy_efficiency())
 
 	for child in stat_rows.get_children():
 		stat_rows.remove_child(child)

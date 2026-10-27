@@ -138,7 +138,7 @@ func _strategic_ship_order() -> Array[FleetShip]:
 		if remaining.is_empty():
 			break
 		remaining.sort_custom(func(a: FleetShip, b: FleetShip) -> bool:
-			return a.get_stats(GameState.laser_upgrade_level).dps > b.get_stats(GameState.laser_upgrade_level).dps)
+			return a.get_stats(GameState.laser_upgrade_level, GameState.energy_efficiency()).dps > b.get_stats(GameState.laser_upgrade_level, GameState.energy_efficiency()).dps)
 		ordered[back_index] = remaining.pop_front()
 		back_index -= 1
 	return ordered

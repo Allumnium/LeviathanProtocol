@@ -1,6 +1,6 @@
 # Physical labs and victory research
 
-Step 24 activates Research Lab I as known Foundation equipment. At step 24 the live catalog contains 12 patterns across 10 equipment types: the nine original components plus three physical lab ranks. Lab II and III require their existing research grants; buying research remains a later milestone. Their material footprints are `CCT/CTT`, `CCT/CTT/CTT` and `CCTT/CCTT/CTTT`. Rank and orientation survive blueprint and physical-ship reloads. Procedural lab art is a placeholder.
+Step 24 activates Research Lab I as known Foundation equipment. At step 24 the live catalog contains 12 patterns across 10 equipment types: the nine original components plus three physical lab ranks. Lab II and III require their research grants; step 27 activates those purchases with the existing RP and story requirements (see SHARED_RESEARCH.md). Their material footprints are `CCT/CTT`, `CCT/CTT/CTT` and `CCTT/CCTT/CTTT`. Rank and orientation survive blueprint and physical-ship reloads. Procedural lab art is a placeholder.
 
 Only the highest living lab rank on a living hull operates; ties use the first physical unit. Science-slot eligibility still requires exactly one lab. Capacity charges only the highest living rank. Reserves contribute nothing to deployment or RP.
 

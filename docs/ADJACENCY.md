@@ -1,6 +1,6 @@
 # Crew and component adjacency
 
-Step 25 activates Foundation Crew Quarters (`CC`). The catalog now has 13 patterns across 11 equipment types. Crew uses procedural placeholder art. Research purchases and the four-ship starter switch remain later checklist items.
+Step 25 activates Foundation Crew Quarters (`CC`). The catalog now has 13 patterns across 11 equipment types. Crew uses procedural placeholder art. Step 27 activates shared research purchases (SHARED_RESEARCH.md); the four-ship starter switch still awaits Cargo Holds.
 
 `AdjacencyRules` tests orthogonal contact between occupied component cells. Diagonal contact does not count; multiple shared edges produce one link. Loose tiles are not recipients. Intact disconnected sections keep their actual local links. Destroyed sources and recipients are excluded; reconstructed units restore their links without accumulating bonuses.
 
@@ -12,7 +12,7 @@ Crew grants +12% operating rate. Multiple Crew sources use the strongest bonus, 
 - Engines gain acceleration and turning rate, weighted by the thrust of affected engines. Top speed is unchanged.
 - Shields gain recharge rate, weighted by the capacity of affected generators. Their damage-interruption delay and maximum capacity are unchanged.
 - Labs refresh combat analysis faster. RP remains governed by the frozen science snapshot and its separate 1.5 cap.
-- Repair equipment has recipient eligibility hooks; its throughput integration belongs to the later repair-equipment milestones. Those components remain unavailable.
+- Step 27 integrates Crew with finite Repair Station throughput. Other repair equipment remains gated until its own effects work.
 
 Combat damage refreshes component stats and mobility immediately. Blueprint and physical previews use the same stat calculation. Science support hooks share the same footprint-contact rule.
 

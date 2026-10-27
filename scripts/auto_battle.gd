@@ -45,13 +45,14 @@ var _cinematic_transition_elapsed := 0.0
 var _result_delay_remaining := -1.0
 var _pending_result_won := false
 var _simulation_accumulator := 0.0
+var repair_label: Label
 
 
 func _ready() -> void:
 	AudioManager.play_battle_music()
 	if not GameState.battle_pending or not simulation.setup_owned(
 		GameState.get_deployed_fleet(), GameState.battle_aliens,
-		GameState.allied_salvage_chance(), GameState.laser_upgrade_level, GameState.battle_simulation_seed()
+		GameState.allied_salvage_chance(), GameState.laser_upgrade_level, GameState.battle_simulation_seed(), GameState.battle_support_context()
 	):
 		push_error("Cannot open battle without a valid deployment.")
 		GameState.cancel_battle()
@@ -67,6 +68,12 @@ func _ready() -> void:
 		call_deferred("_return_to_map")
 		return
 	simulation.set_destroy_all_neutral_targets(GameState.destroy_all_neutral_targets)
+	repair_label = Label.new()
+	repair_label.position = Vector2(8, 40)
+	repair_label.add_theme_font_override("font", ThemeDB.fallback_font)
+	repair_label.add_theme_font_size_override("font_size", 10)
+	repair_label.tooltip_text = "Repair Station: 20 HP per node, 2 HP/s shared between two adjacent surviving components. Crew improves throughput. Retries retain spent reserves."
+	add_child(repair_label)
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
 	simulation.weapon_fired.connect(
@@ -139,6 +146,16 @@ func _physics_process(delta: float) -> void:
 	if simulation.withdrawing and not _finished:
 		withdraw_button.text = "RETREAT %d" % ceili(simulation.retreat_remaining)
 	visuals.queue_redraw()
+	if repair_label != null:
+		repair_label.visible = not simulation.repair_reserves.is_empty()
+		var remaining := 0.0
+		for member in simulation.players:
+			if not member.is_alive() or member.owned_ship == null:
+				continue
+			for index in range(member.owned_ship.units.size()):
+				if member.owned_ship.units[index].hp > 0:
+					remaining += float(simulation.repair_reserves.get(SharedSupport.reserve_key(member.owned_ship, index), 0.0))
+		repair_label.text = "REPAIR RESERVE: %.1f HP" % minf(remaining, maxf(0, simulation.repair_capacity - simulation.repair_spent))
 
 
 func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
@@ -149,6 +166,7 @@ func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
 		and steps < MAX_SIMULATION_STEPS_PER_FRAME
 	):
 		simulation.advance(SIMULATION_TICK_SECONDS)
+		GameState.update_battle_support(simulation)
 		_simulation_accumulator -= SIMULATION_TICK_SECONDS
 		steps += 1
 	if steps == MAX_SIMULATION_STEPS_PER_FRAME:

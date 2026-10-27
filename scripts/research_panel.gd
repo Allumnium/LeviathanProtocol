@@ -268,7 +268,7 @@ func open_details() -> void:
 		box.add_child(review_action)
 	else:
 		review_action = null
-		if selected.get("status") != "Owned":
+		if purchase_requested.get_connections().is_empty() and selected.get("status") != "Owned":
 			box.add_child(_label("Research purchases are not available yet.", 10))
 	var close := _button("CLOSE")
 	close.pressed.connect(close_details)

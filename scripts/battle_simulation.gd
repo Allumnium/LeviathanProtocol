@@ -84,6 +84,7 @@ class Combatant:
 	var thruster_activation_elapsed := 0.0
 	var analysis_target_id := ""
 	var analysis_remaining := 0.0
+	var repaired_hp := 0.0
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -117,6 +118,8 @@ class Projectile:
 	var target: Combatant
 	var damage := 0.0
 	var is_player := false
+	var interceptable := false
+	var speed := PROJECTILE_SPEED
 
 class Beam:
 	var source: Combatant
@@ -138,6 +141,10 @@ class Explosion:
 	var lifetime := 0.6
 
 var player: Combatant
+var energy_efficiency := 0.0
+var repair_reserves: Dictionary = {}
+var repair_capacity := 0
+var repair_spent := 0.0
 var players: Array[Combatant] = []
 var aliens: Array[Combatant] = []
 var other_entities: Array[Combatant] = []
@@ -190,6 +197,10 @@ func setup(
 	else:
 		random.randomize()
 	withdrawing = false
+	energy_efficiency = 0.0
+	repair_reserves.clear()
+	repair_capacity = 0
+	repair_spent = 0.0
 	battle_id = "seed/%d" % random.seed
 	tick_index = 0
 	_combat_elapsed = 0.0
@@ -272,17 +283,30 @@ func _rebuild_member_cache() -> void:
 	_previous_velocities.resize(_members.size())
 
 
-func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1) -> bool:
+func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1, shared_context: Dictionary = {}) -> bool:
+	if not SharedSupport.valid_reserves(shared_context.get("repair_reserves", {})):
+		return false
+	if not SharedSupport.valid_pool(shared_context.get("repair_pool", {"capacity": 0, "spent": 0.0})):
+		return false
+	var requested: Variant = shared_context.get("energy_efficiency", 0.0)
+	if not (requested is float or requested is int) or not is_finite(requested) or requested < 0 or requested > 0.3:
+		return false
+	var requested_energy := float(requested)
 	if ships.is_empty():
 		return false
 	# Use an armed member for legacy setup validation; disabled weapons may remain
 	# aboard other surviving ships in the deployment.
 	var armed: FleetShip
 	for owned in ships:
-		if not owned.get_stats(upgrade_level).weapons.is_empty():
+		if not owned.get_stats(upgrade_level, requested_energy).weapons.is_empty():
 			armed = owned
-	if armed == null or not setup(armed.get_stats(upgrade_level), fleet, seed_value, ships.size()):
+	if armed == null or not setup(armed.get_stats(upgrade_level, requested_energy), fleet, seed_value, ships.size()):
 		return false
+	energy_efficiency = requested_energy
+	repair_reserves = shared_context.get("repair_reserves", {}).duplicate(true)
+	var pool: Dictionary = shared_context.get("repair_pool", {"capacity": 0, "spent": 0.0})
+	repair_capacity = int(pool.capacity)
+	repair_spent = float(pool.spent)
 	allied_drop_chance = salvage_chance
 	laser_upgrade_level = upgrade_level
 	var formation_center := Vector2.ZERO
@@ -293,7 +317,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		var member := players[index]
 		member.owned_ship = ships[index]
 		member.entity_id = "player/ship/%d" % ships[index].id
-		member.stats = ships[index].get_stats(upgrade_level)
+		member.stats = ships[index].get_stats(upgrade_level, energy_efficiency)
 		member.integrity = member.stats.integrity
 		member.shields = member.stats.shields
 		member.radius = member.stats.collision_radius
@@ -305,6 +329,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * 65.0
 		member.previous_position = member.position
 	_rebuild_member_cache()
+	SharedSupport.initialize(self)
 	return entities.size() == _members.size()
 
 
@@ -564,7 +589,7 @@ func authoritative_snapshot() -> Dictionary:
 				hp.append(unit.hp)
 		actors.append({"id": member.entity_id, "faction": member.faction, "tags": member.tags.duplicate(),
 			"slot_role": member.owned_ship.slot_role if member.owned_ship != null else "",
-			"analysis_target": member.analysis_target_id, "analysis_remaining": member.analysis_remaining,
+			"analysis_target": member.analysis_target_id, "analysis_remaining": member.analysis_remaining, "repaired_hp": member.repaired_hp,
 			"escort_target_id": member.owned_ship.escort_target_id if member.owned_ship != null else 0,
 			"position": [member.position.x, member.position.y] if member.is_alive() else null,
 			"velocity": [member.velocity.x, member.velocity.y] if member.is_alive() else null,
@@ -579,12 +604,15 @@ func authoritative_snapshot() -> Dictionary:
 	for shot in projectiles:
 		shots.append({"source": shot.source.entity_id if shot.source != null else "",
 			"target": shot.target.entity_id if shot.target != null else "", "damage": shot.damage,
-			"position": [shot.position.x, shot.position.y], "origin": [shot.origin.x, shot.origin.y], "weapon": shot.weapon_name})
+			"position": [shot.position.x, shot.position.y], "origin": [shot.origin.x, shot.origin.y], "weapon": shot.weapon_name,
+			"interceptable": shot.interceptable, "speed": shot.speed})
 	var salvage: Array = []
 	for drop in drops:
 		salvage.append({"id": drop.entity_id, "category": drop.category, "collected": drop.collected,
 			"position": [drop.position.x, drop.position.y]})
 	return {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
+		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
+		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
 		"rng_state": str(random.state), "actors": actors, "projectiles": shots, "drops": salvage,
 		"objectives": objective_target_ids.duplicate(), "neutral_cleanup": destroy_all_neutral_targets,
 		"remaining_targets": _remaining_target_ids(), "withdrawing": withdrawing,
@@ -668,6 +696,7 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
+		SharedSupport.repair(self, delta)
 		_update_analysis(delta)
 		_combat_elapsed += delta
 		_apply_pending_commands()
@@ -1005,7 +1034,10 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		if ship.cooldowns[index] > 0.0:
 			continue
 		var weapon_origin := _get_weapon_origin(ship, weapon)
-		var weapon_target := _choose_weapon_target(ship, weapon_origin, weapon.range_units)
+		if SharedSupport.intercept(self, ship, weapon, weapon_origin):
+			ship.cooldowns[index] = weapon.fire_interval_seconds
+			continue
+		var weapon_target: Combatant = SharedSupport.weapon_target(self, ship, weapon, weapon_origin)
 		if weapon_target == null:
 			continue
 		ship.target = weapon_target
@@ -1013,7 +1045,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		_record_event("expenditure", {"source": ship.entity_id, "weapon_index": index,
 			"weapon": weapon.weapon_name, "cooldown": ship.cooldowns[index], "target": weapon_target.entity_id})
 		for shot_index in range(weapon.projectiles_per_activation):
-			ship.target = _choose_weapon_target(ship, weapon_origin, weapon.range_units)
+			ship.target = SharedSupport.weapon_target(self, ship, weapon, weapon_origin)
 			if ship.target == null:
 				break
 			if shot_index == 0:
@@ -1035,6 +1067,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				projectile.target = ship.target
 				projectile.damage = weapon.damage_per_shot
 				projectile.is_player = ship.is_player
+				projectile.interceptable = weapon.interceptable
+				projectile.speed = 200.0 if weapon.interceptable else PROJECTILE_SPEED
 				projectiles.append(projectile)
 				_add_pending_damage(projectile.target, projectile.damage)
 
@@ -1110,7 +1144,7 @@ func _update_projectiles(delta: float) -> void:
 	for index in range(projectiles.size() - 1, -1, -1):
 		var projectile := projectiles[index]
 		var destination := projectile.target.position
-		projectile.position = projectile.position.move_toward(destination, PROJECTILE_SPEED * delta)
+		projectile.position = projectile.position.move_toward(destination, projectile.speed * delta)
 		if projectile.position.distance_to(destination) <= projectile.target.radius:
 			_add_pending_damage(projectile.target, -projectile.damage)
 			_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
@@ -1148,7 +1182,7 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 		var time_to_impact := maxf(
 			projectile.position.distance_to(target.position) - target.radius,
 			0.0
-		) / PROJECTILE_SPEED
+		) / projectile.speed
 		return projectile if time_to_impact <= maximum_time_to_impact else null
 	return null
 
@@ -1162,7 +1196,7 @@ func _refresh_owned_stats(target: Combatant) -> void:
 		if not cooldowns_by_source.has(key):
 			cooldowns_by_source[key] = []
 		cooldowns_by_source[key].append({"remaining": target.cooldowns[index], "interval": weapon.fire_interval_seconds})
-	target.stats = target.owned_ship.get_stats(laser_upgrade_level)
+	target.stats = target.owned_ship.get_stats(laser_upgrade_level, energy_efficiency)
 	target.integrity = target.stats.integrity if target.owned_ship.is_alive() else 0.0
 	target.shields = minf(target.shields, target.stats.shields)
 	target.radius = target.stats.collision_radius

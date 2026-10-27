@@ -50,7 +50,7 @@ static func cell_bounds(cells: Array[Vector2i]) -> Rect2:
 	return bounds
 
 
-static func from_units(units: Array[Dictionary], center: Vector2, laser_level := 0) -> ShipStats:
+static func from_units(units: Array[Dictionary], center: Vector2, laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 	var result := ShipStats.new()
 	var cells: Array[Vector2i] = []
 	var radius_squared := 0.0
@@ -72,6 +72,8 @@ static func from_units(units: Array[Dictionary], center: Vector2, laser_level :=
 			continue
 		result.shields += part.stats.shields
 		var rate: float = rates.get(index, 1.0)
+		if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.SHIELD]:
+			rate = AdjacencyRules.ordinary_rate({"crew": rate - 1.0, "energy": energy_efficiency})
 		result.shield_recharge += part.stats.shields * rate
 		result.thrust += part.stats.thrust
 		effective_thrust += part.stats.thrust * rate

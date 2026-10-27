@@ -9,6 +9,7 @@ var range_units: float
 var mount_offset := Vector2.ZERO
 var is_projectile_weapon := false
 var component_index := -1
+var interceptable := false
 
 
 func _init(
@@ -53,4 +54,5 @@ func copy() -> ShipWeaponStats:
 	)
 	copied_weapon.is_projectile_weapon = is_projectile_weapon
 	copied_weapon.component_index = component_index
+	copied_weapon.interceptable = interceptable
 	return copied_weapon

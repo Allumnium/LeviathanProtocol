@@ -40,7 +40,7 @@ func get_tile_cells() -> Array[Vector2i]:
 	return cells
 
 
-func get_stats(laser_level := 0) -> ShipStats:
+func get_stats(laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 	var units: Array[Dictionary] = []
 	var occupied: Dictionary = {}
 	var all_parts: Array[ShipPart] = parts.duplicate()
@@ -54,7 +54,7 @@ func get_stats(laser_level := 0) -> ShipStats:
 	for cell in get_tile_cells():
 		if not occupied.has(cell):
 			units.append({"cells": [cell], "part": null, "hp": 1.0})
-	return ShipStats.from_units(units, ShipStats.cell_bounds(get_tile_cells()).get_center(), laser_level)
+	return ShipStats.from_units(units, ShipStats.cell_bounds(get_tile_cells()).get_center(), laser_level, energy_efficiency)
 
 
 func get_filled_hull_area() -> float:
