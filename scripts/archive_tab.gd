@@ -48,20 +48,15 @@ func _ready() -> void:
 
 func _get_ordered_catalog() -> Array[ShipPartPattern]:
 	var catalog := ShipPartPattern.get_catalog()
-	var patterns_by_type: Dictionary[int, ShipPartPattern] = {}
-	for pattern in catalog:
-		patterns_by_type[pattern.part_type] = pattern
 	var ordered: Array[ShipPartPattern] = []
 	for part_type in ARCHIVE_PART_ORDER:
-		if patterns_by_type.has(part_type):
-			ordered.append(patterns_by_type[part_type])
-			patterns_by_type.erase(part_type)
-	# Keep newly introduced parts visible until they receive an explicit family position.
+		for pattern in catalog:
+			if pattern.part_type == part_type:
+				ordered.append(pattern)
 	for pattern in catalog:
-		if patterns_by_type.has(pattern.part_type):
+		if not ordered.has(pattern):
 			ordered.append(pattern)
 	return ordered
-
 
 func bind_external_panels(progress_label: Label, details: VBoxContainer) -> void:
 	_progress_label = progress_label

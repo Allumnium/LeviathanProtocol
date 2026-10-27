@@ -156,6 +156,7 @@ current_tab = 0
 layout_mode = 2
 
 [node name="BuildTilemapArea" parent="Layout/Workspace/Panels/CenterPanel/PanelContents/Tabs/Build" instance=ExtResource("4_builder")]
+unrestricted_blueprints = true
 
 [node name="Archive" type="Control" parent="Layout/Workspace/Panels/CenterPanel/PanelContents/Tabs"]
 visible = false

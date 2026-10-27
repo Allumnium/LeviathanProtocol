@@ -6,7 +6,7 @@ The registry contains 56 base recipes and two additional Research Lab rank recip
 
 ## Assembled identity and transforms
 
-Blueprint part records now include `definition_id`, `rank`, `quarter_turns` and `horizontally_flipped` alongside the existing enum ID, origin, ordered cell offsets and hidden exhaust offsets. Loaders cross-check these fields against the actual implemented equipment, labeled footprint and legal transform. A mismatched ID, unavailable rank, invalid rotation or non-boolean reflection is rejected. The current live catalog admits rank I; physical lab ranks remain step 24.
+Blueprint part records now include `definition_id`, `rank`, `quarter_turns` and `horizontally_flipped` alongside the existing enum ID, origin, ordered cell offsets and hidden exhaust offsets. Loaders cross-check these fields against the actual implemented equipment, labeled footprint and legal transform. A mismatched ID, unavailable rank, invalid rotation or non-boolean reflection is rejected. The live catalog admits all three physical lab ranks as of step 24; current-run research still controls construction. See SCIENCE.md.
 
 Unversioned blueprints still load. Missing orientation is inferred from their existing ordered offsets; the next save adds explicit metadata without changing their material cells, original IDs or exhaust offsets. Persistent physical ship/component IDs and HP ordering are unchanged. Regular-family membership remains based on the existing family rules; adding metadata does not manufacture a new family.
 

@@ -12,11 +12,11 @@ static func drone() -> Ship:
 		_add_part(design, ShipPart.Type.SINGLE_PLATE, cell)
 	return design
 
-static func _add_part(design: Ship, type: int, origin: Vector2i) -> void:
+static func _add_part(design: Ship, type: int, origin: Vector2i, rank := 1) -> void:
 	for pattern in ShipPartPattern.get_catalog():
-		if pattern.part_type != type:
+		if pattern.part_type != type or pattern.rank != rank:
 			continue
 		for index in range(pattern.cell_offsets.size()):
 			design.set_tile_at(origin + pattern.cell_offsets[index], pattern.tile_categories[index])
-		design.add_part(ShipPart.new(type, pattern.category, origin, pattern.cell_offsets, pattern.stats, pattern.hidden_tile_offsets))
+		design.add_part(ShipPart.new(type, pattern.category, origin, pattern.cell_offsets, pattern.stats, pattern.hidden_tile_offsets, 0, false, rank))
 		return

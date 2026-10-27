@@ -9,7 +9,7 @@ var patterns: Dictionary = {}
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for pattern in ShipPartPattern.get_catalog():
-		patterns[pattern.part_type] = pattern
+		patterns[pattern.pattern_key()] = pattern
 	resized.connect(queue_redraw)
 
 func _draw() -> void:
@@ -48,7 +48,7 @@ func _draw() -> void:
 			draw_rect(rect.grow(-0.2), color, unit.hp > 0.0)
 		var part: ShipPart = unit.part
 		if part != null and unit.hp > 0.0:
-			var pattern: ShipPartPattern = patterns.get(part.type)
+			var pattern: ShipPartPattern = patterns.get(part.pattern_key())
 			if pattern != null and not pattern.renders_on_top:
 				_draw_part(unit, part, pattern)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -58,7 +58,7 @@ func _draw() -> void:
 		var part: ShipPart = unit.part
 		if part == null or unit.hp <= 0.0:
 			continue
-		var pattern: ShipPartPattern = patterns.get(part.type)
+		var pattern: ShipPartPattern = patterns.get(part.pattern_key())
 		if pattern != null and pattern.renders_on_top:
 			_draw_part(unit, part, pattern)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

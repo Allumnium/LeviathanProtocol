@@ -44,38 +44,7 @@ static func validate(data: Variant) -> String:
 	for key in data.story_flags:
 		if not key is String or key.is_empty() or not data.story_flags[key] is bool:
 			return "Invalid story flag."
-	var paths: Dictionary = {}
-	for research in GameDefinitions.entries("research"):
-		if not research.family_id.is_empty():
-			if not paths.has(research.family_id):
-				paths[research.family_id] = []
-			if not paths[research.family_id].has(research.path_id):
-				paths[research.family_id].append(research.path_id)
-	for family in data.branch_choices:
-		if not paths.has(family) or not paths[family].has(data.branch_choices[family]):
-			return "Unknown research branch choice."
-	var seen: Array[String] = []
-	for id: String in data.research_ids:
-		var research := GameDefinitions.find("research", id)
-		if research.is_empty() or seen.has(id):
-			return "Unknown or duplicate current-run research."
-		seen.append(id)
-		for prerequisite in research.prerequisite_ids:
-			if not data.research_ids.has(prerequisite):
-				return "Missing research prerequisite."
-		for gate in research.story_gate_ids:
-			if not data.story_flags.get(gate, false):
-				return "Missing research story gate."
-		if not research.family_id.is_empty():
-			if data.branch_choices.get(research.family_id, "") != research.path_id:
-				return "Research conflicts with run branch choice."
-		for exclusion in research.exclusion_ids:
-			if data.research_ids.has(exclusion):
-				return "Opposite research paths cannot coexist."
-	if not seen.has("foundation"):
-		return "Foundation must be known in every run."
-	return ""
-
+	return ResearchRules.selection_error(data.research_ids, data.story_flags, data.branch_choices)
 
 static func _integer(value: Variant) -> bool:
 	if value is int:

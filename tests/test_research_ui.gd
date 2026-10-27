@@ -31,7 +31,7 @@ func _run() -> void:
 	var current := ResearchViewModel.nodes(live, ["foundation"], {}, {}, 1000)
 	_check(current.size() == 1 and current[0].id == "foundation", "Future research stays hidden regardless of RP or satisfied prerequisites.")
 	var live_detail := ResearchViewModel.details(live, "foundation", ["foundation"])
-	_check(live_detail.contains("Command Center") and not live_detail.contains("Research Lab") and not live_detail.contains("Ability: Scan"), "Owned Foundation exposes only implemented grants.")
+	_check(live_detail.contains("Command Center") and live_detail.contains("Research Lab") and not live_detail.contains("Ability: Scan"), "Owned Foundation exposes only implemented grants.")
 	# Enable a detached fixture registry, never production definitions/effects.
 	var fixture := live.duplicate(true)
 	for domain in ["research", "equipment", "abilities"]:

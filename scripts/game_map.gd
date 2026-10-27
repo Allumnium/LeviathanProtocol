@@ -307,7 +307,7 @@ func _refresh_top_bar() -> void:
 	var maximum := 0.0
 	var damaged := 0
 	for owned in GameState.fleet:
-		if owned.repair_cost() > 0:
+		if owned.needs_repair():
 			damaged += 1
 		for unit in owned.units:
 			health += unit.hp

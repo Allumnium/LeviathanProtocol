@@ -27,6 +27,12 @@ var tech_category: int
 var prerequisite_types: Array[int] = []
 var definition_id := ""
 var definition_revision := 0
+var rank := 1
+static var _lab_textures: Dictionary = {}
+
+
+func pattern_key() -> String:
+	return "%d/%d" % [part_type, rank]
 
 
 func _init(
@@ -153,7 +159,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			],
 			"Shield",
 			SHIELD_TEXTURE,
-			ShipPartStats.new(100.0, 0.0, 9.0, 0.0),
+			ShipPartStats.new(40.0, 0.0, 9.0, 0.0),
 			false,
 			[
 				ShipPart.Category.DEFENSE,
@@ -186,7 +192,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			],
 			"Double Laser",
 			LARGE_LASER_TEXTURE,
-			ShipPartStats.with_weapon("Double Laser", 6.0, 4.0, 12.0, 2)
+			ShipPartStats.with_weapon("Double Laser", 6.0, 4.0, 14.4, 2)
 		)
 	)
 	patterns.append(
@@ -221,7 +227,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			[Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)],
 			"Laser",
 			LASER_TEXTURE,
-			ShipPartStats.with_weapon("Laser", 3.0, 5.0, 12.0, 1),
+			ShipPartStats.with_weapon("Laser", 3.0, 4.0, 12.0, 1),
 			false,
 			[],
 			[],
@@ -259,6 +265,23 @@ static func get_catalog() -> Array[ShipPartPattern]:
 			ShipPartStats.with_weapon("Mini Turret", 1.0, 1.0, 1.0, 1, true)
 		)
 	)
+	patterns.append(ShipPartPattern.new(ShipPart.Type.CREW_QUARTERS, ShipPart.Category.CORE,
+		[Vector2i.ZERO, Vector2i.RIGHT], "Crew Quarters",
+		_lab_texture({Vector2i.ZERO: ShipPart.Category.CORE, Vector2i.RIGHT: ShipPart.Category.CORE}),
+		ShipPartStats.new(0, 0, 2, 0), true, [ShipPart.Category.CORE, ShipPart.Category.CORE]))
+	var lab_definition := GameDefinitions.equipment(ShipPart.Type.RESEARCH_LAB)
+	for physical_rank: Dictionary in lab_definition.ranks:
+		var offsets: Array[Vector2i] = []
+		var categories: Array[int] = []
+		var cells := MaterialRecipe.parse(physical_rank.recipe)
+		for cell: Vector2i in cells:
+			offsets.append(cell)
+			categories.append(cells[cell])
+		var lab := ShipPartPattern.new(ShipPart.Type.RESEARCH_LAB, ShipPart.Category.CORE, offsets,
+			"Research Lab %s" % ["I", "II", "III"][int(physical_rank.rank) - 1],
+			_lab_texture(cells), ShipPartStats.new(0, 0, offsets.size(), 0), true, categories)
+		lab.rank = int(physical_rank.rank)
+		patterns.append(lab)
 	var top_layer_types := [
 		ShipPart.Type.COMMAND_CENTER,
 		ShipPart.Type.LASER,
@@ -284,6 +307,27 @@ static func get_catalog() -> Array[ShipPartPattern]:
 		pattern.definition_revision = int(definition.revision)
 		implemented_patterns.append(pattern)
 	return implemented_patterns
+
+
+static func _lab_texture(cells: Dictionary) -> Texture2D:
+	var key := MaterialRecipe.signature(cells)
+	if _lab_textures.has(key):
+		return _lab_textures[key]
+	# Procedural component placeholder, with the exact physical rank footprint.
+	var extent := Vector2i.ONE
+	for cell: Vector2i in cells:
+		extent.x = maxi(extent.x, cell.x + 1)
+		extent.y = maxi(extent.y, cell.y + 1)
+	var texture := Image.create(extent.x * 26, extent.y * 26, false, Image.FORMAT_RGBA8)
+	texture.fill(Color.TRANSPARENT)
+	for cell: Vector2i in cells:
+		var base := cell * 26
+		texture.fill_rect(Rect2i(base + Vector2i(1, 1), Vector2i(24, 24)), Color("455379") if cells[cell] == ShipPart.Category.CORE else Color("296760"))
+		texture.fill_rect(Rect2i(base + Vector2i(6, 5), Vector2i(14, 16)), Color("102731"))
+		texture.fill_rect(Rect2i(base + Vector2i(9, 12), Vector2i(8, 6)), Color("88ddec"))
+	var result := ImageTexture.create_from_image(texture)
+	_lab_textures[key] = result
+	return result
 
 
 static func _thruster_idle_texture(sheet: Texture2D) -> AtlasTexture:

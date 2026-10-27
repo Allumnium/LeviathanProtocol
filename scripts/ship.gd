@@ -7,8 +7,8 @@ const BUILD_CELL_SIZE := Vector2(26.0, 26.0)
 const BATTLE_MODEL_SIZE := 48.0
 const RED_TILE_CREDIT_COST := 5
 const BLUE_TILE_CREDIT_COST := 2
-const GREEN_TILE_CREDIT_COST := 10
-const CORE_TILE_CREDIT_COST := 15
+const GREEN_TILE_CREDIT_COST := 8
+const CORE_TILE_CREDIT_COST := 6
 const MAX_HULL_BRIDGE_EMPTY_CELLS := 3
 
 var tiles: Dictionary[Vector2i, int] = {}
@@ -287,9 +287,9 @@ func to_design_data() -> Dictionary:
 	var serialized_parts: Array[Dictionary] = []
 	var patterns: Dictionary = {}
 	for pattern in ShipPartPattern.get_catalog():
-		patterns[pattern.part_type] = pattern
+		patterns[pattern.pattern_key()] = pattern
 	for part in parts:
-		var orientation := part.get_transform(patterns[part.type]) if patterns.has(part.type) else Vector2i.ZERO
+		var orientation := part.get_transform(patterns[part.pattern_key()]) if patterns.has(part.pattern_key()) else Vector2i.ZERO
 		serialized_parts.append({
 			"type": part.type,
 			"definition_id": part.definition_id,
@@ -301,6 +301,8 @@ func to_design_data() -> Dictionary:
 			"cell_offsets": _serialize_offsets(part.cell_offsets),
 			"hidden_tile_offsets": _serialize_offsets(part.hidden_tile_offsets),
 		})
+		if part.type == ShipPart.Type.CREW_QUARTERS and part.crew_manual:
+			serialized_parts.back()["crew_recipients"] = _serialize_offsets(part.crew_recipients)
 
 	return {
 		"tiles": serialized_tiles,
@@ -345,9 +347,9 @@ func load_design_data(serialized_design: Variant) -> bool:
 			return false
 		next_tiles[cell] = category
 
-	var patterns_by_type: Dictionary[int, ShipPartPattern] = {}
+	var patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 	for pattern in ShipPartPattern.get_catalog():
-		patterns_by_type[pattern.part_type] = pattern
+		patterns_by_type[pattern.pattern_key()] = pattern
 
 	var next_ship := Ship.new()
 	next_ship.tiles = next_tiles
@@ -364,7 +366,10 @@ func load_design_data(serialized_design: Variant) -> bool:
 
 		var part_type := int(serialized_part["type"])
 		var part_category := int(serialized_part["category"])
-		var pattern: ShipPartPattern = patterns_by_type.get(part_type)
+		if not _is_integer_value(serialized_part.get("rank", 1)):
+			return false
+		var part_rank := int(serialized_part.get("rank", 1))
+		var pattern: ShipPartPattern = patterns_by_type.get("%d/%d" % [part_type, part_rank])
 		if pattern == null:
 			push_error("Ship design contains an unknown part type: %s" % part_type)
 			return false
@@ -405,7 +410,7 @@ func load_design_data(serialized_design: Variant) -> bool:
 		if serialized_part.has("definition_id") and serialized_part.definition_id != pattern.definition_id:
 			push_error("Ship design equipment identity does not match its type.")
 			return false
-		if serialized_part.has("rank") and (not _is_integer_value(serialized_part.rank) or int(serialized_part.rank) != 1):
+		if part_rank < 1:
 			push_error("Ship design contains an unavailable equipment rank.")
 			return false
 		if serialized_part.has("quarter_turns") or serialized_part.has("horizontally_flipped"):
@@ -451,11 +456,23 @@ func load_design_data(serialized_design: Variant) -> bool:
 			pattern.stats,
 			hidden_tile_offsets,
 			pattern_transform.x,
-			pattern_transform.y == 1
+			pattern_transform.y == 1,
+			part_rank
 		)
 		if not next_ship.add_part(part):
 			push_error("Ship design contains overlapping parts.")
 			return false
+		if serialized_part.has("crew_recipients"):
+			if part_type != ShipPart.Type.CREW_QUARTERS or not _read_vector2i_array(serialized_part.crew_recipients, part.crew_recipients, "crew recipients"):
+				return false
+			if part.crew_recipients.size() > 3:
+				return false
+			var unique := {}
+			for recipient in part.crew_recipients:
+				if unique.has(recipient) or recipient == Vector2i.ZERO:
+					return false
+				unique[recipient] = true
+			part.crew_manual = true
 
 	tiles = next_ship.tiles
 	parts = next_ship.parts

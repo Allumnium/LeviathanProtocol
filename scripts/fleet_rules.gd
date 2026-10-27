@@ -14,9 +14,8 @@ static func capacity_for_act(act: int) -> int:
 static func lab_level(part: ShipPart) -> int:
 	if part.type != ShipPart.Type.RESEARCH_LAB:
 		return 0
-	# The three documented rank footprints contain 6, 9 and 12 cells.
-	# Rotation/reflection preserve their occupied-cell count.
-	return clampi((part.cell_offsets.size() - 3) / 3, 1, 3)
+	# Capacity uses the highest physical lab rank, once per hull.
+	return clampi(part.rank, 1, 3)
 
 
 static func design_capacity(design: Ship) -> int:
@@ -24,7 +23,7 @@ static func design_capacity(design: Ship) -> int:
 		return 0
 	var labs := 0
 	for part in design.parts:
-		labs += lab_level(part)
+		labs = maxi(labs, lab_level(part))
 	return 2 + ceili(design.tiles.size() / 12.0) + labs
 
 
@@ -40,7 +39,7 @@ static func ship_capacity(owned: FleetShip) -> int:
 			occupied[cell] = true
 		var part: ShipPart = unit.part
 		if part != null:
-			labs += lab_level(part)
+			labs = maxi(labs, lab_level(part))
 	return 2 + ceili(occupied.size() / 12.0) + labs
 
 

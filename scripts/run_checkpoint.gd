@@ -273,6 +273,14 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 				if not RunProgressData._integer(id) or id < 1 or int(id) in ship_ids:
 					return false
 				ship_ids.append(int(id))
+		if entry.has("science_snapshot") and not ScienceRules.valid(entry.science_snapshot, entry.get("ship_ids", [])):
+			return false
+		if not entry.has("science_snapshot") and entry.get("deployment") is Dictionary and entry.deployment.get("fleet") is Array \
+			and ScienceRules.deployment_has_lab(entry.deployment.fleet):
+			return false
+		if entry.has("science_snapshot") and (not entry.get("deployment") is Dictionary or not entry.deployment.get("fleet") is Array \
+			or not ScienceRules.matches_deployment(entry.science_snapshot, entry.deployment.fleet)):
+			return false
 	return true
 
 

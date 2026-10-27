@@ -2,13 +2,13 @@
 
 Step 19 centralizes derived player-ship stats in `ShipStats.from_units()`. `Ship.get_stats(laser_level)` constructs full-health units for the blueprint, including parts in the assembly transition. `FleetShip.get_stats(laser_level)` supplies its actual persistent units and HP. Both paths use the same component-integrity formula, equipment values, material mass, weapon upgrades, mount geometry and movement properties.
 
-Each material cell contributes one unit of mass; assembled equipment adds its configured equipment weight. Loose cells and engine exhaust material count. The decorative hull polygon can bridge empty space, but that infill contributes no mass or HP. Full component HP remains occupied-cell count plus configured integrity times the existing integrity multiplier, with a minimum of one. No persistent maximum-HP values or repair prices changed, so existing save health arrays remain compatible.
+Each material cell contributes one unit of mass; assembled equipment adds its configured equipment weight. Loose cells and engine exhaust material count. The decorative hull polygon can bridge empty space, but that infill contributes no mass or HP. Full component HP remains occupied-cell count plus configured integrity times the existing integrity multiplier, with a minimum of one. Step 19 did not change persistent maximum HP or repair prices. Step 26 changes derived combat values and repair economics without changing component HP; see COMBAT_TUNING.md.
 
 Partially damaged components retain their footprint and output until HP reaches zero. Dead components contribute neither mass nor output. Intact disconnected equipment remains operational, including after destruction of a connecting tile. Losing the command center still destroys the ship without deleting the remaining physical wreck. Destroyed cells are not reconstructed by recalculating stats.
 
 ## Movement and geometry
 
-`ShipStats` owns top speed, acceleration and turn rate. Simulation reads those properties rather than maintaining a second formula. This step preserves the existing speed-per-thrust and acceleration/turn limits; correcting physical mass changes the mass-dependent values. Diminishing-return mass-sensitive top speed, weapon/shield tuning and repair economics remain step 26.
+`ShipStats` owns top speed, acceleration and turn rate. Simulation reads those properties rather than maintaining a second formula. Step 19 preserved the original movement law. Step 26 replaces it with diminishing returns from thrust and mass and retunes weapons, shields and repair economics; see COMBAT_TUNING.md.
 
 Player hull geometry now uses fixed eight-unit world cells. Six-cell-wide Drone hulls retain their original width of 48; larger designs remain larger. Shared footprint size comes from occupied-cell bounds, and the collision circle encloses the occupied cell corners relative to the original blueprint center. The collision circle is conservative for sparse or elongated hulls; cell damage still resolves through the existing physical hit-cell trace. Alien definitions retain their existing collision sizes.
 

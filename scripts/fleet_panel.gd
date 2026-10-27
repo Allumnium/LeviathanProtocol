@@ -41,7 +41,9 @@ func _ready() -> void:
 	GameState.fleet_changed.connect(_refresh_summary)
 	GameState.fleet_changed.connect(_refresh_slots)
 	GameState.credits_changed.connect(_refresh_slots)
+	GameState.credits_changed.connect(_refresh_summary)
 	GameState.tile_inventory_changed.connect(_refresh_slots)
+	GameState.tile_inventory_changed.connect(_refresh_summary)
 	GameState.build_area_changed.connect(_refresh_slots)
 	_refresh_choices()
 
@@ -147,7 +149,9 @@ func _open_picker(slot_index: int) -> void:
 	_activate_slot(slot_index)
 	if GameState.campaign_active:
 		picker.fleet_slot_role = _slot_role(slot_index)
-		picker.open_library("SELECT", func(design: Ship) -> String: return FleetRules.design_error(design, _slot_role(slot_index)))
+		picker.open_library("SELECT", func(design: Ship) -> String:
+			var problem := GameState.design_research_error(design)
+			return problem if not problem.is_empty() else FleetRules.design_error(design, _slot_role(slot_index)))
 	else:
 		picker.open_library("SELECT")
 
@@ -298,7 +302,7 @@ func _refresh_summary() -> void:
 		if not groups.has(type_name):
 			groups[type_name] = {"count": 0, "damaged": 0}
 		groups[type_name].count += 1
-		if owned.repair_cost() > 0:
+		if owned.needs_repair():
 			groups[type_name].damaged += 1
 	for type_name in groups:
 		var group: Dictionary = groups[type_name]
@@ -384,6 +388,7 @@ func _refresh_roster_summary() -> void:
 	totals.text = "%d deployed / %d owned" % [GameState.get_deployed_fleet().size(), GameState.fleet.size()]
 	if GameState.campaign_active:
 		totals.text += "\nCapacity %d / %d" % [GameState.used_deployment_capacity(), GameState.deployment_capacity()]
+		totals.text += "\nVictory RP: %d" % int(ScienceRules.snapshot(GameState.get_deployed_fleet()).total_rp)
 		totals.tooltip_text = "Each deployed hull: 2 + ceil(occupied material cells / 12) + active lab levels. Reserves use no capacity."
 		if GameState.used_deployment_capacity() > GameState.deployment_capacity():
 			totals.modulate = Color(1.0, 0.45, 0.35)
@@ -428,6 +433,21 @@ func _refresh_roster_summary() -> void:
 			toggle.tooltip_text = "Assign this family to a regular slot first."
 		toggle.pressed.connect(func() -> void: GameState.set_ship_reserve(owned, GameState.is_ship_deployed(owned)))
 		row.add_child(toggle)
+		if owned.needs_repair():
+			var quote := GameState.repair_quote(owned)
+			var service := Button.new()
+			service.text = "REPAIR %d cr" % int(quote.credits)
+			if quote.materials.any(func(amount: int) -> bool: return amount > 0):
+				service.text = "FIX %d cr + mats" % int(quote.credits)
+			service.tooltip_text = "Repairs: %d cr. Reconstruction O/D/T/C: %s. Uses stored materials first; credit total includes shortages." % [quote.repair_credits, str(quote.reconstruction)]
+			service.add_theme_font_override("font", ThemeDB.fallback_font)
+			service.add_theme_font_size_override("font_size", 9)
+			service.custom_minimum_size.y = 20
+			for style_state in ["normal", "hover", "pressed", "disabled"]:
+				service.add_theme_stylebox_override(style_state, toggle.get_theme_stylebox(style_state))
+			service.disabled = GameState.battle_pending or not owned.is_alive() or not GameState.is_shipyard_node(GameState.current_node_id) or int(quote.credits) > GameState.credits
+			service.pressed.connect(func() -> void: GameState.repair_ship(owned))
+			list.add_child(service)
 	var revision := Button.new()
 	revision.text = "REGISTER REVISION"
 	revision.add_theme_font_size_override("font_size", 9)

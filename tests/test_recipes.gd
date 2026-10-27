@@ -58,7 +58,12 @@ func _run() -> void:
 		var pattern_cells: Dictionary = {}
 		for index in range(pattern.cell_offsets.size()):
 			pattern_cells[pattern.cell_offsets[index]] = pattern.tile_categories[index]
-		_check(MaterialRecipe.signature(pattern_cells) == MaterialRecipe.signature(MaterialRecipe.parse(GameDefinitions.equipment(pattern.part_type).recipe)), "Live material patterns match their authoritative recipe.")
+		var definition := GameDefinitions.equipment(pattern.part_type)
+		var recipe: String = definition.recipe
+		for physical: Dictionary in definition.ranks:
+			if int(physical.rank) == pattern.rank:
+				recipe = physical.recipe
+		_check(MaterialRecipe.signature(pattern_cells) == MaterialRecipe.signature(MaterialRecipe.parse(recipe)), "Live material patterns match their authoritative recipe.")
 		for turns in range(4 if pattern.can_rotate else 1):
 			for flip in range(2):
 				var design := Ship.new()
@@ -66,7 +71,7 @@ func _run() -> void:
 				for index in range(offsets.size()):
 					design.set_tile_at(offsets[index], pattern.tile_categories[index])
 				var part := ShipPart.new(pattern.part_type, pattern.category, Vector2i.ZERO, offsets, pattern.stats,
-					pattern.get_hidden_tile_offsets_for_transform(turns, flip == 1), turns, flip == 1)
+					pattern.get_hidden_tile_offsets_for_transform(turns, flip == 1), turns, flip == 1, pattern.rank)
 				design.add_part(part)
 				var data := design.to_design_data()
 				var restored := Ship.new()
@@ -101,6 +106,7 @@ func _test_editor() -> void:
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://recipes/run.json"
 	_check(state.start_new_run(1, 42), "Start isolated recipe editor fixture.")
+	state.current_research_ids.append("applied_energy")
 	for pattern in ShipPartPattern.get_catalog():
 		state.discover_part(pattern.part_type)
 	var map: Control = load("res://scenes/game_map.tscn").instantiate()

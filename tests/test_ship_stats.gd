@@ -27,7 +27,7 @@ func _run() -> void:
 		var design := Ship.new()
 		BUILTINS._add_part(design, ShipPart.Type.COMMAND_CENTER, Vector2i.ZERO)
 		if pattern.part_type != ShipPart.Type.COMMAND_CENTER:
-			BUILTINS._add_part(design, pattern.part_type, Vector2i(3, 0))
+			BUILTINS._add_part(design, pattern.part_type, Vector2i(3, 0), pattern.rank)
 		design.set_tile_at(Vector2i(-1, -1), ShipPart.Category.DEFENSE)
 		var physical := FleetShip.new()
 		physical.initialize(design, 1, "Stats fixture")

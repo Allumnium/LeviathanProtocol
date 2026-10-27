@@ -18,6 +18,7 @@ func _basic_stats(shields: float = 0.0) -> ShipStats:
 	stats.integrity = 50.0
 	stats.shields = shields
 	stats.thrust = 25.0
+	stats.weight = 11.0 # A finite-mass combat fixture under the shared movement law.
 	stats.weapons.append(ShipWeaponStats.new("Test laser", 0.5, 5.0, 1))
 	return stats
 
@@ -235,11 +236,9 @@ func _test_thrust_movement() -> void:
 	low_thrust_simulation.setup(low_thrust_stats, _fleet(1), 21)
 	high_thrust_simulation.setup(high_thrust_stats, _fleet(1), 21)
 	_check(
-		is_equal_approx(
-			high_thrust_simulation.player.speed,
-			low_thrust_simulation.player.speed * 2.0
-		),
-		"Ship speed must scale directly with thrust."
+		high_thrust_simulation.player.speed > low_thrust_simulation.player.speed
+			and high_thrust_simulation.player.speed < low_thrust_simulation.player.speed * 2.0,
+		"Extra thrust improves speed with diminishing returns at fixed mass."
 	)
 	var enemy := low_thrust_simulation.aliens[0]
 	enemy.position = low_thrust_simulation.player.position + Vector2(400.0, 0.0)
@@ -383,7 +382,7 @@ func _test_ship_cost() -> void:
 	state.green_tiles_available = 0
 	_check(state.get_construction_material_costs(ship) == [1, 0, 0, 0],
 		"The displayed material cost must exclude missing materials bought with credits.")
-	_check(state.get_construction_credit_cost(ship) == 12,
+	_check(state.get_construction_credit_cost(ship) == 10,
 		"A ship's credit cost must equal only the price of its missing materials.")
 	_check(state.get_design_material_costs(ship) == [1, 1, 1, 0],
 		"Library costs must show fixed blueprint materials regardless of current inventory.")
@@ -1582,10 +1581,13 @@ func _test_owned_fleet() -> void:
 	_check(owned.is_alive() and owned.get_stats().weapons.is_empty(), "A destroyed laser must stop firing without destroying the core.")
 	_check(owned.units[thrust_index].hp > 0.0, "Connected thrusters must survive weapon destruction.")
 	var inventory := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available]
-	var price := owned.repair_cost()
+	var quote: Dictionary = state.repair_quote(owned)
+	var price: int = quote.credits
 	credits = state.credits
-	_check(state.repair_ship(owned), "Credit-only repairs must restore surviving ships.")
-	_check(state.credits == credits - price and inventory == [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available], "Repairs must spend only credits.")
+	_check(state.repair_ship(owned), "Repair and paid reconstruction restore surviving ships.")
+	_check(state.credits == credits - price and inventory[0] - quote.materials[0] == state.red_tiles_available
+		and inventory[1] - quote.materials[1] == state.blue_tiles_available and inventory[2] - quote.materials[2] == state.green_tiles_available,
+		"Reconstruction consumes existing materials and buys only shortages.")
 	_check(owned.units[laser_index].hp == owned.units[laser_index].max_hp, "Repair must restore destroyed components.")
 	owned.damage_cell(Vector2i(2, 1), 100.0)
 	_check(owned.get_stats().thrust == 0.0, "Destroyed engines must remove thrust.")
@@ -1615,7 +1617,7 @@ func _test_owned_fleet() -> void:
 	var blue_only := FleetShip.new()
 	blue_only.initialize(branching, 100, "Armor")
 	blue_only.units[blue_only.cell_units[Vector2i(-1, 0)]].hp = 0.0
-	_check(blue_only.repair_cost() == 1, "Blue damage must have a very low rounded credit repair cost.")
+	_check(blue_only.repair_cost() == 0 and blue_only.material_counts(true)[1] == 1, "Destroyed blue material requires reconstruction, not a cheap repair.")
 	var random := RandomNumberGenerator.new()
 	random.seed = 62
 	for trial in range(30):
@@ -1744,7 +1746,7 @@ func _test_design_selection() -> void:
 		state.green_tiles_available,
 		state.core_tiles_available,
 	]
-	var salvage_counts: Array[int] = state._get_ship_tile_counts(blueprint)
+	var salvage_counts: Array[int] = damaged_escort.material_counts(false)
 	_check(state.salvage_ship_type("Old Escort"), "A fleet ship type must be salvageable from its slot.")
 	_check(
 		state.fleet.has(undamaged_escort) and not state.fleet.has(damaged_escort),
@@ -1762,7 +1764,7 @@ func _test_design_selection() -> void:
 			salvage_inventory[2] + salvage_counts[2],
 			salvage_inventory[3] + salvage_counts[3],
 		],
-		"Salvage must return every material in the ship's original blueprint."
+		"Salvage must return only physically surviving material."
 	)
 	var credits_before_rebuild: int = state.credits
 	_check(

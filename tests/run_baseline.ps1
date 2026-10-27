@@ -20,6 +20,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Grouped research UI suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_run_state.gd --log-file (Join-Path $runRoot 'run-state.log')
     if ($LASTEXITCODE -ne 0) { throw "Run state suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_research_enforcement.gd --log-file (Join-Path $runRoot 'research-enforcement.log')
+    if ($LASTEXITCODE -ne 0) { throw "Research enforcement suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_science.gd --log-file (Join-Path $runRoot 'science.log')
+    if ($LASTEXITCODE -ne 0) { throw "Science suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_adjacency.gd --log-file (Join-Path $runRoot 'adjacency.log')
+    if ($LASTEXITCODE -ne 0) { throw "Adjacency suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_tuning.gd --log-file (Join-Path $runRoot 'tuning.log')
+    if ($LASTEXITCODE -ne 0) { throw "Baseline tuning suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_transactions.gd --log-file (Join-Path $runRoot 'transactions.log')
     if ($LASTEXITCODE -ne 0) { throw "Transaction suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_encounter_independence.gd --log-file (Join-Path $runRoot 'encounter-independence.log')

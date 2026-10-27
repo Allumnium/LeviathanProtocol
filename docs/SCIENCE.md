@@ -1,0 +1,13 @@
+# Physical labs and victory research
+
+Step 24 activates Research Lab I as known Foundation equipment. At step 24 the live catalog contains 12 patterns across 10 equipment types: the nine original components plus three physical lab ranks. Lab II and III require their existing research grants; buying research remains a later milestone. Their material footprints are `CCT/CTT`, `CCT/CTT/CTT` and `CCTT/CCTT/CTTT`. Rank and orientation survive blueprint and physical-ship reloads. Procedural lab art is a placeholder.
+
+Only the highest living lab rank on a living hull operates; ties use the first physical unit. Science-slot eligibility still requires exactly one lab. Capacity charges only the highest living rank. Reserves contribute nothing to deployment or RP.
+
+Departure freezes each deployed operational lab's ship ID, unit index, rank and adjacent support flags. Base victory RP is 20/40/60. An orthogonally adjacent Analysis Array and Quantum Observatory each add 25%, once per source type, capped at 150%: rank III earns 75 with one source or 90 with both. These support components remain gated; their snapshot hooks are tested with detached fixtures. Crew never increases RP.
+
+The frozen total settles through the victory transaction exactly once, even if its lab or host subsequently dies. Travel, pickups, withdrawal and defeat do not grant research. A failed checkpoint write preserves the pending settlement for retry. Saved snapshots are checked against the original deployment's designs and HP, including support adjacency; a forged rank, total or missing lab snapshot is rejected. Older deployments without labs may omit the additive field. Zero-lab settlements retain the previous transaction fingerprint.
+
+During combat each operational lab marks the nearest team-visible hostile every eight seconds. The mark grants +5% damage, with the strongest source only. Loss of sight or destruction of the source lab removes its effect. The current team-sight hook uses a living friendly ship within 260 units; shared visibility integration remains step 36. A cyan target ring identifies the effect. Step 25 adds Crew refresh-rate bonuses; see ADJACENCY.md.
+
+`tests/test_science.gd` covers physical ranks, one lab per hull, reserve exclusion, 20/40/60/75/90 RP, strongest support sources, destroyed support, analysis damage/sight/source destruction, snapshot reload and forgery, failed-write recovery, destroyed deployed labs, duplicate settlement, travel, pickups, withdrawal and defeat. Native 640×360 fleet summary, rank previews and analysis captures are in `.local/science-*.png`.

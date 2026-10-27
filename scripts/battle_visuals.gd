@@ -19,7 +19,7 @@ const LARGE_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_l_animate
 const THRUSTER_START_SECONDS := 0.1
 const THRUSTER_LOOP_FPS := 12.0
 
-var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
+var _part_patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 var simulation: BattleSimulation
 var camera_position := Vector2.ZERO
 var camera_zoom := 0.65
@@ -44,7 +44,7 @@ func _ready() -> void:
 	_thruster_frames_by_type[ShipPart.Type.THRUSTER] = _create_thruster_frames(SMALL_THRUSTER_SHEET)
 	_thruster_frames_by_type[ShipPart.Type.LARGE_THRUSTER] = _create_thruster_frames(LARGE_THRUSTER_SHEET)
 	for pattern in ShipPartPattern.get_catalog():
-		_part_patterns_by_type[pattern.part_type] = pattern
+		_part_patterns_by_type[pattern.pattern_key()] = pattern
 	var random := RandomNumberGenerator.new()
 	random.seed = 4815
 	for index in range(450):
@@ -254,11 +254,13 @@ func _draw_alien_fleet() -> void:
 		_set_ship_transform(render_position, render_heading + PI * 0.5)
 		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else Color.WHITE
 		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false, color)
+		if simulation.player != null and simulation._analysis_multiplier(simulation.player, alien) > 1.0:
+			draw_arc(Vector2.ZERO, alien.radius + 3, 0, TAU, 24, Color("88ddec"), 1.0)
 	draw_set_transform_matrix(world_transform())
 
 
 func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:
-	var pattern: ShipPartPattern = _part_patterns_by_type.get(part.type)
+	var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
 	if pattern == null:
 		push_error("Unknown ship part type in battle renderer: %s" % part.type)
 	return pattern

@@ -79,6 +79,8 @@ var archive_progress_file_path := ARCHIVE_PROGRESS_PATH
 
 # Run authorization is deliberately independent of Archive discoveries/designs.
 var current_research_ids: Array[String] = ["foundation"]
+var _research_grant_key := ""
+var _research_grant_cache: Dictionary = {}
 var research_points := 0
 var research_branch_choices: Dictionary[String, String] = {}
 var story_flags: Dictionary[String, bool] = {}
@@ -781,12 +783,12 @@ func get_available_tile_count(category: int) -> int:
 			return 0
 
 
-func is_equipment_available(part_type: int) -> bool:
+func is_equipment_available(part_type: int, rank := 1) -> bool:
 	if not is_equipment_researched(part_type):
 		return false
 	for pattern in ShipPartPattern.get_catalog():
-		if pattern.part_type == part_type:
-			return true
+		if pattern.part_type == part_type and pattern.rank == rank:
+			return rank <= int(research_grants().ranks.get(pattern.definition_id, 0))
 	return false
 
 
@@ -798,14 +800,35 @@ func is_equipment_researched(part_type: int) -> bool:
 
 
 func research_grants() -> Dictionary:
-	return ResearchRules.resolve(current_research_ids)
+	# Assembly checks many candidate origins. Reuse authorization while its
+	# actual inputs are unchanged, even when callers edit IDs without a signal.
+	var key := JSON.stringify([current_research_ids, story_flags, research_branch_choices])
+	if key == _research_grant_key and not _research_grant_cache.is_empty():
+		return _research_grant_cache.duplicate(true)
+	var problem := ResearchRules.selection_error(current_research_ids, story_flags, research_branch_choices)
+	if not problem.is_empty():
+		_research_grant_cache = {"equipment_ids": [], "ranks": {}, "ability_ids": [], "modifiers": {}, "error": problem}
+	else:
+		_research_grant_cache = ResearchRules.resolve(current_research_ids)
+	_research_grant_key = key
+	return _research_grant_cache.duplicate(true)
 
 
 func design_research_error(design: Ship) -> String:
+	var grants := research_grants()
+	if not grants.error.is_empty():
+		return grants.error
+	var implemented: Array[int] = []
+	for pattern in ShipPartPattern.get_catalog():
+		implemented.append(pattern.part_type)
 	for part in design.parts:
-		if not is_equipment_available(part.type):
-			var definition := GameDefinitions.equipment(part.type)
+		var definition := GameDefinitions.equipment(part.type)
+		if definition.is_empty() or part.definition_id != definition.id:
+			return "Invalid assembled equipment identity."
+		if part.type not in implemented or not grants.equipment_ids.has(definition.id):
 			return "Requires current-run research: %s." % definition.get("display_name", "Unknown equipment")
+		if part.rank < 1 or part.rank > int(grants.ranks.get(definition.id, 0)):
+			return "Requires a researched rank for %s." % definition.display_name
 	return ""
 
 
@@ -922,7 +945,8 @@ func construction_error(blueprint: Ship = null, role := "regular") -> String:
 		elif int(roster_state.support_ids[role]) != 0:
 			return "Reserve the existing %s ship before constructing another." % role.capitalize()
 	var candidate := FleetShip.new()
-	candidate.initialize(design, next_ship_id, "")
+	if not candidate.initialize(design, next_ship_id, ""):
+		return "Invalid assembled equipment footprint or orientation."
 	var problem := candidate.construction_error() if role == "regular" else ""
 	if not problem.is_empty():
 		return problem
@@ -1010,7 +1034,8 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "", role := "re
 		title = current_ship_design_name if design == ship else "Ship"
 	if title.is_empty():
 		title = "Ship"
-	owned.initialize(design, next_ship_id, "%s %d" % [title, next_ship_id])
+	if not owned.initialize(design, next_ship_id, "%s %d" % [title, next_ship_id]):
+		return false
 	if campaign_active:
 		owned.slot_role = role
 		if role == "regular":
@@ -1040,18 +1065,42 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "", role := "re
 
 
 func repair_ship(owned: FleetShip) -> bool:
+	if owned == null:
+		return false
+	if not design_research_error(owned.design).is_empty():
+		return false
 	if campaign_active and not is_shipyard_node(current_node_id):
 		return false
 	if battle_pending or not fleet.has(owned) or not owned.is_alive():
 		return false
-	var price := owned.repair_cost()
-	if price > credits:
+	var quote := repair_quote(owned)
+	if int(quote.credits) > credits or not owned.needs_repair():
 		return false
-	credits -= price
+	var checkpoint := RunCheckpoint.capture(self)
+	checkpoint.progress.credits -= int(quote.credits)
+	for category in range(4):
+		checkpoint.inventory[category] -= int(quote.materials[category])
+	for entry: Dictionary in checkpoint.fleet:
+		if int(entry.id) == owned.id:
+			for index in range(owned.units.size()):
+				entry.hp[index] = owned.units[index].max_hp
+	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
+		return false
+	_apply_accounting(checkpoint)
 	owned.repair()
 	credits_changed.emit()
+	tile_inventory_changed.emit()
 	fleet_changed.emit()
 	return true
+
+func repair_quote(owned: FleetShip) -> Dictionary:
+	var required := owned.material_counts(true)
+	var materials: Array[int] = [0, 0, 0, 0]
+	var price := owned.repair_cost()
+	for category in range(4):
+		materials[category] = mini(required[category], get_available_tile_count(category))
+		price += (required[category] - materials[category]) * MATERIAL_PRICES[category]
+	return {"credits": price, "materials": materials, "reconstruction": required, "repair_credits": owned.repair_cost()}
 
 
 func salvage_ship_type(design_name: String) -> bool:
@@ -1068,12 +1117,30 @@ func salvage_ship_type(design_name: String) -> bool:
 			candidate_damage = damage
 	if candidate == null:
 		return false
-	var counts := _get_ship_tile_counts(candidate.design)
-	red_tiles_available += counts[ShipPart.Category.OFFENSE]
-	blue_tiles_available += counts[ShipPart.Category.DEFENSE]
-	green_tiles_available += counts[ShipPart.Category.SPECIAL]
-	core_tiles_available += counts[ShipPart.Category.CORE]
-	fleet.erase(candidate)
+	return dismantle_ship(candidate)
+
+func dismantle_ship(owned: FleetShip) -> bool:
+	if owned == null or battle_pending or not fleet.has(owned) or (campaign_active and not is_shipyard_node(current_node_id)):
+		return false
+	var checkpoint := RunCheckpoint.capture(self)
+	var counts := owned.material_counts(false)
+	for category in range(4):
+		checkpoint.inventory[category] += counts[category]
+	checkpoint.fleet = checkpoint.fleet.filter(func(entry: Dictionary) -> bool: return int(entry.id) != owned.id)
+	for entry: Dictionary in checkpoint.fleet:
+		if int(entry.escort_target_id) == owned.id:
+			entry.escort_target_id = 0
+	for role in ["science", "civic"]:
+		if int(checkpoint.fleet_roster.support_ids[role]) == owned.id:
+			checkpoint.fleet_roster.support_ids[role] = 0
+	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
+		return false
+	_apply_accounting(checkpoint)
+	roster_state = checkpoint.fleet_roster
+	fleet.erase(owned)
+	for other in fleet:
+		if other.escort_target_id == owned.id:
+			other.escort_target_id = 0
 	_refresh_fleet()
 	tile_inventory_changed.emit()
 	return true
@@ -1154,6 +1221,11 @@ func assign_fleet_design(index: int, title: String, design: Ship, revision := fa
 	var role := "regular" if index < 3 else ("science" if index == 3 else "civic")
 	if not FleetRules.design_error(design, role).is_empty():
 		return false
+	if not design_research_error(design).is_empty():
+		return false
+	var verified := Ship.new()
+	if not verified.load_design_data(design.to_design_data()):
+		return false
 	var before := roster_state.duplicate(true)
 	var names := fleet_design_slots.duplicate()
 	if index < 3:
@@ -1192,6 +1264,8 @@ func set_ship_reserve(owned: FleetShip, reserve: bool) -> bool:
 	if not campaign_active or battle_pending or not fleet.has(owned) or not is_shipyard_node(current_node_id):
 		return false
 	if not reserve:
+		if not design_research_error(owned.design).is_empty():
+			return false
 		if owned.slot_role == "regular" and not roster_state.active.has(owned.family_id):
 			return false
 		if not FleetRules.operational_error(owned).is_empty():
@@ -1233,19 +1307,7 @@ func salvage_fleet_slot(index: int) -> bool:
 			candidate = owned
 	if candidate == null:
 		return false
-	# Only physically surviving material is returned; scuttling never rebuilds
-	# destroyed support equipment for free.
-	for cell in candidate.design.tiles:
-		if candidate.has_cell(cell):
-			match candidate.design.tiles[cell]:
-				0: red_tiles_available += 1
-				1: blue_tiles_available += 1
-				2: green_tiles_available += 1
-				3: core_tiles_available += 1
-	fleet.erase(candidate)
-	_refresh_fleet()
-	tile_inventory_changed.emit()
-	return true
+	return dismantle_ship(candidate)
 
 
 func fleet_slot_members(index: int) -> Array[FleetShip]:
@@ -1307,15 +1369,16 @@ func used_deployment_capacity() -> int:
 
 
 func deployment_error() -> String:
+	for owned in get_deployed_fleet():
+		var research_problem := design_research_error(owned.design)
+		if not research_problem.is_empty():
+			return research_problem
 	if not campaign_active:
 		return ""
 	if not FleetRules.valid(roster_state, fleet):
 		return "Invalid fleet assignments. Reassign designs at a secured port."
 	for owned in get_deployed_fleet():
 		var problem := FleetRules.operational_error(owned)
-		if not problem.is_empty():
-			return problem
-		problem = design_research_error(owned.design)
 		if not problem.is_empty():
 			return problem
 	var used := used_deployment_capacity()
@@ -1644,6 +1707,7 @@ func set_destination(node_id: int) -> bool:
 		"seed": str(battle_simulation_seed()), "salvage_chance": allied_salvage_chance(),
 		"upgrade_level": laser_upgrade_level, "neutral_cleanup": destroy_all_neutral_targets,
 		"objectives": battle_objective_ids(), "materials": battle_material_rewards()}
+	progress.science_snapshot = ScienceRules.snapshot(get_deployed_fleet())
 	progress.erase("journal")
 	encounter_progress[str(node_id)] = progress
 	if not save_run_checkpoint():
@@ -1677,8 +1741,13 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 		if not RunProgressData._integer(category) or category < 0 or category > 3:
 			return false
 		materials[int(category)] += 1
+	var progress: Dictionary = encounter_progress.get(str(destination_node_id), {})
+	var science: Dictionary = progress.get("science_snapshot", {"version": 1, "labs": [], "total_rp": 0})
+	if not ScienceRules.valid(science, progress.get("ship_ids", [])):
+		return false
 	var result := TransactionLedger.apply(RunCheckpoint.capture(self), "victory", "node/%d" % destination_node_id,
-		int(encounter.rewards.credits), materials, 0)
+		int(encounter.rewards.credits), materials, int(science.total_rp),
+		{"science_snapshot": science} if not science.labs.is_empty() else {})
 	if result.is_empty():
 		return false
 	var checkpoint: Dictionary = result.checkpoint

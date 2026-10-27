@@ -84,6 +84,8 @@ var definition_id := ""
 var rank := 1
 var quarter_turns := -1 # Legacy instances infer from their ordered offsets.
 var horizontally_flipped := false
+var crew_manual := false
+var crew_recipients: Array[Vector2i] = [] # Target origins relative to this source.
 
 
 func _init(
@@ -94,7 +96,8 @@ func _init(
 	part_stats: ShipPartStats,
 	part_hidden_tile_offsets: Array[Vector2i] = [],
 	part_quarter_turns: int = -1,
-	part_horizontally_flipped: bool = false
+	part_horizontally_flipped: bool = false,
+	part_rank: int = 1
 ) -> void:
 	if part_stats == null:
 		push_error("A ship part must have stat values.")
@@ -109,6 +112,11 @@ func _init(
 	definition_id = GameDefinitions.equipment(type).get("id", "")
 	quarter_turns = part_quarter_turns
 	horizontally_flipped = part_horizontally_flipped
+	rank = part_rank
+
+
+func pattern_key() -> String:
+	return "%d/%d" % [type, rank]
 
 
 func get_transform(pattern: ShipPartPattern) -> Vector2i:

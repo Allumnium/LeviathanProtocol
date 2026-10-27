@@ -137,7 +137,7 @@ static func loose_matches(design: Ship, patterns: Array[ShipPartPattern], locked
 					for cell in cells:
 						labels.append("%d,%d" % [cell.x, cell.y])
 					labels.sort()
-					var key := "%d:%s" % [pattern.part_type, ";".join(labels)]
+					var key := "%s:%s" % [pattern.pattern_key(), ";".join(labels)]
 					if seen.has(key):
 						continue
 					seen[key] = true

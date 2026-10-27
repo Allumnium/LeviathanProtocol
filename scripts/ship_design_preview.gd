@@ -9,13 +9,13 @@ const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
 const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.7)
 
 var ship: Ship
-var _part_patterns_by_type: Dictionary[int, ShipPartPattern] = {}
+var _part_patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for pattern in ShipPartPattern.get_catalog():
-		_part_patterns_by_type[pattern.part_type] = pattern
+		_part_patterns_by_type[pattern.pattern_key()] = pattern
 	resized.connect(queue_redraw)
 	queue_redraw()
 
@@ -78,14 +78,14 @@ func _draw() -> void:
 		)
 
 	for part in ship.parts:
-		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.type)
+		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
 		if pattern != null and not pattern.renders_on_top:
 			_draw_part(part, origin, cell_size)
 
 	draw_colored_polygon(hull, HULL_OVERLAY_COLOR)
 
 	for part in ship.parts:
-		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.type)
+		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
 		if pattern != null and pattern.renders_on_top:
 			_draw_part(part, origin, cell_size)
 
@@ -93,7 +93,7 @@ func _draw() -> void:
 
 
 func _draw_part(part: ShipPart, origin: Vector2, cell_size: float) -> void:
-	var pattern: ShipPartPattern = _part_patterns_by_type.get(part.type)
+	var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
 	if pattern == null:
 		push_error("Unknown ship part type in design preview: %s" % part.type)
 		return

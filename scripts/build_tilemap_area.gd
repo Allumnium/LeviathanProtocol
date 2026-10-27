@@ -30,6 +30,7 @@ const PART_FLASH_WHITE := Color(1.0, 1.0, 1.0, 0.85)
 const BUILD_AREA_BACKGROUND_COLOR := Color(0.035, 0.045, 0.055, 1.0)
 
 @export var tile_size := Vector2i(26, 26)
+@export var unrestricted_blueprints := false
 @export var map_dimensions := MAX_MAP_DIMENSIONS
 @export var grid_texture: Texture2D
 @export var red_tile_texture: Texture2D
@@ -107,6 +108,7 @@ var _zoom_anchor_active := false
 var _part_patterns: Array[ShipPartPattern] = []
 var auto_assemble := true
 var assembly_menu: MenuButton
+var crew_links_menu: PopupMenu
 var recipe_matches: Array[Dictionary] = []
 var recipe_preview_outlines: Array[Line2D] = []
 var _part_sprites: Dictionary[ShipPart, Sprite2D] = {}
@@ -178,6 +180,7 @@ func _ready() -> void:
 	load_design_dialog.design_selected.connect(_on_library_design_selected)
 	GameState.ship_stats_changed.connect(_refresh_design_controls)
 	GameState.part_transformations_changed.connect(_refresh_design_controls)
+	GameState.research_changed.connect(_research_authorization_changed)
 	undo_button = Button.new()
 	redo_button = Button.new()
 	undo_button.icon = _history_icon(false)
@@ -207,6 +210,9 @@ func _setup_assembly_menu() -> void:
 	design_controls.add_child(assembly_menu)
 	design_controls.move_child(assembly_menu, 0)
 	var popup := assembly_menu.get_popup()
+	crew_links_menu = PopupMenu.new()
+	crew_links_menu.name = "CrewLinks"
+	popup.add_child(crew_links_menu)
 	popup.max_size = Vector2i(600, 280)
 	popup.add_theme_font_override("font", ThemeDB.fallback_font)
 	popup.add_theme_font_size_override("font_size", 11)
@@ -224,10 +230,12 @@ func _refresh_assembly_menu() -> void:
 	popup.set_item_checked(0, auto_assemble)
 	popup.add_item("Assemble loose matches (largest first)", 1)
 	popup.add_item("Disassemble all; keep material", 2)
+	_refresh_crew_links()
+	popup.add_submenu_item("Crew links (+12%, up to 3)", "CrewLinks", 5)
 	popup.add_separator()
 	popup.add_item("Loose-tile matches (hover to preview)", 4)
 	popup.set_item_disabled(popup.item_count - 1, true)
-	recipe_matches = MaterialRecipe.loose_matches(GameState.ship, _part_patterns, _locked_cells)
+	recipe_matches = MaterialRecipe.loose_matches(GameState.ship, _assembly_patterns(), _locked_cells)
 	for index in range(mini(recipe_matches.size(), 32)):
 		var candidate := recipe_matches[index]
 		popup.add_item("%s (%d cells) at %d,%d" % [candidate.pattern.display_name, candidate.cells.size(), candidate.origin.x, candidate.origin.y], 100 + index)
@@ -240,6 +248,94 @@ func _clear_recipe_preview() -> void:
 	for outline in recipe_preview_outlines:
 		outline.queue_free()
 	recipe_preview_outlines.clear()
+
+
+func _refresh_crew_links() -> void:
+	crew_links_menu.clear()
+	for child in crew_links_menu.get_children():
+		child.free()
+	var units: Array[Dictionary] = []
+	for part in GameState.ship.parts:
+		units.append({"part": part, "hp": 1.0})
+	for source_index in range(units.size()):
+		var source: ShipPart = units[source_index].part
+		if source.type != ShipPart.Type.CREW_QUARTERS:
+			continue
+		var menu := PopupMenu.new()
+		menu.name = "Source%d" % source_index
+		menu.add_theme_font_override("font", ThemeDB.fallback_font)
+		menu.add_theme_font_size_override("font_size", 11)
+		crew_links_menu.add_child(menu)
+		crew_links_menu.add_submenu_item("Crew at %d,%d" % [source.origin.x, source.origin.y], menu.name)
+		menu.add_check_item("Automatic (component order)", 0)
+		menu.set_item_checked(0, not source.crew_manual)
+		menu.add_separator()
+		var selected := AdjacencyRules.recipients(units, source_index)
+		for index in range(units.size()):
+			var target: ShipPart = units[index].part
+			if not AdjacencyRules.eligible(target) or not AdjacencyRules.touches(source, target):
+				continue
+			menu.add_check_item("%s at %d,%d" % [GameDefinitions.equipment(target.type).display_name, target.origin.x, target.origin.y], 100 + index)
+			menu.set_item_checked(menu.item_count - 1, selected.has(index))
+			menu.set_item_disabled(menu.item_count - 1, selected.size() >= 3 and not selected.has(index))
+		menu.id_pressed.connect(func(id: int) -> void: _crew_link_action(source_index, id))
+		menu.id_focused.connect(func(id: int) -> void:
+			_clear_recipe_preview()
+			if id >= 100 and id - 100 < GameState.ship.parts.size():
+				_outline_crew_part(GameState.ship.parts[id - 100]))
+		menu.popup_hide.connect(_clear_recipe_preview)
+	if crew_links_menu.item_count == 0:
+		crew_links_menu.add_item("Assemble Crew Quarters beside equipment")
+		crew_links_menu.set_item_disabled(0, true)
+
+
+func _outline_crew_part(part: ShipPart) -> void:
+	for cell in part.get_occupied_cells():
+		var outline := Line2D.new()
+		outline.position = Vector2(cell) * Vector2(tile_size)
+		outline.points = PackedVector2Array([Vector2.ZERO, Vector2(tile_size.x, 0), Vector2(tile_size), Vector2(0, tile_size.y), Vector2.ZERO])
+		outline.width = 2
+		outline.default_color = Color("88ddec")
+		animation_layer.add_child(outline)
+		recipe_preview_outlines.append(outline)
+
+
+func _crew_link_action(source_index: int, id: int) -> void:
+	if GameState.active_part_transformations > 0 or source_index >= GameState.ship.parts.size():
+		return
+	var source := GameState.ship.parts[source_index]
+	if source.type != ShipPart.Type.CREW_QUARTERS:
+		return
+	var before := _history_state()
+	if id == 0:
+		source.crew_manual = false
+		source.crew_recipients.clear()
+	elif id >= 100 and id - 100 < GameState.ship.parts.size():
+		var target := GameState.ship.parts[id - 100]
+		if not AdjacencyRules.eligible(target) or not AdjacencyRules.touches(source, target):
+			return
+		if not source.crew_manual:
+			var units: Array[Dictionary] = []
+			for part in GameState.ship.parts:
+				units.append({"part": part, "hp": 1.0})
+			for index in AdjacencyRules.recipients(units, source_index):
+				source.crew_recipients.append(GameState.ship.parts[index].origin - source.origin)
+			source.crew_manual = true
+		# Editing may have removed a formerly selected component. Such stale
+		# references must not consume the three available choices in this editor.
+		var current: Array[Vector2i] = []
+		for part in GameState.ship.parts:
+			var offset := part.origin - source.origin
+			if source.crew_recipients.has(offset) and AdjacencyRules.eligible(part) and AdjacencyRules.touches(source, part):
+				current.append(offset)
+		source.crew_recipients.assign(current)
+		var relative := target.origin - source.origin
+		if source.crew_recipients.has(relative):
+			source.crew_recipients.erase(relative)
+		elif source.crew_recipients.size() < 3:
+			source.crew_recipients.append(relative)
+	_record_change(before)
+	GameState.ship_stats_changed.emit()
 
 
 func _preview_recipe(id: int) -> void:
@@ -793,7 +889,7 @@ func _evaluate_part_patterns(force_assembly := false) -> void:
 		var pattern := _get_pattern_for_part(part)
 		var orientation := part.get_transform(pattern)
 		_add_part_placeholder(part, pattern, orientation.x, orientation.y == 1)
-	var ordered := _part_patterns.duplicate()
+	var ordered := _assembly_patterns()
 	ordered.sort_custom(func(a: ShipPartPattern, b: ShipPartPattern) -> bool: return a.cell_offsets.size() > b.cell_offsets.size())
 	for pattern in ordered:
 		if not auto_assemble and not force_assembly:
@@ -811,6 +907,8 @@ func _try_morph_pattern(
 	pattern: ShipPartPattern,
 	orientation_hint := Vector2i(-1, 0)
 ) -> bool:
+	if not unrestricted_blueprints and not GameState.is_equipment_available(pattern.part_type, pattern.rank):
+		return false
 	var rotation_count := 4 if pattern.can_rotate else 1
 	for quarter_turns in range(rotation_count):
 		for flip_index in range(2):
@@ -833,7 +931,8 @@ func _try_morph_pattern(
 					quarter_turns, horizontally_flipped
 				),
 				quarter_turns,
-				horizontally_flipped
+				horizontally_flipped,
+				pattern.rank
 			)
 			if GameState.has_discovered_part(part.type):
 				if not GameState.ship.add_part(part):
@@ -846,6 +945,23 @@ func _try_morph_pattern(
 				_begin_part_transformation(part)
 			return true
 	return false
+
+
+func _assembly_patterns() -> Array[ShipPartPattern]:
+	var result: Array[ShipPartPattern] = []
+	for pattern in _part_patterns:
+		if unrestricted_blueprints or GameState.is_equipment_available(pattern.part_type, pattern.rank):
+			result.append(pattern)
+	return result
+
+
+func _research_authorization_changed() -> void:
+	# Authorization updates available choices, never assembled or loose material.
+	recipe_matches.clear()
+	_clear_recipe_preview()
+	if assembly_menu != null and assembly_menu.get_popup().visible:
+		_refresh_assembly_menu()
+	_refresh_design_controls()
 
 
 func _matches_pattern(
@@ -1008,6 +1124,8 @@ func _add_part_placeholder(
 
 
 func _begin_part_transformation(part: ShipPart) -> void:
+	if not unrestricted_blueprints and not GameState.is_equipment_available(part.type, part.rank):
+		return
 	if not GameState.ship.add_transitioning_part(part):
 		push_error("Could not track the transitioning ship part.")
 		return
@@ -1074,7 +1192,8 @@ func _complete_part_transformation(
 		_locked_cells.erase(cell)
 
 	GameState.ship.remove_transitioning_part(part)
-	GameState.ship.add_part(part)
+	if unrestricted_blueprints or GameState.is_equipment_available(part.type, part.rank):
+		GameState.ship.add_part(part)
 	_evaluate_part_patterns()
 	_active_morph_count -= 1
 	GameState.end_part_transformation()
@@ -1092,7 +1211,7 @@ func _get_texture_for_part(part: ShipPart) -> Texture2D:
 
 func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:
 	for pattern in _part_patterns:
-		if pattern.part_type == part.type:
+		if pattern.part_type == part.type and pattern.rank == part.rank:
 			return pattern
 	push_error("Unknown ship part type: %s" % part.type)
 	return null
@@ -1101,6 +1220,8 @@ func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:
 func _refresh_design_controls() -> void:
 	var can_change_design := GameState.active_part_transformations == 0
 	save_design_button.disabled = not can_change_design or GameState.ship.tiles.is_empty()
+	var problem := GameState.design_research_error(GameState.ship)
+	save_design_button.tooltip_text = "Save blueprint." + (" Construction: " + problem if not problem.is_empty() else "")
 	load_design_button.disabled = not can_change_design
 	if assembly_menu != null:
 		assembly_menu.disabled = not can_change_design

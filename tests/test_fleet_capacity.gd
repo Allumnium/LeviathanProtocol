@@ -33,6 +33,7 @@ func _run() -> void:
 		for index in range(3 + 3 * rank):
 			offsets.append(Vector2i(index, 0))
 		var lab := ShipPart.new(ShipPart.Type.RESEARCH_LAB, ShipPart.Category.CORE, Vector2i.ZERO, offsets, ShipPartStats.new())
+		lab.rank = rank
 		_check(FleetRules.lab_level(lab) == rank, "Lab rank derives from its documented footprint.")
 		owned.units.append({"part": lab, "hp": 1.0, "cells": []})
 		_check(FleetRules.ship_capacity(owned) == 4 + rank, "Each active lab adds its level to physical hull cost.")

@@ -15,7 +15,6 @@ enum Faction { PLAYER, ALIEN, NEUTRAL }
 
 const ARENA_RADIUS := 800.0
 const DROP_CHANCE := 0.6
-const SPEED_PER_THRUST := ShipStats.SPEED_PER_THRUST
 const MIN_TURN_RATE := ShipStats.MIN_TURN_RATE
 const MAX_TURN_RATE := ShipStats.MAX_TURN_RATE
 const PASSIVE_DRAG_PER_SECOND := 0.06
@@ -83,6 +82,8 @@ class Combatant:
 	var target_refresh_remaining := 0.0
 	var flyby_side := 1.0
 	var thruster_activation_elapsed := 0.0
+	var analysis_target_id := ""
+	var analysis_remaining := 0.0
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -563,6 +564,7 @@ func authoritative_snapshot() -> Dictionary:
 				hp.append(unit.hp)
 		actors.append({"id": member.entity_id, "faction": member.faction, "tags": member.tags.duplicate(),
 			"slot_role": member.owned_ship.slot_role if member.owned_ship != null else "",
+			"analysis_target": member.analysis_target_id, "analysis_remaining": member.analysis_remaining,
 			"escort_target_id": member.owned_ship.escort_target_id if member.owned_ship != null else 0,
 			"position": [member.position.x, member.position.y] if member.is_alive() else null,
 			"velocity": [member.velocity.x, member.velocity.y] if member.is_alive() else null,
@@ -666,6 +668,7 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
+		_update_analysis(delta)
 		_combat_elapsed += delta
 		_apply_pending_commands()
 		var previous_phase := phase
@@ -907,8 +910,10 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	ship.since_damage += delta
 	ship.retreat_time = maxf(0.0, ship.retreat_time - delta)
 	ship.retreat_cooldown = maxf(0.0, ship.retreat_cooldown - delta)
-	if ship.since_damage > 2.5:
-		ship.shields = minf(ship.stats.shields, ship.shields + ship.stats.shields * 0.12 * delta)
+	if ship.since_damage >= 4.0:
+		var recharge := ship.stats.shield_recharge if ship.owned_ship != null else ship.stats.shields
+		var recharge_delta := minf(delta, maxf(0.0, ship.since_damage - 4.0))
+		ship.shields = minf(ship.stats.shields, ship.shields + recharge * 0.04 * recharge_delta)
 	if ship.stats.shields > 0.0 and ship.shields <= ship.stats.shields * 0.2:
 		if ship.retreat_cooldown <= 0.0:
 			ship.retreat_time = 2.5
@@ -1156,7 +1161,7 @@ func _refresh_owned_stats(target: Combatant) -> void:
 		var key := "%d/%s" % [weapon.component_index, weapon.weapon_name]
 		if not cooldowns_by_source.has(key):
 			cooldowns_by_source[key] = []
-		cooldowns_by_source[key].append(target.cooldowns[index])
+		cooldowns_by_source[key].append({"remaining": target.cooldowns[index], "interval": weapon.fire_interval_seconds})
 	target.stats = target.owned_ship.get_stats(laser_upgrade_level)
 	target.integrity = target.stats.integrity if target.owned_ship.is_alive() else 0.0
 	target.shields = minf(target.shields, target.stats.shields)
@@ -1165,13 +1170,66 @@ func _refresh_owned_stats(target: Combatant) -> void:
 	for weapon in target.stats.weapons:
 		var key := "%d/%s" % [weapon.component_index, weapon.weapon_name]
 		var old: Array = cooldowns_by_source.get(key, [])
-		target.cooldowns.append(float(old.pop_front()) if not old.is_empty() else 0.0)
+		var remaining := 0.0
+		if not old.is_empty():
+			var previous: Dictionary = old.pop_front()
+			remaining = float(previous.remaining)
+			if not is_equal_approx(previous.interval, weapon.fire_interval_seconds):
+				remaining *= weapon.fire_interval_seconds / float(previous.interval)
+		target.cooldowns.append(remaining)
 	_refresh_mobility(target)
+
+
+func team_can_see(faction: int, target: Combatant) -> bool:
+	# Conservative Command Center sight until the shared fog/sensor milestone.
+	if not target.is_alive() or not target.targetable:
+		return false
+	for observer in _members:
+		if observer.faction == faction and observer.is_alive() and observer.has_tag("combatant") \
+			and observer.position.distance_to(target.position) <= 260.0:
+			return true
+	return false
+
+
+func _update_analysis(delta: float) -> void:
+	for member in _members:
+		if not member.is_alive() or member.owned_ship == null or ScienceRules.active_lab(member.owned_ship) < 0:
+			member.analysis_target_id = ""
+			continue
+		var marked: Combatant = entities.get(member.analysis_target_id)
+		if marked == null or not team_can_see(member.faction, marked):
+			member.analysis_target_id = ""
+		var lab_rate: float = AdjacencyRules.rates(member.owned_ship.units).get(ScienceRules.active_lab(member.owned_ship), 1.0)
+		member.analysis_remaining = maxf(0, member.analysis_remaining - delta * lab_rate)
+		if member.analysis_remaining > 0:
+			continue
+		member.analysis_remaining = 8.0
+		var closest := INF
+		member.analysis_target_id = ""
+		for target in _members:
+			if target.faction == member.faction or target.faction == Faction.NEUTRAL or not target.has_tag("combatant") \
+				or not team_can_see(member.faction, target):
+				continue
+			var distance := member.position.distance_squared_to(target.position)
+			if distance < closest:
+				closest = distance
+				member.analysis_target_id = target.entity_id
+
+
+func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
+	if source == null or not team_can_see(source.faction, target):
+		return 1.0
+	for member in _members:
+		if member.faction == source.faction and member.is_alive() and member.owned_ship != null \
+			and ScienceRules.active_lab(member.owned_ship) >= 0 and member.analysis_target_id == target.entity_id:
+			return 1.05
+	return 1.0
 
 
 func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "") -> void:
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
+	damage *= _analysis_multiplier(source, target)
 	var absorbed := minf(target.shields, damage)
 	target.shields -= absorbed
 	target.shield_damage_taken += absorbed

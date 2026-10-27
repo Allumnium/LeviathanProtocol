@@ -35,6 +35,8 @@ func _ready() -> void:
 	for category in ShipPart.TechCategory.values():
 		_catalog_by_category[category] = []
 	for pattern in ShipPartPattern.get_catalog():
+		if pattern.rank != 1:
+			continue # The legacy tree has one card per equipment type.
 		_catalog_by_category[pattern.tech_category].append(pattern)
 	_sort_categories_by_dependencies()
 	resized.connect(_on_resized)

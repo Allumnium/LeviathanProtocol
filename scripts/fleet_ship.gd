@@ -3,7 +3,7 @@ extends RefCounted
 
 # A constructed ship owns an immutable blueprint and persistent component health.
 # Combined parts are atomic damage units; their occupied cells stay until HP is zero.
-const REPAIR_PER_TILE := [2.0, 0.1, 4.0, 20]
+const REPAIR_PER_TILE := [1.0, 0.2, 3.0, 2.0]
 const NEIGHBORS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 var id := 0
 var family_id := ""
@@ -20,14 +20,15 @@ var center := Vector2.ZERO
 var cell_size := ShipStats.BATTLE_CELL_SIZE
 var visual_revision := 0
 
-func initialize(blueprint: Ship, ship_id: int, title: String) -> void:
+func initialize(blueprint: Ship, ship_id: int, title: String) -> bool:
 	id = ship_id
 	display_name = title
 	design = Ship.new()
-	design.load_design_data(blueprint.to_design_data())
 	units.clear()
 	cell_units.clear()
 	core_index = -1
+	if not design.load_design_data(blueprint.to_design_data()) or design.tiles.is_empty():
+		return false
 	for part in design.parts:
 		var hp := ShipStats.component_integrity(part.cell_offsets.size(), part)
 		_add_unit(part.get_occupied_cells(), hp, part)
@@ -38,6 +39,7 @@ func initialize(blueprint: Ship, ship_id: int, title: String) -> void:
 			_add_unit([cell], 1.0, null)
 	center = ShipStats.cell_bounds(design.get_tile_cells()).get_center()
 	cell_size = ShipStats.BATTLE_CELL_SIZE
+	return true
 
 
 func _add_unit(cells: Array[Vector2i], hp: float, part: ShipPart) -> void:
@@ -61,14 +63,32 @@ func get_stats(laser_level: int = 0) -> ShipStats:
 func repair_cost() -> int:
 	var total := 0.0
 	for unit in units:
+		if unit.hp <= 0:
+			continue # Destroyed units require reconstruction materials, not repairs.
 		var fraction: float = 1.0 - unit.hp / unit.max_hp
 		for cell in unit.cells:
 			total += REPAIR_PER_TILE[design.tiles[cell]] * fraction
 	return ceili(total - 0.00001)
 
-func repair() -> void:
+func needs_repair() -> bool:
+	return units.any(func(unit: Dictionary) -> bool: return unit.hp < unit.max_hp)
+
+func material_counts(destroyed: bool) -> Array[int]:
+	var result: Array[int] = [0, 0, 0, 0]
 	for unit in units:
+		if (unit.hp <= 0) != destroyed:
+			continue
+		for cell in unit.cells:
+			result[design.tiles[cell]] += 1
+	return result
+
+func repair() -> void:
+	var reconstructed := false
+	for unit in units:
+		reconstructed = reconstructed or unit.hp <= 0
 		unit.hp = unit.max_hp
+	if reconstructed:
+		visual_revision += 1
 
 func connected_cells() -> Dictionary:
 	var visited := {}

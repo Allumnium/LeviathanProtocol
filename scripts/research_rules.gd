@@ -169,6 +169,29 @@ static func validate_registry(registry: Dictionary) -> Array[String]:
 	return errors
 
 
+static func selection_error(research_ids: Array, story_flags: Dictionary, branches: Dictionary) -> String:
+	if not _unique_strings(research_ids) or not research_ids.has("foundation"):
+		return "Current-run research must contain Foundation and unique known IDs."
+	for family in branches:
+		if not FAMILY_PATHS.has(family) or branches[family] not in FAMILY_PATHS[family]:
+			return "Unknown current-run branch commitment."
+	var catalog := GameDefinitions.entries("research")
+	for id: String in research_ids:
+		var required := requirements(id, research_ids, story_flags, branches, catalog)
+		if not required.known:
+			return "Unknown current-run research."
+		if not required.missing_prerequisites.is_empty():
+			return "Missing current-run research prerequisite."
+		if not required.missing_story_gates.is_empty():
+			return "Missing current-run research story gate."
+		if not required.conflicts.is_empty() or required.branch_conflict:
+			return "Current-run research conflicts with a branch commitment."
+		var node := GameDefinitions.find("research", id)
+		if not node.family_id.is_empty() and branches.get(node.family_id, "") != node.path_id:
+			return "Current-run research is missing its branch commitment."
+	return ""
+
+
 static func resolve(research_ids: Array, catalog: Array[Dictionary] = []) -> Dictionary:
 	var definitions := catalog if not catalog.is_empty() else GameDefinitions.entries("research")
 	var by_id: Dictionary = {}
