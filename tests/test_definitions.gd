@@ -37,7 +37,7 @@ func _run() -> void:
 
 	var state := root.get_node("GameState")
 	var catalog := ShipPartPattern.get_catalog()
-	_check(catalog.size() == 16, "Functional shared equipment and all three lab ranks enter the catalog.")
+	_check(catalog.size() == 18, "Functional shared equipment and all three lab ranks enter the catalog.")
 	var numeric_ids: Array[int] = []
 	for definition in GameDefinitions.entries("equipment"):
 		var type_id := int(definition.type_id)
@@ -51,7 +51,7 @@ func _run() -> void:
 	for pattern in catalog:
 		_check(pattern.definition_id == GameDefinitions.equipment(pattern.part_type).id,
 			"Live patterns must reference a stable definition.")
-	_check(GameDefinitions.entries("research", true).size() == 7, "Only functional shared research and lab ranks are ready.")
+	_check(GameDefinitions.entries("research", true).size() == 8, "Only functional shared research and lab ranks are ready.")
 	_check(GameDefinitions.entries("abilities", true).is_empty(), "Planned abilities must remain gated.")
 
 	var energy := GameDefinitions.find("research", "applied_energy")

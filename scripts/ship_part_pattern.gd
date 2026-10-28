@@ -277,6 +277,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 	missiles.weapons[0].range_units = 340
 	missiles.weapons[0].interceptable = true
 	patterns.append(_shared_pattern(ShipPart.Type.MISSILE_RACK, missiles))
+	patterns.append(_shared_pattern(ShipPart.Type.PASSENGER_CABIN, ShipPartStats.new(0, 0, 4, 0)))
+	patterns.append(_shared_pattern(ShipPart.Type.OBSERVATION_DECK, ShipPartStats.new(0, 0, 6, 0)))
 	var lab_definition := GameDefinitions.equipment(ShipPart.Type.RESEARCH_LAB)
 	for physical_rank: Dictionary in lab_definition.ranks:
 		var offsets: Array[Vector2i] = []
@@ -345,7 +347,12 @@ static func _shared_pattern(type: int, stats: ShipPartStats) -> ShipPartPattern:
 	for cell: Vector2i in cells:
 		offsets.append(cell)
 		categories.append(cells[cell])
-	return ShipPartPattern.new(type, ShipPart.Category.SPECIAL if type == ShipPart.Type.REPAIR_STATION else ShipPart.Category.OFFENSE,
+	var category := ShipPart.Category.OFFENSE
+	if type == ShipPart.Type.REPAIR_STATION:
+		category = ShipPart.Category.SPECIAL
+	elif type in [ShipPart.Type.PASSENGER_CABIN, ShipPart.Type.OBSERVATION_DECK]:
+		category = ShipPart.Category.CORE
+	return ShipPartPattern.new(type, category,
 		offsets, definition.display_name, _lab_texture(cells), stats, true, categories)
 
 

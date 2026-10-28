@@ -275,10 +275,32 @@ func restore_run_progress(data: Variant, notify := true) -> bool:
 	return true
 
 
+func _capture_checkpoint(lost_ships: Array[int] = []) -> Dictionary:
+	var checkpoint := RunCheckpoint.capture(self)
+	if battle_pending and PassengerRules.occupied(economy_state) > 0:
+		var proposal := PassengerRules.settle_losses(checkpoint, fleet, passenger_loss_scope(), lost_ships)
+		if not proposal.is_empty():
+			return proposal
+	# Leave malformed state for the checkpoint validator to reject.
+	return checkpoint
+
+
+func passenger_loss_scope() -> String:
+	return "node/%d/attempt/%d" % [destination_node_id, int(encounter_progress.get(str(destination_node_id), {}).get("attempts", 1))]
+
+
 func save_run_checkpoint() -> bool:
 	if run_id.is_empty():
 		return false
-	return _persist_checkpoint(RunCheckpoint.capture(self))
+	var checkpoint := _capture_checkpoint()
+	if not _persist_checkpoint(checkpoint):
+		return false
+	var changed: bool = credits != int(checkpoint.progress.credits) or economy_state != checkpoint.economy
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
+	if changed:
+		_emit_accounting_changes()
+	return true
 
 
 func set_destroy_all_neutral_targets(enabled: bool) -> bool:
@@ -359,7 +381,7 @@ func load_run_checkpoint() -> bool:
 
 func commit_event(kind: String, source_id: String, credits_delta := 0,
 	material_delta: Array = [0, 0, 0, 0], rp_delta := 0, details: Dictionary = {}, economy_after: Variant = null) -> bool:
-	var result := TransactionLedger.apply(RunCheckpoint.capture(self), kind, source_id,
+	var result := TransactionLedger.apply(_capture_checkpoint(), kind, source_id,
 		credits_delta, material_delta, rp_delta, details, economy_after)
 	if result.is_empty():
 		return false
@@ -830,7 +852,7 @@ func purchase_research(id: String) -> bool:
 	var definition := GameDefinitions.find("research", id)
 	if int(definition.cost_rp) > research_points:
 		return false
-	var result := TransactionLedger.apply(RunCheckpoint.capture(self), "research", id, 0, [0, 0, 0, 0], -int(definition.cost_rp), {"research_id": id})
+	var result := TransactionLedger.apply(_capture_checkpoint(), "research", id, 0, [0, 0, 0, 0], -int(definition.cost_rp), {"research_id": id})
 	if result.is_empty() or result.replayed:
 		return false
 	var checkpoint: Dictionary = result.checkpoint
@@ -1049,7 +1071,7 @@ func purchase_material(category: int) -> bool:
 	var price: int = MATERIAL_PRICES[category]
 	if credits < price:
 		return false
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint()
 	checkpoint.progress.credits -= price
 	checkpoint.inventory[category] += 1
 	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
@@ -1093,7 +1115,7 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "", role := "re
 		title = "Ship"
 	if not owned.initialize(design, next_ship_id, "%s %d" % [title, next_ship_id]):
 		return false
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint()
 	if campaign_active:
 		owned.slot_role = role
 		if role == "regular":
@@ -1143,7 +1165,7 @@ func repair_ship(owned: FleetShip) -> bool:
 	var quote := repair_quote(owned)
 	if (int(quote.credits) > 0 and int(quote.credits) > credits) or not owned.needs_repair():
 		return false
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint()
 	checkpoint.progress.credits -= int(quote.credits)
 	for category in range(4):
 		checkpoint.inventory[category] -= int(quote.materials[category])
@@ -1189,7 +1211,9 @@ func salvage_ship_type(design_name: String) -> bool:
 func dismantle_ship(owned: FleetShip) -> bool:
 	if owned == null or battle_pending or not fleet.has(owned) or (campaign_active and not is_shipyard_node(current_node_id)):
 		return false
-	var checkpoint := RunCheckpoint.capture(self)
+	if PassengerRules.occupied(economy_state, owned.id) > 0:
+		return false
+	var checkpoint := _capture_checkpoint()
 	var counts := owned.material_counts(false)
 	for category in range(4):
 		checkpoint.inventory[category] += counts[category]
@@ -1331,6 +1355,11 @@ func assign_fleet_design(index: int, title: String, design: Ship, revision := fa
 			# Selection changes deployment, never the physical design or its HP.
 			roster_state.support_ids[role] = 0
 		roster_state.support_names[role] = title
+	for owned in fleet:
+		if PassengerRules.occupied(economy_state, owned.id) > 0 and not is_ship_deployed(owned):
+			roster_state = before
+			fleet_design_slots.assign(names)
+			return false
 	if not save_run_checkpoint():
 		roster_state = before
 		fleet_design_slots.assign(names)
@@ -1343,6 +1372,8 @@ func set_ship_reserve(owned: FleetShip, reserve: bool) -> bool:
 	if not campaign_active or battle_pending or not fleet.has(owned):
 		return false
 	if not is_shipyard_node(current_node_id) and (reserve or not emergency_roster_available()):
+		return false
+	if reserve and PassengerRules.occupied(economy_state, owned.id) > 0:
 		return false
 	if not reserve:
 		if not design_research_error(owned.design).is_empty():
@@ -1520,13 +1551,15 @@ func purchase_laser_upgrade() -> bool:
 	return true
 
 
-func record_battle(simulation: BattleSimulation) -> void:
+func record_battle(simulation: BattleSimulation, casualty_scope := "") -> void:
 	last_battle_report.clear()
 	for combatant in simulation.players:
 		var owned: FleetShip = combatant.owned_ship
 		if owned == null:
 			continue
+		var casualties := PassengerRules.casualty_summary(transaction_ledger, casualty_scope, owned.id)
 		last_battle_report.append({"ship": owned, "damage": combatant.damage_dealt,
+			"passenger_deaths": casualties.deaths, "passenger_fees": casualties.fee,
 			"taken": combatant.damage_taken,
 			"repair_damage": combatant.permanent_damage_taken,
 			"deflected": combatant.damage_deflected(),
@@ -1534,6 +1567,15 @@ func record_battle(simulation: BattleSimulation) -> void:
 			"destroyed": not combatant.is_alive()})
 		if not combatant.is_alive():
 			fleet.erase(owned)
+	# A midbattle checkpoint can already contain a lost host. Restarting the
+	# remaining escorts must still explain that host's committed casualty fee.
+	for owned in fleet:
+		if owned.is_alive() or simulation.players.any(func(member: BattleSimulation.Combatant) -> bool: return member.owned_ship == owned):
+			continue
+		var casualties := PassengerRules.casualty_summary(transaction_ledger, casualty_scope, owned.id)
+		last_battle_report.append({"ship": owned, "damage": 0.0, "taken": 0.0, "repair_damage": 0.0,
+			"deflected": 0.0, "weapons": {}, "destroyed": true,
+			"passenger_deaths": casualties.deaths, "passenger_fees": casualties.fee})
 	for combatant in simulation.aliens:
 		if combatant.alien == null:
 			continue
@@ -1547,6 +1589,7 @@ func record_battle(simulation: BattleSimulation) -> void:
 			"destroyed": not combatant.is_alive(),
 			"is_alien": true,
 		})
+	fleet = fleet.filter(func(owned: FleetShip) -> bool: return owned.is_alive())
 	_refresh_fleet()
 
 
@@ -1636,7 +1679,7 @@ func travel_to(node_id: int) -> bool:
 	var node := campaign_node(node_id)
 	if node.kind in ["combat", "boss"]:
 		return set_destination(node_id)
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint()
 	var reward := TransactionLedger.apply(checkpoint, "node_reward", "node/%d" % node_id, 0, node.material_reward, 0)
 	if reward.is_empty():
 		return false
@@ -1684,7 +1727,7 @@ func dispatch_arrival() -> bool:
 	# Secured inhabited arrival only; opening a port is a separate read-only operation.
 	if not campaign_active or battle_pending or not visited_nodes.has(current_node_id) or not campaign_node(current_node_id).get("inhabited", false):
 		return false
-	var checkpoint := _secure_node(RunCheckpoint.capture(self), current_node_id)
+	var checkpoint := _secure_node(_capture_checkpoint(), current_node_id)
 	return not checkpoint.is_empty() and _commit_campaign_checkpoint(checkpoint)
 
 
@@ -1698,6 +1741,17 @@ func commit_port_service(action: String, economy_after: Dictionary) -> bool:
 	if not campaign_active or port_services().is_empty() or action not in ["offload", "disembark"] or not RunCheckpoint._json_value(economy_after):
 		return false
 	return commit_event("port_service", "node/%d/%s" % [current_node_id, action], 0, [0, 0, 0, 0], 0, {}, economy_after)
+
+
+func disembark_passengers() -> bool:
+	if port_services().is_empty() or not PassengerRules.valid(economy_state, fleet):
+		return false
+	if PassengerRules.occupied(economy_state) == 0:
+		return true
+	var economy := economy_state.duplicate(true)
+	for record: Dictionary in economy.passengers.components.values():
+		record.occupied = 0
+	return commit_port_service("disembark", economy)
 
 
 func story_archive() -> Array[Dictionary]:
@@ -1791,7 +1845,7 @@ func set_destination(node_id: int) -> bool:
 	progress.ship_ids = []
 	for owned: FleetShip in get_deployed_fleet():
 		progress.ship_ids.append(owned.id)
-	var deployment := RunCheckpoint.capture(self)
+	var deployment := _capture_checkpoint()
 	var deployed_snapshots: Array = deployment.fleet.filter(func(entry: Dictionary) -> bool: return progress.ship_ids.has(int(entry.id)))
 	progress.deployment = {"fleet": deployed_snapshots, "aliens": deployment.aliens,
 		"seed": str(battle_simulation_seed()), "salvage_chance": allied_salvage_chance(),
@@ -1813,7 +1867,7 @@ func set_destination(node_id: int) -> bool:
 	return true
 
 
-func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: Array = []) -> bool:
+func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: Array = [], staged: Dictionary = {}) -> bool:
 	if not battle_pending:
 		push_error("Auto-battle finished without an active deployment.")
 		return false
@@ -1838,7 +1892,7 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 	var science: Dictionary = progress.get("science_snapshot", {"version": 1, "labs": [], "total_rp": 0})
 	if not ScienceRules.valid(science, progress.get("ship_ids", [])):
 		return false
-	var result := TransactionLedger.apply(RunCheckpoint.capture(self), "victory", "node/%d" % destination_node_id,
+	var result := TransactionLedger.apply(_capture_checkpoint() if staged.is_empty() else staged, "victory", "node/%d" % destination_node_id,
 		int(encounter.rewards.credits), materials, int(science.total_rp),
 		{"science_snapshot": science} if not science.labs.is_empty() else {})
 	if result.is_empty():
@@ -1871,13 +1925,13 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 	return true
 
 
-func cancel_battle(surviving_player_ship_count: int = -1, terminal_defeat := false) -> bool:
+func cancel_battle(surviving_player_ship_count: int = -1, terminal_defeat := false, staged: Dictionary = {}) -> bool:
 	if surviving_player_ship_count < -1 or surviving_player_ship_count > player_ship_count:
 		push_error("Battle cancellation reported an invalid surviving player ship count.")
 		return false
 	if not battle_pending:
 		return true
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint() if staged.is_empty() else staged
 	checkpoint.location.destination = -1
 	checkpoint.location.planned = -1
 	checkpoint.location.pending = false
@@ -1886,6 +1940,8 @@ func cancel_battle(surviving_player_ship_count: int = -1, terminal_defeat := fal
 	checkpoint.progress.run_ended = run_ended or terminal_defeat
 	if not _persist_checkpoint(checkpoint):
 		return false
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
 	run_ended = checkpoint.progress.run_ended
 	encounter_progress = checkpoint.encounter_progress
 	if surviving_player_ship_count >= 0:
@@ -1895,6 +1951,7 @@ func cancel_battle(surviving_player_ship_count: int = -1, terminal_defeat := fal
 	planned_destination_node_id = -1
 	battle_pending = false
 	battle_aliens.clear()
+	_emit_accounting_changes()
 	return true
 
 
@@ -1916,7 +1973,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	if expected_ids.is_empty():
 		for owned: FleetShip in fleet:
 			expected_ids.append(owned.id)
-	if simulation.players.size() != expected_ids.size():
+	if simulation.players.size() > expected_ids.size():
 		return false
 	var seen_ids: Array[int] = []
 	for member in simulation.players:
@@ -1925,17 +1982,45 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 		if not fleet.has(member.owned_ship) and member.is_alive():
 			return false
 		seen_ids.append(member.owned_ship.id)
-	if not encounter_progress.has(str(destination_node_id)):
-		encounter_progress[str(destination_node_id)] = {"attempts": 1, "outcome": "active", "field": {}}
-	encounter_progress[str(destination_node_id)].journal = {"battle_id": simulation.battle_id,
+	for owned in fleet:
+		if owned.id in expected_ids and owned.is_alive() and owned.id not in seen_ids:
+			return false
+	update_battle_support(simulation)
+	# Settle occupied losses while the dead hosts still exist, then stage hull
+	# removal. Failed writes leave funds, loads, roster and fleet retryable.
+	var lost: Array[int] = []
+	for owned in fleet:
+		if not owned.is_alive():
+			lost.append(owned.id)
+	for member in simulation.players:
+		if not member.is_alive() and member.owned_ship.id not in lost:
+			lost.append(member.owned_ship.id)
+	var checkpoint := _capture_checkpoint(lost)
+	checkpoint.encounter_progress[str(destination_node_id)].journal = {"battle_id": simulation.battle_id,
 		"deployment": progress.get("deployment", {}).duplicate(true),
 		"commands": simulation.command_log.duplicate(true), "events": simulation.event_log.duplicate(true),
 		"snapshot": simulation.authoritative_snapshot()}
-	update_battle_support(simulation)
-	record_battle(simulation)
+	checkpoint.fleet = checkpoint.fleet.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
+	for entry: Dictionary in checkpoint.fleet:
+		if int(entry.escort_target_id) in lost:
+			entry.escort_target_id = 0
+	for role in ["science", "civic"]:
+		if int(checkpoint.fleet_roster.support_ids[role]) in lost:
+			checkpoint.fleet_roster.support_ids[role] = 0
+	var settled: bool
+	var casualty_scope := passenger_loss_scope()
 	if simulation.phase == BattleSimulation.Phase.VICTORY:
-		return complete_battle(-1, simulation.collected_categories)
-	return cancel_battle(-1, simulation.phase == BattleSimulation.Phase.DEFEAT and fleet.is_empty())
+		settled = complete_battle(-1, simulation.collected_categories, checkpoint)
+	else:
+		settled = cancel_battle(-1, simulation.phase == BattleSimulation.Phase.DEFEAT and checkpoint.fleet.is_empty(), checkpoint)
+	if not settled:
+		return false
+	roster_state = checkpoint.fleet_roster
+	for owned in fleet:
+		if owned.escort_target_id in lost:
+			owned.escort_target_id = 0
+	record_battle(simulation, casualty_scope)
+	return true
 
 
 func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dictionary) -> bool:
@@ -1946,7 +2031,7 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 	for amount in materials:
 		if not RunProgressData._integer(amount) or amount < 0:
 			return false
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint()
 	var key := str(destination_node_id)
 	field_after = field_after.duplicate(true)
 	# Repair expenditure is durable battle state, not part of ore pickup identity.
@@ -2018,7 +2103,7 @@ func purchase_build_area_upgrade() -> bool:
 		return false
 	if campaign_active and not is_shipyard_node(current_node_id):
 		return false
-	var checkpoint := RunCheckpoint.capture(self)
+	var checkpoint := _capture_checkpoint()
 	checkpoint.progress.credits -= 50
 	for category in range(4):
 		checkpoint.inventory[category] -= 1

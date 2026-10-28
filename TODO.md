@@ -40,10 +40,11 @@ Art contract: transparent grid-aligned component sprites and pivots matching exi
 - [x] Select one active blueprint revision per regular slot. Historical copies retain identity/HP and use no deployment capacity until their revision is selected.
 - [x] Commit ship/material purchases and build-area upgrades before live mutation; cover failed writes and immediate reloads.
 - [x] Remove repeated catalog/authorization work from block placement and scan only candidate recipe origins.
-- [ ] Add Continue/checkpoint UX before release. Explain that an interrupted battle restarts from its durable deployment snapshot, not the last combat tick; test backup recovery and failed loads in the UI.
+- [ ] Add Continue/checkpoint UX before release. Explain that an interrupted battle restarts frozen enemies against the latest checkpointed fleet/loads, not the last combat tick; test backup recovery and failed loads in the UI.
 - [ ] Finish step 18 after functional Cargo Holds/arrival trade. Activate two Drones, Science and Civic with 300 credits; play the actual opening research/economy loop. Gate C remains provisional and Gate D remains pending.
-- [ ] Step 30 must settle cabin casualties/fees before checkpoint validation and before removing dead hosts. Cover cabin death then host death, failed retries, reconstruction and reload. Keep passenger equipment gated until this works.
-- [ ] Before passenger/cargo activation, add backend guards for occupied reserve/revision/dismantle actions; do not wait for step 33's UI. Preserve occupancy and explicitly settle any permitted loss/release.
+- [x] Step 30 settles cabin casualties/fees before checkpoint validation and before removing dead hosts. Covers cabin death then host death, failed retries, reconstruction and reload; basic passenger equipment is now active.
+- [x] Passenger activation includes backend guards for occupied reserve/revision/dismantle actions and free safe disembarkation at inhabited ports.
+- [ ] Cargo activation must likewise guard loaded reserve/revision/dismantle actions before step 33's full UI.
 - [ ] Track certificate-store diagnostics and ObjectDB shutdown leaks separately from gameplay assertions.
 
 This is planned work, not an implementation claim. Only documentation changes are requested now. The linked design owns behavior and tuning; do not silently simplify its rules. Work in numbered order, keep the game runnable, preserve existing changes and serialized IDs, and use isolated test saves. Record changed files and actual test results when checking off a step. Hide future research until its effects and persistence work.
@@ -214,9 +215,10 @@ Invariants: proximity-only enemy strength; three regular design families plus on
     **Done when:** four normal places pay 32 once; UI reopening/refitting/reserves/uninhabited nodes never generate tickets.
     **Result (2026-10-27):** Added detached boarding proposals and secured-arrival settlement using the existing stable node ledger identity. Occupancy, ticket income and deduplication commit atomically; replay checks happen before evaluating changed loadouts. Four places pay 32/48/64 by current boarding luxury. Survivors safely disembark; only deployed operational accommodations fill, and newly built capacity waits for a genuine later arrival. Uninhabited nodes do not change loads or pay. Staged economic state now applies alongside live balances for travel/victory. Full isolated baseline passed with zero failures, including 600 battle cases, in `.local/checks/c7911b35e0734e8198167a44d6d6cc98/`; focused boarding tests passed in `.local/boarding-focused.log`, covering interrupted/failed writes, reloads, changed capacity/luxury, reserves and actual campaign arrival gates. Occupied future cabins remain detached policy/store fixtures; no live equipment or UI activation precedes loss handling. Whitespace checks passed. See docs/PASSENGERS.md. Passenger losses/debt are next in step 30.
 
-30. [ ] **Implement passenger losses and debt.**
+30. [x] **Implement passenger losses and debt.**
     Charge 20 per death, deduplicate cabin/host loss, and restore empty capacity on repair. Audit signed-credit serialization, UI and spending checks.
     **Done when:** +32 boarding then four cabin deaths nets -48, debt persists, and free/material-only actions remain possible.
+    **Result (2026-10-28):** Enabled Civil Hospitality, real Passenger Cabins and Observation Decks. Casualty proposals clear lost occupancy and charge 20 per person through component/attempt ledger identities before checkpoint validation or dead-host removal. Failed writes preserve funds, loads, roster and dead hulls for retry; cabin-then-host loss charges only remaining occupants. Checkpointed midbattle loss/reload can settle surviving escorts without recharging or resurrecting the host. Reconstruction restores empty capacity; signed debt permits zero-credit/material-only actions. Loaded reserves, revision changes and dismantling require free safe disembarkation at an inhabited port; historical revisions cannot board. Fleet/port controls explain release and fees, and battle reports show deaths, fees and signed balance. Luxury Suites/Grand Promenade, Cargo Holds and the step 18 starter switch remain gated. See docs/PASSENGERS.md. Validation: all isolated baseline suites passed after correcting the terminal-defeat settlement regression; the final 600-encounter battle suite and expanded passenger tests are recorded in `.local/step30-battle-final.log` and `.local/passenger-losses-final.log`. Minimum-resolution rendered fleet/report checks and whitespace checks passed. Full economy UI remains step 33; cargo state is next in step 31.
 
 31. [ ] **Implement cargo state.**
     Store 10-unit hold capacity, quantity, origin, grade and unit value; loss has no fee and repairs restore empty space.
@@ -237,6 +239,10 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 35. [ ] **Validate the economy loop.**
     Play a short route with multiple inhabited stops, combat losses and refits; compare escorts versus equal-cost accommodation/trade capacity.
     **Done when:** income is readable, debt recoverable, and neither reloads nor port actions create free repeated payouts. Review Gate D.
+
+35a. [ ] **Consolidate the core UI before adding visibility systems.**
+    Review the builder, fleet, research, map and port screens together. Standardize navigation, panel hierarchy, fonts, spacing, button states and feedback; give dense information enough room and preserve the established visual style.
+    **Done when:** a real player can design, select/revise ships, service the fleet, research and travel without unexplained disabled controls or clipped text. Verify 640×360 and common larger window sizes, mouse/keyboard paths, debt/occupied states and Continue/error feedback. Keep later feature-specific UI work and step 69's performance/usability polish.
 
 36. [ ] **Implement sight, radar and filtered information.**
     Add team coverage, explored memory, generic contacts and 5-second stale markers. Share visibility queries across AI, targeting, UI, minimap and tooltips.

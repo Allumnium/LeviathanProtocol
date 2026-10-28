@@ -144,4 +144,4 @@ func _test_live_arrival_boundary() -> void:
 	var destination: int = state.get_reachable_nodes(0)[0]
 	check(state.set_destination(destination) and not state.dispatch_arrival(), "An unsecured battle approach cannot board or pay.")
 	state.cancel_battle()
-	check(not state.is_equipment_available(ShipPart.Type.PASSENGER_CABIN), "Live passenger readiness still waits for loss/debt handling.")
+	check(not state.is_equipment_available(ShipPart.Type.PASSENGER_CABIN), "Cabins still require current-run Civil Hospitality research.")

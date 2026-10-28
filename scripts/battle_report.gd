@@ -41,6 +41,19 @@ func show_report(
 	var column := VBoxContainer.new()
 	add_child(column)
 	_add_title(column, outcome, credits_gained)
+	var deaths := 0
+	var fees := 0
+	for entry in entries:
+		deaths += int(entry.get("passenger_deaths", 0))
+		fees += int(entry.get("passenger_fees", 0))
+	if deaths > 0:
+		var casualties := Label.new()
+		casualties.name = "PassengerCasualties"
+		casualties.text = "Passengers lost: %d | Fees: -%d cr | Balance: %d cr" % [deaths, fees, GameState.credits]
+		casualties.add_theme_font_override("font", ThemeDB.fallback_font)
+		casualties.add_theme_font_size_override("font_size", 10)
+		casualties.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		column.add_child(casualties)
 	_add_material_rewards(column, gained_materials)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

@@ -175,4 +175,8 @@ func _test_checkpoint_boundary() -> void:
 	check(not RunCheckpoint.valid(forged), "Save validation rejects a non-accommodation unit impersonating an occupied cabin.")
 	state.economy_state = before
 	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Older saves without passenger state remain valid.")
-	check(not state.is_equipment_available(ShipPart.Type.PASSENGER_CABIN) and not state.purchase_research("civil_hospitality"), "Passenger construction/research stays gated until boarding and losses work.")
+	check(not state.is_equipment_available(ShipPart.Type.PASSENGER_CABIN), "Foundation alone does not grant passenger equipment.")
+	state.research_points = 20
+	check(state.purchase_research("civil_hospitality") and state.is_equipment_available(ShipPart.Type.PASSENGER_CABIN)
+		and state.is_equipment_available(ShipPart.Type.OBSERVATION_DECK), "Functional Civil Hospitality grants cabins and decks together.")
+	check(not state.is_equipment_available(ShipPart.Type.LUXURY_SUITES) and not state.purchase_research("grand_hospitality"), "Advanced hospitality remains gated.")

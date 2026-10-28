@@ -316,6 +316,7 @@ func _refresh_top_bar() -> void:
 	if maximum > 0.0:
 		summary += " · %d%% hull · %d damaged" % [roundi(health / maximum * 100.0), damaged]
 	$Layout/TopBar/BarContents/CreditAmount.text = str(GameState.credits)
+	$Layout/TopBar/BarContents/CreditAmount.tooltip_text = "Debt: future income repays this balance. Free actions and owned-material construction remain available." if GameState.credits < 0 else "Available credits. Passenger losses cost 20 credits per person."
 	$Layout/TopBar/BarContents/OffenseAmount.text = str(GameState.red_tiles_available)
 	$Layout/TopBar/BarContents/DefenseAmount.text = str(GameState.blue_tiles_available)
 	$Layout/TopBar/BarContents/TechAmount.text = str(GameState.green_tiles_available)
@@ -468,7 +469,7 @@ func _show_port_services() -> void:
 	var port := GameState.port_services()
 	if port.is_empty():
 		return
-	_campaign_dialog(port.name, "Repair damaged ships in Fleet. Refit and construct in Build; buy materials in Upgrades.\n\n%s goods: %d credits/unit at origin.\nNo operational passenger accommodation or cargo holds aboard.\n\nPort services can be reopened freely; opening this screen grants no arrival income." % [port.goods_grade, int(port.goods_unit_value)])
+	_campaign_dialog(port.name, "Repair damaged ships in Fleet. Refit and construct in Build; buy materials in Upgrades.\n\n%s goods: %d credits/unit at origin.\nPassengers aboard: %d. Disembark safely in Fleet before reserving or changing their ship type. Cargo holds are not yet available.\n\nPort services can be reopened freely; opening this screen grants no arrival income." % [port.goods_grade, int(port.goods_unit_value), PassengerRules.occupied(GameState.economy_state)])
 
 
 func _show_unread_story() -> void:

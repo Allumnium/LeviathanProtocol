@@ -19,6 +19,11 @@ static func deployed_ids(checkpoint: Dictionary, fleet: Array[FleetShip]) -> Arr
 			if owned.slot_role == "regular":
 				if not roster.get("active", []).has(owned.family_id):
 					continue
+				var family: Dictionary = roster.get("families", {}).get(owned.family_id, {})
+				if family.has("design"):
+					var selected := Ship.new()
+					if not selected.load_design_data(family.design) or FleetRules.fingerprint(selected) != FleetRules.fingerprint(owned.design):
+						continue
 			elif int(roster.get("support_ids", {}).get(owned.slot_role, 0)) != owned.id:
 				continue
 		result.append(owned.id)

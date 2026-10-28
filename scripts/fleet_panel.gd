@@ -150,6 +150,9 @@ func _open_picker(slot_index: int) -> void:
 	if GameState.campaign_active:
 		picker.fleet_slot_role = _slot_role(slot_index)
 		picker.open_library("SELECT", func(design: Ship) -> String:
+			for owned in GameState.fleet_slot_members(slot_index):
+				if PassengerRules.occupied(GameState.economy_state, owned.id) > 0 and FleetRules.fingerprint(owned.design) != FleetRules.fingerprint(design):
+					return "Disembark passengers in Fleet before changing this slot."
 			var problem := GameState.design_research_error(design)
 			return problem if not problem.is_empty() else FleetRules.design_error(design, _slot_role(slot_index)))
 	else:
@@ -229,6 +232,9 @@ func _refresh_slots() -> void:
 		widget.salvage.disabled = design == null or not _fleet_has_type(slot.name) or GameState.battle_pending
 		if GameState.campaign_active:
 			widget.salvage.disabled = GameState.fleet_slot_members(index).is_empty() or not GameState.is_shipyard_node(GameState.current_node_id)
+			if GameState.fleet_slot_members(index).any(func(owned: FleetShip) -> bool: return PassengerRules.occupied(GameState.economy_state, owned.id) > 0):
+				widget.salvage.disabled = true
+				widget.salvage.tooltip_text = "Disembark passengers safely before dismantling this type."
 		if design != null:
 			var error := GameState.construction_error(design, _slot_role(index))
 			widget.construct.disabled = not error.is_empty()
@@ -389,6 +395,9 @@ func _refresh_roster_summary() -> void:
 	if GameState.campaign_active:
 		totals.text += "\nCapacity %d / %d" % [GameState.used_deployment_capacity(), GameState.deployment_capacity()]
 		totals.text += "\nVictory RP: %d" % int(ScienceRules.snapshot(GameState.get_deployed_fleet()).total_rp)
+		var passengers := PassengerRules.occupied(GameState.economy_state)
+		if passengers > 0:
+			totals.text += "\nPassengers: %d\nLoss: 20 cr/person" % passengers
 		if GameState.emergency_roster_available() and not GameState.is_shipyard_node(GameState.current_node_id):
 			totals.text += "\nEmergency: select an owned revision, then deploy reserves."
 		totals.tooltip_text = "Each deployed hull: 2 + ceil(occupied material cells / 12) + active lab levels. Reserves use no capacity."
@@ -396,7 +405,19 @@ func _refresh_roster_summary() -> void:
 			totals.modulate = Color(1.0, 0.45, 0.35)
 	totals.add_theme_font_size_override("font_size", 10)
 	totals.add_theme_font_override("font", ThemeDB.fallback_font)
+	totals.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	totals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	summary_host.add_child(totals)
+	if PassengerRules.occupied(GameState.economy_state) > 0:
+		var disembark := Button.new()
+		disembark.name = "DisembarkPassengers"
+		disembark.text = "DISEMBARK"
+		disembark.tooltip_text = "Safely release everyone at an inhabited port, free of charge. New capacity boards at the next arrival."
+		disembark.disabled = GameState.port_services().is_empty()
+		disembark.add_theme_font_override("font", ThemeDB.fallback_font)
+		disembark.add_theme_font_size_override("font_size", 9)
+		disembark.pressed.connect(func() -> void: GameState.disembark_passengers())
+		summary_host.add_child(disembark)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size.y = 40
@@ -411,6 +432,9 @@ func _refresh_roster_summary() -> void:
 		label.text = owned.display_name
 		label.tooltip_text = "%s / %s" % [owned.slot_role.capitalize(), "Deployed" if GameState.is_ship_deployed(owned) else "Reserve"]
 		label.tooltip_text += "\nDeployment capacity: %d%s" % [FleetRules.ship_capacity(owned), "" if GameState.is_ship_deployed(owned) else " (not charged while reserved)"]
+		var occupied := PassengerRules.occupied(GameState.economy_state, owned.id)
+		if occupied > 0:
+			label.text += " (%d passengers)" % occupied
 		label.add_theme_font_size_override("font_size", 9)
 		label.add_theme_font_override("font", ThemeDB.fallback_font)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -436,6 +460,9 @@ func _refresh_roster_summary() -> void:
 			toggle.pressed.connect(func() -> void: _select_owned_revision(owned))
 		else:
 			toggle.pressed.connect(func() -> void: GameState.set_ship_reserve(owned, GameState.is_ship_deployed(owned)))
+		if occupied > 0:
+			toggle.disabled = true
+			toggle.tooltip_text = "Disembark passengers safely before reserving or changing revision."
 		row.add_child(toggle)
 		if owned.needs_repair():
 			var quote := GameState.repair_quote(owned)

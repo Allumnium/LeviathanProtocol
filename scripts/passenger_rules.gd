@@ -6,6 +6,52 @@ const PLACES := 4
 const ACCOMMODATION_IDS := ["passenger_cabin", "luxury_suites"]
 const RECORD_FIELDS := ["ship_id", "unit_index", "equipment_id", "capacity", "occupied", "boarded_luxury"]
 const TICKET_PRICES := [8, 12, 16]
+const DEATH_FEE := 20
+
+# A destroyed component and its later host destruction consume the same load.
+# Proposal only: fees, empty occupancy and physical damage commit together.
+static func settle_losses(checkpoint: Dictionary, fleet: Array[FleetShip], scope: String, lost_ships: Array[int] = []) -> Dictionary:
+	if scope.is_empty() or not valid(checkpoint.economy, fleet, true):
+		return {}
+	var result := checkpoint.duplicate(true)
+	var current := manifest(fleet)
+	var records: Dictionary = result.economy.get("passengers", {}).get("components", {})
+	var ids: Array = records.keys()
+	ids.sort()
+	for id: String in ids:
+		var record: Dictionary = records[id]
+		if int(record.occupied) == 0 or (current.get(id, {}).get("operational", false) and int(record.ship_id) not in lost_ships):
+			continue
+		var deaths := int(record.occupied)
+		var economy: Dictionary = result.economy.duplicate(true)
+		economy.passengers.components[id].occupied = 0
+		var applied := TransactionLedger.apply(result, "casualty", scope + "/" + id,
+			-deaths * DEATH_FEE, [0, 0, 0, 0], 0,
+			{"component_id": id, "deaths": deaths, "fee_per_person": DEATH_FEE}, economy)
+		if applied.is_empty():
+			return {}
+		result = applied.checkpoint
+	return result if valid(result.economy, fleet) else {}
+
+static func occupied(economy: Dictionary, ship_id := 0) -> int:
+	var total := 0
+	for record: Dictionary in economy.get("passengers", {}).get("components", {}).values():
+		if ship_id == 0 or int(record.ship_id) == ship_id:
+			total += int(record.occupied)
+	return total
+
+static func casualty_summary(ledger: Dictionary, scope: String, ship_id := 0) -> Dictionary:
+	var deaths := 0
+	var fee := 0
+	for entry: Dictionary in ledger.values():
+		if entry.kind != "casualty" or not str(entry.source_id).begins_with(scope + "/"):
+			continue
+		var id: String = entry.details.get("component_id", "")
+		if ship_id != 0 and not id.begins_with("ship/%d/unit/" % ship_id):
+			continue
+		deaths += int(entry.details.get("deaths", 0))
+		fee -= int(entry.credits_delta)
+	return {"deaths": deaths, "fee": fee}
 
 static func ticket_price(luxury: int) -> int:
 	return TICKET_PRICES[clampi(luxury, 1, 3) - 1]
@@ -161,7 +207,7 @@ static func register_components(economy: Dictionary, fleet: Array[FleetShip]) ->
 			result.passengers.components[id] = empty_record(current[id])
 	return result
 
-static func valid(economy: Dictionary, fleet: Array[FleetShip]) -> bool:
+static func valid(economy: Dictionary, fleet: Array[FleetShip], allow_losses := false) -> bool:
 	if not economy.has("passengers"):
 		return true # Existing checkpoints have no passenger namespace.
 	var state: Variant = economy.passengers
@@ -188,12 +234,12 @@ static func valid(economy: Dictionary, fleet: Array[FleetShip]) -> bool:
 		if record.equipment_id == "luxury_suites" and record.boarded_luxury < 2:
 			return false
 		if current.has(id):
-			if record.equipment_id != current[id].equipment_id or (record.occupied > 0 and not current[id].operational):
+			if record.equipment_id != current[id].equipment_id or (record.occupied > 0 and not current[id].operational and not allow_losses):
 				return false
 		else:
 			# Empty historical records preserve stable identities after a loss.
 			# A live hull's non-accommodation unit cannot impersonate a cabin.
-			if record.occupied > 0 or ships.has(int(record.ship_id)):
+			if (record.occupied > 0 and not allow_losses) or ships.has(int(record.ship_id)):
 				return false
 	return true
 
