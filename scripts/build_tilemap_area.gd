@@ -896,18 +896,39 @@ func _evaluate_part_patterns(force_assembly := false) -> void:
 			break
 		if pattern.tile_categories.size() != pattern.cell_offsets.size():
 			continue
-		for y in range(map_dimensions.y):
-			for x in range(map_dimensions.x):
-				_try_morph_pattern(Vector2i(x, y), pattern)
+		for origin in _candidate_origins(pattern):
+			_try_morph_pattern(origin, pattern, Vector2i(-1, 0), true)
 	GameState.ship_stats_changed.emit()
+
+
+func _candidate_origins(pattern: ShipPartPattern) -> Array[Vector2i]:
+	# A match must anchor its first recipe cell on matching loose material.
+	# Preserve the old row/column order without visiting every empty grid cell.
+	var candidates: Dictionary = {}
+	for turns in range(4 if pattern.can_rotate else 1):
+		for flip in range(2):
+			var offsets := pattern.get_offsets_for_transform(turns, flip == 1)
+			for cell: Vector2i in GameState.ship.tiles:
+				if GameState.ship.tiles[cell] != pattern.tile_categories[0] or _locked_cells.has(cell) or GameState.ship.get_part_at(cell) != null:
+					continue
+				var origin: Vector2i = cell - offsets[0]
+				if _is_cell_in_build_area(origin):
+					candidates[origin] = true
+	var result: Array[Vector2i] = []
+	result.assign(candidates.keys())
+	result.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y if a.y != b.y else a.x < b.x)
+	return result
 
 
 func _try_morph_pattern(
 	origin: Vector2i,
 	pattern: ShipPartPattern,
-	orientation_hint := Vector2i(-1, 0)
+	orientation_hint := Vector2i(-1, 0),
+	authorization_checked := false
 ) -> bool:
-	if not unrestricted_blueprints and not GameState.is_equipment_available(pattern.part_type, pattern.rank):
+	# _assembly_patterns already authorized the full scan. Do not rebuild the
+	# catalog and grants for every empty grid origin on every painted tile.
+	if not authorization_checked and not unrestricted_blueprints and not GameState.is_equipment_available(pattern.part_type, pattern.rank):
 		return false
 	var rotation_count := 4 if pattern.can_rotate else 1
 	for quarter_turns in range(rotation_count):
@@ -949,8 +970,11 @@ func _try_morph_pattern(
 
 func _assembly_patterns() -> Array[ShipPartPattern]:
 	var result: Array[ShipPartPattern] = []
+	var grants := GameState.research_grants()
 	for pattern in _part_patterns:
-		if unrestricted_blueprints or GameState.is_equipment_available(pattern.part_type, pattern.rank):
+		# These patterns already came from the implemented catalog. Read the
+		# current authorization once rather than rebuilding it per pattern.
+		if unrestricted_blueprints or (grants.equipment_ids.has(pattern.definition_id) and pattern.rank <= int(grants.ranks.get(pattern.definition_id, 0))):
 			result.append(pattern)
 	return result
 

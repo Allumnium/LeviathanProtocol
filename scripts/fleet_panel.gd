@@ -223,7 +223,7 @@ func _refresh_slots() -> void:
 		_populate_cost_row(widget.cost, design)
 		widget.button.disabled = design != null and _fleet_has_type(slot.name)
 		if GameState.campaign_active:
-			widget.button.disabled = not GameState.is_shipyard_node(GameState.current_node_id)
+			widget.button.disabled = not GameState.is_shipyard_node(GameState.current_node_id) and not GameState.emergency_roster_available()
 		widget.construct.visible = design != null
 		widget.salvage.visible = design != null
 		widget.salvage.disabled = design == null or not _fleet_has_type(slot.name) or GameState.battle_pending
@@ -389,6 +389,8 @@ func _refresh_roster_summary() -> void:
 	if GameState.campaign_active:
 		totals.text += "\nCapacity %d / %d" % [GameState.used_deployment_capacity(), GameState.deployment_capacity()]
 		totals.text += "\nVictory RP: %d" % int(ScienceRules.snapshot(GameState.get_deployed_fleet()).total_rp)
+		if GameState.emergency_roster_available() and not GameState.is_shipyard_node(GameState.current_node_id):
+			totals.text += "\nEmergency: select an owned revision, then deploy reserves."
 		totals.tooltip_text = "Each deployed hull: 2 + ceil(occupied material cells / 12) + active lab levels. Reserves use no capacity."
 		if GameState.used_deployment_capacity() > GameState.deployment_capacity():
 			totals.modulate = Color(1.0, 0.45, 0.35)
@@ -427,11 +429,13 @@ func _refresh_roster_summary() -> void:
 			style.content_margin_top = 2
 			style.content_margin_bottom = 2
 			toggle.add_theme_stylebox_override(state, style)
-		toggle.disabled = not GameState.is_shipyard_node(GameState.current_node_id)
-		if owned.slot_role == "regular" and not GameState.roster_state.active.has(owned.family_id):
-			toggle.disabled = true
-			toggle.tooltip_text = "Assign this family to a regular slot first."
-		toggle.pressed.connect(func() -> void: GameState.set_ship_reserve(owned, GameState.is_ship_deployed(owned)))
+		toggle.disabled = not GameState.is_shipyard_node(GameState.current_node_id) and not GameState.emergency_roster_available()
+		if owned.slot_role == "regular" and not GameState._is_active_revision(owned):
+			toggle.text = "SELECT"
+			toggle.tooltip_text = "Select this owned revision in its family's slot (or the selected regular slot, default 1). Older physical copies keep their design and damage."
+			toggle.pressed.connect(func() -> void: _select_owned_revision(owned))
+		else:
+			toggle.pressed.connect(func() -> void: GameState.set_ship_reserve(owned, GameState.is_ship_deployed(owned)))
 		row.add_child(toggle)
 		if owned.needs_repair():
 			var quote := GameState.repair_quote(owned)
@@ -445,19 +449,27 @@ func _refresh_roster_summary() -> void:
 			service.custom_minimum_size.y = 20
 			for style_state in ["normal", "hover", "pressed", "disabled"]:
 				service.add_theme_stylebox_override(style_state, toggle.get_theme_stylebox(style_state))
-			service.disabled = GameState.battle_pending or not owned.is_alive() or not GameState.is_shipyard_node(GameState.current_node_id) or int(quote.credits) > GameState.credits
+			service.disabled = GameState.battle_pending or not owned.is_alive() or not GameState.is_shipyard_node(GameState.current_node_id) or (int(quote.credits) > 0 and int(quote.credits) > GameState.credits)
 			service.pressed.connect(func() -> void: GameState.repair_ship(owned))
 			list.add_child(service)
 	var revision := Button.new()
 	revision.text = "REGISTER REVISION"
 	revision.add_theme_font_size_override("font_size", 9)
 	revision.add_theme_font_override("font", ThemeDB.fallback_font)
-	revision.tooltip_text = "Register the current editor blueprint in the selected regular family. Construction still costs materials."
+	revision.tooltip_text = "Select the editor blueprint as this family's active revision. Older physical copies become reserves; construct new copies at normal cost."
 	revision.disabled = active_slot < 0 or active_slot >= 3 or not GameState.is_shipyard_node(GameState.current_node_id)
 	revision.pressed.connect(func() -> void:
 		if GameState.assign_fleet_design(active_slot, slots[active_slot].name, GameState.ship, true):
 			_refresh_choices())
 	summary_host.add_child(revision)
+
+
+func _select_owned_revision(owned: FleetShip) -> void:
+	var index: int = GameState.roster_state.active.find(owned.family_id)
+	if index < 0:
+		index = active_slot if active_slot >= 0 and active_slot < 3 else 0
+	if GameState.assign_fleet_design(index, _ship_type_name(owned.display_name), owned.design):
+		_refresh_choices()
 
 
 static func compact_button(button: Button) -> void:

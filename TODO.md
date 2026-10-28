@@ -34,6 +34,18 @@ Art contract: transparent grid-aligned component sprites and pivots matching exi
 
 ## Execution rules
 
+### Review follow-up (steps 1–29)
+
+- [x] Allow legally fitted damaged support hulls to reach a port without their destroyed equipment benefits; cover victory, withdrawal, reload and normal paid repair.
+- [x] Select one active blueprint revision per regular slot. Historical copies retain identity/HP and use no deployment capacity until their revision is selected.
+- [x] Commit ship/material purchases and build-area upgrades before live mutation; cover failed writes and immediate reloads.
+- [x] Remove repeated catalog/authorization work from block placement and scan only candidate recipe origins.
+- [ ] Add Continue/checkpoint UX before release. Explain that an interrupted battle restarts from its durable deployment snapshot, not the last combat tick; test backup recovery and failed loads in the UI.
+- [ ] Finish step 18 after functional Cargo Holds/arrival trade. Activate two Drones, Science and Civic with 300 credits; play the actual opening research/economy loop. Gate C remains provisional and Gate D remains pending.
+- [ ] Step 30 must settle cabin casualties/fees before checkpoint validation and before removing dead hosts. Cover cabin death then host death, failed retries, reconstruction and reload. Keep passenger equipment gated until this works.
+- [ ] Before passenger/cargo activation, add backend guards for occupied reserve/revision/dismantle actions; do not wait for step 33's UI. Preserve occupancy and explicitly settle any permitted loss/release.
+- [ ] Track certificate-store diagnostics and ObjectDB shutdown leaks separately from gameplay assertions.
+
 This is planned work, not an implementation claim. Only documentation changes are requested now. The linked design owns behavior and tuning; do not silently simplify its rules. Work in numbered order, keep the game runnable, preserve existing changes and serialized IDs, and use isolated test saves. Record changed files and actual test results when checking off a step. Hide future research until its effects and persistence work.
 
 Invariants: proximity-only enemy strength; three regular design families plus one restricted Science and one Civic ship; mining uses a regular slot; every deployed ship consumes capacity; disconnected intact parts operate; current-run research gates construction; no duplicate transactions; passenger deaths may cause debt; cargo sells on arrival then refills; rocks/travel award no RP.

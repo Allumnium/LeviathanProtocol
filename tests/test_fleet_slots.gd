@@ -57,7 +57,11 @@ func _run() -> void:
 	physical.units = [{"part": science.parts[1], "hp": 1.0}]
 	_check(FleetRules.operational_error(physical).is_empty(), "A living lab satisfies deployed Science.")
 	physical.units[0].hp = 0
-	_check(not FleetRules.operational_error(physical).is_empty(), "A destroyed lab cannot grant the dedicated Science designation.")
+	_check(FleetRules.operational_error(physical).is_empty(), "A legally fitted Science hull can travel with its lab destroyed.")
+	physical.design = civic
+	physical.slot_role = "civic"
+	physical.units = [{"part": civic.parts[1], "hp": 0.0}]
+	_check(FleetRules.operational_error(physical).is_empty(), "A legally fitted Civic hull is not stranded by destroyed support equipment.")
 
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://fleet_slots/run.json"
@@ -112,7 +116,10 @@ func _run() -> void:
 	_check(state.purchase_ship(_variant(3), "Fourth"), "The newly assigned family constructs at normal cost.")
 	var replacement: FleetShip = state.fleet.back()
 	_check(state.assign_fleet_design(0, "Fourth revision", _variant(4), true), "An explicit revision stays in the selected family.")
-	_check(state.family_for_design(_variant(4)) == replacement.family_id and state.is_ship_deployed(replacement), "Earlier revisions remain in their stable family.")
+	_check(state.family_for_design(_variant(4)) == replacement.family_id and not state.is_ship_deployed(replacement), "Earlier revisions retain family identity but cannot deploy alongside the selected revision.")
+	_check(not state.set_ship_reserve(replacement, false), "An outdated copy cannot bypass the active revision through Deploy.")
+	_check(state.purchase_ship(_variant(4), "Fourth revision"), "The selected revision constructs physical copies at normal cost.")
+	_check(state.is_ship_deployed(state.fleet.back()) and not state.is_ship_deployed(replacement), "Only copies of the selected revision deploy.")
 	_check(state.set_ship_reserve(replacement, true) and not state.is_ship_deployed(replacement), "Individual owned copies can be reserved.")
 	_check(state.load_run_checkpoint(), "Reload stable families and reserves.")
 	for owned in state.fleet:
@@ -198,6 +205,12 @@ func _test_ui(state: Node) -> void:
 	_check(panel.slots.size() == 5 and panel.slot_widgets.size() == 5, "Fleet UI exposes three regular plus Science/Civic slots.")
 	_check(panel.slot_widgets[3].label.text.begins_with("SCIENCE") and panel.slot_widgets[4].label.text.begins_with("CIVIC"), "Dedicated slots are labeled distinctly.")
 	_check(panel.slot_widgets[3].construct.visible == false and panel.slot_widgets[4].construct.visible == false, "Unimplemented support equipment is not exposed as a purchasable stub.")
+	_check(state.assign_fleet_design(0, "Revision", _variant(1), true), "Select another revision for the UI fixture.")
+	var original: FleetShip = state.fleet[0]
+	var credits: int = state.credits
+	_check(not state.is_ship_deployed(original), "Historical copies appear as reserves.")
+	panel._select_owned_revision(original)
+	_check(state.is_ship_deployed(original) and state.credits == credits, "Owned-row SELECT restores the historical revision without a physical refit or charge.")
 	map.queue_free()
 	current_scene = null
 	await process_frame

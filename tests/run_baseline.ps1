@@ -52,6 +52,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Campaign traversal suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_fleet_slots.gd --log-file (Join-Path $runRoot 'fleet-slots.log')
     if ($LASTEXITCODE -ne 0) { throw "Fleet slot suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_review_fixes.gd --log-file (Join-Path $runRoot 'review-fixes.log')
+    if ($LASTEXITCODE -ne 0) { throw "Review regression suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_fleet_capacity.gd --log-file (Join-Path $runRoot 'fleet-capacity.log')
     if ($LASTEXITCODE -ne 0) { throw "Fleet capacity suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_ship_stats.gd --log-file (Join-Path $runRoot 'ship-stats.log')

@@ -1007,7 +1007,7 @@ func construction_error(blueprint: Ship = null, role := "regular") -> String:
 	var problem := candidate.construction_error() if role == "regular" else ""
 	if not problem.is_empty():
 		return problem
-	if credits < get_construction_credit_cost(design):
+	if get_construction_credit_cost(design) > 0 and credits < get_construction_credit_cost(design):
 		return "Insufficient credits."
 	return ""
 
@@ -1049,12 +1049,12 @@ func purchase_material(category: int) -> bool:
 	var price: int = MATERIAL_PRICES[category]
 	if credits < price:
 		return false
-	credits -= price
-	match category:
-		0: red_tiles_available += 1
-		1: blue_tiles_available += 1
-		2: green_tiles_available += 1
-		3: core_tiles_available += 1
+	var checkpoint := RunCheckpoint.capture(self)
+	checkpoint.progress.credits -= price
+	checkpoint.inventory[category] += 1
+	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
+		return false
+	_apply_accounting(checkpoint)
 	credits_changed.emit()
 	tile_inventory_changed.emit()
 	return true
@@ -1093,28 +1093,38 @@ func purchase_ship(blueprint: Ship = null, design_name: String = "", role := "re
 		title = "Ship"
 	if not owned.initialize(design, next_ship_id, "%s %d" % [title, next_ship_id]):
 		return false
+	var checkpoint := RunCheckpoint.capture(self)
 	if campaign_active:
 		owned.slot_role = role
 		if role == "regular":
-			owned.family_id = _register_family(design, title)
-			if not roster_state.active.has(owned.family_id):
-				var index: int = roster_state.active.find("")
-				roster_state.active[index] = owned.family_id
-				fleet_design_slots[index] = title
+			owned.family_id = family_for_design(design)
+			if owned.family_id.is_empty():
+				owned.family_id = "family/%d" % int(checkpoint.fleet_roster.next_family)
+				checkpoint.fleet_roster.next_family += 1
+				checkpoint.fleet_roster.families[owned.family_id] = {"name": title, "blueprints": [FleetRules.fingerprint(design)], "design": design.to_design_data()}
+			if not checkpoint.fleet_roster.active.has(owned.family_id):
+				var index: int = checkpoint.fleet_roster.active.find("")
+				checkpoint.fleet_roster.active[index] = owned.family_id
+				checkpoint.progress.active_design_families[index] = title
 		else:
-			roster_state.support_ids[role] = owned.id
-			roster_state.support_names[role] = title
+			checkpoint.fleet_roster.support_ids[role] = owned.id
+			checkpoint.fleet_roster.support_names[role] = title
 	# Find room alongside the fleet without constraining placement to a grid.
 	for other in fleet:
 		owned.formation.x = maxf(owned.formation.x, other.formation.x + 1.0)
-	fleet.append(owned)
-	next_ship_id += 1
-	credits -= construction_credit_cost
+	checkpoint.fleet.append(RunCheckpoint.ship_entry(owned))
+	checkpoint.next_ship_id += 1
+	checkpoint.progress.credits -= construction_credit_cost
 	var counts := _get_ship_tile_counts(design)
-	red_tiles_available = maxi(0, red_tiles_available - counts[0])
-	blue_tiles_available = maxi(0, blue_tiles_available - counts[1])
-	green_tiles_available = maxi(0, green_tiles_available - counts[2])
-	core_tiles_available = maxi(0, core_tiles_available - counts[3])
+	for category in range(4):
+		checkpoint.inventory[category] = maxi(0, int(checkpoint.inventory[category]) - counts[category])
+	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
+		return false
+	_apply_accounting(checkpoint)
+	roster_state = checkpoint.fleet_roster
+	fleet_design_slots.assign(checkpoint.progress.active_design_families)
+	next_ship_id = int(checkpoint.next_ship_id)
+	fleet.append(owned)
 	_refresh_fleet()
 	tile_inventory_changed.emit()
 	credits_changed.emit()
@@ -1131,7 +1141,7 @@ func repair_ship(owned: FleetShip) -> bool:
 	if battle_pending or not fleet.has(owned) or not owned.is_alive():
 		return false
 	var quote := repair_quote(owned)
-	if int(quote.credits) > credits or not owned.needs_repair():
+	if (int(quote.credits) > 0 and int(quote.credits) > credits) or not owned.needs_repair():
 		return false
 	var checkpoint := RunCheckpoint.capture(self)
 	checkpoint.progress.credits -= int(quote.credits)
@@ -1272,9 +1282,20 @@ func fleet_slot_name(index: int) -> String:
 	return fleet_design_slots[index] if index < 3 else str(roster_state.support_names["science" if index == 3 else "civic"])
 
 
+func emergency_roster_available() -> bool:
+	# Surviving reserves must be able to replace a lost combat force between
+	# ports. This grants no construction, repairs, refits or abandonment.
+	return campaign_active and not battle_pending and not run_ended and not get_deployed_fleet().any(func(owned: FleetShip) -> bool:
+		return not owned.get_stats(laser_upgrade_level).weapons.is_empty())
+
+
 func assign_fleet_design(index: int, title: String, design: Ship, revision := false) -> bool:
-	if not campaign_active or index < 0 or index > 4 or title.is_empty() or battle_pending or not is_shipyard_node(current_node_id):
+	if not campaign_active or index < 0 or index > 4 or title.is_empty() or battle_pending:
 		return false
+	if not is_shipyard_node(current_node_id):
+		if revision or not emergency_roster_available() or not fleet.any(func(owned: FleetShip) -> bool:
+			return owned.is_alive() and FleetRules.fingerprint(owned.design) == FleetRules.fingerprint(design)):
+			return false
 	var role := "regular" if index < 3 else ("science" if index == 3 else "civic")
 	if not FleetRules.design_error(design, role).is_empty():
 		return false
@@ -1302,6 +1323,7 @@ func assign_fleet_design(index: int, title: String, design: Ship, revision := fa
 		if already >= 0 and already != index:
 			roster_state = before
 			return false
+		roster_state.families[id].design = design.to_design_data()
 		roster_state.active[index] = id
 		fleet_design_slots[index] = title
 	else:
@@ -1318,12 +1340,14 @@ func assign_fleet_design(index: int, title: String, design: Ship, revision := fa
 
 
 func set_ship_reserve(owned: FleetShip, reserve: bool) -> bool:
-	if not campaign_active or battle_pending or not fleet.has(owned) or not is_shipyard_node(current_node_id):
+	if not campaign_active or battle_pending or not fleet.has(owned):
+		return false
+	if not is_shipyard_node(current_node_id) and (reserve or not emergency_roster_available()):
 		return false
 	if not reserve:
 		if not design_research_error(owned.design).is_empty():
 			return false
-		if owned.slot_role == "regular" and not roster_state.active.has(owned.family_id):
+		if owned.slot_role == "regular" and not _is_active_revision(owned):
 			return false
 		if not FleetRules.operational_error(owned).is_empty():
 			return false
@@ -1380,6 +1404,13 @@ func fleet_slot_members(index: int) -> Array[FleetShip]:
 	return result
 
 
+func _is_active_revision(owned: FleetShip) -> bool:
+	if not roster_state.active.has(owned.family_id):
+		return false
+	var selected := Ship.new()
+	return selected.load_design_data(roster_state.families[owned.family_id].get("design", {})) and FleetRules.fingerprint(selected) == FleetRules.fingerprint(owned.design)
+
+
 func is_ship_deployed(owned: FleetShip) -> bool:
 	if not owned.is_alive():
 		return false
@@ -1388,7 +1419,7 @@ func is_ship_deployed(owned: FleetShip) -> bool:
 	if owned.in_reserve:
 		return false
 	if owned.slot_role == "regular":
-		return roster_state.active.has(owned.family_id)
+		return _is_active_revision(owned)
 	return int(roster_state.support_ids.get(owned.slot_role, 0)) == owned.id
 
 
@@ -1459,7 +1490,7 @@ func can_afford_any_ship() -> bool:
 			continue
 		var candidate := FleetShip.new()
 		candidate.initialize(design, next_ship_id, "")
-		if candidate.construction_error().is_empty() and credits >= get_construction_credit_cost(design):
+		if candidate.construction_error().is_empty() and (get_construction_credit_cost(design) == 0 or credits >= get_construction_credit_cost(design)):
 			return true
 	return false
 
@@ -1985,12 +2016,17 @@ func purchase_build_area_upgrade() -> bool:
 		return false
 	if red_tiles_available < 1 or blue_tiles_available < 1 or green_tiles_available < 1 or core_tiles_available < 1:
 		return false
-	credits -= 50
-	red_tiles_available -= 1
-	blue_tiles_available -= 1
-	green_tiles_available -= 1
-	core_tiles_available -= 1
-	build_area_level += 1
+	if campaign_active and not is_shipyard_node(current_node_id):
+		return false
+	var checkpoint := RunCheckpoint.capture(self)
+	checkpoint.progress.credits -= 50
+	for category in range(4):
+		checkpoint.inventory[category] -= 1
+	checkpoint.build_level += 1
+	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
+		return false
+	_apply_accounting(checkpoint)
+	build_area_level = int(checkpoint.build_level)
 	build_area_changed.emit()
 	upgrades_changed.emit()
 	credits_changed.emit()

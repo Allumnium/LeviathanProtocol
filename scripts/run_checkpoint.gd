@@ -7,13 +7,7 @@ const VERSION := 2
 static func capture(state: Node) -> Dictionary:
 	var ships: Array = []
 	for owned: FleetShip in state.fleet:
-		var hp: Array = []
-		for unit in owned.units:
-			hp.append(unit.hp)
-		ships.append({"id": owned.id, "name": owned.display_name, "design": owned.design.to_design_data(),
-			"formation": [owned.formation.x, owned.formation.y], "hp": hp,
-			"family_id": owned.family_id, "slot_role": owned.slot_role, "reserve": owned.in_reserve,
-			"escort_target_id": owned.escort_target_id})
+		ships.append(ship_entry(owned))
 	var aliens: Array = []
 	for alien: AlienShip in state.battle_aliens:
 		aliens.append(alien.to_snapshot())
@@ -39,6 +33,16 @@ static func capture(state: Node) -> Dictionary:
 		"location": {"current": state.current_node_id, "destination": state.destination_node_id,
 			"planned": state.planned_destination_node_id, "visited": state.visited_nodes.duplicate(),
 			"pending": state.battle_pending}}
+
+
+static func ship_entry(owned: FleetShip) -> Dictionary:
+	var hp: Array = []
+	for unit in owned.units:
+		hp.append(unit.hp)
+	return {"id": owned.id, "name": owned.display_name, "design": owned.design.to_design_data(),
+		"formation": [owned.formation.x, owned.formation.y], "hp": hp,
+		"family_id": owned.family_id, "slot_role": owned.slot_role, "reserve": owned.in_reserve,
+		"escort_target_id": owned.escort_target_id}
 
 
 static func valid(data: Variant) -> bool:

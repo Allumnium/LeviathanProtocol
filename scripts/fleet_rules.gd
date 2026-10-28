@@ -85,18 +85,9 @@ static func design_error(design: Ship, role: String) -> String:
 
 
 static func operational_error(owned: FleetShip) -> String:
-	var problem := design_error(owned.design, owned.slot_role)
-	if not problem.is_empty() or owned.slot_role == "regular":
-		return problem
-	for unit in owned.units:
-		var part: ShipPart = unit.part
-		if part == null or unit.hp <= 0:
-			continue
-		if owned.slot_role == "science" and part.type == ShipPart.Type.RESEARCH_LAB:
-			return ""
-		if owned.slot_role == "civic" and (part.type == ShipPart.Type.CARGO_HOLD or part.type in ACCOMMODATION):
-			return ""
-	return "%s requires its support equipment to be operational." % owned.slot_role.capitalize()
+	# Fitting restrictions concern the physical blueprint. Battle damage disables
+	# the component's benefit, but must not strand a surviving legal hull.
+	return design_error(owned.design, owned.slot_role)
 
 
 static func fingerprint(design: Ship) -> String:
@@ -168,6 +159,9 @@ static func valid(roster: Variant, fleet: Array[FleetShip]) -> bool:
 			if not key is String or key.length() != 64 or keys.has(key):
 				return false
 			keys[key] = id
+		var selected := Ship.new()
+		if not selected.load_design_data(family.get("design")) or not family.blueprints.has(fingerprint(selected)):
+			return false
 	var active: Array[String] = []
 	for id in roster.active:
 		if not id is String or (not id.is_empty() and (not roster.families.has(id) or id in active)):
