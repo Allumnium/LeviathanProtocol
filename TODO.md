@@ -2,6 +2,8 @@
 
 ## Required sprites and assets
 
+Asset requirements apply to active core content. Assets used only by the Optional / Extra backlog are deferred with those features; the exhaustive replacement-art pass is optional 66a. Core recognition, legibility and accessibility still belong to step 66.
+
 Audit existing assets before commissioning art. Use placeholders until mechanics pass their checks. [LEVIATHAN_DESIGN_PLAN.md](LEVIATHAN_DESIGN_PLAN.md) defines footprints, effects and initial tuning.
 
 | Group | Required assets | Stage |
@@ -59,7 +61,15 @@ Production is (living deployed lab count + 0.5 baseline) * planned travel days, 
 - [x] Step 31 adds backend guards against loaded reserve/revision/dismantle actions before cargo activation and step 33's full UI.
 - [ ] Track certificate-store diagnostics and ObjectDB shutdown leaks separately from gameplay assertions.
 
-This is planned work, not an implementation claim. Only documentation changes are requested now. The linked design owns behavior and tuning; do not silently simplify its rules. Work in numbered order, keep the game runnable, preserve existing changes and serialized IDs, and use isolated test saves. Record changed files and actual test results when checking off a step. Hide future research until its effects and persistence work.
+This is planned work, not an implementation claim. The linked design owns behavior and tuning, subject to the owner scope revision below. Follow the main checklist in its displayed order, then consider the Optional / Extra backlog. Keep the game runnable, preserve existing changes and serialized IDs, and use isolated test saves. Record changed files and actual test results when checking off a step. Hide future research until its effects and persistence work.
+
+### Scope and priority (owner revision, October 29, 2026)
+
+The main path retains the core game: ship building, fleet management, research, economy, visibility, Scan, asteroid/mining gameplay, enemy variety, bosses and the full campaign. Step 54 remains the first-act playable milestone; steps 55–70 develop and validate the rest of the campaign. Finish step 18's opening-loop review before continuing step 33.
+
+Accessory work is physically moved to the **Optional / Extra backlog** at the end: advanced freight/sensor upgrades, additional early active abilities, spectroscopy overlays, environmental hazards and cloak/decoys. Extra arena variants, the full replacement-art pass and exhaustive doctrine comparisons are also deferred there. These are retained designs, not release blockers, and are not automatically authorized for implementation. Main-path acceptance checks must work without them. Keep unavailable equipment/research hidden and previews truthful; add conditional coverage when an extra is activated.
+
+Original step numbers are retained for existing references. Gaps in the main checklist identify deferred work, not missing tasks. Safety, save compatibility, baseline accessibility, legibility, performance and exploit prevention remain required. Scope validation to implemented systems; do not require a deferred feature merely because an older gate or design table mentioned it.
 
 Invariants: proximity-only enemy strength; three general design families with player-chosen combat/science/passenger/cargo/mining combinations; no dedicated or singleton support slots; every deployed ship consumes capacity; disconnected intact parts operate; current-run research gates construction; no duplicate transactions; passenger deaths may cause debt; cargo sells on arrival then refills; rocks/pickups award no RP; completed travel earns (deployed lab count + 0.5) times planned travel days, never fight duration. A single chosen research focus consumes earned RP; preserve partial progress and bank excess. UI shows resources/level at the top and fleet condition in the summary, without Act/row, Port/Story controls, automatic story popups or explanatory service prose. Story flags/gates continue to progress underneath.
 
@@ -68,10 +78,10 @@ Invariants: proximity-only enemy strength; three general design families with pl
 | A | 1–9 | Reviewed: stable encounters, accounting, persistence and deterministic replay; see docs/BATTLE_LIFECYCLE.md |
 | B | 10–16 | Reviewed: active 24-row map, truthful previews, story, secured arrivals and ports; see docs/CAMPAIGN_MAP.md |
 | C | 17–27 | Reviewed functional support/research loop; general-slot opening playtest remains open in step 18. See docs/SHARED_RESEARCH.md |
-| D | 28–35 | Passengers, cargo and resource handling |
-| E | 36–49 | Visibility, abilities, asteroids, mining and travel |
+| D | 28–35, excluding optional 34 | Passengers, cargo, finite salvage and economy validation |
+| E | 36–46, excluding optional 37/40/44 | Base visibility, Scan, asteroids, finite ore and mining; hazards are optional |
 | F | 50–54 | Complete first act |
-| G | 55–61 | Intermediate doctrines and second boss |
+| G | 55–61, excluding optional 57 | Intermediate doctrines and second boss |
 | H | 62–70 | Endpoints, full campaign and release validation |
 
 ## Numbered development steps
@@ -174,6 +184,8 @@ Invariants: proximity-only enemy strength; three general design families with pl
     Charge 2+ceil(occupied cells/12)+lab level per hull against capacities 30/42/54. Review the existing Drone starter fleet and 300-credit target through the actual opening focus -> travel-days RP -> research completion -> refit/economy loop. Players build their own mixed or specialized support ships in general slots; do not add compulsory Science/Civic starters.
     **Done when:** the reviewed starter fleet fits, Drones share a general family, reserves contribute nothing, replacements cost resources, and players can integrate labs/cargo/accommodation without hidden role restrictions.
     **Current progress (2026-10-28):** Capacity is implemented and Lab I, Crew Quarters and Cargo Holds function. The three-Drone start remains active. Remaining work is the opening-loop review and 300-credit tuning with player-designed support integration; the former four-ship/dedicated-support rollout is cancelled.
+    **Optional basic designs (2026-10-29):** Added Scout (compact turret/armor), Escort (shield/extra armor), Surveyor (armed Lab I/Crew) and Hauler (armed Cargo Hold/Crew) to the shared design library. All use Foundation equipment and normal general slots. They are selectable templates, with ordinary material/credit construction costs; the starting fleet and credits are unchanged. Existing player designs with matching names take precedence. Opening-loop balance and the 300-credit target remain unreviewed.
+
 19. [x] **Centralize derived stats and component damage.**
     Share builder/battle mass, movement, actual hull footprint and equipment stats. Preserve disconnected intact parts.
     **Done when:** displayed and battle values agree, large hulls have larger collision footprints and disconnection regressions pass.
@@ -276,21 +288,14 @@ Invariants: proximity-only enemy strength; three general design families with pl
     Use general hulls and compact contextual actions/inline values. Do not restore dedicated roles, Port/Story buttons, explanatory service panels, automatic story popups or duplicate fleet condition/Act-row text in the top bar.
     **Done when:** cargo cannot be spent as credits and refits/reserve swaps cannot generate loads or erase passenger losses.
 
-34. [ ] **Implement material handling and freight upgrades.**
-    Add Tractor pickup reach, bounded enemy salvage pools, Sorting Refinery preference/+15 points and Freight Engineering capacity 10→15.
-    **Done when:** pools cannot be exceeded, summons/player wrecks cannot farm bonuses, and capacity upgrades never refill existing holds.
-
 35. [ ] **Validate the economy loop.**
     Play a short route with multiple inhabited stops, combat losses and refits; compare escorts versus equal-cost accommodation/trade capacity.
+    Retain the required finite enemy salvage pools from step 34: pools cannot be exceeded and summons/player wrecks cannot farm rewards. Freight upgrades are optional and do not block this review.
     **Done when:** income is readable, debt recoverable, and neither reloads nor port actions create free repeated payouts. Review Gate D.
 
 36. [ ] **Implement sight, radar and filtered information.**
-    Add team coverage, explored memory, generic contacts and 5-second stale markers. Share visibility queries across AI, targeting, UI, minimap and tooltips.
+    Add team coverage with base sight/radar ranges 260/480, explored memory, generic contacts and 5-second stale markers. Share visibility queries across AI, targeting, UI and minimap; preserve the no-tooltip preference. Advanced sensors/relays in optional step 37 are not required.
     **Done when:** radar exposes no identity/HP/parts and losing sight removes precise locks without leaking live coordinates.
-
-37. [ ] **Add sensors and radar relays.**
-    Implement base 260/480 ranges, Sensor Array 400/720 and bounded allied +120 radar; unlock both via Sensor Networks.
-    **Done when:** source destruction updates coverage, duplicates do not stack and both factions obey identical rules.
 
 38. [ ] **Build active ability controls.**
     Add bottom bar, six pinned actions plus overflow, targeting previews, optional pause, shared per-type cooldowns, source choice and Auto toggles.
@@ -298,11 +303,8 @@ Invariants: proximity-only enemy strength; three general design families with pl
 
 39. [ ] **Implement Foundation Scan.**
     Reveal radius 180 within 450 for 6 seconds on a 25-second cooldown, including unseen ground targeting. Keep damage marking separate.
-    **Done when:** Scan works without a lab, exposes a test cloaked contact and expires correctly.
-
-40. [ ] **Implement representative attack/defense abilities.**
-    Add Focus Mark/Ion Pulse and a test defensive field through the shared framework; production availability follows research.
-    **Done when:** source/range/target checks and Auto policies use visible information, and Manual remains optional.
+    Include the basic rock-content discovery needed by step 45; advanced spectroscopy overlays remain optional step 44.
+    **Done when:** Scan works without a lab, reveals eligible contacts/rock contents and expires correctly. Add cloak-reveal checks only if optional step 57 is activated.
 
 41. [ ] **Create moving asteroid actors.**
     Add neutral rocks with mass, HP, velocity and collision shapes using the weapon damage pipeline.
@@ -316,36 +318,22 @@ Invariants: proximity-only enemy strength; three general design families with pl
     Partition root ore across children, award terminal pickups with cumulative rounding, and save field state with pickup IDs.
     **Done when:** destruction/retry/reload never increases root ore or duplicates collection, including alien-caused fractures.
 
-44. [ ] **Add mineral spectroscopy.**
-    Scan records empty/material/tech-locked contents and passes discoveries to fragments; render only legitimately known overlays.
-    **Done when:** hidden minerals leak through neither art nor AI, and discovery does not grant permanent moving-rock tracking.
-
 45. [ ] **Implement mining equipment and research.**
     Basic Extraction grants Laser/Drill and Offense/Defense access; Deep Extraction adds Processor/Cutter and Tech/Civic. Apply extraction snapshots and caps.
+    Use Foundation Scan's basic content discovery; neither advanced spectroscopy nor environmental hazards are prerequisites.
     **Done when:** 25/75/100% yield rules hold, finite ore is conserved and any general design may combine mining with other researched equipment within normal hull/capacity limits.
 
 46. [ ] **Add mining and collision-avoidance AI.**
     Miners pursue visible scanned eligible rocks, skip known empty rocks and Scan unknown visible ones; escorts prioritize aliens and avoidance.
     **Done when:** no omniscient mining occurs and short-range drilling works without constant collisions or mandatory empty-field clearing.
 
-47. [ ] **Implement ion storms and an environment scheduler.**
-    Share timed region effects across travel/battle, telegraph suppression and pause all effects with simulation.
-    **Done when:** both factions receive the advertised effect, menus cause no hidden damage and hazard cost is part of frozen threat.
-
-48. [ ] **Add currents, nebulae and travel controls.**
-    Implement bounded drift, sensor reduction, movement, Scan/mining, optional field timers and continue/withdraw.
-    **Done when:** steering remains possible, Scan counters nebula uncertainty and untested hazard combinations stay disabled.
-
-49. [ ] **Activate hazardous travel end to end.**
-    Connect previewed edges to 20–40-second simulation; record losses/pickups before secured destination settlement.
-    **Done when:** preview→Scan→general-slot mining→survival→cargo sale/refill→boarding awards RP only for completed travel days and never repeats ore or research rewards. Review Gate E.
-
 50. [ ] **Differentiate existing enemies.**
     Implement Scout flanking, Fighter pressure, Sentinel protection, Support repair and finite Chrysalis drones using visibility-aware behavior.
+    Depend on the main-path visibility rules, not optional sensor upgrades, extra active abilities or hazards.
     **Done when:** previews predict roles and escorts protect support ships through positioning rather than invulnerability.
 
 51. [ ] **Add objective/arena variety.**
-    Build patrol, convoy escort, interception and finite-wave defense across open, corridor and drifting-field layouts.
+    Deliver a small working selection from patrol, convoy escort, interception and finite-wave defense using open/corridor layouts. Defer the complete objective/layout matrix and drifting-field variants to optional 51a; no environmental simulation is required here.
     **Done when:** objectives/timers are explicit, ordinary encounters require no exclusive tech and consecutive battles avoid repeated objectives.
 
 52. [ ] **Implement the Bastion Warden.**
@@ -355,7 +343,7 @@ Invariants: proximity-only enemy strength; three general design families with pl
 53. [ ] **Complete the first act.**
     Replace relevant placeholders and introduce research/adjacency, boarding/trade, Scan and optional mining with short contextual guidance.
     Keep guidance concise and contextual; no Port/Story navigation buttons or automatic narrative/service text panels. Players choose how to integrate economic and science equipment into their three general design families.
-    **Done when:** several ordinary fleets finish on Auto and the intended baseline lab progression is affordable.
+    **Done when:** several ordinary fleets finish on Auto and the intended baseline lab progression is affordable. The act is complete without optional upgrades, additional early abilities, cloak or environmental hazards.
 
 54. [ ] **Review the vertical slice.**
     Run persistence, economy, visibility, ore conservation and full-act checks plus actual minimum-resolution/fast-forward playtests.
@@ -369,16 +357,12 @@ Invariants: proximity-only enemy strength; three general design families with pl
     Add Magazine/Railgun versus Flight Deck/Bomber, and Uplink/Computer versus ECM/Phase.
     **Done when:** finite sorties, interception, magazine risk, synchronized fire and valid-space repositioning have working counters.
 
-57. [ ] **Implement cloak and decoys.**
-    Enable Cloaking Theory/Generator with 8-second activation delay, 6-second reveal and 60-unit proximity; apply rules to contacts/projectiles.
-    **Done when:** Scan, firing and proximity counter cloak; enemy AI obeys the same rules; guided fire cannot follow hidden live coordinates.
-
 58. [ ] **Finish intermediate economic/science content.**
-    Enable Luxury Suites, Analysis Array, full refinery preference and support behavior while keeping endpoints gated.
+    Enable Luxury Suites, Analysis Array and support behavior while keeping endpoints gated. Full refinery preference belongs to optional step 34 and does not block this step.
     **Done when:** luxury, RP and recovery use separate caps and reports explain each return.
 
 59. [ ] **Add Act II enemy combinations.**
-    Introduce Lancer, Spore Carrier, Null Priest, Harvester, Hunter and Brood Guard incrementally, with announced cloak/nebula encounters.
+    Introduce Lancer, Spore Carrier, Null Priest, Harvester, Hunter and Brood Guard incrementally. Use functional, readable roles with main-path systems; enable cloak/nebula encounter variants only after optional steps 47–49/57 are implemented and validated.
     **Done when:** every role has understandable counters and improving the player fleet never alters encounter budgets.
 
 60. [ ] **Implement the Brood Architect.**
@@ -398,7 +382,7 @@ Invariants: proximity-only enemy strength; three general design families with pl
     **Done when:** they retain combat value without creating people, cargo, infinite repairs or ore; mining competes for general hull space and deployment capacity.
 
 64. [ ] **Complete Act III encounters.**
-    Teach sweeps, charging organs and finite hangars separately, then combine familiar roles and at most two vetted previewed hazards.
+    Teach sweeps, charging organs and finite hangars separately, then combine familiar roles. Optional hazards may be added later, at most two vetted previewed hazards per encounter; they are not needed to complete the act.
     **Done when:** proximity increases challenge without demanding one exclusive branch or manual reflexes.
 
 65. [ ] **Implement Leviathan and ending.**
@@ -406,23 +390,72 @@ Invariants: proximity-only enemy strength; three general design families with pl
     **Done when:** multiple responses work, protected healthy fleets can survive the pulse, organ destruction persists and ending rewards/save occur once.
 
 66. [ ] **Finish assets and accessibility.**
-    Replace placeholders for all 56 types, actors, organs, map and 20 actions. Add audio, shape cues, reduced flashes and readable effects.
-    **Done when:** every asset imports, equipment is recognizable at battle zoom and visuals reveal no hidden ore/cloak information.
+    Make all implemented equipment, actors, organs, map information and actions recognizable. Keep readable effects, shape cues, reduced flashes and essential feedback; reuse suitable art or clear placeholders where needed. Move the exhaustive art/audio replacement pass to optional 66a.
+    **Done when:** active assets import, equipment is recognizable at battle zoom, essential feedback is clear and visuals leak no hidden information. A complete bespoke art set is not required.
 
 67. [ ] **Balance economies and fleet doctrines.**
-    Compare equal-investment siege, carrier, disruption, balanced, tourism, trade, mining and distributed-science fleets across routes/seeds and Auto/Manual.
-    **Done when:** record section 17's metrics; no income/science path is mandatory, mining throughput is bounded, debt recoverable and capstones timely.
+    Compare representative equal-investment combat, economic and research fleets across routes/seeds, primarily on Auto with Manual sanity checks. Cover the implemented branches and record section 17's relevant metrics; move the exhaustive doctrine/route/control matrix to optional 67a.
+    **Done when:** several ordinary builds can finish, no income/science path is mandatory, mining throughput is bounded, debt is recoverable and capstones arrive in time.
 
 68. [ ] **Run persistence/exploit/compatibility regressions.**
     Cover interrupted arrivals, debt, loaded refits, casualty deduplication, reserve swaps, imports, fragments, duplicate ability sources and boss transitions.
+    Exercise all implemented systems. Deferred extras require their own corresponding regressions when activated, without blocking the core release now.
     **Done when:** conservation/identity invariants hold, existing intended regressions pass and changed legacy behavior is documented.
 
 69. [ ] **Profile full battles and polish usability.**
-    Stress 64 ship/craft/organ entities plus 96 rocks, carriers, Scan, fog and fractures; test actual target hardware and minimum UI resolution.
+    Stress 64 ship/craft/organ entities plus 96 rocks, carriers, Scan, fog and fractures; test actual target hardware and minimum UI resolution. Include only implemented mechanics; retain the worst-case performance and input-stall checks for the core game.
     **Done when:** agreed performance targets are recorded/met, previews remain readable and navigation never stalls indefinitely.
 
 70. [ ] **Complete release handoff.**
-    Audit 56 equipment effects, all grants, 44 distinct base recipes plus two lab-rank recipes, 12 exclusive duplicate pairs, three acts and every gate. Update help/save notes.
-    **Done when:** no purchasable stub remains, several doctrines complete a clean full campaign, validation results are recorded and remaining tuning issues are explicit.
+    Audit every implemented equipment effect, available grant/recipe, active exclusive pair, all three acts and the revised core gates. Update help/save notes and record which optional extras remain deferred. Deferred grants and equipment remain unavailable rather than purchasable stubs.
+    **Done when:** no purchasable stub remains, several doctrines complete a clean full campaign, core validation results are recorded and remaining tuning issues/extras are explicit. Optional backlog completion is not required.
 
 **Owner recipe follow-up (October 29, 2026):** Finalized the cabin as CCC/CCC (six Civic, no Defense), equipment revision 4. Updated the registry, Archive material grid, design plan and asset/passenger documentation. Four places and the 3x2 artwork remain. All eight affected suites pass after this material-only change: definitions, recipes, cabin art/legacy saves, passenger state, boarding, passenger losses, cargo arrivals and general fleet migration. Native cabin rendering/orientation checks also pass. Logs: .local/passenger-civic/. The preceding 34-suite integration baseline predates this material-only follow-up; these are the targeted final reruns. Whitespace checks pass.
+
+## Optional / Extra backlog — after the core release
+
+These items preserve the broader design but do not block the first-act milestone or core full-campaign release. Original IDs are retained. Follow dependencies within this backlog: sensors extend step 36; extra abilities extend step 38; spectroscopy extends Scan/mining; hazardous travel follows its environment systems; cloak follows visibility/Scan. Activate an extra only when deliberately scheduled, and update grants, previews, saves and validation together.
+
+34. [ ] **OPTIONAL / EXTRA — Implement material handling and freight upgrades.**
+    Add Tractor pickup reach, Sorting Refinery preference/+15 points and Freight Engineering capacity 10→15. Required finite salvage limits and anti-farming checks remain on the main path in step 35.
+    **Done when:** bonuses respect finite pools and capacity upgrades never refill existing holds. These upgrades are not required for the basic economy.
+
+37. [ ] **OPTIONAL / EXTRA — Add sensors and radar relays.**
+    Extend step 36's base 260/480 ranges with Sensor Array 400/720 and bounded allied +120 radar; unlock both via Sensor Networks.
+    **Done when:** source destruction updates coverage, duplicates do not stack and both factions obey identical rules.
+
+40. [ ] **OPTIONAL / EXTRA — Implement representative attack/defense abilities.**
+    Add Focus Mark/Ion Pulse and a test defensive field through the shared framework; production availability follows research.
+    **Done when:** source/range/target checks and Auto policies use visible information, and Manual remains optional.
+
+44. [ ] **OPTIONAL / EXTRA — Add mineral spectroscopy.**
+    Extend Foundation Scan's basic rock-content discovery with empty/material/tech-locked overlays and spectroscopy presentation; pass discoveries to fragments and render only legitimately known overlays. Basic mining remains functional without these additional overlays.
+    **Done when:** hidden minerals leak through neither art nor AI, and discovery does not grant permanent moving-rock tracking.
+
+47. [ ] **OPTIONAL / EXTRA — Implement ion storms and an environment scheduler.**
+    Share timed region effects across travel/battle, telegraph suppression and pause all effects with simulation.
+    **Done when:** both factions receive the advertised effect, menus cause no hidden damage and hazard cost is part of frozen threat.
+
+48. [ ] **OPTIONAL / EXTRA — Add currents, nebulae and travel controls.**
+    Implement bounded drift, sensor reduction, movement, Scan/mining, optional field timers and continue/withdraw.
+    **Done when:** steering remains possible, Scan counters nebula uncertainty and untested hazard combinations stay disabled.
+
+49. [ ] **OPTIONAL / EXTRA — Activate hazardous travel end to end.**
+    Connect previewed edges to 20–40-second simulation; record losses/pickups before secured destination settlement.
+    **Done when:** preview→Scan→general-slot mining→survival→cargo sale/refill→boarding awards RP only for completed travel days and never repeats ore or research rewards. Review this as an optional extension to Gate E, not a prerequisite for its core sign-off.
+
+57. [ ] **OPTIONAL / EXTRA — Implement cloak and decoys.**
+    Enable Cloaking Theory/Generator with 8-second activation delay, 6-second reveal and 60-unit proximity; apply rules to contacts/projectiles.
+    **Done when:** Scan, firing and proximity counter cloak; enemy AI obeys the same rules; guided fire cannot follow hidden live coordinates.
+
+51a. [ ] **OPTIONAL / EXTRA — Expand objective and arena combinations.**
+    Complete every patrol/convoy/interception/finite-wave defense combination across open, corridor and drifting-field layouts. Drifting-field variants depend on the optional environment work. The core step 51 still supplies enough objective variety for a complete game.
+    **Done when:** added variants remain readable, previewed and solvable without an exclusive research branch.
+
+66a. [ ] **OPTIONAL / EXTRA — Complete bespoke art and audio.**
+    Replace remaining suitable placeholders/reused assets across the full equipment, actor, organ, map and action catalog; add nonessential audio/visual polish. Include deferred content only when implemented. Recognition, readable effects, reduced flashes and essential feedback remain mandatory in step 66.
+    **Done when:** the expanded asset set imports and remains legible at battle zoom without leaking hidden information.
+
+67a. [ ] **OPTIONAL / EXTRA — Exhaustive doctrine comparisons.**
+    Expand the core balance review into the full equal-investment siege, carrier, disruption, balanced, tourism, trade, mining and distributed-science matrix across routes/seeds and Auto/Manual, including any activated extras.
+    **Done when:** section 17's extended metrics are recorded and new options preserve bounded income, research, repair and mining.

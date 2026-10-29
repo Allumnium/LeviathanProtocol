@@ -157,6 +157,37 @@ func _test_editor() -> void:
 		and state.ship.parts[0].type == ShipPart.Type.ARMOR_BLOCK, "Discovery completion commits the chosen identity in manual mode.")
 	builder._undo()
 	_check(state.ship.parts.is_empty() and state.ship.tiles.size() == 4, "Undo of animated assembly returns loose material.")
+	# Paint sequentially: the first three cells have already become plates.
+	state.ship.clear()
+	state.discover_part(ShipPart.Type.ARMOR_BLOCK)
+	state.discover_part(ShipPart.Type.SINGLE_PLATE)
+	builder.auto_assemble = true
+	for cell in [Vector2i.ZERO, Vector2i.RIGHT, Vector2i.DOWN]:
+		state.ship.set_tile_at(cell, ShipPart.Category.DEFENSE)
+		builder._evaluate_part_patterns()
+	_check(state.ship.parts.size() == 3, "Three separately painted blue cells remain usable plates.")
+	var plates: Dictionary = builder._history_state()
+	state.ship.set_tile_at(Vector2i.ONE, ShipPart.Category.DEFENSE)
+	builder._evaluate_part_patterns()
+	builder._record_change(plates)
+	_check(state.ship.parts.size() == 1 and state.ship.parts[0].type == ShipPart.Type.ARMOR_BLOCK
+		and state.ship.tiles.size() == 4 and builder._part_sprites.size() == 1,
+		"Painting the fourth blue cell combines plates into one armor block and removes plate sprites.")
+	builder._undo()
+	_check(state.ship.parts.size() == 3 and state.ship.tiles.size() == 3, "Undo restores the three plates before the fourth stroke.")
+	builder._redo()
+	_check(state.ship.parts.size() == 1 and state.ship.parts[0].type == ShipPart.Type.ARMOR_BLOCK, "Redo restores the assembled armor.")
+	# Manual assembly must offer the same combination without changing it early.
+	state.ship.clear()
+	builder.auto_assemble = false
+	for cell in [Vector2i.ZERO, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.ONE]:
+		preload("res://scripts/builtin_ships.gd")._add_part(state.ship, ShipPart.Type.SINGLE_PLATE, cell)
+	builder._evaluate_part_patterns()
+	builder._refresh_assembly_menu()
+	_check(state.ship.parts.size() == 4 and builder.recipe_matches[0].pattern.part_type == ShipPart.Type.ARMOR_BLOCK,
+		"Manual mode offers armor from four plates without auto-converting them.")
+	await builder._assembly_action(100)
+	_check(state.ship.parts.size() == 1 and state.ship.parts[0].type == ShipPart.Type.ARMOR_BLOCK, "Manual armor assembly also consumes existing plates.")
 	map.queue_free()
 	current_scene = null
 	await process_frame

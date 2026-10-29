@@ -112,6 +112,12 @@ static func validate_registry(equipment: Array) -> Array[String]:
 			errors.append("Missing exclusive recipe pair: %s/%s" % pair)
 	return errors
 
+static func can_use_cell(design: Ship, cell: Vector2i, pattern: ShipPartPattern) -> bool:
+	var part := design.get_part_at(cell)
+	# A plate is the basic blue building block. Four may form armor, but
+	# other assembled equipment must retain its identity until disassembled.
+	return part == null or (pattern.part_type == ShipPart.Type.ARMOR_BLOCK and part.type == ShipPart.Type.SINGLE_PLATE)
+
 static func loose_matches(design: Ship, patterns: Array[ShipPartPattern], locked: Dictionary = {}) -> Array[Dictionary]:
 	var matches: Array[Dictionary] = []
 	var seen: Dictionary = {}
@@ -127,7 +133,7 @@ static func loose_matches(design: Ship, patterns: Array[ShipPartPattern], locked
 					var valid := true
 					for index in range(offsets.size()):
 						var cell: Vector2i = origin + offsets[index]
-						if locked.has(cell) or design.get_part_at(cell) != null or design.get_tile_category_at(cell) != pattern.tile_categories[index]:
+						if locked.has(cell) or not can_use_cell(design, cell, pattern) or design.get_tile_category_at(cell) != pattern.tile_categories[index]:
 							valid = false
 							break
 						cells.append(cell)

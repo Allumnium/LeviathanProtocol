@@ -6,8 +6,8 @@ godot-import.log::TextFile::-1::1792910910::0::1::::<><><>0<>0<><>::
 godot-parse.log::TextFile::-1::1792907193::0::1::::<><><>0<>0<><>::
 godot-tests.log::TextFile::-1::1792970149::0::1::::<><><>0<>0<><>::
 LEVIATHAN_DESIGN_PLAN.md::TextFile::-1::1793251765::0::1::::<><><>0<>0<><>::
-TODO.md::TextFile::-1::1793251839::0::1::::<><><>0<>0<><>::
-::res://assets/::1793248097
+TODO.md::TextFile::-1::1793252412::0::1::::<><><>0<>0<><>::
+::res://assets/::1793251900
 armor_m.png::CompressedTexture2D::3834720320891863420::1792544142::1792544192::1::::<><><>0<>0<>88a6ca1b5c926b4947466257f6e10c94<>res://.godot/imported/armor_m.png-9cfba395867d8234f216ceaa81b307b6.ctex::
 asteroids_s.png::CompressedTexture2D::8931036657680801884::1793248097::1793251900::1::::<><><>0<>0<>69dc29472bada8f0a3a2e5b0179e94f0<>res://.godot/imported/asteroids_s.png-a555a2e33efd8341ca27d652f4081187.ctex::
 bullet.png::CompressedTexture2D::1805495110985289813::1792960551::1792960623::1::::<><><>0<>0<>55381e48317a1886032479a277b2d59b<>res://.godot/imported/bullet.png-c68d06721d4ad8b0013707b0a51654af.ctex::
@@ -137,9 +137,9 @@ battle_report.gd::GDScript::1884765481280967317::1793195434::0::1::::<>PanelCont
 battle_simulation.gd::GDScript::3298938886605560134::1793235155::0::1::::BattleSimulation<>RefCounted<><>0<>0<><>::
 battle_visuals.gd::GDScript::3187230952497242906::1793240520::0::1::::BattleVisuals<>Control<><>0<>0<><>::
 build_selector_button.gd::GDScript::562306567188138696::1792540138::0::1::::<>TextureButton<><>0<>0<><>::
-build_tilemap_area.gd::GDScript::8384620326435759678::1793240517::0::1::::<>Control<><>0<>0<><>::
+build_tilemap_area.gd::GDScript::8384620326435759678::1793252135::0::1::::<>Control<><>0<>0<><>::
 build_viewport_starfield.gd::GDScript::2247003740637165466::1792559883::0::1::::BuildViewportStarfield<>Node2D<><>0<>0<><>::
-builtin_ships.gd::GDScript::3790578351135137408::1793073137::0::1::::<>RefCounted<><>0<>0<><>::
+builtin_ships.gd::GDScript::3790578351135137408::1793252250::0::1::::<>RefCounted<><>0<>0<><>::
 campaign_content.gd::GDScript::32305622448281742::1793026492::0::1::::CampaignContent<>RefCounted<><>0<>0<><>::
 campaign_graph.gd::GDScript::7626189032061582506::1793025207::0::1::::CampaignGraph<>RefCounted<><>0<>0<><>::
 cargo_rules.gd::GDScript::7998278979487730011::1793198481::0::1::::CargoRules<>RefCounted<><>0<>0<><>::
@@ -153,12 +153,12 @@ formation_board.gd::GDScript::4675463900592760438::1793195656::0::1::::<>Control
 game_definitions.gd::GDScript::8710801749901212812::1793053627::0::1::::GameDefinitions<>RefCounted<><>0<>0<><>::
 game_map.gd::GDScript::4495260791786718751::1793239415::0::1::::<>Control<><>0<>0<><>::
 game_setup.gd::GDScript::4342265988316508785::1792951999::0::1::::<>Control<><>0<>0<><>::
-game_state.gd::GDScript::6077380003634046097::1793239869::0::1::::<>Node<><>0<>0<><>::
+game_state.gd::GDScript::6077380003634046097::1793252159::0::1::::<>Node<><>0<>0<><>::
 graph_view.gd::GDScript::6255922151188688561::1793195310::0::1::::GraphView<>Control<><>0<>0<><>::
 locked_tab_icon.gd::GDScript::2149602188101802215::1793195434::0::1::::<>Control<><>0<>0<><>::
 main_menu.gd::GDScript::2537479360614773682::1793196378::0::1::::<>Control<><>0<>0<><>::
 main_menu_starfield.gd::GDScript::2685788357836567031::1793165508::0::1::::<>Control<><>0<>0<><>::
-material_recipe.gd::GDScript::8101828593191689740::1793073162::0::1::::MaterialRecipe<>RefCounted<><>0<>0<><>::
+material_recipe.gd::GDScript::8101828593191689740::1793252134::0::1::::MaterialRecipe<>RefCounted<><>0<>0<><>::
 passenger_rules.gd::GDScript::5715290453476253711::1793162623::0::1::::PassengerRules<>RefCounted<><>0<>0<><>::
 research_focus_rules.gd::GDScript::1637923482158274996::1793239414::0::1::::ResearchFocusRules<>RefCounted<><>0<>0<><>::
 research_panel.gd::GDScript::1891046366552565126::1793239525::0::1::::<>Control<><>0<>0<><>::
@@ -172,7 +172,7 @@ settings_dialog.gd::GDScript::405515417357400881::1793195434::0::1::::<>PopupPan
 shared_support.gd::GDScript::8139811811897879045::1793077477::0::1::::SharedSupport<>RefCounted<><>0<>0<><>::
 ship.gd::GDScript::2196189535834771539::1793240451::0::1::::Ship<>RefCounted<><>0<>0<><>::
 ship_design_preview.gd::GDScript::7170628214278138445::1793240518::0::1::::<>Control<><>0<>0<><>::
-ship_library_dialog.gd::GDScript::8420828878612262357::1793196849::0::1::::ShipLibraryDialog<>PopupPanel<><>0<>0<><>::
+ship_library_dialog.gd::GDScript::8420828878612262357::1793252508::0::1::::ShipLibraryDialog<>PopupPanel<><>0<>0<><>::
 ship_part.gd::GDScript::7088635168022501851::1793074440::0::1::::ShipPart<>RefCounted<><>0<>0<><>::
 ship_part_pattern.gd::GDScript::1004640185120287067::1793240820::0::1::::ShipPartPattern<>RefCounted<><>0<>0<><>::
 ship_part_stats.gd::GDScript::1104444506355225880::1792564014::0::1::::ShipPartStats<>RefCounted<><>0<>0<><>::
@@ -184,8 +184,9 @@ transaction_ledger.gd::GDScript::1130430159529346854::1793239279::0::1::::Transa
 ui_navigation.gd::GDScript::6342959047128262847::1793196795::0::1::::<>Node<><>0<>0<><>::
 upgrades_panel.gd::GDScript::2821893187254153076::1793236469::0::1::::TechTreeView<>Control<><>0<>0<><>::
 ::res://styles/::1792387631
-::res://tests/::1793240739
+::res://tests/::1793252216
 test_adjacency.gd::GDScript::2263456356751724388::1793075065::0::1::::<>SceneTree<><>0<>0<><>::
+test_basic_ships.gd::GDScript::4273898802356550322::1793252509::0::1::::<>SceneTree<><>0<>0<><>::
 test_battle.gd::GDScript::7378119478052628735::1793241260::0::1::::<>SceneTree<><>0<>0<><>::
 test_battle_replay.gd::GDScript::2027906683744402583::1792996876::0::1::::<>SceneTree<><>0<>0<><>::
 test_bitmap_font.gd::GDScript::1627543114953626111::1793235901::0::1::::<>SceneTree<><>0<>0<><>::
@@ -205,7 +206,7 @@ test_general_fleet.gd::GDScript::6834599621574272650::1793240727::0::1::::<>Scen
 test_passengers.gd::GDScript::5029798796039157603::1793162130::0::1::::<>SceneTree<><>0<>0<><>::
 test_passenger_art.gd::GDScript::8087803642268254308::1793251765::0::1::::<>SceneTree<><>0<>0<><>::
 test_passenger_losses.gd::GDScript::465407324921069365::1793240550::0::1::::<>SceneTree<><>0<>0<><>::
-test_recipes.gd::GDScript::339963478136736424::1793073255::0::1::::<>SceneTree<><>0<>0<><>::
+test_recipes.gd::GDScript::339963478136736424::1793252273::0::1::::<>SceneTree<><>0<>0<><>::
 test_research.gd::GDScript::1403371030431083493::1793162130::0::1::::<>SceneTree<><>0<>0<><>::
 test_research_enforcement.gd::GDScript::1160111125500849693::1793072552::0::1::::<>SceneTree<><>0<>0<><>::
 test_research_focus.gd::GDScript::5991369436448948945::1793239870::0::1::::<>SceneTree<><>0<>0<><>::

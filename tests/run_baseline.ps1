@@ -78,6 +78,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Shared ship stats suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_recipes.gd --log-file (Join-Path $runRoot 'recipes.log')
     if ($LASTEXITCODE -ne 0) { throw "Recipe suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_basic_ships.gd --log-file (Join-Path $runRoot 'basic-ships.log')
+    if ($LASTEXITCODE -ne 0) { throw "Basic ship suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

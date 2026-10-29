@@ -544,8 +544,8 @@ func save_current_ship_design(
 		return "Add at least one tile before saving this ship."
 
 	var normalized_name := design_name.strip_edges()
-	if normalized_name == "Drone":
-		return "Choose a new name to save a copy of Drone."
+	if is_builtin_ship_design(normalized_name):
+		return "Choose a new name to save a copy of %s." % normalized_name
 	if normalized_name.is_empty():
 		return "Enter a name for this ship."
 	var designs := get_saved_ship_designs()
@@ -593,6 +593,10 @@ func load_saved_ship_design(design_name: String) -> bool:
 		if saved_design.get("name", "") == design_name:
 			serialized_ship = saved_design.get("ship")
 			break
+	if serialized_ship == null:
+		var builtins := preload("res://scripts/builtin_ships.gd").designs()
+		if builtins.has(design_name):
+			serialized_ship = builtins[design_name].to_design_data()
 	if serialized_ship == null:
 		push_error("Could not find the saved ship design '%s'." % design_name)
 		return false
@@ -2200,10 +2204,25 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 	return true
 
 
+func is_builtin_ship_design(design_name: String) -> bool:
+	if design_name == "Drone":
+		return true
+	# Preserve player designs that predate these additional templates.
+	for entry in saved_ship_designs:
+		if entry.name == design_name:
+			return false
+	return design_name in preload("res://scripts/builtin_ships.gd").NAMES
+
+
 func get_visible_ship_designs(query: String = "") -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	if query.strip_edges().is_empty() or "drone".contains(query.strip_edges().to_lower()):
-		result.append({"name": "Drone", "ship": preload("res://scripts/builtin_ships.gd").drone().to_design_data(), "builtin": true})
+	var search := query.strip_edges().to_lower()
+	var builtins := preload("res://scripts/builtin_ships.gd").designs()
+	for title: String in builtins:
+		if not is_builtin_ship_design(title) or (not search.is_empty() and not title.to_lower().contains(search)):
+			continue
+		var builtin: Ship = builtins[title]
+		result.append({"name": title, "ship": builtin.to_design_data(), "builtin": true})
 	for entry in saved_ship_designs:
 		var title: String = entry.name
 		if title == "Drone":
@@ -2215,7 +2234,7 @@ func get_visible_ship_designs(query: String = "") -> Array[Dictionary]:
 
 
 func delete_saved_ship_design(design_name: String, file_path: String = SAVED_SHIP_DESIGNS_PATH) -> bool:
-	if design_name == "Drone":
+	if is_builtin_ship_design(design_name):
 		return false
 	var designs := get_saved_ship_designs()
 	var index := -1

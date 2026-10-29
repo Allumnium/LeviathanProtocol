@@ -99,13 +99,16 @@ func refresh_library() -> void:
 	for entry in GameState.get_visible_ship_designs():
 		var blueprint := Ship.new()
 		if blueprint.load_design_data(entry.ship):
-			choices.append({"name": entry.name, "design": blueprint})
+			choices.append({"name": entry.name, "design": blueprint, "builtin": entry.get("builtin", false)})
 	_refresh_rows()
 
 
 func _refresh_rows() -> void:
 	for child in rows.get_children():
 		if child != empty_label:
+			# Deferred deletion must not count both pages toward the popup's
+			# minimum height, permanently growing it beyond the viewport.
+			rows.remove_child(child)
 			child.queue_free()
 	var filtered: Array[Dictionary] = []
 	var query := search.text.strip_edges().to_lower()
@@ -186,7 +189,7 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 	remove.texture_pressed = _trash_icon(Color(0.65, 0.2, 0.2))
 	remove.ignore_texture_size = true
 	remove.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	remove.disabled = choice.name == "Drone"
+	remove.disabled = choice.get("builtin", false)
 	remove.modulate.a = 0.0 if remove.disabled else 1.0
 	remove.mouse_filter = Control.MOUSE_FILTER_IGNORE if remove.disabled else Control.MOUSE_FILTER_STOP
 	remove.pressed.connect(func() -> void:

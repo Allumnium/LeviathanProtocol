@@ -895,7 +895,7 @@ func _candidate_origins(pattern: ShipPartPattern) -> Array[Vector2i]:
 		for flip in range(2):
 			var offsets := pattern.get_offsets_for_transform(turns, flip == 1)
 			for cell: Vector2i in GameState.ship.tiles:
-				if GameState.ship.tiles[cell] != pattern.tile_categories[0] or _locked_cells.has(cell) or GameState.ship.get_part_at(cell) != null:
+				if GameState.ship.tiles[cell] != pattern.tile_categories[0] or _locked_cells.has(cell) or not MaterialRecipe.can_use_cell(GameState.ship, cell, pattern):
 					continue
 				var origin: Vector2i = cell - offsets[0]
 				if _is_cell_in_build_area(origin):
@@ -927,6 +927,16 @@ func _try_morph_pattern(
 			)
 			if not _matches_pattern(origin, pattern, cell_offsets):
 				continue
+			# Remove only the basic plates accepted by the armor recipe, including
+			# their old sprites. Their material remains in the hull.
+			for offset in cell_offsets:
+				var plate := GameState.ship.get_part_at(origin + offset)
+				if plate != null:
+					GameState.ship.parts.erase(plate)
+					if _part_sprites.has(plate):
+						_part_sprites[plate].hide()
+						_part_sprites[plate].queue_free()
+						_part_sprites.erase(plate)
 
 			var part := ShipPart.new(
 				pattern.part_type,
@@ -991,7 +1001,7 @@ func _matches_pattern(
 			or source_id == NO_SOURCE_ID
 			or _locked_cells.has(cell)
 			or placed_layer.get_cell_source_id(cell) != source_id
-			or GameState.ship.get_part_at(cell) != null
+			or not MaterialRecipe.can_use_cell(GameState.ship, cell, pattern)
 		):
 			return false
 	return true
