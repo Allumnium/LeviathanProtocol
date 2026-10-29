@@ -46,6 +46,8 @@ var _result_delay_remaining := -1.0
 var _pending_result_won := false
 var _simulation_accumulator := 0.0
 var repair_label: Label
+var objective_label: Label
+var _settlement_error := false
 
 
 func _ready() -> void:
@@ -69,11 +71,12 @@ func _ready() -> void:
 		return
 	simulation.set_destroy_all_neutral_targets(GameState.destroy_all_neutral_targets)
 	repair_label = Label.new()
-	repair_label.position = Vector2(8, 40)
-	repair_label.add_theme_font_override("font", ThemeDB.fallback_font)
-	repair_label.add_theme_font_size_override("font_size", 10)
-	repair_label.tooltip_text = "Repair Station: 20 HP per node, 2 HP/s shared between two adjacent surviving components. Crew improves throughput. Retries retain spent reserves."
+	repair_label.position = Vector2(8, 56)
 	add_child(repair_label)
+	objective_label = Label.new()
+	objective_label.position = Vector2(8, 38)
+	objective_label.text = "OBJECTIVE: Destroy %d marked targets" % simulation.remaining_victory_targets().size()
+	add_child(objective_label)
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
 	simulation.weapon_fired.connect(
@@ -85,7 +88,6 @@ func _ready() -> void:
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
 	withdraw_button = Button.new()
 	withdraw_button.text = "RETREAT"
-	withdraw_button.add_theme_font_size_override("font_size", 10)
 	preload("res://scripts/fleet_panel.gd").compact_button(withdraw_button)
 	withdraw_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	withdraw_button.offset_left = -100
@@ -146,6 +148,8 @@ func _physics_process(delta: float) -> void:
 	if simulation.withdrawing and not _finished:
 		withdraw_button.text = "RETREAT %d" % ceili(simulation.retreat_remaining)
 	visuals.queue_redraw()
+	if objective_label != null:
+		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else "OBJECTIVE: %d targets remaining" % simulation.remaining_victory_targets().size()
 	if repair_label != null:
 		repair_label.visible = not simulation.repair_reserves.is_empty()
 		var remaining := 0.0
@@ -249,6 +253,9 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	var focus := get_viewport().gui_get_focus_owner()
+	if event is InputEventKey and (focus is BaseButton or focus is Range):
+		return
 	if _report_open or _result_delay_remaining >= 0.0 or _cinematic_projectile != null:
 		return
 	if event is InputEventMouseButton:
@@ -324,6 +331,8 @@ func _on_ship_destroyed(is_player: bool) -> void:
 
 
 func _try_begin_finishing_shot() -> void:
+	if GameState.reduced_motion:
+		return
 	var projectile := simulation.get_finishing_projectile(FINISHING_SHOT_WINDOW_SECONDS)
 	if projectile == null:
 		return
@@ -348,10 +357,15 @@ func _finish_battle(won: bool) -> void:
 	battle_speed_controls.hide()
 	var credits_before := GameState.credits
 	if not GameState.settle_battle(simulation):
+		_settlement_error = true
+		objective_label.add_theme_color_override("font_color", Color("ffd28a"))
 		push_error("Could not save battle outcome.")
 		_result_delay_remaining = RESULT_DELAY_SECONDS
 		return
 	_finished = true
+	destroy_neutral_targets.hide()
+	objective_label.hide()
+	repair_label.hide()
 	_battle_credit_reward = maxi(GameState.credits - credits_before, 0)
 	_run_lost = GameState.is_run_lost()
 	_show_report(won)

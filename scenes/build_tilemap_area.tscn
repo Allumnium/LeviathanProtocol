@@ -73,25 +73,21 @@ theme_override_constants/v_separation = 6
 
 [node name="OffenseLabel" type="Label" parent="SelectorRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 7
 text = "OFFENSE"
 horizontal_alignment = 1
 
 [node name="DefenseLabel" type="Label" parent="SelectorRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 7
 text = "DEFENSE"
 horizontal_alignment = 1
 
 [node name="TechLabel" type="Label" parent="SelectorRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 7
 text = "TECH"
 horizontal_alignment = 1
 
 [node name="CivicLabel" type="Label" parent="SelectorRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 7
 text = "CIVIC"
 horizontal_alignment = 1
 
@@ -133,13 +129,11 @@ theme_override_constants/separation = 4
 [node name="SaveDesignButton" type="Button" parent="DesignControls"]
 custom_minimum_size = Vector2(60, 26)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
 text = "SAVE"
 
 [node name="LoadDesignButton" type="Button" parent="DesignControls"]
 custom_minimum_size = Vector2(60, 26)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
 text = "LOAD"
 
 [node name="HistoryControls" type="HBoxContainer" parent="."]

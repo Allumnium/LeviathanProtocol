@@ -34,5 +34,4 @@ func _flash_twice() -> void:
 func _make_custom_tooltip(for_text: String) -> Object:
 	var label := Label.new()
 	label.text = for_text
-	label.add_theme_font_size_override("font_size", 10)
 	return label

@@ -112,7 +112,6 @@ func _test_fee_and_reconstruction() -> void:
 	check(state.repair_quote(owned).credits == 0 and state.repair_ship(owned), "Owned material reconstructs a cabin while in debt.")
 	check(state.credits == -48 and PassengerRules.occupied(state.economy_state) == 0, "Reconstruction restores empty space, never passengers or credits.")
 	check(state.dispatch_arrival() and state.credits == -48 and PassengerRules.occupied(state.economy_state) == 0, "Reopening the same port cannot refill a repaired cabin.")
-	check(not state.purchase_material(0), "Debt still prevents positive-credit purchases.")
 	check(state.load_run_checkpoint() and state.passenger_manifest()[0].capacity == 4, "Empty reconstructed capacity is durable.")
 
 func _test_host_loss_retry() -> void:

@@ -32,6 +32,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Shared research suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_passengers.gd --log-file (Join-Path $runRoot 'passengers.log')
     if ($LASTEXITCODE -ne 0) { throw "Passenger state suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_cargo.gd --log-file (Join-Path $runRoot 'cargo.log')
+    if ($LASTEXITCODE -ne 0) { throw "Cargo state suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_cargo_arrivals.gd --log-file (Join-Path $runRoot 'cargo-arrivals.log')
+    if ($LASTEXITCODE -ne 0) { throw "Cargo arrival suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_boarding.gd --log-file (Join-Path $runRoot 'boarding.log')
     if ($LASTEXITCODE -ne 0) { throw "Passenger boarding suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_passenger_losses.gd --log-file (Join-Path $runRoot 'passenger-losses.log')
@@ -56,6 +60,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Fleet slot suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_review_fixes.gd --log-file (Join-Path $runRoot 'review-fixes.log')
     if ($LASTEXITCODE -ne 0) { throw "Review regression suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_ui_review.gd --log-file (Join-Path $runRoot 'ui-review.log')
+    if ($LASTEXITCODE -ne 0) { throw "UI review suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_fleet_capacity.gd --log-file (Join-Path $runRoot 'fleet-capacity.log')
     if ($LASTEXITCODE -ne 0) { throw "Fleet capacity suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_ship_stats.gd --log-file (Join-Path $runRoot 'ship-stats.log')

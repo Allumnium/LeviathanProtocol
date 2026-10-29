@@ -14,4 +14,4 @@ dest_files=["res://.godot/imported/Starhull.fnt-5c52721b7db94d5996446da42aefc00f
 
 fallbacks=[]
 compress=true
-scaling_mode=2
+scaling_mode=1

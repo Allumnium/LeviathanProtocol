@@ -46,11 +46,9 @@ func set_external_panels_visible(value: bool) -> void:
 	if summary_host != null:
 		summary_host.visible = value
 
-func _label(text: String, font_size := 10) -> Label:
+func _label(text: String, _font_size := 10) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_override("font", ThemeDB.fallback_font)
-	label.add_theme_font_size_override("font_size", font_size)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return label
@@ -58,19 +56,8 @@ func _label(text: String, font_size := 10) -> Label:
 func _button(text: String) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.add_theme_font_override("font", ThemeDB.fallback_font)
-	button.add_theme_font_size_override("font_size", 10)
 	button.custom_minimum_size.y = 24
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("18252d")
-	style.border_color = Color("637985")
-	style.set_border_width_all(1)
-	style.set_content_margin_all(4)
-	for state in ["normal", "hover", "pressed", "disabled"]:
-		var variant := style.duplicate()
-		if state == "hover":
-			variant.bg_color = Color("2b4351")
-		button.add_theme_stylebox_override(state, variant)
+	button.theme_type_variation = &"ResearchButton"
 	return button
 
 func _clear(host: Node) -> void:
@@ -144,7 +131,6 @@ func refresh() -> void:
 					var card := _button("%s\n%d RP\n%s" % [member.name, member.cost, member.status])
 					card.custom_minimum_size = Vector2(78, 62)
 					card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-					card.tooltip_text = ResearchViewModel.details(registry, member.id, visible_ids)
 					if member.nearby:
 						card.modulate = Color("a7e2bc")
 					elif member.status == "Excluded":
@@ -209,12 +195,7 @@ func open_details() -> void:
 	details_dialog.name = "ResearchDetails"
 	details_dialog.add_to_group("modal_ui")
 	details_dialog.z_index = 30
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color("18252d")
-	panel_style.border_color = Color("8295a3")
-	panel_style.set_border_width_all(2)
-	panel_style.set_content_margin_all(6)
-	details_dialog.add_theme_stylebox_override("panel", panel_style)
+	details_dialog.theme_type_variation = &"ResearchPanel"
 	var scene := get_tree().current_scene
 	(scene if scene != null else get_parent()).add_child(details_dialog)
 	details_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

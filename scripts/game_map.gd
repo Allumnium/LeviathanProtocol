@@ -6,6 +6,7 @@ const BUILD_TAB_INDEX := 1
 const RESEARCH_TAB_INDEX := 2
 const ARCHIVE_TAB_INDEX := 3
 var fleet_controls := VBoxContainer.new()
+var _accounting_refresh_queued := false
 
 @onready var fleet_right_panel: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel
 @onready var fleet_summary: VBoxContainer = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/FleetRightMargin/FleetRightPanel/FleetSummary
@@ -62,15 +63,13 @@ var research_details: VBoxContainer
 
 func _ready() -> void:
 	AudioManager.play_build_music()
-	GameState.credits_changed.connect(_refresh_top_bar)
-	GameState.tile_inventory_changed.connect(_refresh_top_bar)
-	GameState.tile_inventory_changed.connect(_refresh_ship_stats)
-	GameState.fleet_changed.connect(_refresh_top_bar)
-	GameState.fleet_changed.connect(_refresh_deploy_button)
+	GameState.credits_changed.connect(_queue_accounting_refresh)
+	GameState.tile_inventory_changed.connect(_queue_accounting_refresh)
+	GameState.fleet_changed.connect(_queue_accounting_refresh)
 	_refresh_top_bar()
 	GameState.unviewed_discoveries_changed.connect(_refresh_archive_unread_badge)
 	GameState.part_transformations_changed.connect(_refresh_deploy_button)
-	GameState.player_ship_count_changed.connect(_refresh_deploy_button)
+	GameState.player_ship_count_changed.connect(_queue_accounting_refresh)
 	GameState.ship_stats_changed.connect(_refresh_ship_stats)
 	_refresh_archive_unread_badge()
 	_refresh_deploy_button()
@@ -168,11 +167,25 @@ func _refresh_archive_unread_badge() -> void:
 
 func _refresh_deploy_button() -> void:
 	deploy_button.disabled = not GameState.can_deploy()
-	deploy_button.tooltip_text = GameState.deployment_error()
+	if route_travel_button != null:
+		route_travel_button.disabled = not GameState.can_deploy() or _travel_in_progress or not GameState.get_reachable_nodes(GameState.current_node_id).has(GameState.planned_destination_node_id)
+
+func _queue_accounting_refresh() -> void:
+	if _accounting_refresh_queued:
+		return
+	_accounting_refresh_queued = true
+	_flush_accounting_refresh.call_deferred()
+
+func _flush_accounting_refresh() -> void:
+	_accounting_refresh_queued = false
+	_refresh_top_bar()
+	_refresh_ship_stats()
 
 
 func _refresh_ship_stats() -> void:
 	_refresh_deploy_button()
+	if GameState.campaign_active and panel_tabs.current_tab != BUILD_TAB_INDEX:
+		return # Do not rebuild hidden builder stat widgets for fleet transactions.
 	var design := GameState.ship
 	if panel_tabs.current_tab == 0:
 		var selected: Ship = panel_tabs.get_node("Fleet").selected_design
@@ -316,7 +329,7 @@ func _refresh_top_bar() -> void:
 	if maximum > 0.0:
 		summary += " · %d%% hull · %d damaged" % [roundi(health / maximum * 100.0), damaged]
 	$Layout/TopBar/BarContents/CreditAmount.text = str(GameState.credits)
-	$Layout/TopBar/BarContents/CreditAmount.tooltip_text = "Debt: future income repays this balance. Free actions and owned-material construction remain available." if GameState.credits < 0 else "Available credits. Passenger losses cost 20 credits per person."
+	$Layout/TopBar/BarContents/CreditAmount.add_theme_color_override("font_color", Color("ffd28a") if GameState.credits < 0 else Color("e0e8ed"))
 	$Layout/TopBar/BarContents/OffenseAmount.text = str(GameState.red_tiles_available)
 	$Layout/TopBar/BarContents/DefenseAmount.text = str(GameState.blue_tiles_available)
 	$Layout/TopBar/BarContents/TechAmount.text = str(GameState.green_tiles_available)
@@ -331,27 +344,26 @@ func _refresh_top_bar() -> void:
 
 func _setup_campaign_controls() -> void:
 	port_button = Button.new()
-	port_button.text = "PORT SERVICES"
+	port_button.text = "PORT"
 	port_button.disabled = GameState.port_services().is_empty()
-	port_button.add_theme_font_size_override("font_size", 10)
-	port_button.add_theme_font_override("font", ThemeDB.fallback_font)
+	preload("res://scripts/fleet_panel.gd").style_slot_button(port_button)
 	port_button.pressed.connect(_show_port_services)
-	fleet_controls.add_child(port_button)
+	var services := HBoxContainer.new()
+	services.name = "FleetServices"
+	services.add_theme_constant_override("separation", 4)
+	services.custom_minimum_size.y = 28
+	fleet_controls.add_child(services)
+	port_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	services.add_child(port_button)
 	story_button = Button.new()
-	story_button.text = "STORY ARCHIVE"
-	story_button.add_theme_font_size_override("font_size", 10)
-	story_button.add_theme_font_override("font", ThemeDB.fallback_font)
+	story_button.text = "STORY"
+	story_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preload("res://scripts/fleet_panel.gd").style_slot_button(story_button)
 	story_button.pressed.connect(func() -> void: _show_story(false))
-	fleet_controls.add_child(story_button)
+	services.add_child(story_button)
 	var panel := PanelContainer.new()
 	panel.name = "RoutePreview"
-	var background := StyleBoxFlat.new()
-	background.bg_color = Color(0.07, 0.10, 0.14, 0.98)
-	background.content_margin_left = 6
-	background.content_margin_right = 6
-	background.content_margin_top = 4
-	background.content_margin_bottom = 4
-	panel.add_theme_stylebox_override("panel", background)
+	panel.theme_type_variation = &"RoutePanel"
 	graph_view.add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	panel.offset_top = -120
@@ -362,8 +374,6 @@ func _setup_campaign_controls() -> void:
 	panel.add_child(contents)
 	var legend := Label.new()
 	legend.text = "Circle: Patrol | Diamond: Elite/Boss | Square: Port\nTriangle: Salvage | + Signal | Dot: Survey | Green: cleared | Amber: charted"
-	legend.add_theme_font_size_override("font_size", 8)
-	legend.add_theme_font_override("font", ThemeDB.fallback_font)
 	contents.add_child(legend)
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size.y = 52
@@ -372,16 +382,11 @@ func _setup_campaign_controls() -> void:
 	route_preview = Label.new()
 	route_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	route_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	route_preview.add_theme_font_size_override("font_size", 10)
-	route_preview.add_theme_font_override("font", ThemeDB.fallback_font)
 	scroll.add_child(route_preview)
 	route_travel_button = Button.new()
 	route_travel_button.text = "SELECT A REACHABLE DESTINATION"
 	route_travel_button.disabled = true
-	route_travel_button.add_theme_font_size_override("font_size", 10)
-	route_travel_button.add_theme_font_override("font", ThemeDB.fallback_font)
 	preload("res://scripts/fleet_panel.gd").compact_button(route_travel_button)
-	route_travel_button.add_theme_font_override("font", ThemeDB.fallback_font)
 	route_travel_button.pressed.connect(_on_deploy_pressed)
 	contents.add_child(route_travel_button)
 	graph_view.node_inspected.connect(_show_route_preview)
@@ -395,7 +400,9 @@ func _show_route_preview(node_id: int) -> void:
 	var preview := GameState.node_preview(node_id)
 	route_preview.text = preview.title + "\n" + preview.text
 	var reachable := GameState.get_reachable_nodes(GameState.current_node_id).has(node_id)
-	route_travel_button.disabled = not reachable or _travel_in_progress
+	route_travel_button.disabled = not reachable or _travel_in_progress or not GameState.can_deploy()
+	if reachable and not GameState.can_deploy():
+		route_preview.text += "\nDeparture blocked: " + GameState.deployment_error()
 	route_travel_button.text = "TRAVEL TO " + str(preview.title).to_upper() if reachable else "INSPECTING " + str(preview.title).to_upper()
 	# Inspection alone cannot silently change the chosen destination.
 	if reachable:
@@ -415,6 +422,7 @@ func _travel_campaign(node_id: int) -> void:
 	if not GameState.travel_to(node_id):
 		_travel_in_progress = false
 		_show_route_preview(node_id)
+		route_preview.text += "\nTravel failed: " + (GameState.last_save_error if not GameState.last_save_error.is_empty() else "Check fleet readiness. Nothing was spent.")
 		return
 	if GameState.battle_pending:
 		_open_pending_battle(true)
@@ -439,8 +447,6 @@ func _campaign_dialog(title: String, body: String, close_action: Callable = Call
 	campaign_overlay.add_child(box)
 	var heading := Label.new()
 	heading.text = title
-	heading.add_theme_font_size_override("font_size", 14)
-	heading.add_theme_font_override("font", ThemeDB.fallback_font)
 	box.add_child(heading)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -449,14 +455,10 @@ func _campaign_dialog(title: String, body: String, close_action: Callable = Call
 	text.text = body
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_theme_font_size_override("font_size", 12)
-	text.add_theme_font_override("font", ThemeDB.fallback_font)
 	scroll.add_child(text)
 	var close := Button.new()
 	close.name = "Close"
 	close.text = "CLOSE / SKIP"
-	close.add_theme_font_size_override("font_size", 12)
-	close.add_theme_font_override("font", ThemeDB.fallback_font)
 	box.add_child(close)
 	var overlay := campaign_overlay
 	close.pressed.connect(func() -> void:
@@ -469,8 +471,8 @@ func _show_port_services() -> void:
 	var port := GameState.port_services()
 	if port.is_empty():
 		return
-	_campaign_dialog(port.name, "Repair damaged ships in Fleet. Refit and construct in Build; buy materials in Upgrades.\n\n%s goods: %d credits/unit at origin.\nPassengers aboard: %d. Disembark safely in Fleet before reserving or changing their ship type. Cargo holds are not yet available.\n\nPort services can be reopened freely; opening this screen grants no arrival income." % [port.goods_grade, int(port.goods_unit_value), PassengerRules.occupied(GameState.economy_state)])
-
+	var rates: Array = GameState.MATERIAL_PRICES
+	_campaign_dialog(port.name, "Construct ships in Fleet and repair a selected hull in Formation. Owned materials are used first; credits cover any shortage at Offense %d, Defense %d, Tech %d and Civic %d cr per tile.\nPassengers aboard: %d. Disembark in Fleet before reserving or replacing occupied ships.\nCargo trade is not available yet. Reopening services grants no arrival income." % [rates[0], rates[1], rates[2], rates[3], PassengerRules.occupied(GameState.economy_state)])
 
 func _show_unread_story() -> void:
 	_show_story(true)

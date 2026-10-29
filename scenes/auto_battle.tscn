@@ -49,22 +49,18 @@ offset_left = 8.0
 offset_top = 8.0
 offset_right = 232.0
 offset_bottom = 34.0
-theme_override_font_sizes/font_size = 10
 text = "Destroy all neutral targets"
-tooltip_text = "Keep the battle active until all targetable neutral objects are destroyed. The fleet clears them after hostile threats."
 
 [node name="PauseButton" type="Button" parent="BattleSpeedControls"]
 custom_minimum_size = Vector2(72, 26)
 layout_mode = 2
 toggle_mode = true
-theme_override_font_sizes/font_size = 10
 text = "PAUSE"
 
 [node name="FastForwardButton" type="Button" parent="BattleSpeedControls"]
 custom_minimum_size = Vector2(72, 26)
 layout_mode = 2
 toggle_mode = true
-theme_override_font_sizes/font_size = 10
 text = "2X SPEED"
 
 [node name="DefeatDialog" parent="." instance=ExtResource("3_defeat")]

@@ -70,9 +70,12 @@ func _run() -> void:
 	current_scene = map
 	await process_frame
 	await process_frame
-	_check(map.deploy_button.disabled and map.deploy_button.tooltip_text.contains("Deployment capacity"), "Fleet UI explains over-capacity departure lock.")
+	var summary: Control = map.panel_tabs.get_node("Fleet").summary_host
+	_check(map.deploy_button.disabled and summary.find_child("DepartureStatus", true, false).text.contains("Deployment capacity"), "Fleet UI explains over-capacity departure inline without a tooltip.")
 	_check(state.set_ship_reserve(excess, true) and state.can_deploy(), "Reserving excess copies immediately restores legal deployment.")
-	_check(not map.deploy_button.disabled and map.deploy_button.tooltip_text.is_empty(), "Reserve changes immediately refresh deployment control.")
+	await process_frame
+	await process_frame
+	_check(not map.deploy_button.disabled and summary.find_child("DepartureStatus", true, false) == null, "Reserve changes refresh deployment control and inline status within the next render frame.")
 	map.queue_free()
 	current_scene = null
 	await process_frame

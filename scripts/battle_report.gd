@@ -33,6 +33,9 @@ func show_report(
 	gained_materials: Array[int],
 	credits_gained: int = 0
 ) -> void:
+	add_to_group("modal_ui")
+	z_index = 40
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	offset_left = 40
 	offset_top = 24
@@ -50,8 +53,6 @@ func show_report(
 		var casualties := Label.new()
 		casualties.name = "PassengerCasualties"
 		casualties.text = "Passengers lost: %d | Fees: -%d cr | Balance: %d cr" % [deaths, fees, GameState.credits]
-		casualties.add_theme_font_override("font", ThemeDB.fallback_font)
-		casualties.add_theme_font_size_override("font_size", 10)
 		casualties.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		column.add_child(casualties)
 	_add_material_rewards(column, gained_materials)
@@ -78,12 +79,10 @@ func show_report(
 		details.add_child(summary_line)
 		var name_label := Label.new()
 		name_label.text = summary.name
-		name_label.add_theme_font_size_override("font_size", 11)
 		summary_line.add_child(name_label)
 		if summary.destroyed > 0:
 			var destroyed_label := Label.new()
 			destroyed_label.text = "· %d DESTROYED" % summary.destroyed
-			destroyed_label.add_theme_font_size_override("font_size", 11)
 			destroyed_label.add_theme_color_override("font_color", DAMAGE_DEALT_COLOR)
 			summary_line.add_child(destroyed_label)
 		details.add_child(StatDisplayRow.new(
@@ -104,9 +103,8 @@ func show_report(
 	column.add_child(button_center)
 	var accept_button := Button.new()
 	accept_button.name = "AcceptButton"
-	accept_button.text = "ACCEPT"
+	accept_button.text = "CONTINUE" if GameState.is_run_lost() else "BACK TO FLEET"
 	accept_button.custom_minimum_size = Vector2(112, 34)
-	accept_button.add_theme_font_size_override("font_size", 10)
 	preload("res://scripts/fleet_panel.gd").compact_button(accept_button)
 	accept_button.pressed.connect(func() -> void: closed.emit())
 	button_center.add_child(accept_button)
@@ -149,7 +147,6 @@ func _add_title(parent: VBoxContainer, outcome: String, credits_gained: int) -> 
 	parent.add_child(title_row)
 	var title := Label.new()
 	title.text = outcome
-	title.add_theme_font_size_override("font_size", 14)
 	title_row.add_child(title)
 	if credits_gained <= 0:
 		return
@@ -161,7 +158,6 @@ func _add_title(parent: VBoxContainer, outcome: String, credits_gained: int) -> 
 	title_row.add_child(credit_icon)
 	var credit_amount := Label.new()
 	credit_amount.text = str(credits_gained)
-	credit_amount.add_theme_font_size_override("font_size", 12)
 	title_row.add_child(credit_amount)
 
 
@@ -219,7 +215,6 @@ func _add_grouped_reward(parent: HFlowContainer, category: int, count: int) -> v
 	item.add_child(_create_reward_icon(category))
 	var count_label := Label.new()
 	count_label.text = "x%d" % count
-	count_label.add_theme_font_size_override("font_size", 10)
 	item.add_child(count_label)
 	parent.add_child(item)
 	_reward_items.append(item)

@@ -15,7 +15,7 @@ func _init(
 	stat_name: String = "",
 	value: float = 0.0,
 	formatted_value: String = "",
-	font_size: int = 11,
+	_font_size: int = 11, # Kept for existing callers; typography inherits the theme.
 	show_segments: bool = true,
 	value_icon: Texture2D = null,
 	segment_color: Color = Color.TRANSPARENT,
@@ -30,14 +30,12 @@ func _init(
 
 	var name_label := Label.new()
 	name_label.text = stat_name
-	name_label.add_theme_font_size_override("font_size", font_size)
 	title_row.add_child(name_label)
 
 	var value_label := Label.new()
 	value_label.text = formatted_value
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	value_label.add_theme_font_size_override("font_size", font_size)
 	if value_icon != null:
 		var icon := TextureRect.new()
 		icon.custom_minimum_size = Vector2(10, 10)

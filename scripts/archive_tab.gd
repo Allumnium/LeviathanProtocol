@@ -1,7 +1,5 @@
 extends Control
 
-const HEADER_FONT = preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt")
-const ARCHIVE_TILE_STYLE = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const RED_MATERIAL_TEXTURE = preload("res://assets/ui/icons/red_square.png")
 const BLUE_MATERIAL_TEXTURE = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_MATERIAL_TEXTURE = preload("res://assets/ui/icons/green_square.png")
@@ -91,7 +89,6 @@ func _create_part_button(pattern: ShipPartPattern, button_group: ButtonGroup) ->
 	question.add_theme_color_override("font_color", Color.WHITE)
 	question.add_theme_color_override("font_outline_color", Color.BLACK)
 	question.add_theme_constant_override("outline_size", 2)
-	question.add_theme_font_size_override("font_size", 20)
 	question.text = "?"
 	question.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	question.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -139,10 +136,6 @@ func _refresh_grid_layout() -> void:
 	best_tile_size = maxf(best_tile_size, 1.0)
 	for index in range(_part_buttons.size()):
 		_part_buttons[index].custom_minimum_size = Vector2.ONE * best_tile_size
-		_question_labels[index].add_theme_font_size_override(
-			"font_size",
-			maxi(5, mini(20, floori(best_tile_size * 0.45)))
-		)
 
 
 func _on_part_button_pressed(index: int) -> void:
@@ -160,8 +153,6 @@ func _show_selected_details() -> void:
 	var discovered := GameState.has_discovered_part(pattern.part_type)
 	var header := Label.new()
 	header.text = pattern.display_name.to_upper() if discovered else "UNDISCOVERED"
-	header.add_theme_font_override("font", HEADER_FONT)
-	header.add_theme_font_size_override("font_size", 14)
 	header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_details.add_child(header)
 	if not discovered:
@@ -205,21 +196,7 @@ func _format_stat_value(value: float) -> String:
 
 
 func _apply_compact_button_style(button: Button) -> void:
-	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
-		var style := ARCHIVE_TILE_STYLE.duplicate() as StyleBoxTexture
-		style.content_margin_left = 3.0
-		style.content_margin_top = 3.0
-		style.content_margin_right = 3.0
-		style.content_margin_bottom = 3.0
-		style.texture_margin_left = 8.0
-		style.texture_margin_top = 8.0
-		style.texture_margin_right = 8.0
-		style.texture_margin_bottom = 8.0
-		match state:
-			&"hover": style.modulate_color = Color(0.85, 0.95, 1.0)
-			&"pressed": style.modulate_color = Color(0.62, 0.78, 0.86)
-			&"disabled": style.modulate_color = Color(0.5, 0.55, 0.6)
-		button.add_theme_stylebox_override(state, style)
+	button.theme_type_variation = &"ArchiveButton"
 
 
 func _create_pattern_grid(pattern: ShipPartPattern) -> GridContainer:

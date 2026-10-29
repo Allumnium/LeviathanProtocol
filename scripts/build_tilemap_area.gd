@@ -124,6 +124,7 @@ var _mirror_handle_ring: Line2D
 
 
 func _ready() -> void:
+	focus_mode = Control.FOCUS_CLICK
 	map_dimensions = Vector2i.ONE * GameState.build_area_size()
 	GameState.build_area_changed.connect(_resize_build_area)
 	if tile_size.x <= 0 or tile_size.y <= 0:
@@ -204,9 +205,6 @@ func _setup_assembly_menu() -> void:
 	assembly_menu = MenuButton.new()
 	assembly_menu.text = "ASSEMBLY"
 	assembly_menu.custom_minimum_size.y = 22
-	assembly_menu.add_theme_font_override("font", ThemeDB.fallback_font)
-	assembly_menu.add_theme_font_size_override("font_size", 10)
-	assembly_menu.tooltip_text = "Preserve assembled parts. Disable Auto and disassemble to plan larger loose-tile recipes. Hover a match to preview its cells."
 	design_controls.add_child(assembly_menu)
 	design_controls.move_child(assembly_menu, 0)
 	var popup := assembly_menu.get_popup()
@@ -214,8 +212,6 @@ func _setup_assembly_menu() -> void:
 	crew_links_menu.name = "CrewLinks"
 	popup.add_child(crew_links_menu)
 	popup.max_size = Vector2i(600, 280)
-	popup.add_theme_font_override("font", ThemeDB.fallback_font)
-	popup.add_theme_font_size_override("font_size", 11)
 	popup.about_to_popup.connect(_refresh_assembly_menu)
 	popup.id_pressed.connect(_assembly_action)
 	popup.id_focused.connect(_preview_recipe)
@@ -263,8 +259,6 @@ func _refresh_crew_links() -> void:
 			continue
 		var menu := PopupMenu.new()
 		menu.name = "Source%d" % source_index
-		menu.add_theme_font_override("font", ThemeDB.fallback_font)
-		menu.add_theme_font_size_override("font_size", 11)
 		crew_links_menu.add_child(menu)
 		crew_links_menu.add_submenu_item("Crew at %d,%d" % [source.origin.x, source.origin.y], menu.name)
 		menu.add_check_item("Automatic (component order)", 0)
@@ -414,17 +408,7 @@ func _history_icon(point_right: bool) -> Texture2D:
 
 
 func _style_tiny_history_button(button: Button) -> void:
-	var theme := preload("res://themes/ui_theme.tres")
-	for state in [&"normal", &"hover", &"pressed", &"disabled"]:
-		var style := theme.get_stylebox(state, &"Button").duplicate()
-		if style is StyleBoxTexture:
-			style.texture = preload("res://assets/ui/panels/simple_panel.png")
-			style.texture_margin_left = 2.0
-			style.texture_margin_top = 2.0
-			style.texture_margin_right = 2.0
-			style.texture_margin_bottom = 2.0
-		style.set_content_margin_all(0.0)
-		button.add_theme_stylebox_override(state, style)
+	button.theme_type_variation = &"TinyIconButton"
 
 
 func _exit_tree() -> void:
@@ -510,7 +494,7 @@ func _fill_grid() -> void:
 
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
-		if not _keyboard_navigation_blocked():
+		if not _keyboard_navigation_blocked() and get_viewport().gui_get_focus_owner() in [null, self]:
 			_pan_with_keyboard(delta)
 		_update_zoom(delta)
 	_refresh_mirror_visuals()
@@ -662,6 +646,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		grab_focus()
 	if not is_visible_in_tree():
 		return
 
@@ -1245,7 +1231,6 @@ func _refresh_design_controls() -> void:
 	var can_change_design := GameState.active_part_transformations == 0
 	save_design_button.disabled = not can_change_design or GameState.ship.tiles.is_empty()
 	var problem := GameState.design_research_error(GameState.ship)
-	save_design_button.tooltip_text = "Save blueprint." + (" Construction: " + problem if not problem.is_empty() else "")
 	load_design_button.disabled = not can_change_design
 	if assembly_menu != null:
 		assembly_menu.disabled = not can_change_design
@@ -1257,6 +1242,7 @@ func _on_save_design_pressed() -> void:
 			GameState.current_ship_design_name
 		)
 		if error_message.is_empty():
+			_saved_feedback()
 			return
 		save_design_status_label.text = error_message
 		save_design_name_input.text = GameState.current_ship_design_name
@@ -1284,6 +1270,16 @@ func _on_save_design_confirmed() -> void:
 		save_design_name_input.grab_focus()
 		return
 	save_design_dialog.hide()
+	_saved_feedback()
+
+
+func _saved_feedback() -> void:
+	save_design_button.text = "SAVED"
+	var button: WeakRef = weakref(save_design_button)
+	get_tree().create_timer(1.8).timeout.connect(func() -> void:
+		var control: Button = button.get_ref()
+		if is_instance_valid(control):
+			control.text = "SAVE")
 
 
 func _on_load_design_pressed() -> void:

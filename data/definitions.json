@@ -50,7 +50,7 @@
     {"id":"observation_deck","revision":2,"display_name":"Observation Deck","implemented":true,"type_id":39,"enum_key":"OBSERVATION_DECK","recipe":"CTC/CDC","description":"Civil Hospitality. +1 luxury to two adjacent accommodations; exterior edge required.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"luxury_suites","revision":1,"display_name":"Luxury Suites","implemented":false,"type_id":40,"enum_key":"LUXURY_SUITES","recipe":"CCC/CTC/DDD","description":"Luxury Habitation. Four places, luxury 2; greater durability.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"grand_promenade","revision":1,"display_name":"Grand Promenade","implemented":false,"type_id":41,"enum_key":"GRAND_PROMENADE","recipe":"CCCCC/CTCTC/CDDDC/CTCTC/CCCCC","description":"Grand Hospitality; capstone. +1 host luxury, Sanctuary ability.","capstone":true,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["sanctuary"],"ranks":[]},
-    {"id":"cargo_hold","revision":1,"display_name":"Cargo Hold","implemented":false,"type_id":42,"enum_key":"CARGO_HOLD","recipe":"DCC/DCC","description":"Known. Ten trade-goods capacity, upgraded to 15 by Freight Engineering.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
+    {"id":"cargo_hold","revision":2,"display_name":"Cargo Hold","implemented":true,"type_id":42,"enum_key":"CARGO_HOLD","recipe":"DCC/DCC","description":"Known. Ten trade-goods capacity, upgraded to 15 by Freight Engineering.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"tractor_array","revision":1,"display_name":"Tractor Array","implemented":false,"type_id":43,"enum_key":"TRACTOR_ARRAY","recipe":"DTT/CTT","description":"Material Handling. Doubles host pickup radius; Tether ability.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["tether"],"ranks":[]},
     {"id":"sorting_refinery","revision":1,"display_name":"Sorting Refinery","implemented":false,"type_id":44,"enum_key":"SORTING_REFINERY","recipe":"DCT/CTD/TDC","description":"Selective Recovery. +15 percentage points construction-material recovery; material preference.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"industrial_foundry","revision":1,"display_name":"Industrial Foundry","implemented":false,"type_id":45,"enum_key":"INDUSTRIAL_FOUNDRY","recipe":"DDCDD/CTTTC/DTOTD/CTTTC/DDCDD","description":"Industrial Integration; capstone. +25 recovery points; Field Patch ability.","capstone":true,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["field_patch"],"ranks":[]},
@@ -170,8 +170,8 @@
     {"id":"volatile_debris","revision":1,"display_name":"Volatile Debris","implemented":false,"clock":"simulation","affects_both_factions":true,"tuning":{"radius_units":null,"requires_explicit_preview":true,"damage":null}}
   ],
   "goods": [
-    {"id":"basic","revision":1,"display_name":"Basic Goods","implemented":false,"unit_value":3,"freeze_value_on_load":true,"settlement_order":["sell","refill"]},
-    {"id":"uncommon","revision":1,"display_name":"Uncommon Goods","implemented":false,"unit_value":6,"freeze_value_on_load":true,"settlement_order":["sell","refill"]},
-    {"id":"rare","revision":1,"display_name":"Rare Goods","implemented":false,"unit_value":10,"freeze_value_on_load":true,"settlement_order":["sell","refill"]}
+    {"id":"basic","revision":1,"display_name":"Basic Goods","implemented":true,"unit_value":3,"freeze_value_on_load":true,"settlement_order":["sell","refill"]},
+    {"id":"uncommon","revision":1,"display_name":"Uncommon Goods","implemented":true,"unit_value":6,"freeze_value_on_load":true,"settlement_order":["sell","refill"]},
+    {"id":"rare","revision":1,"display_name":"Rare Goods","implemented":true,"unit_value":10,"freeze_value_on_load":true,"settlement_order":["sell","refill"]}
   ]
 }

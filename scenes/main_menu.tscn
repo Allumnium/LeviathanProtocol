@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://d1v2vdiffx2o5"]
 
 [ext_resource type="Script" uid="uid://bcff6c8gb6kac" path="res://scripts/main_menu.gd" id="1"]
-[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="1_bqqt6"]
+[ext_resource type="Theme" path="res://themes/ui_theme.tres" id="1_bqqt6"]
 [ext_resource type="PackedScene" uid="uid://bdifmeulvjpoc" path="res://scenes/settings_dialog.tscn" id="2"]
 [ext_resource type="Script" uid="uid://bejasonckxk8v" path="res://scripts/main_menu_starfield.gd" id="3_starfield"]
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="4_icon_button"]
@@ -84,6 +84,7 @@ grow_vertical = 0
 visible = false
 
 [node name="GameTitle" type="Label" parent="." unique_id=927734865]
+theme_type_variation = &"GameTitle"
 z_index = 2
 layout_mode = 1
 anchors_preset = -1
@@ -96,8 +97,6 @@ theme_override_colors/font_shadow_color = Color(0.02, 0.03, 0.04, 1)
 theme_override_colors/font_outline_color = Color(0.06, 0.09, 0.12, 1)
 theme_override_constants/shadow_offset_y = 2
 theme_override_constants/outline_size = 1
-theme_override_fonts/font = ExtResource("5_title_font")
-theme_override_font_sizes/font_size = 28
 text = "Leviathan Protocol"
 horizontal_alignment = 1
 vertical_alignment = 1

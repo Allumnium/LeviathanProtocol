@@ -1,7 +1,6 @@
 [gd_scene load_steps=6 format=3]
 
 [ext_resource type="Theme" path="res://themes/ui_theme.tres" id="1_theme"]
-[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="2_header_font"]
 [ext_resource type="Script" path="res://scripts/ship_library_dialog.gd" id="3_script"]
 [ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="4_close"]
 
@@ -28,7 +27,7 @@ exclusive = true
 content_scale_mode = 1
 content_scale_factor = 1.0
 theme = ExtResource("1_theme")
-theme_override_styles/panel = SubResource("StyleBoxFlat_crisp_popup")
+theme_type_variation = &"CrispPopup"
 script = ExtResource("3_script")
 
 [node name="Contents" type="VBoxContainer" parent="."]
@@ -45,8 +44,6 @@ theme_override_constants/separation = 4
 
 [node name="Title" type="Label" parent="Contents"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_header_font")
-theme_override_font_sizes/font_size = 14
 text = "LOAD SHIP DESIGN"
 horizontal_alignment = 1
 
@@ -108,7 +105,6 @@ text = ">"
 [node name="StatusLabel" type="Label" parent="Contents"]
 visible = false
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -145,7 +141,7 @@ mouse_filter = 2
 [node name="ConfirmationPanel" type="PanelContainer" parent="DeleteConfirmOverlay/CenterContainer"]
 custom_minimum_size = Vector2(340, 120)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_crisp_popup")
+theme_type_variation = &"CrispPanel"
 
 [node name="CloseX" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel" instance=ExtResource("4_close")]
 
@@ -156,7 +152,6 @@ theme_override_constants/separation = 10
 [node name="WarningLabel" type="Label" parent="DeleteConfirmOverlay/CenterContainer/ConfirmationPanel/Contents"]
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 text = "ARE YOU SURE YOU WANT TO DELETE\nTHIS SHIP DESIGN?"
 horizontal_alignment = 1
 vertical_alignment = 1

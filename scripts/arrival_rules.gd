@@ -1,10 +1,10 @@
 class_name ArrivalRules
 extends RefCounted
 
-static func has_accommodation(checkpoint: Dictionary) -> bool:
+static func has_arrival_components(checkpoint: Dictionary) -> bool:
 	for entry: Dictionary in checkpoint.fleet:
 		for part: Dictionary in entry.design.parts:
-			if int(part.type) in [ShipPart.Type.PASSENGER_CABIN, ShipPart.Type.LUXURY_SUITES]:
+			if int(part.type) in [ShipPart.Type.PASSENGER_CABIN, ShipPart.Type.LUXURY_SUITES, ShipPart.Type.CARGO_HOLD]:
 				return true
 	return false
 
@@ -40,14 +40,24 @@ static func apply(checkpoint: Dictionary, node: Dictionary, fleet: Array[FleetSh
 	# port cannot turn a settled arrival into a different, freshly paid event.
 	if checkpoint.ledger.has(event_id):
 		return checkpoint.duplicate(true) if TransactionLedger.valid(checkpoint.ledger, checkpoint.run_id) else {}
-	var proposal := PassengerRules.boarding(checkpoint.economy, fleet, deployed_ids(checkpoint, fleet))
+	var sold := CargoRules.sell(checkpoint, fleet)
+	if sold.is_empty():
+		return {}
+	var deployed := deployed_ids(checkpoint, fleet)
+	var cargo := CargoRules.refill(sold.economy, fleet, deployed, node)
+	if cargo.is_empty():
+		return {}
+	var proposal := PassengerRules.boarding(cargo.economy, fleet, deployed)
 	if proposal.is_empty():
 		return {}
 	var details := {"goods_grade": node.goods_grade, "goods_unit_value": node.goods_unit_value}
 	var economy_after: Variant = null
+	if proposal.economy.has("cargo"):
+		details["cargo"] = {"sold_value": int(sold.progress.credits) - int(checkpoint.progress.credits), "loaded": cargo.loaded}
+		economy_after = proposal.economy
 	if proposal.economy.has("passengers"):
 		details["passengers"] = {"disembarked": proposal.disembarked, "boarded": proposal.boarded,
 			"tickets": proposal.tickets, "components": proposal.components}
 		economy_after = proposal.economy
-	var result := TransactionLedger.apply(checkpoint, "arrival", source, int(proposal.tickets), [0, 0, 0, 0], 0, details, economy_after)
+	var result := TransactionLedger.apply(sold, "arrival", source, int(proposal.tickets), [0, 0, 0, 0], 0, details, economy_after)
 	return result.checkpoint if not result.is_empty() else {}

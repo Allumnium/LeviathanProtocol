@@ -60,6 +60,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if GameState.reduced_motion:
+		return
 	_elapsed_time += delta
 	var pitch_input := 0.0
 	if Input.is_physical_key_pressed(KEY_W):
@@ -215,6 +217,8 @@ func _draw() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	if GameState.reduced_motion:
+		return
 	var mouse_event := event as InputEventMouseButton
 	if (
 		mouse_event == null

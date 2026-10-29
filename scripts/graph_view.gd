@@ -42,6 +42,7 @@ var _ship_rotation := 0.0
 
 
 func _ready() -> void:
+	focus_mode = Control.FOCUS_CLICK
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
 	resized.connect(queue_redraw)
@@ -99,6 +100,8 @@ func _process(delta: float) -> void:
 		float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
 			- float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP))
 	)
+	if get_viewport().gui_get_focus_owner() not in [null, self]:
+		direction = Vector2.ZERO
 	if not direction.is_zero_approx():
 		camera_position += direction.normalized() * KEYBOARD_PAN_SPEED * delta / camera_zoom
 	_update_fleet_preview_transform()
@@ -259,6 +262,8 @@ func _draw_sector_star(node_id: int, center: Vector2, tint: Color) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		grab_focus()
 	var mouse_button := event as InputEventMouseButton
 	if mouse_button != null:
 		if mouse_button.pressed and mouse_button.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
@@ -346,17 +351,6 @@ func _draw_campaign_node(node_id: int, center: Vector2) -> void:
 			draw_circle(center, radius, color)
 	if node_id == current_node_id or node_id == selected_node_id:
 		draw_arc(center, radius + 4.0 / camera_zoom, 0, TAU, 24, Color.WHITE, 1.0 / camera_zoom)
-
-
-func _get_tooltip(at_position: Vector2) -> String:
-	if not GameState.campaign_active:
-		return ""
-	var world := _screen_to_world(at_position)
-	for id in range(GameState.NODE_POSITIONS.size()):
-		if GameState.node_visible(id) and _node_center(id).distance_to(world) <= maxf(NODE_HIT_RADIUS, 12.0 / camera_zoom):
-			var preview := GameState.node_preview(id)
-			return preview.title + "\n" + preview.text
-	return "Drag to pan • Wheel to zoom"
 
 
 func _draw_arrow(from_node_id: int, to_node_id: int, color: Color) -> void:

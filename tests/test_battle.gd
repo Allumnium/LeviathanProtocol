@@ -42,7 +42,7 @@ func _run() -> void:
 	_test_ship_cost()
 	_test_owned_fleet()
 	_test_design_selection()
-	_test_material_shop()
+	_test_material_shortages()
 	_test_run_loss()
 	_test_build_area()
 	_test_ship_design_storage()
@@ -1094,7 +1094,7 @@ func _test_scene() -> void:
 	) as Button
 	_check(
 		fleet_tab_button != null and fleet_tab_button.focus_mode == Control.FOCUS_NONE,
-		"Buttons must not accept Tab or arrow-key focus navigation."
+		"Fleet controls do not take keyboard navigation focus."
 	)
 	_check(
 		game_map.map_button != null and game_map.sector_name_label.text == "SECTOR 2",
@@ -1415,9 +1415,11 @@ func _test_scene() -> void:
 		load_dialog.hide()
 		await process_frame
 		_check(
-			load_dialog.visible,
-			"The ship-library modal must remain open when an outside action tries to dismiss it."
+			not load_dialog.visible,
+			"Dismissing the ship library must not reopen it or trap the player."
 		)
+		build_area._on_load_design_pressed()
+		await process_frame
 		_check(load_dialog.get_node_or_null("Contents/Pager/PreviousRuns") == null,
 			"The ship library must always include saved designs without a previous-runs checkbox.")
 		_check(
@@ -1831,25 +1833,33 @@ func _test_settings_storage() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path))
 
 
-func _test_material_shop() -> void:
+func _test_material_shortages() -> void:
 	var state := root.get_node("GameState")
+	var design := preload("res://scripts/builtin_ships.gd").drone()
+	for category in range(4):
+		state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
+		_clear_test_fleet(state)
+		for field in ["red_tiles_available", "blue_tiles_available", "green_tiles_available", "core_tiles_available"]:
+			state.set(field, 0)
+		state.set(["red_tiles_available", "blue_tiles_available", "green_tiles_available", "core_tiles_available"][category], 1)
+		var counts: Array = state.get_design_material_costs(design)
+		var expected := 0
+		for index in range(4):
+			expected += (counts[index] - (1 if index == category else 0)) * state.MATERIAL_PRICES[index]
+		state.credits = expected + 100
+		_check(state.get_construction_credit_cost(design) == expected and state.purchase_ship(design, "Wildcard"), "Credits cover material shortages during construction at the configured rates.")
+		_check(state.credits == 100 and state.get_available_tile_count(category) == 0, "Use owned stock first and charge only the remainder once.")
+	_check(not state.has_method("purchase_material"), "Individual material purchases are not a game feature.")
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
-	for category in range(state.MATERIAL_PRICES.size()):
-		var before: int = state.get_available_tile_count(category)
-		var credits_before: int = state.credits
-		_check(state.purchase_material(category), "Each material must be purchasable.")
-		_check(state.get_available_tile_count(category) == before + 1 and state.credits == credits_before - state.MATERIAL_PRICES[category], "Buying a material must add one tile and debit its exact price.")
-	state.credits = 1
-	_check(not state.purchase_material(1) and state.credits == 1, "Unaffordable material purchases must not spend credits.")
-	_check(not state.purchase_material(-1) and not state.purchase_material(4), "Invalid material categories must be rejected.")
-	state.credits = 100
-	state.battle_pending = true
-	_check(not state.purchase_material(0) and state.credits == 100, "The shop must be unavailable during deployment.")
-	state.battle_pending = false
+	for field in ["red_tiles_available", "blue_tiles_available", "green_tiles_available", "core_tiles_available"]:
+		state.set(field, 0)
+	state.credits = 71
+	_check(state.purchase_build_area_upgrade() and state.credits == 0, "An upgrade covers all four missing materials at their distinct rates.")
+	state.credits = 35
+	_check(state.purchase_laser_upgrade() and state.red_tiles_available == 0 and state.credits == 0, "The existing laser upgrade also covers its Offense shortage on demand.")
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
-
 
 func _test_run_loss() -> void:
 	var state := root.get_node("GameState")
@@ -1874,7 +1884,9 @@ func _test_build_area() -> void:
 	design.set_tile_at(Vector2i(22, 0), ShipPart.Category.DEFENSE)
 	_check(not state.design_fits_build_area(design), "The first out-of-bounds column must require an upgrade.")
 	state.blue_tiles_available = 0
-	_check(not state.purchase_build_area_upgrade() and state.build_area_size() == 22 and state.credits == 1150, "Unaffordable upgrades must not change size or credits.")
+	_check(state.purchase_build_area_upgrade() and state.build_area_size() == 24 and state.credits == 1098, "Area upgrades automatically cover the missing Defense material for two credits.")
+	state.credits = 0
+	_check(not state.purchase_build_area_upgrade() and state.build_area_size() == 24 and state.credits == 0, "Unaffordable upgrades must not change size or credits.")
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	_check(state.build_area_size() == 20, "Build upgrades must reset to the 20 by 20 base size for a new run.")

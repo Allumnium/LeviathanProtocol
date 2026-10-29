@@ -10,7 +10,6 @@ const MATERIAL_ICONS: Array[Texture2D] = [
 	preload("res://assets/ui/icons/green_square.png"),
 	preload("res://assets/core.png"),
 ]
-const ROW_STYLE: StyleBox = preload("res://assets/ui/panels/compact_panel_nine_patch.tres")
 const PAGE_SIZE := 3
 
 @onready var title_label: Label = $Contents/Title
@@ -38,7 +37,6 @@ var page := 0
 var choices: Array[Dictionary] = []
 var selection_validator: Callable
 var fleet_slot_role := "regular"
-var _allow_close := false
 var _pending_delete_name := ""
 
 
@@ -67,7 +65,6 @@ func _ready() -> void:
 
 
 func open_library(new_action_text: String, validator: Callable = Callable()) -> void:
-	_allow_close = false
 	action_text = new_action_text.to_upper()
 	selection_validator = validator
 	title_label.text = "%s SHIP DESIGN" % action_text
@@ -84,24 +81,15 @@ func open_library(new_action_text: String, validator: Callable = Callable()) -> 
 
 func _clear_initial_focus() -> void:
 	if is_instance_valid(search):
-		search.release_focus()
+		search.grab_focus()
 
 
 func close_library() -> void:
-	_allow_close = true
 	hide()
 
 
 func _on_popup_hide() -> void:
-	if _allow_close:
-		_allow_close = false
-		return
-	call_deferred("_restore_after_unintended_close")
-
-
-func _restore_after_unintended_close() -> void:
-	if is_inside_tree() and not visible:
-		popup_centered(Vector2i(480, 255))
+	_cancel_delete()
 
 
 func refresh_library() -> void:
@@ -140,9 +128,7 @@ func _refresh_rows() -> void:
 func _create_row(choice: Dictionary) -> PanelContainer:
 	var row := PanelContainer.new()
 	row.custom_minimum_size = Vector2(0, 44)
-	var row_style := ROW_STYLE.duplicate()
-	row_style.set_content_margin_all(4)
-	row.add_theme_stylebox_override("panel", row_style)
+	row.theme_type_variation = &"LibraryRow"
 	var contents := HBoxContainer.new()
 	contents.add_theme_constant_override("separation", 6)
 	row.add_child(contents)
@@ -154,7 +140,6 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 	name_label.text = str(choice.name).to_upper()
 	name_label.custom_minimum_size.x = 90
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	name_label.add_theme_font_size_override("font_size", 9)
 	contents.add_child(name_label)
 	var costs := HBoxContainer.new()
 	costs.add_theme_constant_override("separation", 3)
@@ -174,21 +159,28 @@ func _create_row(choice: Dictionary) -> PanelContainer:
 		else:
 			assigned_slot = (3 if fleet_slot_role == "science" else 4) if GameState.roster_state.support_names[fleet_slot_role] == choice.name else -1
 	var is_assigned := action_text == "SELECT" and assigned_slot >= 0
+	if is_assigned and GameState.campaign_active and fleet_slot_role == "regular":
+		var selected: Ship = GameState.slot_blueprint(assigned_slot)
+		is_assigned = selected != null and FleetRules.fingerprint(selected) == FleetRules.fingerprint(choice.design)
 	action.text = "ASSIGNED TO SLOT %d" % (assigned_slot + 1) if is_assigned else action_text
 	action.custom_minimum_size.x = 112 if is_assigned else 68
-	action.add_theme_font_size_override("font_size", 8 if is_assigned else 10)
 	_style_button(action)
 	var validation_message := ""
 	if selection_validator.is_valid():
 		validation_message = str(selection_validator.call(choice.design))
-	action.disabled = is_assigned or not validation_message.is_empty()
+	action.disabled = is_assigned
+	if not validation_message.is_empty() and not is_assigned:
+		action.text = "DETAILS"
 	action.pressed.connect(func() -> void:
-		_allow_close = true
+		if not validation_message.is_empty():
+			status_label.text = str(choice.name) + ": " + validation_message
+			status_label.show()
+			return
 		design_selected.emit(choice.name, choice.design)
 		hide())
 	contents.add_child(action)
 	var remove := TextureButton.new()
-	remove.custom_minimum_size = Vector2(18, 22)
+	remove.custom_minimum_size = Vector2(24, 24)
 	remove.texture_normal = _trash_icon(Color(0.93, 0.45, 0.45))
 	remove.texture_hover = _trash_icon(Color(1.0, 0.68, 0.62))
 	remove.texture_pressed = _trash_icon(Color(0.65, 0.2, 0.2))
@@ -235,32 +227,16 @@ func _add_cost_item(row: HBoxContainer, icon: Texture2D, amount: int) -> void:
 	row.add_child(texture)
 	var label := Label.new()
 	label.text = str(amount)
-	label.add_theme_font_size_override("font_size", 8)
 	row.add_child(label)
 
 
 static func _style_button(button: Button) -> void:
 	button.custom_minimum_size.y = maxf(button.custom_minimum_size.y, 30)
-	button.add_theme_font_override("font", preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"))
 
 
 static func _style_pager_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(30, 26)
-	button.add_theme_font_override("font", preload("res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt"))
-	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
-		var style := StyleBoxTexture.new()
-		style.texture = preload("res://assets/ui/panels/simple_panel.png")
-		style.texture_margin_left = 12
-		style.texture_margin_right = 12
-		style.texture_margin_top = 12
-		style.texture_margin_bottom = 12
-		style.set_content_margin_all(3)
-		match state:
-			"hover": style.modulate_color = Color(0.85, 0.95, 1.0)
-			"pressed": style.modulate_color = Color(0.65, 0.78, 0.86)
-			"disabled": style.modulate_color = Color(0.5, 0.55, 0.6)
-			"focus": style.draw_center = false
-		button.add_theme_stylebox_override(state, style)
+	button.theme_type_variation = &"IconButton"
 
 
 static func _trash_icon(color: Color) -> Texture2D:

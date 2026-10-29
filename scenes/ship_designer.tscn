@@ -68,7 +68,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 button_pressed = true
-theme_override_font_sizes/font_size = 14
 text = "SHIP BUILDER"
 
 [node name="ArchiveTabButton" type="Button" parent="Layout/Workspace/TabButtons"]
@@ -76,7 +75,6 @@ custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-theme_override_font_sizes/font_size = 14
 text = "ARCHIVE"
 
 [node name="UnreadCount" type="Label" parent="Layout/Workspace/TabButtons/ArchiveTabButton"]
@@ -90,7 +88,6 @@ offset_right = -2.0
 offset_bottom = 8.0
 grow_horizontal = 0
 theme_override_colors/font_color = Color(1, 0.86, 0, 1)
-theme_override_font_sizes/font_size = 8
 text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -110,7 +107,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 0.8
 clip_contents = true
-theme_override_styles/panel = ExtResource("3_panel")
+theme_type_variation = &"CompactPanel"
 
 [node name="PanelContents" type="VBoxContainer" parent="Layout/Workspace/Panels/LeftPanel"]
 layout_mode = 2
@@ -135,7 +132,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 2.2
 clip_contents = true
-theme_override_styles/panel = ExtResource("3_panel")
+theme_type_variation = &"CompactPanel"
 
 [node name="SpaceBackground" type="ColorRect" parent="Layout/Workspace/Panels/CenterPanel"]
 layout_mode = 2
@@ -188,7 +185,7 @@ custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_styles/panel = ExtResource("3_panel")
+theme_type_variation = &"CompactPanel"
 
 [node name="ContentHost" type="Control" parent="Layout/Workspace/Panels/RightPanel"]
 layout_mode = 2
@@ -204,7 +201,6 @@ theme_override_constants/separation = 8
 
 [node name="Header" type="Label" parent="Layout/Workspace/Panels/RightPanel/ContentHost/StatsContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
 text = "SHIP STATS"
 
 [node name="StatRows" type="VBoxContainer" parent="Layout/Workspace/Panels/RightPanel/ContentHost/StatsContents"]
@@ -224,11 +220,9 @@ theme_override_constants/separation = 6
 
 [node name="Header" type="Label" parent="Layout/Workspace/Panels/RightPanel/ContentHost/ArchiveProgress"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
 text = "ARCHIVE"
 
 [node name="DiscoveredLabel" type="Label" parent="Layout/Workspace/Panels/RightPanel/ContentHost/ArchiveProgress"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
 text = "0 of 0 parts discovered"
 autowrap_mode = 2

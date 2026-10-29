@@ -44,8 +44,6 @@ func _test_purchases(state: Node) -> void:
 	for category in range(4):
 		_check(int(purchased.inventory[category]) == int(before.inventory[category]) - materials[category], "Use only the quoted stored material.")
 	before = RunCheckpoint.capture(state)
-	_check(state.purchase_material(0), "Purchase material.")
-	_check(state.load_run_checkpoint() and state.red_tiles_available == int(before.inventory[0]) + 1 and state.credits == int(before.progress.credits) - GameState.MATERIAL_PRICES[0], "Material and price survive immediate reload once.")
 	state.red_tiles_available = 10
 	state.blue_tiles_available = 10
 	state.green_tiles_available = 10
@@ -62,7 +60,6 @@ func _test_purchases(state: Node) -> void:
 	Engine.print_error_messages = false
 	_check(not state.purchase_ship(design, "Failed family"), "Reject ship purchase on failed write.")
 	_check(before == RunCheckpoint.capture(state), "Failed ship write preserves fleet, family IDs, next ID, resources and editor.")
-	_check(not state.purchase_material(1) and before == RunCheckpoint.capture(state), "Failed material write changes nothing.")
 	_check(not state.purchase_build_area_upgrade() and before == RunCheckpoint.capture(state), "Failed upgrade write changes nothing.")
 	Engine.print_error_messages = printed
 	state.run_save_path = path

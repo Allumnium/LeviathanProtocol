@@ -109,7 +109,7 @@ static func decode(data: Variant) -> Dictionary:
 		if id >= int(data.next_ship_id):
 			return {}
 	var aliens: Array[RefCounted] = []
-	if not PassengerRules.valid(data.economy, fleet):
+	if not PassengerRules.valid(data.economy, fleet) or not CargoRules.valid(data.economy, fleet):
 		return {}
 	for entry in data.aliens:
 		var alien := _decode_alien(entry)

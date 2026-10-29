@@ -75,6 +75,7 @@ var roster_state: Dictionary = FleetRules.empty_roster()
 var fleet_formation_index := 0
 var battle_auto_camera := true
 var battle_fast_forward := false
+var reduced_motion := false
 var archive_progress_file_path := ARCHIVE_PROGRESS_PATH
 
 # Run authorization is deliberately independent of Archive discoveries/designs.
@@ -104,21 +105,8 @@ func _ready() -> void:
 	if NODE_POSITIONS.is_empty():
 		run_seed = _new_run_seed()
 		_generate_campaign_graph()
-	get_tree().node_added.connect(_disable_non_text_keyboard_focus)
-	_disable_keyboard_focus_recursively(get_tree().root)
 	_load_archive_progress(archive_progress_file_path)
 	_load_saved_ship_designs()
-
-
-func _disable_keyboard_focus_recursively(node: Node) -> void:
-	_disable_non_text_keyboard_focus(node)
-	for child in node.get_children():
-		_disable_keyboard_focus_recursively(child)
-
-
-func _disable_non_text_keyboard_focus(node: Node) -> void:
-	if node is BaseButton or node is Range:
-		(node as Control).focus_mode = Control.FOCUS_NONE
 
 
 func is_modal_ui_open() -> bool:
@@ -132,7 +120,7 @@ func _node_contains_visible_modal(node: Node, scene_root: Node) -> bool:
 	if (
 		node != scene_root
 		and node is Control
-		and node.visible
+		and node.is_visible_in_tree()
 		and (node.name in [&"GraphModal", &"VictoryDialog", &"DefeatDialog", &"QuitConfirmOverlay"] or node.is_in_group("modal_ui"))
 	):
 		return true
@@ -280,7 +268,11 @@ func _capture_checkpoint(lost_ships: Array[int] = []) -> Dictionary:
 	if battle_pending and PassengerRules.occupied(economy_state) > 0:
 		var proposal := PassengerRules.settle_losses(checkpoint, fleet, passenger_loss_scope(), lost_ships)
 		if not proposal.is_empty():
-			return proposal
+			checkpoint = proposal
+	if battle_pending and CargoRules.quantity(economy_state) > 0:
+		var proposal := CargoRules.settle_losses(checkpoint, fleet, passenger_loss_scope(), lost_ships)
+		if not proposal.is_empty():
+			checkpoint = proposal
 	# Leave malformed state for the checkpoint validator to reject.
 	return checkpoint
 
@@ -376,6 +368,36 @@ func load_run_checkpoint() -> bool:
 	design_library_changed.emit()
 	ship_stats_changed.emit()
 	build_area_changed.emit()
+	return true
+
+
+func checkpoint_summary() -> Dictionary:
+	var saved := _checkpoint_store.load_latest(run_save_path, RunCheckpoint.valid)
+	if saved.is_empty():
+		return {}
+	return {"seed": int(saved.payload.progress.seed), "ended": bool(saved.payload.progress.get("run_ended", false)),
+		"pending": bool(saved.payload.location.pending), "node": int(saved.payload.location.current)}
+
+
+func prepare_checkpoint_resume() -> bool:
+	if not battle_pending or get_deployed_fleet().any(func(owned: FleetShip) -> bool: return not owned.get_stats(laser_upgrade_level).weapons.is_empty()):
+		return true
+	# A checkpoint may already contain a lost deployment. Preserve its losses
+	# and expose emergency reserves rather than opening an empty simulation.
+	var checkpoint := _capture_checkpoint()
+	var lost: Array[int] = []
+	for owned in fleet:
+		if not owned.is_alive():
+			lost.append(owned.id)
+	_stage_fleet_losses(checkpoint, lost)
+	if not cancel_battle(-1, checkpoint.fleet.is_empty(), checkpoint):
+		return false
+	fleet = fleet.filter(func(owned: FleetShip) -> bool: return owned.id not in lost)
+	roster_state = checkpoint.fleet_roster
+	for owned in fleet:
+		if owned.escort_target_id in lost:
+			owned.escort_target_id = 0
+	_refresh_fleet()
 	return true
 
 
@@ -1063,24 +1085,6 @@ func get_construction_material_costs(blueprint: Ship = null) -> Array[int]:
 func get_design_material_costs(blueprint: Ship = null) -> Array[int]:
 	return _get_ship_tile_counts(ship if blueprint == null else blueprint)
 
-func purchase_material(category: int) -> bool:
-	if campaign_active and not is_shipyard_node(current_node_id):
-		return false
-	if battle_pending or category < 0 or category >= MATERIAL_PRICES.size():
-		return false
-	var price: int = MATERIAL_PRICES[category]
-	if credits < price:
-		return false
-	var checkpoint := _capture_checkpoint()
-	checkpoint.progress.credits -= price
-	checkpoint.inventory[category] += 1
-	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
-		return false
-	_apply_accounting(checkpoint)
-	credits_changed.emit()
-	tile_inventory_changed.emit()
-	return true
-
 func purchase_saved_ship(design_name: String, role := "regular") -> bool:
 	for entry in get_visible_ship_designs():
 		if entry.name == design_name:
@@ -1211,7 +1215,7 @@ func salvage_ship_type(design_name: String) -> bool:
 func dismantle_ship(owned: FleetShip) -> bool:
 	if owned == null or battle_pending or not fleet.has(owned) or (campaign_active and not is_shipyard_node(current_node_id)):
 		return false
-	if PassengerRules.occupied(economy_state, owned.id) > 0:
+	if PassengerRules.occupied(economy_state, owned.id) > 0 or CargoRules.quantity(economy_state, owned.id) > 0:
 		return false
 	var checkpoint := _capture_checkpoint()
 	var counts := owned.material_counts(false)
@@ -1356,7 +1360,7 @@ func assign_fleet_design(index: int, title: String, design: Ship, revision := fa
 			roster_state.support_ids[role] = 0
 		roster_state.support_names[role] = title
 	for owned in fleet:
-		if PassengerRules.occupied(economy_state, owned.id) > 0 and not is_ship_deployed(owned):
+		if (PassengerRules.occupied(economy_state, owned.id) > 0 or CargoRules.quantity(economy_state, owned.id) > 0) and not is_ship_deployed(owned):
 			roster_state = before
 			fleet_design_slots.assign(names)
 			return false
@@ -1373,7 +1377,7 @@ func set_ship_reserve(owned: FleetShip, reserve: bool) -> bool:
 		return false
 	if not is_shipyard_node(current_node_id) and (reserve or not emergency_roster_available()):
 		return false
-	if reserve and PassengerRules.occupied(economy_state, owned.id) > 0:
+	if reserve and (PassengerRules.occupied(economy_state, owned.id) > 0 or CargoRules.quantity(economy_state, owned.id) > 0):
 		return false
 	if not reserve:
 		if not design_research_error(owned.design).is_empty():
@@ -1488,6 +1492,8 @@ func used_deployment_capacity() -> int:
 
 
 func deployment_error() -> String:
+	if run_ended:
+		return "This run has ended. Start a new run."
 	for owned in get_deployed_fleet():
 		var research_problem := design_research_error(owned.design)
 		if not research_problem.is_empty():
@@ -1504,6 +1510,8 @@ func deployment_error() -> String:
 	var limit := deployment_capacity()
 	if used > limit:
 		return "Deployment capacity %d/%d. Reserve ships at a secured port before departing." % [used, limit]
+	if not get_deployed_fleet().any(func(owned: FleetShip) -> bool: return not owned.get_stats(laser_upgrade_level).weapons.is_empty()):
+		return "No operational weapons. Repair at a port or select an armed reserve."
 	return ""
 
 
@@ -1539,9 +1547,10 @@ func purchase_laser_upgrade() -> bool:
 		return false
 	var materials: int = [3, 7, 15][laser_upgrade_level]
 	var price: int = [20, 50, 100][laser_upgrade_level]
-	if red_tiles_available < materials or credits < price:
+	price += maxi(0, materials - red_tiles_available) * MATERIAL_PRICES[0]
+	if credits < price:
 		return false
-	red_tiles_available -= materials
+	red_tiles_available = maxi(0, red_tiles_available - materials)
 	credits -= price
 	laser_upgrade_level += 1
 	tile_inventory_changed.emit()
@@ -1656,7 +1665,11 @@ func node_preview(node_id: int) -> Dictionary:
 			text += "\nCharted %s • safe passage. Mineral potential: %s; extraction unavailable." % [str(route.hazard).replace("_", " "), route.mining_potential]
 		else:
 			text += "\nSafe passage • asteroid density: none."
-		text += "\nPassenger tickets: 0 • cargo sale: 0" # No operational accommodation/holds yet.
+		var ids: Array[int] = []
+		for owned in get_deployed_fleet():
+			ids.append(owned.id)
+		var boarding := PassengerRules.boarding(economy_state, fleet, ids) if node.inhabited else {}
+		text += "\nPassenger tickets: %d • cargo sale: %d" % [int(boarding.get("tickets", 0)), CargoRules.value(economy_state) if node.inhabited else 0]
 	if node_id == current_node_id:
 		text += "\nAct %d: %s" % [current_act(), CampaignContent.THEMES[current_act() - 1]]
 		if current_act() < 3:
@@ -1703,7 +1716,7 @@ func _secure_node(checkpoint: Dictionary, node_id: int) -> Dictionary:
 		checkpoint.progress.story_flags[["boss_i_defeated", "boss_ii_defeated", "boss_iii_defeated"][int(node.act) - 1]] = true
 	if node.inhabited:
 		var physical: Array[FleetShip] = []
-		if ArrivalRules.has_accommodation(checkpoint):
+		if ArrivalRules.has_arrival_components(checkpoint):
 			var decoded := RunCheckpoint.decode(checkpoint)
 			if decoded.is_empty():
 				return {}
@@ -1752,6 +1765,23 @@ func disembark_passengers() -> bool:
 	for record: Dictionary in economy.passengers.components.values():
 		record.occupied = 0
 	return commit_port_service("disembark", economy)
+
+
+func offload_cargo(ship_id := 0) -> bool:
+	if not campaign_active or battle_pending or not visited_nodes.has(current_node_id) \
+		or not campaign_node(current_node_id).get("inhabited", false):
+		return false
+	if ship_id != 0 and not fleet.any(func(owned: FleetShip) -> bool: return owned.id == ship_id):
+		return false
+	if CargoRules.quantity(economy_state, ship_id) == 0:
+		return true
+	var checkpoint := CargoRules.sell(_capture_checkpoint(), fleet, ship_id)
+	if checkpoint.is_empty() or not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
+	_emit_accounting_changes()
+	return true
 
 
 func story_archive() -> Array[Dictionary]:
@@ -2000,13 +2030,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 		"deployment": progress.get("deployment", {}).duplicate(true),
 		"commands": simulation.command_log.duplicate(true), "events": simulation.event_log.duplicate(true),
 		"snapshot": simulation.authoritative_snapshot()}
-	checkpoint.fleet = checkpoint.fleet.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
-	for entry: Dictionary in checkpoint.fleet:
-		if int(entry.escort_target_id) in lost:
-			entry.escort_target_id = 0
-	for role in ["science", "civic"]:
-		if int(checkpoint.fleet_roster.support_ids[role]) in lost:
-			checkpoint.fleet_roster.support_ids[role] = 0
+	_stage_fleet_losses(checkpoint, lost)
 	var settled: bool
 	var casualty_scope := passenger_loss_scope()
 	if simulation.phase == BattleSimulation.Phase.VICTORY:
@@ -2021,6 +2045,16 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 			owned.escort_target_id = 0
 	record_battle(simulation, casualty_scope)
 	return true
+
+
+func _stage_fleet_losses(checkpoint: Dictionary, lost: Array[int]) -> void:
+	checkpoint.fleet = checkpoint.fleet.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
+	for entry: Dictionary in checkpoint.fleet:
+		if int(entry.escort_target_id) in lost:
+			entry.escort_target_id = 0
+	for role in ["science", "civic"]:
+		if int(checkpoint.fleet_roster.support_ids[role]) in lost:
+			checkpoint.fleet_roster.support_ids[role] = 0
 
 
 func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dictionary) -> bool:
@@ -2097,16 +2131,20 @@ func build_area_size() -> int:
 
 
 func purchase_build_area_upgrade() -> bool:
-	if battle_pending or build_area_size() >= MAX_BUILD_SIZE or credits < 50:
+	if battle_pending or build_area_size() >= MAX_BUILD_SIZE:
 		return false
-	if red_tiles_available < 1 or blue_tiles_available < 1 or green_tiles_available < 1 or core_tiles_available < 1:
+	var price := 50
+	for category in range(4):
+		if get_available_tile_count(category) == 0:
+			price += MATERIAL_PRICES[category]
+	if credits < price:
 		return false
 	if campaign_active and not is_shipyard_node(current_node_id):
 		return false
 	var checkpoint := _capture_checkpoint()
-	checkpoint.progress.credits -= 50
+	checkpoint.progress.credits -= price
 	for category in range(4):
-		checkpoint.inventory[category] -= 1
+		checkpoint.inventory[category] = maxi(0, int(checkpoint.inventory[category]) - 1)
 	checkpoint.build_level += 1
 	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
 		return false

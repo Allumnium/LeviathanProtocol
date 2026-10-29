@@ -78,6 +78,7 @@ func load_settings(file_path: String = SETTINGS_PATH) -> void:
 	GameState.battle_fast_forward = _validated_bool(
 		config.get_value("battle", "fast_forward", false), false
 	)
+	GameState.reduced_motion = _validated_bool(config.get_value("accessibility", "reduced_motion", false), false)
 
 
 func save_settings(file_path: String = SETTINGS_PATH) -> bool:
@@ -88,6 +89,7 @@ func save_settings(file_path: String = SETTINGS_PATH) -> bool:
 	config.set_value("audio", "effects", get_bus_volume_percent(SFX_BUS))
 	config.set_value("battle", "auto_camera", GameState.battle_auto_camera)
 	config.set_value("battle", "fast_forward", GameState.battle_fast_forward)
+	config.set_value("accessibility", "reduced_motion", GameState.reduced_motion)
 	var save_error := config.save(file_path)
 	if save_error != OK:
 		push_error("Could not save settings: %s" % error_string(save_error))

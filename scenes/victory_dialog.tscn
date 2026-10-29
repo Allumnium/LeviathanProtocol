@@ -1,7 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://cq30vongxvgsa"]
 
-[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="1_font"]
-[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="2_theme"]
+[ext_resource type="Theme" path="res://themes/ui_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="3_close"]
 
 [node name="VictoryDialog" type="Control" unique_id=1607653952]
@@ -45,7 +44,6 @@ theme_override_constants/separation = 8
 
 [node name="Title" type="Label" parent="CenterContainer/Panel/Contents" unique_id=1149340815]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("1_font")
 text = "VICTORY"
 horizontal_alignment = 1
 

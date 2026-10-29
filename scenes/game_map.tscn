@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b5bsj2qhnw6rb" path="res://scripts/game_map.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/build_tilemap_area.tscn" id="2"]
-[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="4_kqil0"]
+[ext_resource type="Theme" path="res://themes/ui_theme.tres" id="4_kqil0"]
 [ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="6_kqil0"]
 [ext_resource type="PackedScene" uid="uid://bdifmeulvjpoc" path="res://scenes/settings_dialog.tscn" id="7"]
 [ext_resource type="PackedScene" uid="uid://yojn4otwqbnx" path="res://scenes/how_to_play_dialog.tscn" id="8"]
@@ -11,7 +11,6 @@
 [ext_resource type="Script" path="res://scripts/archive_tab.gd" id="11_archive"]
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="12_icon_button"]
 [ext_resource type="Texture2D" path="res://assets/help.png" id="13_help_icon"]
-[ext_resource type="Font" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="14_header_font"]
 [ext_resource type="Texture2D" path="res://assets/credits.png" id="15_credit_icon"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/red_square.png" id="16_red_icon"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/blue_square.png" id="17_blue_icon"]
@@ -61,7 +60,7 @@ theme_override_constants/separation = 3
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPanel"
 
 [node name="BarContents" type="HBoxContainer" parent="Layout/TopBar" unique_id=1264857275]
 layout_mode = 2
@@ -77,7 +76,6 @@ stretch_mode = 5
 
 [node name="CreditAmount" type="Label" parent="Layout/TopBar/BarContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 
 [node name="OffenseIcon" type="TextureRect" parent="Layout/TopBar/BarContents"]
@@ -90,7 +88,6 @@ stretch_mode = 5
 
 [node name="OffenseAmount" type="Label" parent="Layout/TopBar/BarContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 
 [node name="DefenseIcon" type="TextureRect" parent="Layout/TopBar/BarContents"]
@@ -103,7 +100,6 @@ stretch_mode = 5
 
 [node name="DefenseAmount" type="Label" parent="Layout/TopBar/BarContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 
 [node name="TechIcon" type="TextureRect" parent="Layout/TopBar/BarContents"]
@@ -116,7 +112,6 @@ stretch_mode = 5
 
 [node name="TechAmount" type="Label" parent="Layout/TopBar/BarContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 
 [node name="CivicIcon" type="TextureRect" parent="Layout/TopBar/BarContents"]
@@ -129,19 +124,16 @@ stretch_mode = 5
 
 [node name="CivicAmount" type="Label" parent="Layout/TopBar/BarContents"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 
 [node name="MapButton" type="Button" parent="Layout/TopBar/BarContents"]
 custom_minimum_size = Vector2(52, 28)
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 text = "MAP"
 
 [node name="SectorName" type="Label" parent="Layout/TopBar/BarContents"]
 custom_minimum_size = Vector2(72, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
 text = "SECTOR 1"
 vertical_alignment = 1
 
@@ -149,7 +141,6 @@ vertical_alignment = 1
 layout_mode = 2
 size_flags_horizontal = 3
 
-theme_override_font_sizes/font_size = 10
 vertical_alignment = 1
 autowrap_mode = 3
 
@@ -169,7 +160,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 2.0
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPanel"
 
 [node name="WorkspaceContents" type="VBoxContainer" parent="Layout/UpperArea"]
 layout_mode = 2
@@ -185,7 +176,6 @@ custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-theme_override_font_sizes/font_size = 14
 text = "FLEET"
 
 [node name="UpgradesTabButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/TabButtons"]
@@ -193,7 +183,6 @@ custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-theme_override_font_sizes/font_size = 14
 text = "RESEARCH"
 
 [node name="BuildTabButton" type="Button" parent="Layout/UpperArea/WorkspaceContents/TabButtons"]
@@ -201,7 +190,6 @@ custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-theme_override_font_sizes/font_size = 14
 text = "SHIP DESIGNER"
 
 [node name="Lock" type="Control" parent="Layout/UpperArea/WorkspaceContents/TabButtons/BuildTabButton"]
@@ -235,7 +223,6 @@ custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
-theme_override_font_sizes/font_size = 14
 text = "ARCHIVE"
 
 [node name="UnreadCount" type="Label" parent="Layout/UpperArea/WorkspaceContents/TabButtons/ArchiveTabButton"]
@@ -250,7 +237,6 @@ offset_right = -2.0
 offset_top = -2.0
 offset_bottom = 8.0
 theme_override_colors/font_color = Color(1, 0.86, 0, 1)
-theme_override_font_sizes/font_size = 8
 text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -264,13 +250,13 @@ size_flags_vertical = 3
 theme_override_constants/separation = 3
 
 [node name="LeftPanel" type="PanelContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow"]
-custom_minimum_size = Vector2(190, 0)
+custom_minimum_size = Vector2(192, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 0.8
 clip_contents = true
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPanel"
 
 [node name="PanelContents" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel"]
 layout_mode = 2
@@ -291,13 +277,10 @@ theme_override_constants/separation = 6
 
 [node name="Header" type="Label" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/ArchiveProgress"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("14_header_font")
-theme_override_font_sizes/font_size = 14
 text = "ARCHIVE"
 
 [node name="DiscoveredLabel" type="Label" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel/PanelContents/ArchiveProgress"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
 text = "0 of 0 parts discovered"
 autowrap_mode = 2
 
@@ -307,7 +290,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 2.2
 clip_contents = true
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPanel"
 
 [node name="PanelContents" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/CenterPanel" unique_id=1025909576]
 layout_mode = 2
@@ -371,7 +354,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 1.0
 clip_contents = true
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPanel"
 
 [node name="ContentHost" type="Control" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel"]
 layout_mode = 2
@@ -441,8 +424,6 @@ theme_override_constants/separation = 4
 
 [node name="StatsHeader" type="Label" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("14_header_font")
-theme_override_font_sizes/font_size = 14
 text = "SHIP STATS"
 
 [node name="StatRows" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
@@ -458,8 +439,6 @@ size_flags_horizontal = 3
 [node name="WeaponsHeader" type="Label" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
 visible = false
 layout_mode = 2
-theme_override_fonts/font = ExtResource("14_header_font")
-theme_override_font_sizes/font_size = 13
 text = "WEAPONS"
 
 [node name="WeaponRows" type="VBoxContainer" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents"]
@@ -470,7 +449,6 @@ theme_override_constants/separation = 4
 
 [node name="NoWeaponsLabel" type="Label" parent="Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel/ContentHost/DetailsContents/StatsScroll/StatsContents/WeaponRows"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
 text = "No weapons equipped."
 
 [node name="GraphModal" type="Control" parent="." unique_id=213025514]
@@ -522,12 +500,12 @@ script = ExtResource("10")
 [node name="SettingsDialog" parent="." unique_id=826228226 instance=ExtResource("7")]
 initial_position = 0
 visible = false
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPopup"
 
 [node name="HowToPlayDialog" parent="." unique_id=575426634 instance=ExtResource("8")]
 visible = false
 content_scale_factor = 1.0
-theme_override_styles/panel = ExtResource("6_kqil0")
+theme_type_variation = &"CompactPopup"
 
 [node name="VictoryDialog" parent="." unique_id=425094024 instance=ExtResource("9")]
 visible = false

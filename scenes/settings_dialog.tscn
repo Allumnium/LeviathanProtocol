@@ -26,7 +26,6 @@ layout_mode = 2
 text = "Music"
 vertical_alignment = 1
 
-theme_override_font_sizes/font_size = 11
 
 [node name="MusicSlider" type="HSlider" parent="Contents/ContentArea/MusicRow" index="1" unique_id=222398829]
 layout_mode = 2
@@ -44,7 +43,6 @@ layout_mode = 2
 text = "Ambience"
 vertical_alignment = 1
 
-theme_override_font_sizes/font_size = 11
 
 [node name="AmbienceSlider" type="HSlider" parent="Contents/ContentArea/AmbienceRow" index="1" unique_id=2115774007]
 layout_mode = 2
@@ -62,7 +60,6 @@ layout_mode = 2
 text = "Effects"
 vertical_alignment = 1
 
-theme_override_font_sizes/font_size = 11
 
 [node name="EffectsSlider" type="HSlider" parent="Contents/ContentArea/EffectsRow" index="1" unique_id=1484295371]
 layout_mode = 2
@@ -80,7 +77,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Battle auto-camera"
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 11
 
 [node name="BattleAutoCameraButton" type="Button" parent="Contents/ContentArea/BattleAutoCameraRow"]
 custom_minimum_size = Vector2(180, 40)
@@ -123,7 +119,7 @@ mouse_filter = 2
 [node name="ConfirmationPanel" type="PanelContainer" parent="QuitConfirmOverlay/CenterContainer"]
 custom_minimum_size = Vector2(320, 144)
 layout_mode = 2
-theme_override_styles/panel = ExtResource("3_panel")
+theme_type_variation = &"CompactPanel"
 
 [node name="CloseX" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel" instance=ExtResource("4_close")]
 
@@ -134,8 +130,8 @@ theme_override_constants/separation = 12
 [node name="WarningLabel" type="Label" parent="QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents"]
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "You will lose all progress,\nare you sure?"
+text = "Return to the main menu?\nThe last checkpoint is kept. Unsaved edits and combat ticks are lost."
+autowrap_mode = 3
 horizontal_alignment = 1
 vertical_alignment = 1
 

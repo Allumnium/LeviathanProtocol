@@ -3,21 +3,31 @@
 [ext_resource type="PackedScene" path="res://scenes/modal_dialog.tscn" id="1_modal"]
 
 [node name="HowToPlayDialog" instance=ExtResource("1_modal")]
-size = Vector2i(500, 350)
+size = Vector2i(560, 320)
 
 [node name="Title" parent="Contents" index="0"]
 text = "HOW TO PLAY"
 
-[node name="Body" type="Label" parent="Contents/ContentArea" index="0"]
+[node name="HelpScroll" type="ScrollContainer" parent="Contents/ContentArea" index="0"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_font_sizes/font_size = 12
-text = "Design freely, then construct ships in Fleet using materials. Credits automatically purchase any missing materials.
-Each ship needs one connected command center: 2 ? 2 green squares.
-Lost components stop working; disconnected sections become salvage.
-Repair surviving ships for credits. Blue armor is inexpensive to repair.
-Drag or WASD / arrows to pan. Wheel zooms. Auto-camera returns after 5 seconds.
-Laser upgrades spend red materials and credits."
+horizontal_scroll_mode = 0
+
+[node name="Body" type="Label" parent="Contents/ContentArea/HelpScroll" index="0"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+text = "PREPARE AT INHABITED PORTS
+Design in Ship Designer, save a blueprint, then select a Fleet slot and press + to construct. Stored materials are used first; credits buy shortages. Every hull needs one Command Center (the Tech/Civic checkerboard). Combat hulls also need a weapon.
+
+TRAVEL AND RESEARCH
+Open Map, inspect a reachable node, then choose Travel. Victory earns the shown rewards; operational labs add RP. Spend RP in Research after reviewing the grants. Enemy strength depends on the route, not your fleet.
+
+LOSSES AND RECOVERY
+Intact disconnected parts still work. Repair damage and reconstruct destroyed parts at ports. Passengers board on inhabited arrival; each death costs 20 credits and may cause debt. Disembark before reserving or replacing an occupied ship.
+
+CONTROLS
+Wheel: zoom. Drag / WASD: pan. Click a hull for its actions; reserved ships are managed through Reserve. Esc: close a dialog or clear canvas focus. Builder: 1–4 materials, M mirror, Ctrl+Z/Y undo/redo, Ctrl+S/L save/load. Battle: Space restores auto-camera."
 autowrap_mode = 2
-horizontal_alignment = 1
-vertical_alignment = 1
+horizontal_alignment = 0
+vertical_alignment = 0

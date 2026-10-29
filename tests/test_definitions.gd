@@ -37,7 +37,7 @@ func _run() -> void:
 
 	var state := root.get_node("GameState")
 	var catalog := ShipPartPattern.get_catalog()
-	_check(catalog.size() == 18, "Functional shared equipment and all three lab ranks enter the catalog.")
+	_check(catalog.size() == 19, "Functional shared equipment, Cargo Hold and all three lab ranks enter the catalog.")
 	var numeric_ids: Array[int] = []
 	for definition in GameDefinitions.entries("equipment"):
 		var type_id := int(definition.type_id)
@@ -45,7 +45,7 @@ func _run() -> void:
 		_check(ShipPart.Type.get(definition.enum_key) == type_id, "Definition identity must match its serialized enum ID.")
 		_check(not numeric_ids.has(type_id), "Equipment IDs must be unique.")
 		numeric_ids.append(type_id)
-		var foundation_type := type_id in [0, 3, 4, 5, 6, 8, 9, 10]
+		var foundation_type := type_id in [0, 3, 4, 5, 6, 8, 9, 10, ShipPart.Type.CARGO_HOLD]
 		_check(state.is_equipment_available(type_id) == foundation_type,
 			"Only implemented Foundation equipment is authorized in a fresh run.")
 	for pattern in catalog:
