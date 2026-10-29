@@ -1,3 +1,4 @@
+> Owner revision (October 28, 2026): support equipment now integrates into three general design families. No dedicated Science/Civic slots or mandatory support starters remain. Gate C still requires step 18's opening research/economy playtest and 300-credit tuning under this policy.
 # Useful shared research and Gate C review
 
 Step 27 enables six purchases plus known Foundation. The catalog has 16 live patterns across 14 equipment types. Future branches, abilities and economic equipment remain gated.
@@ -11,7 +12,7 @@ Step 27 enables six purchases plus known Foundation. The catalog has 16 live pat
 | Laboratory II | 40 | Physical rank-II lab |
 | Laboratory III | 80 | Physical rank-III lab; requires Laboratory II and first-boss victory |
 
-The grouped review's explicit purchase action calls `GameState.purchase_research`. It checks current-run prerequisites, story gates, exclusions, branch commitments, readiness and RP, and blocks deployment/end-of-run purchases. A research ledger event commits RP debit and grants together before live state changes. Repeats cannot charge twice; failed saves grant nothing and spend nothing. Grants refresh construction choices and stats without changing assembled parts or owned hulls. New hardware requires paid physical construction at a shipyard. Buying the concept immediately changes shared builder/battle stats for applicable owned equipment.
+The node tree shows effects in the right panel and Set Research Focus calls `GameState.set_research_focus`. It checks current-run prerequisites, story gates, exclusions, branch commitments and readiness, and blocks changes during deployment/end-of-run. Focus does not require enough banked RP. Existing banked points and subsequent completed-travel rewards fund saved partial progress; completion grants effects and retains overflow. Reward/allocation ledger events and grants commit together before live state changes. Repeats cannot charge twice; failed saves grant nothing and spend nothing. See RESEARCH.md for the current interaction and distance rule. Grants refresh construction choices and stats without changing assembled parts or owned hulls. New hardware requires paid physical construction at a shipyard. Buying the concept immediately changes shared builder/battle stats for applicable owned equipment.
 
 Energy Manipulation adds to Crew's efficiency: together they give +22%, rather than multiplying. The same stat path caps ordinary bonuses at +30%. Damage per shot, projectile weapons, maximum shields, shield interruption, engine speed and RP are unaffected. Departure records the concept and support context for replay; damage refreshes retain it.
 

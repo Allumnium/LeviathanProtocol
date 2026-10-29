@@ -4,6 +4,8 @@ const RED_MATERIAL_TEXTURE = preload("res://assets/ui/icons/red_square.png")
 const BLUE_MATERIAL_TEXTURE = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_MATERIAL_TEXTURE = preload("res://assets/ui/icons/green_square.png")
 const CORE_MATERIAL_TEXTURE = preload("res://assets/core.png")
+const THRUSTER_TEXTURE = preload("res://assets/thruster_s.png")
+const LARGE_THRUSTER_TEXTURE = preload("res://assets/thruster_l.png")
 const TILE_SIZE := 44.0
 const GRID_MARGIN := 12.0
 const GRID_GAP := 4.0
@@ -80,6 +82,11 @@ func _create_part_button(pattern: ShipPartPattern, button_group: ButtonGroup) ->
 	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	image.texture = pattern.preview_texture
+	match pattern.part_type:
+		ShipPart.Type.THRUSTER:
+			image.texture = THRUSTER_TEXTURE
+		ShipPart.Type.LARGE_THRUSTER:
+			image.texture = LARGE_THRUSTER_TEXTURE
 	if image.texture == null:
 		push_error("No Archive image is assigned for %s." % pattern.display_name)
 	button.add_child(image)

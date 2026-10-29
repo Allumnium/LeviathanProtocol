@@ -13,10 +13,10 @@ static func validate(data: Variant) -> String:
 		return "Run seed must be an integer string."
 	if int(seed_text) < 0 or str(int(seed_text)) != seed_text:
 		return "Run seed is outside the supported range."
-	for key in ["credits", "research_points", "difficulty"]:
+	for key in ["credits", "difficulty"]:
 		if not _integer(data.get(key)):
 			return "Run progress requires integer %s." % key
-	if data.research_points < 0 or int(data.difficulty) not in [0, 1, 2]:
+	if not _rp_number(data.get("research_points")) or data.research_points < 0 or int(data.difficulty) not in [0, 1, 2]:
 		return "Invalid research points or difficulty."
 	if data.has("destroy_all_neutral_targets") and not data.destroy_all_neutral_targets is bool:
 		return "Invalid neutral cleanup preference."
@@ -44,10 +44,14 @@ static func validate(data: Variant) -> String:
 	for key in data.story_flags:
 		if not key is String or key.is_empty() or not data.story_flags[key] is bool:
 			return "Invalid story flag."
-	return ResearchRules.selection_error(data.research_ids, data.story_flags, data.branch_choices)
+	var selection := ResearchRules.selection_error(data.research_ids, data.story_flags, data.branch_choices)
+	return selection if not selection.is_empty() else ResearchFocusRules.validate(data)
 
 static func _integer(value: Variant) -> bool:
 	if value is int:
 		return true
 	# JSON numbers use floats; reject fractional/out-of-range values before casting.
 	return value is float and is_finite(value) and absf(value) <= 9007199254740991.0 and value == floor(value)
+
+static func _rp_number(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) and absf(float(value)) <= 9007199254740991.0

@@ -289,7 +289,7 @@ func to_design_data() -> Dictionary:
 	for pattern in ShipPartPattern.get_catalog():
 		patterns[pattern.pattern_key()] = pattern
 	for part in parts:
-		var orientation := part.get_transform(patterns[part.pattern_key()]) if patterns.has(part.pattern_key()) else Vector2i.ZERO
+		var orientation := part.get_transform(ShipPartPattern.for_cells(patterns[part.pattern_key()], part.cell_offsets)) if patterns.has(part.pattern_key()) else Vector2i.ZERO
 		serialized_parts.append({
 			"type": part.type,
 			"definition_id": part.definition_id,
@@ -406,6 +406,7 @@ func load_design_data(serialized_design: Variant) -> bool:
 		):
 			return false
 
+		pattern = ShipPartPattern.for_cells(pattern, cell_offsets)
 		var pattern_transform := pattern.get_transform_for_offsets(cell_offsets)
 		if serialized_part.has("definition_id") and serialized_part.definition_id != pattern.definition_id:
 			push_error("Ship design equipment identity does not match its type.")

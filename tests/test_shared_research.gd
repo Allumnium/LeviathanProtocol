@@ -65,9 +65,9 @@ func _test_purchases_and_ui() -> void:
 	await process_frame
 	var view: Control = map.panel_tabs.get_node("Upgrades").grouped_view
 	view.selected_id = "applied_energy"
-	view.open_details()
-	check(view.review_action != null, "Ready research has a reviewed purchase action in the real grouped UI.")
-	view.review_action.pressed.emit()
+	view._select("applied_energy")
+	check(view.focus_button != null, "Ready research has a reviewed purchase action in the real grouped UI.")
+	view.focus_button.pressed.emit()
 	check(state.research_points == 180 and state.is_equipment_available(ShipPart.Type.LASER) and state.is_equipment_available(ShipPart.Type.DOUBLE_LASER), "One reviewed purchase unlocks both beams for 20 RP.")
 	check(not state.purchase_research("applied_energy") and state.research_points == 180, "Duplicate purchase cannot charge or unlock twice.")
 	check(state.purchase_research("field_engineering") and state.purchase_research("guided_munitions") and state.purchase_research("energy_manipulation"), "All useful shared research is purchasable with satisfied prerequisites.")
@@ -206,6 +206,7 @@ func _test_earned_research() -> void:
 	var state = root.get_node("GameState")
 	check(state.start_new_run(1, 42), "Start actual earn-and-research scenario.")
 	check(state.purchase_ship(design(ShipPart.Type.RESEARCH_LAB), "Starting scientist"), "Starting resources can build a functional lab hull.")
+	check(state.set_research_focus("applied_energy"), "Focus starting research before traveling.")
 	var battles := 0
 	while battles < 8:
 		var node: int = state.get_reachable_nodes(state.current_node_id)[0]
@@ -219,9 +220,7 @@ func _test_earned_research() -> void:
 					break
 			check(sim.phase == BattleSimulation.Phase.VICTORY and state.settle_battle(sim), "Win and settle real victory RP from a deployed lab.")
 			battles += 1
-		if not state.current_research_ids.has("applied_energy"):
-			check(state.purchase_research("applied_energy"), "Earned victory RP buys Applied Energy without injected research points.")
-		if state.is_shipyard_node(state.current_node_id):
+		if state.is_shipyard_node(state.current_node_id) and state.current_research_ids.has("applied_energy"):
 			var blueprint := design(ShipPart.Type.LASER)
 			check(state.purchase_ship(blueprint, "Researched beam"), "Earned research leads to a paid working beam hull at the next shipyard.")
 			var owned: FleetShip = state.fleet.back()

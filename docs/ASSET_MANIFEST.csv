@@ -1,4 +1,4 @@
-﻿"asset_id","path","width","height","states","source_license","pivot"
+"asset_id","path","width","height","states","source_license","pivot"
 "assets.armor_m","assets/armor_m.png","62","62","static","Unverified","Renderer-controlled; visual QA pending"
 "assets.armor_m~","assets/armor_m.png~","256","256","static","Unverified","Renderer-controlled; visual QA pending"
 "assets.bullet","assets/bullet.png","16","16","static","Unverified","Renderer-controlled; visual QA pending"
@@ -66,3 +66,4 @@
 "assets.ui.panels.panel","assets/ui/panels/panel.png","128","94","static","Unverified","Renderer-controlled; visual QA pending"
 "assets.ui.panels.simple_panel","assets/ui/panels/simple_panel.png","42","42","static","Unverified","Renderer-controlled; visual QA pending"
 "assets.ui.panels.simple_panel_3x","assets/ui/panels/simple_panel_3x.png","126","126","static","Unverified","Renderer-controlled; visual QA pending"
+"assets.passenger_cabin","assets/passenger_cabin.png","192","128","static; 3x2 cells","Project-provided; license unverified","Centered on occupied footprint; rotation/reflection follows component"

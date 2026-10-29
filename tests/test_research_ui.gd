@@ -23,6 +23,20 @@ func _texts(node: Node) -> String:
 		result += "\n" + _texts(child)
 	return result
 
+func _click(control: Control) -> void:
+	var point := control.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	root.push_input(motion, true)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		root.push_input(event, true)
+	await process_frame
+	await process_frame
+
 func _run() -> void:
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://research_ui/run.json"
@@ -64,59 +78,91 @@ func _run() -> void:
 	current_scene = map
 	await process_frame
 	await process_frame
-	if is_instance_valid(map.campaign_overlay):
-		map.campaign_overlay.queue_free()
 	var view: Control = map.panel_tabs.get_node("Upgrades").grouped_view
-	_check(view != null and view.nodes.size() == 8 and not map.research_groups.visible, "New campaign mounts the grouped UI without showing it on Fleet.")
 	map.panel_tabs.current_tab = 2
-	_check(map.research_groups.visible and map.research_details.visible and not map.build_controls.visible, "Research tab activates its family and detail sidebars.")
-	var before: Dictionary = state.run_progress_snapshot()
-	view.card_buttons.foundation.pressed.emit()
-	_check(is_instance_valid(view.details_dialog) and state.is_modal_ui_open() and view.review_action == null, "Owned review is modal and cannot request another purchase.")
-	view.close_details()
 	await process_frame
-	_check(not state.is_modal_ui_open() and state.run_progress_snapshot() == before, "Review and close do not mutate run state.")
+	_check(view.nodes.size() == 7 and not view.card_buttons.has("foundation"), "All seven available technologies share one tree; Foundation is assumed.")
+	_check(view.tree_canvas.branch_roots.size() == 3 and view.tree_canvas.edges.size() == 7, "Research categories are connected major branches on the same canvas.")
 	view.registry = fixture
-	view.state_override = {"research_ids": ["foundation"], "story_flags": {}, "branch_choices": {}, "research_points": 20}
+	view.state_override = {"research_ids": ["foundation"], "story_flags": {}, "branch_choices": {}, "research_points": 0}
 	view.refresh()
-	view.purchase_requested.connect(func(id: String) -> void: requests.append(id))
-	view.card_buttons.applied_energy.pressed.emit()
-	_check(_texts(view.details_dialog).contains("Double Laser") and view.review_action != null
-		and view.review_action.text.contains("20 RP") and requests.is_empty(), "Selection opens the complete review before any acquisition request.")
-	view.review_action.pressed.emit()
-	_check(requests == ["applied_energy"] and state.run_progress_snapshot() == before, "Only an explicit reviewed action emits a request; the view never spends RP or grants content.")
-	await process_frame
-	view.state_override.research_points = 0
-	view.refresh()
-	view.card_buttons.applied_energy.pressed.emit()
-	_check(view.review_action == null and _texts(view.details_dialog).contains("20 more RP"), "Insufficient RP cannot emit an acquisition request.")
-	view.close_details()
-	await process_frame
-	view.state_override.research_points = 1000
-	view.collapsed.energy = false
-	view.refresh()
-	view.card_buttons.optics_i.pressed.emit()
-	_check(view.review_action == null and _texts(view.details_dialog).contains("Still needed: Applied Energy"), "Unmet prerequisites block the review action.")
-	view.close_details()
-	await process_frame
-	view.state_override.research_ids = ["foundation", "applied_energy"]
-	view.refresh()
-	view.card_buttons.optics_i.pressed.emit()
-	_check(_texts(view.details_dialog).contains("locks every Disruption tier") and view.review_action != null,
-		"Permanent branch warning is pinned beside the reviewed acquisition action.")
-	view.state_override.research_points = 0
-	view.refresh()
-	_check(not view.details_dialog.visible and view.review_action == null, "State refresh closes stale acquisition reviews.")
-	view.collapsed.energy = true
-	view.refresh()
-	_check(not view.card_buttons.has("optics_i"), "Collapsed families remove their tier cards.")
-	view.group_headers.energy.pressed.emit()
-	_check(view.card_buttons.has("optics_i"), "Family headers reopen depth cards.")
-	view.state_override = {}
+	_check(view.card_buttons.size() == 45 and view.tree_canvas.branch_roots.size() == 10, "The complete detached catalog fits one graph without category filtering or a Foundation card.")
+	for edge: Array in view.tree_canvas.edges:
+		if view.tree_canvas.positions.has(edge[0]):
+			_check(view.tree_canvas.positions[edge[1]].x > view.tree_canvas.positions[edge[0]].x, "Cross-category prerequisites retain forward hierarchy: %s." % str(edge))
 	view.registry = live
-	state.research_points = 73
-	state.research_changed.emit()
-	_check(view.nodes.size() == 8 and view.rp_label.text.contains("73 RP"), "Research signals refresh state and restore production gating.")
+	view.state_override = {}
+	view.refresh()
+	_check(not _texts(map.research_groups).contains("CATEGORIES") and _texts(map.research_groups).contains("0.5 RP/day"), "The left panel describes baseline production instead of filtering categories.")
+	var destination: int = state.get_reachable_nodes(state.current_node_id)[0]
+	_check(state.set_planned_destination(destination), "Select a travel plan.")
+	_check(_texts(map.research_groups).contains("days") and _texts(map.research_groups).contains("RP on arrival"), "Planning a route refreshes its days and expected RP.")
+	view._select("applied_energy")
+	_check(not state.is_modal_ui_open() and not view.focus_button.disabled, "Zero-RP focus stays inline and available.")
+	await _click(view.focus_button)
+	_check(state.research_focus == "applied_energy" and view.focus_button.text == "FOCUSED", "Pointer sets focus at zero RP.")
+	state.research_points = 20.0
+	_check(state.set_research_focus("applied_energy") and state.current_research_ids.has("applied_energy"), "Complete a real focused node.")
+	_check(view.card_buttons.applied_energy.find_child("Completed", true, false) is Line2D, "Completion is a drawn green check above the name, not a font glyph or Complete label.")
+	state.research_points = 12.5
+	_check(state.set_research_focus("energy_manipulation"), "Set a partially funded concept.")
+	var marker: Label = view.card_buttons.energy_manipulation.find_child("Progress", true, false)
+	_check(marker.text == "12.5 / 40", "Node progress preserves fractional RP and displays X / Y above its name.")
+	_check(not _texts(map.research_details).contains("Ordinary") and not _texts(map.research_details).contains("RESEARCH DETAILS"), "Details keep only the effect, progress and focus action.")
+	_check(state.load_run_checkpoint() and state.research_progress.get("energy_manipulation") == 12.5, "Partial half-RP research reloads without truncation.")
+	view._select("laboratory_iii")
+	_check(view.focus_button.disabled and _texts(map.research_details).contains("Laboratory II"), "Prerequisites still block focus with concise inline feedback.")
+	root.mode = Window.MODE_WINDOWED
+	root.content_scale_size = Vector2i(640, 360)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await process_frame
+		await process_frame
+		view.tree_canvas.fit_view()
+		var camera: Vector2 = view.tree_canvas.camera_position
+		var point: Vector2 = view.tree_canvas.get_global_rect().end - Vector2(8, 8)
+		for pressed in [true, false]:
+			var event := InputEventMouseButton.new()
+			event.position = point if pressed else point - Vector2(24, 0)
+			event.button_index = MOUSE_BUTTON_MIDDLE
+			event.pressed = pressed
+			root.push_input(event, true)
+			if pressed:
+				var movement := InputEventMouseMotion.new()
+				movement.position = point - Vector2(24, 0)
+				movement.relative = Vector2(-24, 0)
+				movement.button_mask = MOUSE_BUTTON_MASK_MIDDLE
+				root.push_input(movement, true)
+		_check(view.tree_canvas.camera_position.x > camera.x, "Pointer pans the unified tree at %s." % resolution)
+		view.tree_canvas.camera_position = view.tree_canvas.positions.energy_manipulation + view.tree_canvas.CARD_SIZE * 0.5
+		view.tree_canvas._update_camera()
+		await _click(view.card_buttons.energy_manipulation)
+		_check(view.selected_id == "energy_manipulation" and not state.is_modal_ui_open(), "Pointer selects a node and updates right details at %s." % resolution)
+		_check(map.research_details.get_global_rect().encloses(view.focus_button.get_global_rect()), "Focus remains in the right panel.")
+		var zoom: float = view.tree_canvas.camera_zoom
+		var wheel := InputEventMouseButton.new()
+		wheel.position = point
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		wheel.pressed = true
+		root.push_input(wheel, true)
+		_check(view.tree_canvas.camera_zoom > zoom, "Pointer zooms the unified tree.")
+		wheel.pressed = false
+		root.push_input(wheel, true)
+		view.tree_canvas.camera_zoom = 1.0
+		view.tree_canvas.camera_position = Vector2(205, 88)
+		view.tree_canvas._update_camera()
+		_check(Rect2(Vector2.ZERO, root.get_visible_rect().size).encloses(map.get_node("Layout").get_global_rect()), "Research layout fits the viewport at %s." % resolution)
+		if "--capture" in OS.get_cmdline_user_args():
+			await RenderingServer.frame_post_draw
+			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://.local/research-tree/captures"))
+			root.get_texture().get_image().save_png("res://.local/research-tree/captures/tree-%dx%d.png" % [resolution.x, resolution.y])
+		view.tree_canvas.camera_zoom = 0.4
+		view.tree_canvas.camera_position = Vector2(180, 225)
+		view.tree_canvas._update_camera()
+		if "--capture" in OS.get_cmdline_user_args():
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/research-tree/captures/overview-%dx%d.png" % [resolution.x, resolution.y])
 	map.panel_tabs.current_tab = 0
 	_check(not map.research_groups.visible and not map.research_details.visible, "Research sidebars hide on other tabs.")
 	map.queue_free()

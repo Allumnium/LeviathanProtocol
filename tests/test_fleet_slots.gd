@@ -28,68 +28,20 @@ func _variant(index: int) -> Ship:
 	return design
 
 func _run() -> void:
-	var science := _policy_design([ShipPart.Type.RESEARCH_LAB])
-	var civic := _policy_design([ShipPart.Type.CARGO_HOLD])
-	_check(FleetRules.design_error(science, "science").is_empty(), "Science accepts one lab without requiring weapons.")
-	_check(FleetRules.design_error(civic, "civic").is_empty(), "Civic accepts a Cargo Hold.")
-	_check(FleetRules.design_error(_policy_design([ShipPart.Type.PASSENGER_CABIN]), "civic").is_empty(), "Passenger accommodation qualifies Civic.")
-	_check(not FleetRules.design_error(_policy_design([ShipPart.Type.OBSERVATION_DECK]), "civic").is_empty(), "A luxury modifier without berths does not qualify Civic.")
-	_check(not FleetRules.design_error(_policy_design([ShipPart.Type.RESEARCH_LAB, ShipPart.Type.CARGO_HOLD]), "science").is_empty(), "Science forbids cargo.")
-	_check(not FleetRules.design_error(_policy_design([ShipPart.Type.RESEARCH_LAB, ShipPart.Type.PASSENGER_CABIN]), "science").is_empty(), "Science forbids berths.")
-	_check(not FleetRules.design_error(_policy_design([ShipPart.Type.RESEARCH_LAB, ShipPart.Type.CARGO_HOLD]), "civic").is_empty(), "Civic forbids labs.")
-	for type in [ShipPart.Type.MINING_LASER, ShipPart.Type.EXTRACTION_DRILL, ShipPart.Type.ORE_PROCESSOR, ShipPart.Type.SEISMIC_CUTTER, ShipPart.Type.PLANETCRACKER_CORE]:
-		for role in ["science", "civic"]:
-			var required := ShipPart.Type.RESEARCH_LAB if role == "science" else ShipPart.Type.CARGO_HOLD
-			var design := _policy_design([required, type])
-			_check(not FleetRules.design_error(design, role).is_empty(), "Every mining component is regular-slot-only.")
-			_check(FleetRules.design_error(design, "regular").is_empty(), "Regular hulls retain legal support/mining options.")
-	for type in [ShipPart.Type.FLIGHT_DECK, ShipPart.Type.TORPEDO_BOMBER_BAY, ShipPart.Type.STELLAR_LANCE, ShipPart.Type.SINGULARITY_PROJECTOR, ShipPart.Type.SIEGE_MASS_DRIVER, ShipPart.Type.HIVE_CARRIER_CORE]:
-		_check(not FleetRules.design_error(_policy_design([ShipPart.Type.RESEARCH_LAB, type]), "science").is_empty(), "Offensive capstones and strike craft cannot use Science.")
-		_check(not FleetRules.design_error(_policy_design([ShipPart.Type.CARGO_HOLD, type]), "civic").is_empty(), "Offensive capstones and strike craft cannot use Civic.")
-	for index in range(7):
-		science.set_tile_at(Vector2i(20 + index, 0), ShipPart.Category.OFFENSE)
-	_check(not FleetRules.design_error(science, "science").is_empty(), "Loose Offense tiles count toward the six-tile limit.")
-	science.remove_tile_at(Vector2i(26, 0))
-	_check(FleetRules.design_error(science, "science").is_empty(), "Exactly six Offense tiles are permitted.")
-	var physical := FleetShip.new()
-	physical.design = science
-	physical.slot_role = "science"
-	physical.units = [{"part": science.parts[1], "hp": 1.0}]
-	_check(FleetRules.operational_error(physical).is_empty(), "A living lab satisfies deployed Science.")
-	physical.units[0].hp = 0
-	_check(FleetRules.operational_error(physical).is_empty(), "A legally fitted Science hull can travel with its lab destroyed.")
-	physical.design = civic
-	physical.slot_role = "civic"
-	physical.units = [{"part": civic.parts[1], "hp": 0.0}]
-	_check(FleetRules.operational_error(physical).is_empty(), "A legally fitted Civic hull is not stranded by destroyed support equipment.")
-
+	var combined := _policy_design([ShipPart.Type.RESEARCH_LAB, ShipPart.Type.CARGO_HOLD, ShipPart.Type.PASSENGER_CABIN, ShipPart.Type.MINING_LASER, ShipPart.Type.FLIGHT_DECK])
+	for role in FleetRules.ROLES:
+		_check(FleetRules.design_error(combined, role).is_empty(), "Equipment combinations are independent of legacy role names.")
+	_check(not FleetRules.design_error(Ship.new()).is_empty(), "General hulls still require one Command Center.")
 	var state := root.get_node("GameState")
 	state.run_save_path = "user://fleet_slots/run.json"
 	_check(state.start_new_run(GameState.Difficulty.MEDIUM, 42), "Start fleet policy fixture.")
-	var support_a := FleetShip.new()
-	var support_b := FleetShip.new()
-	for support in [support_a, support_b]:
-		support.id = 100 if support == support_a else 101
-		support.design = science
-		support.slot_role = "science"
-		support.core_index = 0
-		support.units.assign([{"part": science.parts[0], "hp": 1.0}, {"part": science.parts[1], "hp": 1.0}])
-		state.fleet.append(support)
-	state.roster_state.support_ids.science = support_a.id
-	_check(state.get_deployed_fleet().size() == 4 and not state.is_ship_deployed(support_b), "Exactly one physical Science ship can occupy the dedicated slot.")
-	state.roster_state.support_ids.civic = support_a.id
-	_check(not FleetRules.valid(state.roster_state, state.fleet), "A physical ship cannot occupy both dedicated slots.")
-	state.roster_state.support_ids.science = 0
-	state.roster_state.support_ids.civic = 0
-	state.fleet.erase(support_a)
-	state.fleet.erase(support_b)
 	state.credits = 100000
 	var originals: Array[Dictionary] = state.get_saved_ship_designs()
 	var fixtures: Array[Dictionary] = [{"name": "Science Vessel", "ship": _variant(0).to_design_data()}, {"name": "Fourth", "ship": _variant(3).to_design_data()}]
 	state.saved_ship_designs = fixtures
 	var before_credits: int = state.credits
-	_check(not state.purchase_saved_ship("Science Vessel", "science") and state.credits == before_credits,
-		"Renaming/importing a combat design cannot manufacture a Science ship.")
+	_check(state.purchase_saved_ship("Science Vessel", "science") and state.credits <= before_credits,
+		"Legacy role arguments use the same general family rather than a bonus slot.")
 	_check(state.purchase_ship(_variant(1), "Escort") and state.purchase_ship(_variant(2), "Frigate"), "Three regular families can construct physical copies.")
 	var family_count: int = state.roster_state.families.size()
 	_check(not state.purchase_saved_ship("Fourth") and state.roster_state.families.size() == family_count, "A fourth family cannot deploy through library construction.")
@@ -202,9 +154,7 @@ func _test_ui(state: Node) -> void:
 	await process_frame
 	await process_frame
 	var panel: Control = map.panel_tabs.get_node("Fleet")
-	_check(panel.slots.size() == 5 and panel.slot_widgets.size() == 5, "Fleet UI exposes three regular plus Science/Civic slots.")
-	_check(panel.slot_widgets[3].label.text.begins_with("SCIENCE") and panel.slot_widgets[4].label.text.begins_with("CIVIC"), "Dedicated slots are labeled distinctly.")
-	_check(panel.slot_widgets[3].construct.visible == false and panel.slot_widgets[4].construct.visible == false, "Unimplemented support equipment is not exposed as a purchasable stub.")
+	_check(panel.slots.size() == 3 and panel.slot_widgets.size() == 3, "Fleet UI exposes three general design slots.")
 	_check(state.assign_fleet_design(0, "Revision", _variant(1), true), "Select another revision for the UI fixture.")
 	var original: FleetShip = state.fleet[0]
 	var credits: int = state.credits

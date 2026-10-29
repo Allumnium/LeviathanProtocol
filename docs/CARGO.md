@@ -36,7 +36,7 @@ persist in one atomic checkpoint; a failed write changes none of them.
 
 Route previews use current stored cargo value and passenger ticket estimates.
 Step 33 supplies the held-value display and explicit offload/discard UI. Step 18's
-four-ship/300-credit starter activation and opening playtest remain open.
+general-slot starter review, 300-credit target and opening playtest remain open.
 
 Validation: `tests/test_cargo.gd` covers independent inventory, identity, seven
 Basic Goods valued at 21, JSON/save reload, partial damage, destruction followed

@@ -106,11 +106,11 @@ func _run() -> void:
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
-		check(fleet.slot_widgets.size() == 5 and map.fleet_controls.find_children("*", "ScrollContainer", true, false).is_empty(), "Five ship slots require no scrolling at %s." % resolution)
+		check(fleet.slot_widgets.size() == 3 and map.fleet_controls.find_children("*", "ScrollContainer", true, false).is_empty(), "Three general ship slots require no scrolling at %s." % resolution)
 		var panel: Control = map.fleet_controls.get_parent()
 		for widget: Dictionary in fleet.slot_widgets:
 			check(panel.get_global_rect().encloses(widget.button.get_global_rect()), "Every slot is completely inside the left panel at %s." % resolution)
-		check(panel.get_global_rect().encloses(map.port_button.get_global_rect()) and panel.get_global_rect().encloses(map.story_button.get_global_rect()), "Services remain visible below all five slots at %s." % resolution)
+		check(map.fleet_controls.find_child("FleetServices", true, false) == null and not map.sector_name_label.visible, "No Port/Story controls or Act/row label remain.")
 		check(fleet.slot_widgets[0].label.get_theme_font("font").get_font_name() == "Starhull", "Ship slot names retain Starhull.")
 	root.size = Vector2i(640, 360)
 	await settle()
@@ -176,9 +176,11 @@ func _run() -> void:
 	var fleet_add_usec := Time.get_ticks_usec() - fleet_edit_started
 	check(state.fleet.size() == owned_count + 1 and state.credits == credits_before_construction - construction_price, "Confirmed construction creates and charges one physical ship.")
 	check(fleet_add_usec < 600000, "Fleet add, including deferred UI refresh, stays below 600 ms (%d us)." % fleet_add_usec)
-	await click(fleet.slot_widgets[0].salvage)
+	fleet.board.selected_ships.assign([state.fleet.back()])
+	fleet.board.selection_changed.emit()
+	await settle()
 	fleet_edit_started = Time.get_ticks_usec()
-	await click(fleet.action_review.find_child("ConfirmAction", true, false))
+	await click(fleet.ship_actions.find_child("SalvageAction", true, false))
 	var fleet_remove_usec := Time.get_ticks_usec() - fleet_edit_started
 	check(state.fleet.size() == owned_count and state.credits == credits_before_construction - construction_price, "Dismantling removes one physical hull without refunding credits.")
 	check(fleet_remove_usec < 600000, "Fleet removal, including deferred UI refresh, stays below 600 ms (%d us)." % fleet_remove_usec)
@@ -253,21 +255,18 @@ func _run() -> void:
 	check(not map.route_travel_button.disabled, "Ready fleet can travel to a reachable node.")
 	await key(KEY_ESCAPE)
 	check(not map.graph_modal.visible, "Escape closes the map modal.")
-	map._show_port_services()
-	await settle()
 	var credits: int = state.credits
-	check(map.campaign_overlay.find_child("MaterialPurchases", true, false) == null and not state.has_method("purchase_material"), "Ports do not expose individual material purchases.")
-	await key(KEY_ESCAPE)
-	check(not is_instance_valid(map.campaign_overlay), "Escape closes port services.")
+	check(not state.has_method("purchase_material") and not is_instance_valid(map.campaign_overlay), "No material shop or automatic story/service popup appears.")
 	state.research_points = 20
 	state.research_changed.emit()
 	await click(map.panel_tab_buttons[2])
 	var research: Control = map.panel_tabs.get_node("Upgrades").grouped_view
-	research.list_scroll.ensure_control_visible(research.card_buttons.civil_hospitality)
+	research.tree_canvas.camera_position = research.tree_canvas.positions.civil_hospitality + research.tree_canvas.CARD_SIZE * 0.5
+	research.tree_canvas._update_camera()
 	await settle()
 	await click(research.card_buttons.civil_hospitality)
-	check(is_instance_valid(research.review_action), "Affordable research opens an explicit cost-and-grants review.")
-	await click(research.review_action)
+	check(is_instance_valid(research.focus_button), "Selecting a research node exposes its inline focus action.")
+	await click(research.focus_button)
 	check(state.research_points == 0 and state.current_research_ids.has("civil_hospitality"), "Reviewed research spends the quoted RP once and unlocks its grants.")
 	state.credits = -48
 	await click(map.panel_tab_buttons[0])

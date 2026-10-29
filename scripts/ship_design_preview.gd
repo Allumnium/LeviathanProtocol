@@ -78,14 +78,14 @@ func _draw() -> void:
 		)
 
 	for part in ship.parts:
-		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
+		var pattern := ShipPartPattern.for_cells(_part_patterns_by_type.get(part.pattern_key()), part.cell_offsets)
 		if pattern != null and not pattern.renders_on_top:
 			_draw_part(part, origin, cell_size)
 
 	draw_colored_polygon(hull, HULL_OVERLAY_COLOR)
 
 	for part in ship.parts:
-		var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
+		var pattern := ShipPartPattern.for_cells(_part_patterns_by_type.get(part.pattern_key()), part.cell_offsets)
 		if pattern != null and pattern.renders_on_top:
 			_draw_part(part, origin, cell_size)
 
@@ -93,7 +93,7 @@ func _draw() -> void:
 
 
 func _draw_part(part: ShipPart, origin: Vector2, cell_size: float) -> void:
-	var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
+	var pattern := ShipPartPattern.for_cells(_part_patterns_by_type.get(part.pattern_key()), part.cell_offsets)
 	if pattern == null:
 		push_error("Unknown ship part type in design preview: %s" % part.type)
 		return
@@ -128,7 +128,7 @@ func _draw_part(part: ShipPart, origin: Vector2, cell_size: float) -> void:
 		maximum_y - minimum_y + 1
 	) * cell_size
 	draw_texture_rect(
-		pattern.preview_texture,
+		ShipPartPattern.texture_for_part(pattern, part),
 		Rect2(texture_origin, texture_size),
 		false
 	)

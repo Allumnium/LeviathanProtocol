@@ -971,7 +971,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	)
 	var steering_direction := _flyby_direction(ship, ship.target)
 	var escort_distance := INF
-	if ship.owned_ship != null and ship.owned_ship.slot_role != "regular" and ship.commanded_target == null:
+	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty()) and ship.commanded_target == null:
 		var anchor := _escort_anchor(ship)
 		escort_distance = ship.position.distance_to(anchor)
 		steering_direction = ship.position.direction_to(anchor)
@@ -1076,11 +1076,13 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 func _escort_anchor(ship: Combatant) -> Vector2:
 	var host: Combatant
 	for candidate in players:
-		if candidate == ship or not candidate.is_alive() or candidate.owned_ship == null or candidate.owned_ship.slot_role != "regular":
+		if candidate == ship or not candidate.is_alive() or candidate.owned_ship == null:
 			continue
 		if candidate.owned_ship.id == ship.owned_ship.escort_target_id:
 			host = candidate
 			break
+		if candidate.stats.weapons.is_empty():
+			continue
 		if host == null or candidate.position.distance_squared_to(ship.position) < host.position.distance_squared_to(ship.position):
 			host = candidate
 	if host == null:

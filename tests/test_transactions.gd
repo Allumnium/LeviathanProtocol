@@ -134,7 +134,8 @@ func _run() -> void:
 	_check(state.load_run_checkpoint() and state.current_node_id == 1 and not state.battle_pending,
 		"Reloading a victory cannot reopen its pending settlement.")
 	var source := "node/1"
-	_check(state.commit_event("victory", source, int(frozen_reward.credits), frozen_reward.materials)
+	var settled: Dictionary = state.transaction_ledger[state.run_id + "/victory/" + source]
+	_check(state.commit_event("victory", source, int(frozen_reward.credits), frozen_reward.materials, float(settled.rp_delta), settled.details)
 		and state.credits == credit_before + int(frozen_reward.credits),
 		"Replaying the settled victory after reload cannot pay again.")
 	var previous_run: String = state.run_id

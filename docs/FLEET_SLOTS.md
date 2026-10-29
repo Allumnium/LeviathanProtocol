@@ -1,3 +1,12 @@
+# Current fleet policy — October 28, 2026
+
+Three general design slots replace the three regular plus dedicated Science/Civic slots. Any researched combat, lab, accommodation, cargo or mining equipment can share a hull. There are no role-based singleton or six-Offense limits. Normal one-Command-Center, research, design-family, active-revision and deployment-capacity rules remain. Unarmed support designs are legal alongside an armed deployment; unarmed ships default to escorting an armed ally.
+
+New physical copies all use general families. Roster version 1 support hulls migrate to version 2 general families on load, preserving IDs, damage, reserves, passengers, cargo and accounting. Existing active families remain selected; converted support families fill empty slots where available. Overflow remains owned and selectable through reserve/revision management. In-flight migration retains the original attempt membership; retries use current general selections and cannot resurrect historical copies.
+
+The UI has no Science/Civic selectors, Port/Story buttons, service-explanation panels or automatic story popups. Story flags/research gates, arrivals and repair availability still operate. The top bar shows resources and level; fleet count, hull condition and damage are in Fleet Summary. General-slot and migration checks, including pending withdrawal/retry, are in tests/test_general_fleet.gd; screenshots/logs are in .local/unified-fleet/.
+
+The original implementation record below is historical and superseded wherever it describes dedicated roles or their restrictions.
 # Fleet families, dedicated slots and reserves
 
 Step 17 applies the new roster policy to active campaigns. Historical legacy-layout saves keep their compatibility behavior; normal new runs use the policy.

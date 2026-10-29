@@ -82,6 +82,35 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 		result.append(find(registry, domain, id).get("display_name", id))
 	return ", ".join(result)
 
+static func effect_summary(registry: Dictionary, id: String) -> String:
+	var node := find(registry, "research", id)
+	var lines: Array[String] = []
+	for equipment_id: String in node.grants.equipment_ids:
+		var equipment := find(registry, "equipment", equipment_id)
+		if equipment.implemented:
+			lines.append(equipment.display_name)
+			match equipment_id:
+				"repair_station": lines.append("2 HP/s, 2 adjacent\n20 HP reserve")
+				"point_defense_turret": lines.append("Missile defense")
+				"missile_rack": lines.append("3 missiles / burst")
+				"passenger_cabin": lines.append("4 seats")
+				"observation_deck": lines.append("+1 luxury, 2 adjacent\nExterior edge")
+	for rank: Dictionary in node.grants.ranks:
+		var equipment := find(registry, "equipment", rank.equipment_id)
+		if equipment.implemented:
+			lines.append("Lab %s\n1 RP/day" % ("II" if int(rank.rank) == 2 else "III"))
+	for ability_id: String in node.grants.ability_ids:
+		var ability := find(registry, "abilities", ability_id)
+		if ability.implemented:
+			lines.append(ability.display_name)
+	for modifier: Dictionary in node.grants.modifiers:
+		match modifier.id:
+			"energy_efficiency": lines.append("+%d%% beams / shield recharge" % roundi(modifier.value * 100))
+			"cargo_hold_capacity": lines.append("%d cargo / hold" % int(modifier.value))
+			"scan_spectroscopy": lines.append("Scan: ore details")
+			"extractable_materials": lines.append("Extractable materials: " + names(registry, "materials", modifier.values))
+	return "\n\n".join(lines)
+
 static func details(registry: Dictionary, id: String, visible_ids: Array) -> String:
 	var node := find(registry, "research", id)
 	if node.is_empty():

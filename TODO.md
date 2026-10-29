@@ -12,7 +12,7 @@ Audit existing assets before commissioning art. Use placeholders until mechanics
 | Survival: 6 | Reactive Bulkhead, Shield Relay, Aegis Citadel, Repair Drone Bay, Nanoforge, Ark Restoration Core | Later branches |
 | Force projection: 6 | Ammunition Magazine, Railgun, Siege Mass Driver, Flight Deck, Torpedo Bomber Bay, Hive Carrier Core | Later branches |
 | Fleet operations: 6 | Command Uplink, Tactical Computer, Admiralty Nexus, ECM Suite, Phase Drive, Ghost Network | Later branches |
-| Passengers: 4 | Passenger Cabin, Observation Deck, Luxury Suites, Grand Promenade | Economy then endpoint |
+| Passengers: 4 | Passenger Cabin (3x2 art integrated), Observation Deck, Luxury Suites, Grand Promenade | Cabin integrated; remaining economy/endpoint |
 | Logistics: 4 | Cargo Hold, Tractor Array, Sorting Refinery, Industrial Foundry | Economy then endpoint |
 | Science: 2 | Analysis Array, Quantum Observatory | Research progression |
 | Sensors/cloak: 3 | Sensor Array, Radar Relay, Cloak Generator | Visibility then Act II |
@@ -30,9 +30,21 @@ Audit existing assets before commissioning art. Use placeholders until mechanics
 | Economy/research UI | Occupancy/capacity/luxury/death, goods grades, cargo value/capacity, signed credits, research concepts/multi-grants/branch locks/story gates, four-material legend. No contract UI or passenger portraits. | Economy/research |
 | Story/audio/accessibility | Short checkpoint cards/illustrations, Scan/lock/cloak/collision/mining/trade/research/boss audio cues, subtitles, reduced flashes, shape-coded warnings | Polish |
 
-Art contract: transparent grid-aligned component sprites and pivots matching existing logical cell scale (currently 26 units; verify in step 1), correct heading/exhaust transforms, explicit frame counts/timing, and appropriate import filtering. Inspect existing art before choosing export resolution. Keep an asset manifest with stable IDs, paths, dimensions, animation states and source/licenses. Prefer procedural masks/overlays for fog and targeting. Assemble Science Vessel, Civic Tender and miners from component art; standalone ship sprites are unnecessary.
+Art contract: transparent grid-aligned component sprites and pivots matching existing logical cell scale (currently 26 units; verify in step 1), correct heading/exhaust transforms, explicit frame counts/timing, and appropriate import filtering. Inspect existing art before choosing export resolution. Keep an asset manifest with stable IDs, paths, dimensions, animation states and source/licenses. Prefer procedural masks/overlays for fog and targeting. Assemble player-designed mixed/support/mining hulls from component art; standalone ship sprites are unnecessary.
+
+
+**Passenger cabin artwork integration (October 28, 2026):** Integrated assets/passenger_cabin.png (192x128) through the shared pattern, Archive, builder, design/fleet previews and battle rendering. Current cabins occupy 3x2 cells (CCC/CCC), weigh six cells and retain four passenger places. Cached rotated/mirrored textures keep the art aligned with all eight orientations and draw above hull shading. Saved 2x2 cabins resolve their legacy geometry/stats, preserving HP, identities, unit order and occupants without adding cells or overlapping neighbours. Updated asset inventories/design recipe and added tests/test_passenger_art.gd (+UID) to the runner. Expanded native/headless art checks pass, including sprite pixels, builder texture lookup, battle geometry and occupied/damaged legacy reloads. All 34 regression suites pass across .local/passenger-art/baseline-final.log (33 suites) and battle-final.log (the remaining suite after updating its render-layer expectation), including 600 battles and 1,000 graph/content seeds each. Native evidence: docs/ui-review/passenger-cabin-orientations.png and passenger-cabin-archive.png. Existing certificate-store/shutdown diagnostics remain separate from assertions. No subsequent TODO feature was activated.
 
 ## Execution rules
+
+### Research direction (latest owner revision, October 28, 2026)
+
+This supersedes earlier category-filter, Foundation-node, instant-purchase, victory-only and map-row-productivity descriptions in completed steps and design tables. Use one pannable/zoomable tree: categories are major connected branches, Foundation is assumed and hidden. Click a node for minimal right-panel unlock/effect details and Set Focus. A green drawn check appears above completed node names; partial nodes show current / required RP above the name. No research modals, View Grants, next labels or category sidebar. The left panel shows labs, baseline, RP/day and planned travel days/arrival yield. The header alone shows unspent RP.
+
+Production is (living deployed lab count + 0.5 baseline) * planned travel days, at 1 RP/day/lab. Typical adjacent routes take 2-4 days, varying with route length. All living labs count, including multiple labs on one hull; lab ranks retain their physical definitions but do not multiply this baseline rate. Preserve half-points in balances, project progress, ledger events and reloads. Freeze duration and labs at departure; settle only completed combat/quiet journeys. Waiting, failed approaches, pickups and repeated arrivals generate no research. Focus changes preserve partial work; completion keeps overflow and selects no next project. Retune future pacing against daily production and travel days, never fight duration or battle count alone.
+
+
+**Latest research verification:** All 33 isolated suites pass across .local/research-tree/baseline-final.log (18 suites) and the 15 remaining test_*-output.log files in .local/research-tree/. This includes 600 battle encounters, 1,000 topology seeds, 1,000 content seeds, three complete campaigns, ledger/reload checks and native UI input. The transaction replay fixture was updated to replay its actual RP/duration details. Final focus/half-point checks pass in focus-final.log, the complete 45-node detached-tree hierarchy passes in ui-final.log, and native 640x360/1280x720/1920x1080 rendering/input passes in render-final.log. Evidence: docs/ui-review/research-unified.png and research-overview.png. Whitespace checks pass. Existing certificate-store and shutdown-resource diagnostics remain separate from assertions; no browser/Playwright coverage is claimed.
 
 ### Review follow-up (steps 1–29)
 
@@ -41,7 +53,7 @@ Art contract: transparent grid-aligned component sprites and pivots matching exi
 - [x] Commit construction/shortage payments and build-area upgrades before live mutation; cover failed writes and immediate reloads.
 - [x] Remove repeated catalog/authorization work from block placement and scan only candidate recipe origins.
 - [x] Add Continue/checkpoint UX before release. Step 30a adds validated menu recovery, backup/failed-load tests, interrupted-battle explanation and lost-deployment reserve/defeat handling; see docs/UI_REVIEW.md.
-- [ ] Finish step 18 after functional Cargo Holds/arrival trade. Activate two Drones, Science and Civic with 300 credits; play the actual opening research/economy loop. Gate C remains provisional and Gate D remains pending.
+- [ ] Finish step 18's opening research/economy playtest using the three general design slots and a 300-credit target. No mandatory Science/Civic starter hulls or bonus slots; players integrate support equipment themselves. Gate C remains provisional and Gate D remains pending.
 - [x] Step 30 settles cabin casualties/fees before checkpoint validation and before removing dead hosts. Covers cabin death then host death, failed retries, reconstruction and reload; basic passenger equipment is now active.
 - [x] Passenger activation includes backend guards for occupied reserve/revision/dismantle actions and free safe disembarkation at inhabited ports.
 - [x] Step 31 adds backend guards against loaded reserve/revision/dismantle actions before cargo activation and step 33's full UI.
@@ -49,13 +61,13 @@ Art contract: transparent grid-aligned component sprites and pivots matching exi
 
 This is planned work, not an implementation claim. Only documentation changes are requested now. The linked design owns behavior and tuning; do not silently simplify its rules. Work in numbered order, keep the game runnable, preserve existing changes and serialized IDs, and use isolated test saves. Record changed files and actual test results when checking off a step. Hide future research until its effects and persistence work.
 
-Invariants: proximity-only enemy strength; three regular design families plus one restricted Science and one Civic ship; mining uses a regular slot; every deployed ship consumes capacity; disconnected intact parts operate; current-run research gates construction; no duplicate transactions; passenger deaths may cause debt; cargo sells on arrival then refills; rocks/travel award no RP.
+Invariants: proximity-only enemy strength; three general design families with player-chosen combat/science/passenger/cargo/mining combinations; no dedicated or singleton support slots; every deployed ship consumes capacity; disconnected intact parts operate; current-run research gates construction; no duplicate transactions; passenger deaths may cause debt; cargo sells on arrival then refills; rocks/pickups award no RP; completed travel earns (deployed lab count + 0.5) times planned travel days, never fight duration. A single chosen research focus consumes earned RP; preserve partial progress and bank excess. UI shows resources/level at the top and fleet condition in the summary, without Act/row, Port/Story controls, automatic story popups or explanatory service prose. Story flags/gates continue to progress underneath.
 
 | Gate | Steps | Result |
 |---|---|---|
 | A | 1–9 | Reviewed: stable encounters, accounting, persistence and deterministic replay; see docs/BATTLE_LIFECYCLE.md |
 | B | 10–16 | Reviewed: active 24-row map, truthful previews, story, secured arrivals and ports; see docs/CAMPAIGN_MAP.md |
-| C | 17–27 | Reviewed functional support/research loop; full starter activation remains open in step 18 pending Cargo Holds. See docs/SHARED_RESEARCH.md |
+| C | 17–27 | Reviewed functional support/research loop; general-slot opening playtest remains open in step 18. See docs/SHARED_RESEARCH.md |
 | D | 28–35 | Passengers, cargo and resource handling |
 | E | 36–49 | Visibility, abilities, asteroids, mining and travel |
 | F | 50–54 | Complete first act |
@@ -149,17 +161,19 @@ Invariants: proximity-only enemy strength; three regular design families plus on
     **Result (2026-10-26):** Activated the DAG for new runs while preserving historical maps. Three full campaigns each produce 24 visits/14 battles, reload exact content/progression at every row, retry frozen encounters and deliver guaranteed ports/story. UI integration drives Travel into the real battle controller and settles the announced node. Gate B reviewed in docs/CAMPAIGN_MAP.md; specialized boss fights and active environment/economy systems remain later milestones.
     **Validation (steps 11–16):** Full isolated baseline: 0 failures; 1,000 DAG seeds, 1,000 typed-content seeds, 1,080 allocations, three full routes and 600 battle regressions. Logs: .local/checks/8307670a31424fa798c765c3dbc61da7/. Follow-up boss-to-next-act visibility checks passed in .local/traversal-final.log. Native 640x360 map/story/port captures inspected; git diff --check passed.
 
-17. [x] **Add regular and dedicated support slots.**
-    Separate design families from physical copies/reserves. Science requires a lab and forbids passengers/cargo; Civic requires cargo/accommodation and forbids labs. Both restrict offensive hardware and forbid mining components.
-    **Done when:** names/imports cannot bypass rules, and neither a fourth regular family nor a dedicated miner can deploy.
+17. [x] **Separate general design families from physical ships and reserves.**
+    Three general design slots accept any researched equipment combination; no Science/Civic bonus slots, singleton restrictions, six-Offense limit or mining segregation. Preserve physical copies, revisions and reserves.
+    **Done when:** names/imports cannot bypass the three-family/capacity rules, mixed support/combat designs work, and old dedicated-role saves retain their ships, damage and contents under general families.
+    **Owner revision (2026-10-28):** This supersedes the dedicated-role implementation recorded below. Removed the two dedicated UI slots and role-specific equipment restrictions; legacy support hulls migrate into general families without changing IDs, HP, passenger/cargo state or accounting. The original implementation results remain historical evidence.
     **Result (2026-10-26):** Added stable family IDs/revisions, owned/deployed/reserve separation, three regular slots plus Science/Civic selectors, physical singleton support IDs, authoritative construction/deployment validation and default Escort movement. Names, translation and blueprint ordering cannot create extra families or dedicated eligibility. Reserves retain HP and are excluded from battle/replay inputs; roster migration is durable and pending attempts remain settleable. New-campaign slot salvage returns surviving material only. Dedicated equipment remains unavailable until implemented; capacity/starters remain step 18. See docs/FLEET_SLOTS.md.
     **Validation:** Full isolated baseline passed with 0 failures, including new slot/migration/Escort tests, both 1,000-seed map suites, 1,080 allocations and 600 battle regressions. Logs: .local/checks/a2293bdd97704efdbd8b6d1a19d257ab/. Follow-up UI refinements passed .local/slots-focused-final.log; native 640x360 captures inspected; git diff --check passed.
 
-18. [ ] **Implement capacity and starter ships.**
-    Charge 2+ceil(occupied cells/12)+lab level per hull against capacities 30/42/54. Add two Drones, Science Vessel and Civic Tender with Escort behavior in builtin_ships.gd.
-    **Done when:** all starters fit, Drones share a regular family, reserves contribute nothing and replacing lost support ships costs resources.
-    **Progress (2026-10-26):** Capacity is implemented: deployed physical hulls cost 2+ceil(surviving occupied cells/12)+active lab levels against act limits 30/42/54. Loose and assembled cells count; reserves/inactive families do not. Over-capacity ownership remains legal, but departures are blocked with a reason and port reserve controls restore eligibility. Fleet UI shows total/per-copy capacity and updates immediately. Full isolated regression passed (0 failures, including 600 battle cases); see docs/FLEET_SLOTS.md. **Still open:** four-ship starter activation and the 300-credit start. Labs, Crew Quarters and Cargo Holds still lack their scheduled effects; do not expose them as functioning purchasable equipment just to complete a starter layout. Finish their dependent milestones before switching the live starting fleet. Step 18 remains unchecked.
+    **Current revision verification (2026-10-28):** Three general design slots replace the bonus roles. Removed Port/Story controls, service/narrative panels, automatic story popups and Act/row/duplicate fleet stats from the header; fleet condition is in Fleet Summary. Roster v1→v2 migration preserves ship IDs, damage, reserves, passenger/cargo state and accounting, including pending attempts and subsequent revision/retry. Added tests/test_general_fleet.gd (+UID), updated slot/construction/cargo/campaign/UI/battle assertions and capture tooling. All 30 existing suites pass across .local/unified-fleet/baseline.log and the affected final reruns; the new general-fleet suite also passes. Coverage includes 600 battles, 1,000 graph/content seeds, three complete campaigns and native 640×360/1280×720/1920×1080 screenshots. Logs: .local/unified-fleet/general.log, battle-final.log, test_retry_settlement-final.log, test_fleet_slots-final.log and test_ui_review-final.log. Existing certificate-store/shutdown diagnostics remain separate from assertions. Preferences and future scope are recorded in AGENTS.md, the design-plan owner revision and docs/FLEET_SLOTS.md.
 
+18. [ ] **Implement capacity and starter ships.**
+    Charge 2+ceil(occupied cells/12)+lab level per hull against capacities 30/42/54. Review the existing Drone starter fleet and 300-credit target through the actual opening focus -> travel-days RP -> research completion -> refit/economy loop. Players build their own mixed or specialized support ships in general slots; do not add compulsory Science/Civic starters.
+    **Done when:** the reviewed starter fleet fits, Drones share a general family, reserves contribute nothing, replacements cost resources, and players can integrate labs/cargo/accommodation without hidden role restrictions.
+    **Current progress (2026-10-28):** Capacity is implemented and Lab I, Crew Quarters and Cargo Holds function. The three-Drone start remains active. Remaining work is the opening-loop review and 300-credit tuning with player-designed support integration; the former four-ship/dedicated-support rollout is cancelled.
 19. [x] **Centralize derived stats and component damage.**
     Share builder/battle mass, movement, actual hull footprint and equipment stats. Preserve disconnected intact parts.
     **Done when:** displayed and battle values agree, large hulls have larger collision footprints and disconnection regressions pass.
@@ -176,8 +190,8 @@ Invariants: proximity-only enemy strength; three regular design families plus on
     **Result (2026-10-26):** Added shared `ResearchRules` validation/resolution over the complete existing registry: Foundation plus 45 purchasable definitions cover 56 equipment types, 20 abilities, physical lab ranks and typed concept modifiers. Applied Energy resolves both lasers; Energy Manipulation resolves its bounded efficiency modifier without an equipment grant. Prerequisites, boss gates, independent family exclusions, previous-rank dependencies, modifier types and complete grant sources are validated. GameState reads the shared resolver; grants recompute on reload from existing research IDs. Future purchase/effect flags remain disabled. Full isolated baseline passed with zero failures, including 600 battle cases, in `.local/checks/f6d54539cfc946d3be21895be7eb23bf/`; whitespace checks passed. See docs/RESEARCH.md. Grouped UI remains step 22.
 
 22. [x] **Build grouped research UI.**
-    Show family depth, costs, prerequisites, recipe grants, exclusions and story gates, emphasizing nearby options.
-    **Done when:** a player can understand one purchase unlocking multiple items and see downstream exclusions before committing.
+    Show all categories as major branches in one pannable node hierarchy with visible prerequisite links; hide Foundation. A node click updates effects/requirements in the right panel; Set Research Focus replaces View Grants and per-node modals. Keep the unspent RP balance only in the top bar.
+    **Done when:** a player can understand a node, set its focus at zero banked RP, and see progress, requirements and branch consequences inline.
     **Result (2026-10-26):** New campaigns use a grouped research view with family navigation, collapsible paths, depth columns, RP/cost/status labels and near-term emphasis. Full reviews show equipment/ability/concept/rank grants, recipes, AND prerequisites, boss gates, opposite tiers and downstream rewards; a pinned branch warning remains beside the reviewed action. State refresh closes stale reviews. Unimplemented research stays hidden; no acquisition handler is connected until purchasing/effects are ready, so UI review alone cannot spend RP or unlock content. Complete detached fixtures exercise all 46 nodes without activating them in production. Full isolated baseline passed with zero failures, including 600 battle cases, in `.local/checks/4fdff359c3da40f380aa1c38df4a8e27/`; final UI assertions passed in `.local/research-ui-final.log`. Native 640×360 live/family/grant/branch-review captures and whitespace checks passed. See docs/RESEARCH.md. Construction-path enforcement remains step 23.
 
 23. [x] **Enforce research across all construction paths.**
@@ -186,8 +200,8 @@ Invariants: proximity-only enemy strength; three regular design families plus on
     **Result (2026-10-26):** Current-run grant resolution now validates prerequisites, story gates and consistent family commitments before granting any construction permission. Assembly previews/morph/discovery, direct/library purchases, family assignments/revisions, reserve activation, reconstruction and departure enforce authorization, rank and stable equipment identity. Invalid direct blueprint footprints/orientations fail safely before spending. Imports remain viewable; standalone blueprint design explicitly allows implemented recipes but grants no physical construction rights. Research signals refresh choices without reinterpreting assembled parts, loose tiles or physical ships. Saved research selections use the same validator. Full isolated baseline passed with zero failures, including 600 battle cases, in `.local/checks/dfc92165842348a2a3bd554337594eda/`; final enforcement/run-state checks passed after validator consolidation. Native 640×360 locked/unlocked assembly captures and whitespace checks passed. See docs/RESEARCH.md. Labs/RP snapshots remain step 24.
 
 24. [x] **Add labs and RP snapshots.**
-    Implement three physical lab footprints/ranks, one operational lab per hull, deployed snapshots and support multiplier hooks.
-    **Done when:** 20/40/60/75/90 RP examples work, reserves pay zero, destroyed deployed labs still count on victory, and failure/travel/rocks pay zero.
+    Preserve physical lab ranks; count all living deployed labs for daily research, plus a 0.5-lab baseline. Freeze lab/time snapshots and retain old-save compatibility.
+    **Done when:** (labs + 0.5) * travel days works with zero/multiple labs and 2-4-day journeys, preserving half-RP through saves and completion. Reserves, waiting, failed approaches and pickups add no lab production.
     **Result (2026-10-27):** Added three physical lab ranks, rank-aware assembly/save/rendering, one operational lab per hull, deployed RP snapshots and bounded support hooks. Lab I is functional Foundation equipment; higher ranks require their research grants, with research purchasing still deferred. Victory awards frozen RP once even after lab/host destruction; save validation checks the original physical deployment. Combat analysis grants a nonstacking +5% against a visible marked hostile. Full isolated baseline passed with zero failures, including 600 battle cases, in `.local/checks/212fef51889e406aa941dc7bd7cff5b7/`; final destroyed-host science checks passed in `.local/science-final.log`. Native 640×360 fleet/rank/analysis captures and whitespace checks passed. See docs/SCIENCE.md. Adjacency/Crew remains step 25; starter activation still awaits Crew and cargo dependencies.
 
 25. [x] **Implement adjacency.**
@@ -202,7 +216,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 27. [x] **Enable useful shared research content.**
     Finish Applied Energy, Field Engineering, Guided Munitions and Energy Manipulation, including finite repair reserves and missile interception.
-    **Done when:** starters can earn RP, buy grouped tech, refit and see a real next-battle benefit. Review Gate C.
+    **Done when:** players can select research focus, earn distance-based RP toward that node, refit after completion and see a real next-battle benefit. Review Gate C.
     **Result (2026-10-27):** Activated durable reviewed purchases for the four shared technologies and physical lab II/III, preserving RP/prerequisite/story/branch/readiness checks and construction authorization. Applied Energy grants both beams; Energy Manipulation adds with Crew under the ordinary cap in builder and battle. Added functional Repair Station, Point-Defense Turret and Missile Rack, including finite repair reserves, persistent node expenditure against replacement/retry refills, missile interception and strike-craft targeting. Reserve/HP state survives pickups, withdrawal and reload without altering pickup identity. Real starting resources → lab victory RP → research purchase → paid beam construction at a later shipyard passes. Full isolated baseline passed with zero failures, including 600 battle cases, in `.local/checks/cd1ccaf3ff0a4c87bfbf38753adf3a3c/`; expanded final shared tests passed in `.local/shared-final.log`, including replacement budgets, old weapon snapshots, lab III, caps and deterministic new-content replay. Native 640×360 review/owned/reserve HUD captures and whitespace checks passed. See docs/SHARED_RESEARCH.md. Gate C was reviewed; step 18's four-ship/300-credit activation still awaits functional Cargo Holds. Aggregate passengers are next in step 28.
 
 28. [x] **Add aggregate passengers and luxury.**
@@ -239,6 +253,8 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
     **Result (2026-10-28):** Reviewed native rendering at 640×360, 1280×720 and 1920×1080. Preserved Starhull and centralized fonts/styles in ui_theme.tres. Fixed Help/library dismissal, five-slot layout, save/travel feedback, checkpoint recovery and battle/result clarity. User corrections are authoritative in AGENTS.md: no Tab/arrow UI cycling or focus outlines; no hover tooltips except the Ship Designer lock; per-ship actions beside a single selected hull; hidden reserves managed in a small modal; no standalone material shop/API. Owned materials are used first and credits cover shortages for construction, repair and existing material-consuming upgrades. Fleet updates coalesce redundant work, reuse preview nodes and skip hidden stat rebuilding. Final native interaction checks pass, including a theme-font swap, reserve/deploy, failed writes, debt, price reviews and all target layout bounds. Fleet add/remove measured roughly 0.34/0.29 seconds including deferred refresh; block placement about 0.07 seconds. All 27 baseline suites pass across the baseline and affected reruns, including 600 battle encounters, 1000 graph seeds and 1000 content seeds. Logs: `.local/ui-corrections-baseline.log`, `.local/ui-corrections-test_*.log`, `.local/ui-wildcard-test_*.log`, `.local/ui-final-verification.log`. Evidence, limitations and theme instructions: docs/UI_REVIEW.md. Browser/Playwright and external OS input remained unavailable; verification uses native GPU rendering and Godot input dispatch. Step 31 remains next; no additional features are authorized by this review.
 
+    **Owner construction/salvage follow-up (2026-10-28):** Removed shop-slot minus controls. A selected formation hull has immediate Salvage beside Reserve, without confirmation. Construct Ships now supports typed/arrow quantities, a left preview/base sprite costs/equipment summary and a right whole-order stock/shortage-credit breakdown, shared top-right X and bottom-center Construct. Batch construction commits all hull IDs, stock and credits together; extra support copies enter reserve while preserving the active ship. Added tests/test_construction_orders.gd (+UID), updated existing UI/battle assertions, runner, AGENTS.md and accounting/UI documentation. Native interaction/layout checks pass at 640×360, 1280×720 and 1920×1080, including batch failure/retry/reload, mixed inventory, quantity input, X and immediate salvage. Evidence: docs/UI_REVIEW.md and .local/construction-order/.
+
 31. [x] **Implement cargo state.**
     Store 10-unit hold capacity, quantity, origin, grade and unit value; loss has no fee and repairs restore empty space.
     **Done when:** partial damage loses nothing, host/hold destruction cannot double-count, and cargo is separate from construction materials.
@@ -256,7 +272,8 @@ Invariants: proximity-only enemy strength; three regular design families plus on
     **Regression verification:** All 29 isolated suites passed, including 600 battle encounters, 1,000 graph seeds, 1,000 content seeds, three complete campaigns and native UI interaction assertions. Logs: .local/step32/baseline.log and .local/checks/b2bdba7f49774cb193f230a622f4a053/. Existing certificate-store and shutdown diagnostics remain separate from gameplay assertions.
 
 33. [ ] **Add economy UI and loaded-refit rules.**
-    Place held cargo value near signed credits; show occupancy, luxury and expected income. Safely offload/disembark or explicitly discard before removing capacity.
+    Place held cargo value near signed credits; show occupancy, luxury and expected income. Preserve the single top-bar RP balance, left production panel and unified tree/details/focus flow; no additional RP balance labels or research modals. Safely offload/disembark or explicitly discard before removing capacity.
+    Use general hulls and compact contextual actions/inline values. Do not restore dedicated roles, Port/Story buttons, explanatory service panels, automatic story popups or duplicate fleet condition/Act-row text in the top bar.
     **Done when:** cargo cannot be spent as credits and refits/reserve swaps cannot generate loads or erase passenger losses.
 
 34. [ ] **Implement material handling and freight upgrades.**
@@ -305,7 +322,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 45. [ ] **Implement mining equipment and research.**
     Basic Extraction grants Laser/Drill and Offense/Defense access; Deep Extraction adds Processor/Cutter and Tech/Civic. Apply extraction snapshots and caps.
-    **Done when:** 25/75/100% yield rules hold, finite ore is conserved and both dedicated slots reject all mining hardware.
+    **Done when:** 25/75/100% yield rules hold, finite ore is conserved and any general design may combine mining with other researched equipment within normal hull/capacity limits.
 
 46. [ ] **Add mining and collision-avoidance AI.**
     Miners pursue visible scanned eligible rocks, skip known empty rocks and Scan unknown visible ones; escorts prioritize aliens and avoidance.
@@ -321,7 +338,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 49. [ ] **Activate hazardous travel end to end.**
     Connect previewed edges to 20–40-second simulation; record losses/pickups before secured destination settlement.
-    **Done when:** preview→Scan→regular-slot mining→survival→cargo sale/refill→boarding works without RP or repeat ore. Review Gate E.
+    **Done when:** preview→Scan→general-slot mining→survival→cargo sale/refill→boarding awards RP only for completed travel days and never repeats ore or research rewards. Review Gate E.
 
 50. [ ] **Differentiate existing enemies.**
     Implement Scout flanking, Fighter pressure, Sentinel protection, Support repair and finite Chrysalis drones using visibility-aware behavior.
@@ -337,6 +354,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 53. [ ] **Complete the first act.**
     Replace relevant placeholders and introduce research/adjacency, boarding/trade, Scan and optional mining with short contextual guidance.
+    Keep guidance concise and contextual; no Port/Story navigation buttons or automatic narrative/service text panels. Players choose how to integrate economic and science equipment into their three general design families.
     **Done when:** several ordinary fleets finish on Auto and the intended baseline lab progression is affordable.
 
 54. [ ] **Review the vertical slice.**
@@ -368,7 +386,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
     **Done when:** destroyed hangars permanently stop their waves, no salvage loop exists and capstones/capacity 54 unlock once.
 
 61. [ ] **Validate research pacing through Act II.**
-    Test the worked RP ledger and science/tourism/trade/mining detours at equal resource investment.
+    Retune the worked RP ledger around planned travel days and (deployed labs + 0.5) RP/day, including quiet routes and focused partial projects; compare science/tourism/trade/mining detours at equal resource investment. Battle duration never increases research. Retune the old research costs and lab-rank rewards for 1 RP/day/lab plus the baseline; do not carry over the former 20-RP-per-battle pacing assumptions.
     **Done when:** focused research reaches an endpoint before battle 13 without mandatory extra science ships, while extra labs cost combat opportunity. Review Gate G.
 
 62. [ ] **Implement eight combat endpoints.**
@@ -377,7 +395,7 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 
 63. [ ] **Implement four support/mining endpoints.**
     Add Grand Promenade/Sanctuary, Industrial Foundry/Field Patch, Quantum Observatory/Forecast and Planetcracker.
-    **Done when:** they retain combat value without creating people, cargo, infinite repairs or ore; mining remains regular-slot-only.
+    **Done when:** they retain combat value without creating people, cargo, infinite repairs or ore; mining competes for general hull space and deployment capacity.
 
 64. [ ] **Complete Act III encounters.**
     Teach sweeps, charging organs and finite hangars separately, then combine familiar roles and at most two vetted previewed hazards.
@@ -406,3 +424,5 @@ Invariants: proximity-only enemy strength; three regular design families plus on
 70. [ ] **Complete release handoff.**
     Audit 56 equipment effects, all grants, 44 distinct base recipes plus two lab-rank recipes, 12 exclusive duplicate pairs, three acts and every gate. Update help/save notes.
     **Done when:** no purchasable stub remains, several doctrines complete a clean full campaign, validation results are recorded and remaining tuning issues are explicit.
+
+**Owner recipe follow-up (October 29, 2026):** Finalized the cabin as CCC/CCC (six Civic, no Defense), equipment revision 4. Updated the registry, Archive material grid, design plan and asset/passenger documentation. Four places and the 3x2 artwork remain. All eight affected suites pass after this material-only change: definitions, recipes, cabin art/legacy saves, passenger state, boarding, passenger losses, cargo arrivals and general fleet migration. Native cabin rendering/orientation checks also pass. Logs: .local/passenger-civic/. The preceding 34-suite integration baseline predates this material-only follow-up; these are the targeted final reruns. Whitespace checks pass.

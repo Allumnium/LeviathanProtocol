@@ -55,8 +55,8 @@ var _travel_in_progress := false
 var route_preview: Label
 var route_travel_button: Button
 var campaign_overlay: PanelContainer
-var port_button: Button
-var story_button: Button
+
+
 var research_groups: VBoxContainer
 var research_details: VBoxContainer
 
@@ -65,6 +65,7 @@ func _ready() -> void:
 	AudioManager.play_build_music()
 	GameState.credits_changed.connect(_queue_accounting_refresh)
 	GameState.tile_inventory_changed.connect(_queue_accounting_refresh)
+	GameState.research_changed.connect(_queue_accounting_refresh)
 	GameState.fleet_changed.connect(_queue_accounting_refresh)
 	_refresh_top_bar()
 	GameState.unviewed_discoveries_changed.connect(_refresh_archive_unread_badge)
@@ -119,8 +120,7 @@ func _ready() -> void:
 		_setup_campaign_controls()
 
 	if GameState.current_node_id == GameState.FINAL_NODE_ID:
-		if not GameState.campaign_active:
-			victory_dialog.show()
+		victory_dialog.show()
 
 
 func _setup_panel_tabs() -> void:
@@ -144,6 +144,13 @@ func _on_panel_tab_button_pressed(tab_index: int) -> void:
 
 
 func _on_panel_tab_changed(tab_index: int) -> void:
+	var research := GameState.campaign_active and tab_index == RESEARCH_TAB_INDEX
+	var left: Control = $Layout/UpperArea/WorkspaceContents/PanelsRow/LeftPanel
+	var right: Control = $Layout/UpperArea/WorkspaceContents/PanelsRow/DetailsPanel
+	left.custom_minimum_size.x = 140 if research else 192
+	right.custom_minimum_size.x = 164 if research else 0
+	left.size_flags_stretch_ratio = 0.6 if research else 0.8
+	right.size_flags_stretch_ratio = 1.2 if research else 1.0
 	if GameState.campaign_active and research_groups != null:
 		panel_tabs.get_node("Upgrades").grouped_view.set_external_panels_visible(tab_index == RESEARCH_TAB_INDEX)
 	fleet_right_panel.visible = tab_index == 0
@@ -316,51 +323,17 @@ func _return_to_main_menu() -> void:
 
 
 func _refresh_top_bar() -> void:
-	var health := 0.0
-	var maximum := 0.0
-	var damaged := 0
-	for owned in GameState.fleet:
-		if owned.needs_repair():
-			damaged += 1
-		for unit in owned.units:
-			health += unit.hp
-			maximum += unit.max_hp
-	var summary := "%d %s" % [GameState.fleet.size(), "ship" if GameState.fleet.size() == 1 else "ships"]
-	if maximum > 0.0:
-		summary += " · %d%% hull · %d damaged" % [roundi(health / maximum * 100.0), damaged]
 	$Layout/TopBar/BarContents/CreditAmount.text = str(GameState.credits)
 	$Layout/TopBar/BarContents/CreditAmount.add_theme_color_override("font_color", Color("ffd28a") if GameState.credits < 0 else Color("e0e8ed"))
 	$Layout/TopBar/BarContents/OffenseAmount.text = str(GameState.red_tiles_available)
 	$Layout/TopBar/BarContents/DefenseAmount.text = str(GameState.blue_tiles_available)
 	$Layout/TopBar/BarContents/TechAmount.text = str(GameState.green_tiles_available)
 	$Layout/TopBar/BarContents/CivicAmount.text = str(GameState.core_tiles_available)
-	sector_name_label.text = "SECTOR %d" % (GameState.current_node_id + 1)
-	if GameState.campaign_active:
-		var node := GameState.campaign_node(GameState.current_node_id)
-		var row := int(node.get("local_row", 0)) if int(node.get("act", 0)) == GameState.current_act() else 0
-		sector_name_label.text = "ACT %d / ROW %d" % [GameState.current_act(), row]
-	$Layout/TopBar/BarContents/StatsSpace.text = "Level %d\n%s" % [GameState.campaign_level(), summary]
-
+	$Layout/TopBar/BarContents/ResearchAmount.text = "RP " + ScienceRules.format_rp(GameState.research_points)
+	sector_name_label.hide()
+	$Layout/TopBar/BarContents/StatsSpace.text = "Level %d" % GameState.campaign_level()
 
 func _setup_campaign_controls() -> void:
-	port_button = Button.new()
-	port_button.text = "PORT"
-	port_button.disabled = GameState.port_services().is_empty()
-	preload("res://scripts/fleet_panel.gd").style_slot_button(port_button)
-	port_button.pressed.connect(_show_port_services)
-	var services := HBoxContainer.new()
-	services.name = "FleetServices"
-	services.add_theme_constant_override("separation", 4)
-	services.custom_minimum_size.y = 28
-	fleet_controls.add_child(services)
-	port_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	services.add_child(port_button)
-	story_button = Button.new()
-	story_button.text = "STORY"
-	story_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preload("res://scripts/fleet_panel.gd").style_slot_button(story_button)
-	story_button.pressed.connect(func() -> void: _show_story(false))
-	services.add_child(story_button)
 	var panel := PanelContainer.new()
 	panel.name = "RoutePreview"
 	panel.theme_type_variation = &"RoutePanel"
@@ -391,7 +364,7 @@ func _setup_campaign_controls() -> void:
 	contents.add_child(route_travel_button)
 	graph_view.node_inspected.connect(_show_route_preview)
 	_show_route_preview(GameState.current_node_id)
-	call_deferred("_show_unread_story")
+
 
 
 func _show_route_preview(node_id: int) -> void:
@@ -428,69 +401,3 @@ func _travel_campaign(node_id: int) -> void:
 		_open_pending_battle(true)
 	else:
 		get_tree().change_scene_to_file("res://scenes/game_map.tscn")
-
-
-func _campaign_dialog(title: String, body: String, close_action: Callable = Callable()) -> void:
-	if is_instance_valid(campaign_overlay):
-		campaign_overlay.queue_free()
-	campaign_overlay = PanelContainer.new()
-	campaign_overlay.name = "CampaignDialog"
-	campaign_overlay.add_to_group("modal_ui")
-	campaign_overlay.z_index = 25
-	add_child(campaign_overlay)
-	campaign_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	campaign_overlay.offset_left = 28
-	campaign_overlay.offset_top = 28
-	campaign_overlay.offset_right = -28
-	campaign_overlay.offset_bottom = -28
-	var box := VBoxContainer.new()
-	campaign_overlay.add_child(box)
-	var heading := Label.new()
-	heading.text = title
-	box.add_child(heading)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(scroll)
-	var text := Label.new()
-	text.text = body
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(text)
-	var close := Button.new()
-	close.name = "Close"
-	close.text = "CLOSE / SKIP"
-	box.add_child(close)
-	var overlay := campaign_overlay
-	close.pressed.connect(func() -> void:
-		if close_action.is_valid():
-			close_action.call()
-		overlay.queue_free())
-
-
-func _show_port_services() -> void:
-	var port := GameState.port_services()
-	if port.is_empty():
-		return
-	var rates: Array = GameState.MATERIAL_PRICES
-	_campaign_dialog(port.name, "Construct ships in Fleet and repair a selected hull in Formation. Owned materials are used first; credits cover any shortage at Offense %d, Defense %d, Tech %d and Civic %d cr per tile.\nPassengers aboard: %d. Disembark in Fleet before reserving or replacing occupied ships.\nCargo trade is not available yet. Reopening services grants no arrival income." % [rates[0], rates[1], rates[2], rates[3], PassengerRules.occupied(GameState.economy_state)])
-
-func _show_unread_story() -> void:
-	_show_story(true)
-
-
-func _show_story(unread_only: bool) -> void:
-	var body := ""
-	var ids: Array[String] = []
-	for entry in GameState.story_archive():
-		if unread_only and GameState.story_flags.get("seen/" + entry.id, false):
-			continue
-		body += entry.title + "\n" + entry.text + "\n\n"
-		ids.append(entry.id)
-	if body.is_empty():
-		if unread_only and GameState.current_node_id == GameState.FINAL_NODE_ID:
-			victory_dialog.show()
-		return
-	_campaign_dialog("STORY ARCHIVE", body, func() -> void:
-		GameState.mark_story_seen(ids)
-		if GameState.current_node_id == GameState.FINAL_NODE_ID:
-			victory_dialog.show())

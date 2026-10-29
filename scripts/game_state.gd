@@ -5,6 +5,7 @@ signal design_library_changed
 signal fleet_changed
 signal upgrades_changed
 signal research_changed
+signal travel_plan_changed
 
 signal tile_inventory_changed
 signal ship_stats_changed
@@ -82,7 +83,9 @@ var archive_progress_file_path := ARCHIVE_PROGRESS_PATH
 var current_research_ids: Array[String] = ["foundation"]
 var _research_grant_key := ""
 var _research_grant_cache: Dictionary = {}
-var research_points := 0
+var research_points := 0.0
+var research_focus := ""
+var research_progress: Dictionary = {}
 var research_branch_choices: Dictionary[String, String] = {}
 var story_flags: Dictionary[String, bool] = {}
 var run_seed := 0
@@ -144,6 +147,8 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	run_seed = _new_run_seed() if seed_value == -1 else seed_value
 	current_research_ids = ["foundation"]
 	research_points = 0
+	research_focus = ""
+	research_progress.clear()
 	research_branch_choices.clear()
 	story_flags.clear()
 	destroy_all_neutral_targets = false
@@ -225,6 +230,8 @@ func run_progress_snapshot() -> Dictionary:
 		"difficulty": difficulty,
 		"credits": credits,
 		"research_points": research_points,
+		"research_focus": research_focus,
+		"research_progress": research_progress.duplicate(),
 		"research_ids": current_research_ids.duplicate(),
 		"branch_choices": research_branch_choices.duplicate(),
 		"story_flags": story_flags.duplicate(),
@@ -244,7 +251,9 @@ func restore_run_progress(data: Variant, notify := true) -> bool:
 	run_seed = int(data.seed)
 	difficulty = int(data.difficulty) as Difficulty
 	credits = int(data.credits)
-	research_points = int(data.research_points)
+	research_points = float(data.research_points)
+	research_focus = data.get("research_focus", "")
+	research_progress = data.get("research_progress", {}).duplicate()
 	current_research_ids.assign(data.research_ids)
 	research_branch_choices.assign(data.branch_choices)
 	story_flags.assign(data.story_flags)
@@ -320,7 +329,7 @@ func load_run_checkpoint() -> bool:
 		return false
 	var decoded := RunCheckpoint.decode(saved.payload)
 	var data: Dictionary = decoded.data
-	if saved.payload.version == 1 or (saved.payload.get("campaign_active", false) and not saved.payload.has("fleet_roster")):
+	if saved.payload.version == 1 or (saved.payload.get("campaign_active", false) and int(saved.payload.get("fleet_roster", {}).get("version", 1)) < 2):
 		# Freeze migration results durably before exposing them to callers/previews.
 		var migrated := _checkpoint_store.commit(run_save_path, data, RunCheckpoint.valid, int(saved.generation))
 		if not migrated.ok:
@@ -402,7 +411,7 @@ func prepare_checkpoint_resume() -> bool:
 
 
 func commit_event(kind: String, source_id: String, credits_delta := 0,
-	material_delta: Array = [0, 0, 0, 0], rp_delta := 0, details: Dictionary = {}, economy_after: Variant = null) -> bool:
+	material_delta: Array = [0, 0, 0, 0], rp_delta := 0.0, details: Dictionary = {}, economy_after: Variant = null) -> bool:
 	var result := TransactionLedger.apply(_capture_checkpoint(), kind, source_id,
 		credits_delta, material_delta, rp_delta, details, economy_after)
 	if result.is_empty():
@@ -421,7 +430,11 @@ func commit_event(kind: String, source_id: String, credits_delta := 0,
 func _apply_accounting(data: Dictionary) -> void:
 	economy_state = data.economy.duplicate(true)
 	credits = int(data.progress.credits)
-	research_points = int(data.progress.research_points)
+	research_points = float(data.progress.research_points)
+	research_focus = data.progress.get("research_focus", "")
+	research_progress = data.progress.get("research_progress", {}).duplicate()
+	current_research_ids.assign(data.progress.research_ids)
+	research_branch_choices.assign(data.progress.branch_choices)
 	red_tiles_available = int(data.inventory[0])
 	blue_tiles_available = int(data.inventory[1])
 	green_tiles_available = int(data.inventory[2])
@@ -863,6 +876,23 @@ func passenger_manifest() -> Array[Dictionary]:
 func energy_efficiency() -> float:
 	return float(research_grants().modifiers.get("energy_efficiency", {}).get("value", 0.0))
 
+func set_research_focus(id: String) -> bool:
+	if not campaign_active or battle_pending or run_ended:
+		return false
+	var checkpoint := _capture_checkpoint()
+	if not ResearchFocusRules.eligible(id, checkpoint.progress):
+		return false
+	checkpoint.progress.research_focus = id
+	checkpoint = ResearchFocusRules.allocate(checkpoint)
+	if checkpoint.is_empty() or not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
+	_emit_accounting_changes()
+	ship_stats_changed.emit()
+	return true
+
+# Compatibility for older callers/fixtures. The player UI sets a research focus.
 func purchase_research(id: String) -> bool:
 	if not campaign_active or battle_pending or run_ended:
 		return false
@@ -879,6 +909,9 @@ func purchase_research(id: String) -> bool:
 		return false
 	var checkpoint: Dictionary = result.checkpoint
 	checkpoint.progress.research_ids.append(id)
+	checkpoint.progress.research_progress.erase(id)
+	if checkpoint.progress.research_focus == id:
+		checkpoint.progress.research_focus = ""
 	if not definition.family_id.is_empty():
 		checkpoint.progress.branch_choices[definition.family_id] = definition.path_id
 	if not _persist_checkpoint(checkpoint):
@@ -1018,7 +1051,8 @@ func refund_tile(category: int) -> void:
 	tile_inventory_changed.emit()
 
 
-func construction_error(blueprint: Ship = null, role := "regular") -> String:
+func construction_error(blueprint: Ship = null, role := "regular", reserve_copies := false) -> String:
+	role = "regular" if role in FleetRules.ROLES else role
 	var design := ship if blueprint == null else blueprint
 	if role not in FleetRules.ROLES:
 		return "Unknown fleet slot role."
@@ -1043,12 +1077,12 @@ func construction_error(blueprint: Ship = null, role := "regular") -> String:
 			var family := family_for_design(design)
 			if (family.is_empty() or not roster_state.active.has(family)) and not roster_state.active.has(""):
 				return "Assign this family to one of the three regular slots first."
-		elif int(roster_state.support_ids[role]) != 0:
+		elif int(roster_state.support_ids[role]) != 0 and not reserve_copies:
 			return "Reserve the existing %s ship before constructing another." % role.capitalize()
 	var candidate := FleetShip.new()
 	if not candidate.initialize(design, next_ship_id, ""):
 		return "Invalid assembled equipment footprint or orientation."
-	var problem := candidate.construction_error() if role == "regular" else ""
+	var problem := FleetRules.design_error(design)
 	if not problem.is_empty():
 		return problem
 	if get_construction_credit_cost(design) > 0 and credits < get_construction_credit_cost(design):
@@ -1107,50 +1141,89 @@ func _ensure_fleet_design_slot(design_name: String) -> bool:
 	return true
 
 func purchase_ship(blueprint: Ship = null, design_name: String = "", role := "regular") -> bool:
+	return purchase_ships(blueprint, design_name, role, 1)
+
+
+func construction_order_quote(design: Ship, quantity: int) -> Dictionary:
+	if design == null or quantity < 1 or quantity > 2147483647:
+		return {}
+	var required := get_design_material_costs(design)
+	var stock: Array[int] = []
+	var shortages: Array[int] = []
+	var credit_cost := 0
+	for category in range(4):
+		required[category] *= quantity
+		stock.append(mini(required[category], get_available_tile_count(category)))
+		shortages.append(required[category] - stock[category])
+		credit_cost += shortages[category] * MATERIAL_PRICES[category]
+	return {"quantity": quantity, "required": required, "stock": stock, "shortages": shortages, "credits": credit_cost}
+
+
+func construction_order_error(design: Ship, role: String, quantity: int) -> String:
+	var quote := construction_order_quote(design, quantity)
+	if quote.is_empty():
+		return "Enter a whole quantity of at least 1."
+	var problem := construction_error(design, role, true)
+	if not problem.is_empty():
+		return problem
+	if int(quote.credits) > 0 and int(quote.credits) > credits:
+		return "Insufficient credits for this order."
+	return ""
+
+
+func purchase_ships(blueprint: Ship, design_name: String, role: String, quantity: int) -> bool:
+	role = "regular" if role in FleetRules.ROLES else role
 	var design := ship if blueprint == null else blueprint
-	if not construction_error(design, role).is_empty():
+	if not construction_order_error(design, role, quantity).is_empty():
 		return false
-	var construction_credit_cost := get_construction_credit_cost(design)
-	var owned := FleetShip.new()
+	var quote := construction_order_quote(design, quantity)
 	var title := design_name
 	if title.is_empty():
 		title = current_ship_design_name if design == ship else "Ship"
 	if title.is_empty():
 		title = "Ship"
-	if not owned.initialize(design, next_ship_id, "%s %d" % [title, next_ship_id]):
-		return false
 	var checkpoint := _capture_checkpoint()
+	var family_id := ""
+	var support_occupied := campaign_active and role != "regular" and int(roster_state.support_ids[role]) != 0
 	if campaign_active:
-		owned.slot_role = role
 		if role == "regular":
-			owned.family_id = family_for_design(design)
-			if owned.family_id.is_empty():
-				owned.family_id = "family/%d" % int(checkpoint.fleet_roster.next_family)
+			family_id = family_for_design(design)
+			if family_id.is_empty():
+				family_id = "family/%d" % int(checkpoint.fleet_roster.next_family)
 				checkpoint.fleet_roster.next_family += 1
-				checkpoint.fleet_roster.families[owned.family_id] = {"name": title, "blueprints": [FleetRules.fingerprint(design)], "design": design.to_design_data()}
-			if not checkpoint.fleet_roster.active.has(owned.family_id):
+				checkpoint.fleet_roster.families[family_id] = {"name": title, "blueprints": [FleetRules.fingerprint(design)], "design": design.to_design_data()}
+			if not checkpoint.fleet_roster.active.has(family_id):
 				var index: int = checkpoint.fleet_roster.active.find("")
-				checkpoint.fleet_roster.active[index] = owned.family_id
+				checkpoint.fleet_roster.active[index] = family_id
 				checkpoint.progress.active_design_families[index] = title
-		else:
-			checkpoint.fleet_roster.support_ids[role] = owned.id
+		elif not support_occupied:
+			checkpoint.fleet_roster.support_ids[role] = next_ship_id
 			checkpoint.fleet_roster.support_names[role] = title
-	# Find room alongside the fleet without constraining placement to a grid.
-	for other in fleet:
-		owned.formation.x = maxf(owned.formation.x, other.formation.x + 1.0)
-	checkpoint.fleet.append(RunCheckpoint.ship_entry(owned))
-	checkpoint.next_ship_id += 1
-	checkpoint.progress.credits -= construction_credit_cost
-	var counts := _get_ship_tile_counts(design)
+	var placement := 0.0
+	for other in get_deployed_fleet():
+		placement = maxf(placement, other.formation.x + 1.0)
+	var constructed: Array[FleetShip] = []
+	for index in range(quantity):
+		var owned := FleetShip.new()
+		if not owned.initialize(design, next_ship_id + index, "%s %d" % [title, next_ship_id + index]):
+			return false
+		owned.slot_role = role if campaign_active else "regular"
+		owned.family_id = family_id
+		owned.in_reserve = campaign_active and role != "regular" and (index > 0 or support_occupied)
+		owned.formation = Vector2(placement + index, 0)
+		constructed.append(owned)
+		checkpoint.fleet.append(RunCheckpoint.ship_entry(owned))
+	checkpoint.next_ship_id += quantity
+	checkpoint.progress.credits -= int(quote.credits)
 	for category in range(4):
-		checkpoint.inventory[category] = maxi(0, int(checkpoint.inventory[category]) - counts[category])
+		checkpoint.inventory[category] -= int(quote.stock[category])
 	if not run_id.is_empty() and not _persist_checkpoint(checkpoint):
 		return false
 	_apply_accounting(checkpoint)
 	roster_state = checkpoint.fleet_roster
 	fleet_design_slots.assign(checkpoint.progress.active_design_families)
 	next_ship_id = int(checkpoint.next_ship_id)
-	fleet.append(owned)
+	fleet.append_array(constructed)
 	_refresh_fleet()
 	tile_inventory_changed.emit()
 	credits_changed.emit()
@@ -1307,7 +1380,7 @@ func _adopt_legacy_roster() -> void:
 
 
 func fleet_slot_name(index: int) -> String:
-	return fleet_design_slots[index] if index < 3 else str(roster_state.support_names["science" if index == 3 else "civic"])
+	return fleet_design_slots[index] if index >= 0 and index < 3 else ""
 
 
 func emergency_roster_available() -> bool:
@@ -1318,7 +1391,7 @@ func emergency_roster_available() -> bool:
 
 
 func assign_fleet_design(index: int, title: String, design: Ship, revision := false) -> bool:
-	if not campaign_active or index < 0 or index > 4 or title.is_empty() or battle_pending:
+	if not campaign_active or index < 0 or index >= 3 or title.is_empty() or battle_pending:
 		return false
 	if not is_shipyard_node(current_node_id):
 		if revision or not emergency_roster_available() or not fleet.any(func(owned: FleetShip) -> bool:
@@ -1453,6 +1526,10 @@ func is_ship_deployed(owned: FleetShip) -> bool:
 		return true
 	if owned.in_reserve:
 		return false
+	if battle_pending:
+		var progress: Dictionary = encounter_progress.get(str(destination_node_id), {})
+		if progress.get("migrated_support_attempt", false) and progress.get("outcome") == "active" and progress.get("ship_ids", []).has(owned.id):
+			return true
 	if owned.slot_role == "regular":
 		return _is_active_revision(owned)
 	return int(roster_state.support_ids.get(owned.slot_role, 0)) == owned.id
@@ -1461,7 +1538,7 @@ func is_ship_deployed(owned: FleetShip) -> bool:
 func set_escort_target(owned: FleetShip, host: FleetShip) -> bool:
 	if not campaign_active or battle_pending or not is_shipyard_node(current_node_id) or not fleet.has(owned) or not fleet.has(host):
 		return false
-	if owned.slot_role == "regular" or host.slot_role != "regular" or not is_ship_deployed(host):
+	if owned == host or not is_ship_deployed(host):
 		return false
 	var before := owned.escort_target_id
 	owned.escort_target_id = host.id
@@ -1656,7 +1733,7 @@ func node_preview(node_id: int) -> Dictionary:
 			text += "\n%d–%d alien contacts • %s\nObjective: destroy marked hostile fleet. No announced special abilities." % [maxi(1, count - 1), count + 1, ", ".join(roles)]
 			text += "\nSalvage: Defense 35%, Offense 30%, Tech 20%, Civic 15% (rounded)."
 	else:
-		text += "\nNo battle or RP."
+		text += "\nNo battle."
 		if node.type == "salvage":
 			text += " Recover %d materials." % _sum_materials(node.material_reward)
 	if get_reachable_nodes(current_node_id).has(node_id):
@@ -1693,7 +1770,10 @@ func travel_to(node_id: int) -> bool:
 	if node.kind in ["combat", "boss"]:
 		return set_destination(node_id)
 	var checkpoint := _capture_checkpoint()
-	var reward := TransactionLedger.apply(checkpoint, "node_reward", "node/%d" % node_id, 0, node.material_reward, 0)
+	var science := ScienceRules.snapshot(get_deployed_fleet())
+	var travel_days := research_travel_time(current_node_id, node_id)
+	var reward := TransactionLedger.apply(checkpoint, "node_reward", "node/%d" % node_id, 0, node.material_reward,
+		ScienceRules.journey_rp(science, travel_days), {"science_snapshot": science, "research_travel_days": travel_days})
 	if reward.is_empty():
 		return false
 	checkpoint = _secure_node(reward.checkpoint, node_id)
@@ -1705,6 +1785,24 @@ func travel_to(node_id: int) -> bool:
 	checkpoint.location.visited.append(node_id)
 	return _commit_campaign_checkpoint(checkpoint)
 
+
+func research_travel_time(from_id: int, to_id: int) -> float:
+	var steps := research_travel_distance(from_id, to_id)
+	if steps <= 0:
+		return 0.0
+	if campaign_active:
+		var from := campaign_node(from_id)
+		var to := campaign_node(to_id)
+		var lateral := absf(float(to.position[1]) - float(from.position[1]))
+		return steps * (2.0 + clampi(roundi(lateral / 0.34), 0, 2))
+	return steps * 3.0
+
+func research_travel_distance(from_id: int, to_id: int) -> int:
+	if campaign_active:
+		return maxi(0, int(campaign_node(to_id).get("row", 0)) - int(campaign_node(from_id).get("row", 0)))
+	if from_id < 0 or to_id < 0 or from_id >= NODE_COLUMNS.size() or to_id >= NODE_COLUMNS.size():
+		return 0
+	return maxi(0, NODE_COLUMNS[to_id] - NODE_COLUMNS[from_id])
 
 func _secure_node(checkpoint: Dictionary, node_id: int) -> Dictionary:
 	var node := campaign_node(node_id)
@@ -1722,7 +1820,7 @@ func _secure_node(checkpoint: Dictionary, node_id: int) -> Dictionary:
 				return {}
 			physical.assign(decoded.fleet)
 		checkpoint = ArrivalRules.apply(checkpoint, node, physical)
-	return checkpoint
+	return ResearchFocusRules.allocate(checkpoint)
 
 
 func _commit_campaign_checkpoint(checkpoint: Dictionary) -> bool:
@@ -1810,7 +1908,9 @@ func mark_story_seen(ids: Array[String]) -> bool:
 func set_planned_destination(node_id: int) -> bool:
 	if battle_pending or not get_reachable_nodes(current_node_id).has(node_id):
 		return false
-	planned_destination_node_id = node_id
+	if planned_destination_node_id != node_id:
+		planned_destination_node_id = node_id
+		travel_plan_changed.emit()
 	return true
 
 
@@ -1870,6 +1970,7 @@ func set_destination(node_id: int) -> bool:
 		battle_aliens.append(alien)
 	var previous_progress: Dictionary = encounter_progress.duplicate(true)
 	var progress: Dictionary = encounter_progress.get(str(node_id), {"attempts": 0, "outcome": "withdrawn", "field": {}}).duplicate(true)
+	progress.erase("migrated_support_attempt")
 	progress.attempts = int(progress.attempts) + 1
 	progress.outcome = "active"
 	progress.ship_ids = []
@@ -1882,6 +1983,8 @@ func set_destination(node_id: int) -> bool:
 		"upgrade_level": laser_upgrade_level, "neutral_cleanup": destroy_all_neutral_targets,
 		"objectives": battle_objective_ids(), "materials": battle_material_rewards()}
 	progress.science_snapshot = ScienceRules.snapshot(get_deployed_fleet())
+	progress.research_distance = research_travel_distance(current_node_id, node_id)
+	progress.research_travel_days = research_travel_time(current_node_id, node_id)
 	progress.deployment["shared_context"] = {"energy_efficiency": energy_efficiency(),
 		"repair_reserves": progress.field.get("repair_reserves", {}).duplicate(true),
 		"repair_pool": progress.field.get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)}
@@ -1922,9 +2025,15 @@ func complete_battle(surviving_player_ship_count: int = -1, salvage_categories: 
 	var science: Dictionary = progress.get("science_snapshot", {"version": 1, "labs": [], "total_rp": 0})
 	if not ScienceRules.valid(science, progress.get("ship_ids", [])):
 		return false
+	var distance := research_travel_distance(current_node_id, destination_node_id)
+	if progress.has("research_distance") and progress.research_distance != distance:
+		return false
+	var travel_days := research_travel_time(current_node_id, destination_node_id)
+	if progress.has("research_travel_days") and not is_equal_approx(float(progress.research_travel_days), travel_days):
+		return false
 	var result := TransactionLedger.apply(_capture_checkpoint() if staged.is_empty() else staged, "victory", "node/%d" % destination_node_id,
-		int(encounter.rewards.credits), materials, int(science.total_rp),
-		{"science_snapshot": science} if not science.labs.is_empty() else {})
+		int(encounter.rewards.credits), materials, ScienceRules.journey_rp(science, travel_days),
+		{"science_snapshot": science, "research_travel_days": travel_days})
 	if result.is_empty():
 		return false
 	var checkpoint: Dictionary = result.checkpoint

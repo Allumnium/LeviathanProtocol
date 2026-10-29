@@ -10,6 +10,7 @@ const MINI_TURRET_TEXTURE = preload("res://assets/mini-turret.png")
 const THRUSTER_SHEET = preload("res://assets/thruster_s_animated.png")
 const LARGE_THRUSTER_SHEET = preload("res://assets/thruster_l_animated.png")
 const COMMAND_CENTER_TEXTURE = preload("res://assets/commandcenter.png")
+const PASSENGER_CABIN_TEXTURE = preload("res://assets/passenger_cabin.png")
 
 var part_type: int
 var category: int
@@ -29,6 +30,8 @@ var definition_id := ""
 var definition_revision := 0
 var rank := 1
 static var _lab_textures: Dictionary = {}
+static var _legacy_cabin_pattern: ShipPartPattern
+static var _cabin_textures: Dictionary = {}
 
 
 func pattern_key() -> String:
@@ -277,7 +280,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 	missiles.weapons[0].range_units = 340
 	missiles.weapons[0].interceptable = true
 	patterns.append(_shared_pattern(ShipPart.Type.MISSILE_RACK, missiles))
-	patterns.append(_shared_pattern(ShipPart.Type.PASSENGER_CABIN, ShipPartStats.new(0, 0, 4, 0)))
+	patterns.append(_shared_pattern(ShipPart.Type.PASSENGER_CABIN, ShipPartStats.new(0, 0, 6, 0)))
 	patterns.append(_shared_pattern(ShipPart.Type.OBSERVATION_DECK, ShipPartStats.new(0, 0, 6, 0)))
 	patterns.append(_shared_pattern(ShipPart.Type.CARGO_HOLD, ShipPartStats.new(0, 0, 6, 0)))
 	var lab_definition := GameDefinitions.equipment(ShipPart.Type.RESEARCH_LAB)
@@ -300,6 +303,7 @@ static func get_catalog() -> Array[ShipPartPattern]:
 		ShipPart.Type.MINI_TURRET,
 		ShipPart.Type.THRUSTER,
 		ShipPart.Type.LARGE_THRUSTER,
+		ShipPart.Type.PASSENGER_CABIN,
 	]
 	for pattern in patterns:
 		# Preserve the current exhaust restriction while allowing other recipes
@@ -354,8 +358,44 @@ static func _shared_pattern(type: int, stats: ShipPartStats) -> ShipPartPattern:
 	elif type in [ShipPart.Type.PASSENGER_CABIN, ShipPart.Type.OBSERVATION_DECK, ShipPart.Type.CARGO_HOLD]:
 		category = ShipPart.Category.CORE
 	return ShipPartPattern.new(type, category,
-		offsets, definition.display_name, _lab_texture(cells), stats, true, categories)
+		offsets, definition.display_name,
+		PASSENGER_CABIN_TEXTURE if type == ShipPart.Type.PASSENGER_CABIN else _lab_texture(cells), stats, true, categories)
 
+
+static func for_cells(pattern: ShipPartPattern, offsets: Array[Vector2i]) -> ShipPartPattern:
+	# Saved 2x2 cabins retain their geometry, mass and HP. Never grow an existing
+	# hull into neighbouring parts; only the current assembly catalog uses 3x2.
+	if pattern == null or pattern.part_type != ShipPart.Type.PASSENGER_CABIN or offsets.size() != 4:
+		return pattern
+	if _legacy_cabin_pattern == null:
+		var cells := MaterialRecipe.parse("CC/CD")
+		var old_offsets: Array[Vector2i] = []
+		var categories: Array[int] = []
+		for cell: Vector2i in cells:
+			old_offsets.append(cell)
+			categories.append(cells[cell])
+		_legacy_cabin_pattern = ShipPartPattern.new(ShipPart.Type.PASSENGER_CABIN, ShipPart.Category.CORE,
+			old_offsets, "Passenger Cabin", _lab_texture(cells), ShipPartStats.new(0, 0, 4, 0), true, categories)
+		_legacy_cabin_pattern.definition_id = "passenger_cabin"
+		_legacy_cabin_pattern.definition_revision = 2
+	return _legacy_cabin_pattern
+
+static func texture_for_part(pattern: ShipPartPattern, part: ShipPart) -> Texture2D:
+	if pattern.part_type != ShipPart.Type.PASSENGER_CABIN or pattern.definition_revision < 3:
+		return pattern.preview_texture
+	var orientation := part.get_transform(pattern)
+	if orientation == Vector2i.ZERO:
+		return PASSENGER_CABIN_TEXTURE
+	if _cabin_textures.has(orientation):
+		return _cabin_textures[orientation]
+	var image: Image = PASSENGER_CABIN_TEXTURE.get_image().duplicate()
+	for turn in range(orientation.x):
+		image.rotate_90(CLOCKWISE)
+	if orientation.y == 1:
+		image.flip_y()
+	var texture := ImageTexture.create_from_image(image)
+	_cabin_textures[orientation] = texture
+	return texture
 
 static func _thruster_idle_texture(sheet: Texture2D) -> AtlasTexture:
 	var texture := AtlasTexture.new()

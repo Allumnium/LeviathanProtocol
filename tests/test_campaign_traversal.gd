@@ -38,7 +38,8 @@ func _run() -> void:
 			var choices: Array[int] = state.get_reachable_nodes(previous)
 			var destination: int = choices[(visits + seed_value) % choices.size()]
 			var node: Dictionary = state.campaign_node(destination)
-			var before_rp: int = state.research_points
+			var before_rp: float = state.research_points
+			var expected_rp: float = 0.5 * state.research_travel_time(previous, destination)
 			var frozen: Variant = JSON.parse_string(JSON.stringify(state.get_frozen_encounter(destination)))
 			var preview: Dictionary = state.node_preview(destination)
 			_check(not preview.text.is_empty(), "Every reachable destination has a truthful preview.")
@@ -57,7 +58,7 @@ func _run() -> void:
 				_check(state.complete_battle(), "Placeholder objective completion advances once.")
 			else:
 				_check(node.kind not in ["combat", "boss"], "Noncombat travel never deploys aliens.")
-			_check(state.current_node_id == destination and state.research_points == before_rp, "Travel/rewards do not manufacture lab RP.")
+			_check(state.current_node_id == destination and state.research_points == before_rp + expected_rp, "Completed travel pays baseline RP exactly once.")
 			visits += 1
 			var saved: Variant = JSON.parse_string(JSON.stringify(state.campaign_dag))
 			_check(state.load_run_checkpoint() and state.current_node_id == destination and state.campaign_dag == saved, "Every row reloads exact progression/content.")
@@ -102,11 +103,7 @@ func _test_map_ui(state: Node) -> void:
 	current_scene = map
 	await process_frame
 	await process_frame
-	_check(map.port_button != null and not map.port_button.disabled, "Haven exposes real port services.")
-	_check(map.campaign_overlay != null, "Haven story opens in a skippable archive panel.")
-	_check(state.is_modal_ui_open(), "Story panels participate in modal/pause detection.")
-	map.campaign_overlay.queue_free()
-	await process_frame
+	_check(not is_instance_valid(map.campaign_overlay), "No automatic story/service popup appears.")
 	map._on_map_pressed()
 	await process_frame
 	var destination: int = state.get_reachable_nodes(0)[0]
@@ -123,12 +120,7 @@ func _test_map_ui(state: Node) -> void:
 			var point: Vector2 = map.graph_view.global_position + map.graph_view.world_transform() * map.graph_view._node_center(int(node.id))
 			_check(point.y - 7 >= graph_rect.position.y and point.y + 7 <= preview_rect.position.y,
 				"Initial act nodes must fit above the preview without clipping.")
-	map._show_port_services()
-	var count: int = state.transaction_ledger.size()
-	map._show_port_services()
-	_check(state.transaction_ledger.size() == count, "Opening port UI changes no arrival ledger.")
-	map.campaign_overlay.queue_free()
-	await process_frame
+	_check(not map.has_method("_show_port_services"), "Port explanation UI is removed.")
 	map.route_travel_button.pressed.emit()
 	await create_timer(0.6).timeout
 	_check(current_scene != null and current_scene.scene_file_path == "res://scenes/auto_battle.tscn", "The live Travel button opens the announced battle after the short transition.")

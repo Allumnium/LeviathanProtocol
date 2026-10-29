@@ -126,6 +126,10 @@ stretch_mode = 5
 layout_mode = 2
 vertical_alignment = 1
 
+[node name="ResearchAmount" type="Label" parent="Layout/TopBar/BarContents"]
+layout_mode = 2
+vertical_alignment = 1
+
 [node name="MapButton" type="Button" parent="Layout/TopBar/BarContents"]
 custom_minimum_size = Vector2(52, 28)
 layout_mode = 2

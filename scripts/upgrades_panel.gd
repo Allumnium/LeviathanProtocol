@@ -26,10 +26,9 @@ var grouped_view: Control
 func _ready() -> void:
 	if GameState.campaign_active:
 		grouped_view = load("res://scripts/research_panel.gd").new()
-		grouped_view.purchase_requested.connect(func(id: String) -> void:
-			if not GameState.purchase_research(id):
-				grouped_view.refresh()
-				grouped_view.rp_label.text += "\nPurchase failed; RP unchanged.")
+		grouped_view.focus_requested.connect(func(id: String) -> void:
+			if grouped_view.state_override.is_empty() and not GameState.set_research_focus(id):
+				grouped_view.show_failure())
 		add_child(grouped_view)
 		grouped_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		return

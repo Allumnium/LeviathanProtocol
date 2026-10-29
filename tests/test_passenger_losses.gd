@@ -16,7 +16,7 @@ func design(cabins := 1, deck := false) -> Ship:
 	var blueprint := Ship.new()
 	BUILTINS._add_part(blueprint, ShipPart.Type.COMMAND_CENTER, Vector2i.ZERO)
 	for index in range(cabins):
-		BUILTINS._add_part(blueprint, ShipPart.Type.PASSENGER_CABIN, Vector2i(2 + index * 2, 0))
+		BUILTINS._add_part(blueprint, ShipPart.Type.PASSENGER_CABIN, Vector2i(2 + index * 3, 0))
 	if deck:
 		BUILTINS._add_part(blueprint, ShipPart.Type.OBSERVATION_DECK, Vector2i(2, 2))
 	return blueprint

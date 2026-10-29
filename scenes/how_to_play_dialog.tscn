@@ -21,7 +21,7 @@ text = "PREPARE AT INHABITED PORTS
 Design in Ship Designer, save a blueprint, then select a Fleet slot and press + to construct. Stored materials are used first; credits buy shortages. Every hull needs one Command Center (the Tech/Civic checkerboard). Combat hulls also need a weapon.
 
 TRAVEL AND RESEARCH
-Open Map, inspect a reachable node, then choose Travel. Victory earns the shown rewards; operational labs add RP. Spend RP in Research after reviewing the grants. Enemy strength depends on the route, not your fleet.
+Open Map, inspect a reachable node, then choose Travel. Select a Research node, read its details, then Set Research Focus. Travel research: (labs + 0.5) x days. Enemy strength depends on the route, not your fleet.
 
 LOSSES AND RECOVERY
 Intact disconnected parts still work. Repair damage and reconstruct destroyed parts at ports. Passengers board on inhabited arrival; each death costs 20 credits and may cause debt. Disembark before reserving or replacing an occupied ship.

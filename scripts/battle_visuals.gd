@@ -215,7 +215,7 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 			float(minimum_visual_y + maximum_visual_y + 1) * BUILD_CELL_SIZE.y * 0.5
 		) - ship_center
 		draw_texture_rect(
-			_get_part_texture(pattern, player_ship, false),
+			ShipPartPattern.texture_for_part(pattern, part) if part.type == ShipPart.Type.PASSENGER_CABIN else _get_part_texture(pattern, player_ship, false),
 			Rect2(visual_center - visual_size * 0.5, visual_size),
 			false,
 			texture_tint
@@ -260,7 +260,7 @@ func _draw_alien_fleet() -> void:
 
 
 func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:
-	var pattern: ShipPartPattern = _part_patterns_by_type.get(part.pattern_key())
+	var pattern := ShipPartPattern.for_cells(_part_patterns_by_type.get(part.pattern_key()), part.cell_offsets)
 	if pattern == null:
 		push_error("Unknown ship part type in battle renderer: %s" % part.type)
 	return pattern
@@ -357,7 +357,8 @@ func _draw_cached_part(
 	if pattern == null or pattern.renders_on_top != renders_on_top:
 		return
 	var part_tint := ship_tint if is_shield_flashing or is_wreck else (Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.5))
-	draw_texture_rect(_get_part_texture(pattern, member, is_wreck), part_rects[unit_index], false, part_tint)
+	var texture := ShipPartPattern.texture_for_part(pattern, unit.part) if pattern.part_type == ShipPart.Type.PASSENGER_CABIN else _get_part_texture(pattern, member, is_wreck)
+	draw_texture_rect(texture, part_rects[unit_index], false, part_tint)
 
 
 func _create_thruster_frames(sheet: Texture2D) -> Array[AtlasTexture]:

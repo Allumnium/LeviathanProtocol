@@ -1,3 +1,13 @@
+# Research - current owner direction
+
+One canvas contains all available research; categories are connected major branches. Foundation is assumed and never rendered. Clicking a node selects minimal right-panel unlock/effect details and Set Focus. Completed nodes have a drawn green check above the name; partial nodes show current / required RP above the name. No category filters, review modals, View Grants or next labels. Drag to pan, wheel to zoom. Text/styles inherit the shared theme.
+
+The left panel shows deployed labs, the 0.5-lab baseline, RP/day, planned travel days and arrival yield. Each living deployed lab contributes 1 RP/day, including multiple labs on one hull. Production is (labs + 0.5) * planned days; route length varies adjacent journeys between 2 and 4 days. The time is an in-game duration, independent of map animation or battle duration. Only the header shows the unspent balance. Fractional RP is preserved in project allocations, ledger events and saves.
+
+Choose focus before traveling; arrival/victory funds it atomically with the journey reward. Completed projects grant their effects, clear focus and keep overflow. Changing focus preserves partial work. Waiting, withdrawal, defeat, pickups and repeated arrivals produce no RP. Existing implementation/prerequisite/story/branch checks remain authoritative. Science snapshot v2 counts all living labs; legacy v1 snapshots still load and validate their original deployments.
+
+Tests: test_research_ui.gd covers seven visible technologies, hidden Foundation, three major branches, green checks, half-RP progress, concise details, production/route updates, focus, viewport bounds and native pointer pan/zoom at 640x360, 1280x720 and 1920x1080. test_research_focus.gd and test_science.gd cover baseline, per-day rates, multiple labs, fractional persistence, old snapshots, allocation/completion, failed writes and replay safety. Current evidence is in .local/research-tree/.
+## Historical implementation records
 # Multi-grant research model
 
 Step 21 turns the staged section 7 registry into a validated, shared grant model. The existing `data/definitions.json` already contains Foundation and 45 purchasable node definitions; their costs, IDs and design tuning are preserved. No future node is marked implemented, no purchase UI is enabled, and no equipment effect is claimed by defining its grant.

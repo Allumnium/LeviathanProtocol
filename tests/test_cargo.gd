@@ -103,10 +103,10 @@ func _test_checkpoint_losses() -> void:
 	check(state.is_equipment_available(ShipPart.Type.CARGO_HOLD), "Foundation grants functioning Cargo Holds.")
 	var owned := hull(state.next_ship_id)
 	state.next_ship_id += 1
-	# Install the physical policy fixture in the Civic slot.
-	owned.slot_role = "civic"
-	state.roster_state.support_ids.civic = owned.id
-	state.roster_state.support_names.civic = owned.display_name
+	# Install the physical policy fixture in a general design family.
+	owned.family_id = state._register_family(owned.design, "Cargo fixture")
+	state.roster_state.active[1] = owned.family_id
+	state.fleet_design_slots[1] = "Cargo fixture"
 	state.fleet.append(owned)
 	state.economy_state = CargoRules.register_components(state.economy_state, state.fleet)
 	var first := load_hold(state.economy_state, owned, 1, 7)

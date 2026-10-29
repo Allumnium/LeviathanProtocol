@@ -1,4 +1,4 @@
-**Leviathan Protocol — implementation handoff**
+> Latest research owner revision - October 28, 2026: One pannable/zoomable tree, with categories as major branches and Foundation assumed/hidden. Minimal words: clicked-node unlock/effect details and Set Focus on the right; green drawn completion checks or current/required progress above node names. The left panel describes production and arrival yield, with no category filters. Production is (living deployed labs + 0.5 baseline) * planned travel days, at 1 RP per lab per day; typical adjacent journeys last 2-4 days. All living labs count; preserve fractional RP and project progress through ledger/save/reload. Freeze labs/time at departure and settle once on arrival/victory; fighting longer earns nothing. Unspent RP appears only in the header. This overrides every earlier category/filter/Foundation-node, instantaneous-purchase, per-rank victory RP and map-row-productivity description below. Existing readiness, prerequisites and branch exclusions remain; communicate only essential consequences inline.
 
 Design baseline: October 26, 2026. This document supersedes the earlier proposal. It specifies proposed behavior, not functionality already implemented. Numerical balance values are initial tuning targets. Implement the milestones in order; do not attempt the entire catalog in one change.
 
@@ -233,7 +233,7 @@ These row numbers are documentation labels, not serialized enum values. Preserve
 | 36 | ECM Suite | .C./TTT | Covert I. Breaks a bounded number of missile locks and weakens enemy target coordination. |
 | 37 | Phase Drive | CCT/CTT/TTD | Covert II. Short targeted reposition, with valid-space and range checks. |
 | 38 | Ghost Network | CCTCC/CTTTC/TTDTT/CTTTC/CCTCC | Covert III, capstone. Conceals nearby allies briefly and creates finite decoys. |
-| 39 | Passenger Cabin | CC/CD | Civil Hospitality. Four places, luxury 1. |
+| 39 | Passenger Cabin | CCC/CCC | Civil Hospitality. Four places, luxury 1. |
 | 40 | Observation Deck | CTC/CDC | Civil Hospitality. +1 luxury to two adjacent accommodations; exterior edge required. |
 | 41 | Luxury Suites | CCC/CTC/DDD | Luxury Habitation. Four places, luxury 2; greater durability. |
 | 42 | Grand Promenade | CCCCC/CTCTC/CDDDC/CTCTC/CCCCC | Grand Hospitality; capstone. +1 host luxury, Sanctuary ability. |

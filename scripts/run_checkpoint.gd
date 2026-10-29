@@ -222,6 +222,19 @@ static func decode(data: Variant) -> Dictionary:
 			data = JSON.parse_string(JSON.stringify(data))
 		if data.has("fleet_roster") and not FleetRules.valid(data.fleet_roster, fleet):
 			return {}
+		if int(data.fleet_roster.version) == 1:
+			data = data.duplicate(true)
+			data.fleet_roster = FleetRules.integrate_support(data.fleet_roster, fleet)
+			data.fleet.clear()
+			for owned in fleet:
+				data.fleet.append(ship_entry(owned))
+			data.progress.active_design_families = []
+			for id: String in data.fleet_roster.active:
+				data.progress.active_design_families.append("" if id.is_empty() else str(data.fleet_roster.families[id].name))
+			if location.pending:
+				var pending_key := str(int(location.destination))
+				if data.encounter_progress.has(pending_key):
+					data.encounter_progress[pending_key]["migrated_support_attempt"] = true
 		if not data.has("campaign_graph") or not CampaignContent.valid(data.campaign_graph) or count != data.campaign_graph.nodes.size():
 			return {}
 		if not _same(graph.edges, data.campaign_graph.edges) or not _same(graph.convergences, data.campaign_graph.staging) or graph.final != data.campaign_graph.final:
@@ -265,6 +278,8 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 			return false
 		if entry.get("outcome") not in ["active", "withdrawn", "defeat", "victory"] or not entry.get("field") is Dictionary:
 			return false
+		if entry.has("migrated_support_attempt") and not entry.migrated_support_attempt is bool:
+			return false
 		if not _json_value(entry.field):
 			return false
 		if entry.field.has("repair_reserves") and not SharedSupport.valid_reserves(entry.field.repair_reserves):
@@ -291,6 +306,10 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 					return false
 				ship_ids.append(int(id))
 		if entry.has("science_snapshot") and not ScienceRules.valid(entry.science_snapshot, entry.get("ship_ids", [])):
+			return false
+		if entry.has("research_distance") and (not RunProgressData._integer(entry.research_distance) or entry.research_distance < 0 or entry.research_distance > 24):
+			return false
+		if entry.has("research_travel_days") and (not _number(entry.research_travel_days) or entry.research_travel_days < 0 or entry.research_travel_days > 24 * 4.0):
 			return false
 		if not entry.has("science_snapshot") and entry.get("deployment") is Dictionary and entry.deployment.get("fleet") is Array \
 			and ScienceRules.deployment_has_lab(entry.deployment.fleet):

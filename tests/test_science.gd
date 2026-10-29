@@ -52,8 +52,10 @@ func _run() -> void:
 	BUILTINS._add_part(multiple, ShipPart.Type.RESEARCH_LAB, Vector2i(8, 0), 3)
 	var mixed := FleetShip.new()
 	mixed.initialize(multiple, 10, "Two labs")
-	_check(ScienceRules.snapshot([mixed]).total_rp == 60 and FleetRules.design_capacity(multiple) == 2 + ceili(multiple.tiles.size() / 12.0) + 3,
-		"Only the highest living lab operates and adds its capacity surcharge on a regular hull.")
+	_check(ScienceRules.snapshot([mixed]).total_rp == 80 and FleetRules.design_capacity(multiple) == 2 + ceili(multiple.tiles.size() / 12.0) + 3,
+		"Every living lab contributes to production; hull capacity retains its rank surcharge.")
+	_check(ScienceRules.production_rate(ScienceRules.snapshot([mixed])) == 2.5, "Two living labs on one hull produce two RP per day plus the baseline.")
+	_check(ScienceRules.matches_deployment(ScienceRules.snapshot([mixed], true), [RunCheckpoint.ship_entry(mixed)]), "Legacy highest-lab snapshots still validate against old physical deployments.")
 	mixed.units[ScienceRules.active_lab(mixed)].hp = 0
 	_check(ScienceRules.snapshot([mixed]).total_rp == 20, "A surviving lower lab can operate after the higher lab is destroyed.")
 	_test_analysis()
@@ -101,6 +103,7 @@ func _test_persistence() -> void:
 	_check(state.purchase_ship(_design(), "Scientist"), "Another physical scientist uses the same family.")
 	_check(ScienceRules.snapshot(state.get_deployed_fleet()).total_rp == 20, "Owned reserves contribute zero RP.")
 	var destination: int = state.get_reachable_nodes(0)[0]
+	var expected: float = 1.5 * state.research_travel_time(0, destination)
 	_check(state.set_destination(destination), "Science deployment freezes a snapshot.")
 	var snapshot: Dictionary = state.encounter_progress[str(destination)].science_snapshot.duplicate(true)
 	_check(snapshot.total_rp == 20 and snapshot.labs.size() == 1, "Snapshot contains exactly the deployed operational lab.")
@@ -133,11 +136,11 @@ func _test_persistence() -> void:
 	state.run_save_path = save_path
 	scientist.units[scientist.core_index].hp = 0
 	_check(ScienceRules.active_lab(scientist) == -1, "A destroyed host has no operational lab.")
-	_check(state.complete_battle() and state.research_points == 20, "Victory pays the starting lab snapshot even after lab and host destruction.")
+	_check(state.complete_battle() and state.research_points == expected, "Victory pays the starting lab snapshot even after lab and host destruction.")
 	Engine.print_error_messages = false
-	_check(not state.complete_battle() and state.research_points == 20, "Closed objective victory cannot award the same RP twice.")
+	_check(not state.complete_battle() and state.research_points == expected, "Closed objective victory cannot award the same RP twice.")
 	Engine.print_error_messages = printed
-	_check(state.load_run_checkpoint() and state.research_points == 20, "RP and ledger settle durably together.")
+	_check(state.load_run_checkpoint() and state.research_points == expected, "RP and ledger settle durably together.")
 	_check(state.start_new_run(1, 42), "Start withdrawal fixture.")
 	state.credits = 100000
 	_check(state.dispatch_arrival() and state.research_points == 0, "Noncombat arrivals grant no RP.")

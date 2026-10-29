@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "content_revision": "2026-10-28.1",
+  "content_revision": "2026-10-29.1",
   "materials": [
     {"id":"offense","revision":1,"display_name":"Offense","implemented":true,"serialized_id":0,"symbol":"O","target_purchase_price":5},
     {"id":"defense","revision":1,"display_name":"Defense","implemented":true,"serialized_id":1,"symbol":"D","target_purchase_price":2},
@@ -46,7 +46,7 @@
     {"id":"ecm_suite","revision":1,"display_name":"ECM Suite","implemented":false,"type_id":35,"enum_key":"ECM_SUITE","recipe":".C./TTT","description":"Covert I. Breaks a bounded number of missile locks and weakens enemy target coordination.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["ecm_burst"],"ranks":[]},
     {"id":"phase_drive","revision":1,"display_name":"Phase Drive","implemented":false,"type_id":36,"enum_key":"PHASE_DRIVE","recipe":"CCT/CTT/TTD","description":"Covert II. Short targeted reposition, with valid-space and range checks.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["phase_step"],"ranks":[]},
     {"id":"ghost_network","revision":1,"display_name":"Ghost Network","implemented":false,"type_id":37,"enum_key":"GHOST_NETWORK","recipe":"CCTCC/CTTTC/TTDTT/CTTTC/CCTCC","description":"Covert III, capstone. Conceals nearby allies briefly and creates finite decoys.","capstone":true,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["ghost_veil"],"ranks":[]},
-    {"id":"passenger_cabin","revision":2,"display_name":"Passenger Cabin","implemented":true,"type_id":38,"enum_key":"PASSENGER_CABIN","recipe":"CC/CD","description":"Civil Hospitality. Four places, luxury 1.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
+    {"id":"passenger_cabin","revision":4,"display_name":"Passenger Cabin","implemented":true,"type_id":38,"enum_key":"PASSENGER_CABIN","recipe":"CCC/CCC","description":"Civil Hospitality. Four places, luxury 1.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"observation_deck","revision":2,"display_name":"Observation Deck","implemented":true,"type_id":39,"enum_key":"OBSERVATION_DECK","recipe":"CTC/CDC","description":"Civil Hospitality. +1 luxury to two adjacent accommodations; exterior edge required.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"luxury_suites","revision":1,"display_name":"Luxury Suites","implemented":false,"type_id":40,"enum_key":"LUXURY_SUITES","recipe":"CCC/CTC/DDD","description":"Luxury Habitation. Four places, luxury 2; greater durability.","capstone":false,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":[],"ranks":[]},
     {"id":"grand_promenade","revision":1,"display_name":"Grand Promenade","implemented":false,"type_id":41,"enum_key":"GRAND_PROMENADE","recipe":"CCCCC/CTCTC/CDDDC/CTCTC/CCCCC","description":"Grand Hospitality; capstone. +1 host luxury, Sanctuary ability.","capstone":true,"regular_slots_only":false,"offensive_capstone":false,"ability_ids":["sanctuary"],"ranks":[]},

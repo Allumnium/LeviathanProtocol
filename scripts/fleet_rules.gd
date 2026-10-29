@@ -1,9 +1,8 @@
 class_name FleetRules
 extends RefCounted
 
+# Old role strings remain readable for migration; new ships are all regular.
 const ROLES := ["regular", "science", "civic"]
-const ACCOMMODATION := [ShipPart.Type.PASSENGER_CABIN, ShipPart.Type.LUXURY_SUITES]
-const CRAFT_BAYS := [ShipPart.Type.FLIGHT_DECK, ShipPart.Type.TORPEDO_BOMBER_BAY, ShipPart.Type.HIVE_CARRIER_CORE]
 const ACT_CAPACITIES := [30, 42, 54]
 
 
@@ -43,46 +42,14 @@ static func ship_capacity(owned: FleetShip) -> int:
 	return 2 + ceili(occupied.size() / 12.0) + labs
 
 
-static func design_error(design: Ship, role: String) -> String:
+static func design_error(design: Ship, role: String = "regular") -> String:
+	# Legacy roles are accepted for compatibility; equipment is unrestricted.
 	if role not in ROLES:
 		return "Unknown fleet slot role."
 	var cores := 0
-	var labs := 0
-	var civic_sources := 0
-	var offense := 0
-	for category in design.tiles.values():
-		if category == ShipPart.Category.OFFENSE:
-			offense += 1
 	for part in design.parts:
 		cores += 1 if part.type == ShipPart.Type.COMMAND_CENTER else 0
-		labs += 1 if part.type == ShipPart.Type.RESEARCH_LAB else 0
-		civic_sources += 1 if part.type == ShipPart.Type.CARGO_HOLD or part.type in ACCOMMODATION else 0
-		if role != "regular":
-			var definition := GameDefinitions.equipment(part.type)
-			if definition.is_empty():
-				return "Unknown equipment cannot use a dedicated slot."
-			if definition.regular_slots_only:
-				return "Mining equipment requires a regular slot."
-			if definition.offensive_capstone or part.type in CRAFT_BAYS:
-				return "Dedicated slots forbid strike-craft bays and offensive capstones."
-	if cores != 1:
-		return "Every hull requires exactly one Command Center."
-	if role == "regular":
-		return ""
-	if offense > 6:
-		return "Dedicated ships allow at most six Offense material tiles."
-	if role == "science":
-		if labs != 1:
-			return "Science requires exactly one Research Lab."
-		if civic_sources > 0:
-			return "Science forbids passenger accommodation and Cargo Holds."
-	else:
-		if civic_sources < 1:
-			return "Civic requires a Cargo Hold or passenger accommodation."
-		if labs > 0:
-			return "Civic forbids Research Labs."
-	return ""
-
+	return "" if cores == 1 else "Every hull requires exactly one Command Center."
 
 static func operational_error(owned: FleetShip) -> String:
 	# Fitting restrictions concern the physical blueprint. Battle damage disables
@@ -115,7 +82,7 @@ static func fingerprint(design: Ship) -> String:
 
 
 static func empty_roster() -> Dictionary:
-	return {"version": 1, "families": {}, "active": ["", "", ""], "next_family": 1,
+	return {"version": 2, "families": {}, "active": ["", "", ""], "next_family": 1,
 		"support_names": {"science": "", "civic": ""}, "support_ids": {"science": 0, "civic": 0}}
 
 
@@ -140,8 +107,34 @@ static func migrate(fleet: Array[FleetShip]) -> Dictionary:
 	return roster
 
 
+static func integrate_support(roster: Dictionary, fleet: Array[FleetShip]) -> Dictionary:
+	var result := roster.duplicate(true)
+	for owned in fleet:
+		if owned.slot_role == "regular":
+			continue
+		var key := fingerprint(owned.design)
+		var family_id := ""
+		for id: String in result.families:
+			if result.families[id].blueprints.has(key):
+				family_id = id
+				break
+		if family_id.is_empty():
+			family_id = "family/%d" % int(result.next_family)
+			result.next_family += 1
+			var title := str(result.support_names.get(owned.slot_role, ""))
+			result.families[family_id] = {"name": owned.display_name if title.is_empty() else title, "blueprints": [key], "design": owned.design.to_design_data()}
+		if not owned.in_reserve and not result.active.has(family_id) and result.active.has(""):
+			result.active[result.active.find("")] = family_id
+		owned.family_id = family_id
+		owned.slot_role = "regular"
+	result.version = 2
+	result.support_ids = {"science": 0, "civic": 0}
+	result.support_names = {"science": "", "civic": ""}
+	return result
+
+
 static func valid(roster: Variant, fleet: Array[FleetShip]) -> bool:
-	if not roster is Dictionary or roster.get("version") != 1 or not roster.get("families") is Dictionary:
+	if not roster is Dictionary or (roster.get("version") != 1 and roster.get("version") != 2) or not roster.get("families") is Dictionary:
 		return false
 	if not roster.get("active") is Array or roster.active.size() != 3 or not RunProgressData._integer(roster.get("next_family")) or roster.next_family < 1:
 		return false
@@ -183,6 +176,8 @@ static func valid(roster: Variant, fleet: Array[FleetShip]) -> bool:
 			return false
 	for owned in fleet:
 		if owned.slot_role not in ROLES:
+			return false
+		if int(roster.version) >= 2 and owned.slot_role != "regular":
 			return false
 		if owned.slot_role == "regular":
 			if not roster.families.has(owned.family_id) or not roster.families[owned.family_id].blueprints.has(fingerprint(owned.design)):

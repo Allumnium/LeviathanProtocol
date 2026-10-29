@@ -18,6 +18,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Research definition suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_research_ui.gd --log-file (Join-Path $runRoot 'research-ui.log')
     if ($LASTEXITCODE -ne 0) { throw "Grouped research UI suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_research_focus.gd --log-file (Join-Path $runRoot 'research-focus.log')
+    if ($LASTEXITCODE -ne 0) { throw "Research focus/journey suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_run_state.gd --log-file (Join-Path $runRoot 'run-state.log')
     if ($LASTEXITCODE -ne 0) { throw "Run state suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_research_enforcement.gd --log-file (Join-Path $runRoot 'research-enforcement.log')
@@ -32,10 +34,18 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Shared research suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_passengers.gd --log-file (Join-Path $runRoot 'passengers.log')
     if ($LASTEXITCODE -ne 0) { throw "Passenger state suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_passenger_art.gd --log-file (Join-Path $runRoot 'passenger-art.log')
+    if ($LASTEXITCODE -ne 0) { throw "Passenger cabin art/footprint suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_cargo.gd --log-file (Join-Path $runRoot 'cargo.log')
     if ($LASTEXITCODE -ne 0) { throw "Cargo state suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_cargo_arrivals.gd --log-file (Join-Path $runRoot 'cargo-arrivals.log')
     if ($LASTEXITCODE -ne 0) { throw "Cargo arrival suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_construction_orders.gd --log-file (Join-Path $runRoot 'construction-orders.log')
+    if ($LASTEXITCODE -ne 0) { throw "Construction order suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_general_fleet.gd --log-file (Join-Path $runRoot 'general-fleet.log')
+    if ($LASTEXITCODE -ne 0) { throw "General fleet/migration suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_bitmap_font.gd --log-file (Join-Path $runRoot 'bitmap-font.log')
+    if ($LASTEXITCODE -ne 0) { throw "Bitmap font/setup suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_boarding.gd --log-file (Join-Path $runRoot 'boarding.log')
     if ($LASTEXITCODE -ne 0) { throw "Passenger boarding suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_passenger_losses.gd --log-file (Join-Path $runRoot 'passenger-losses.log')

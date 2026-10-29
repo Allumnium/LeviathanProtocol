@@ -48,7 +48,7 @@ func _draw() -> void:
 			draw_rect(rect.grow(-0.2), color, unit.hp > 0.0)
 		var part: ShipPart = unit.part
 		if part != null and unit.hp > 0.0:
-			var pattern: ShipPartPattern = patterns.get(part.pattern_key())
+			var pattern := ShipPartPattern.for_cells(patterns.get(part.pattern_key()), part.cell_offsets)
 			if pattern != null and not pattern.renders_on_top:
 				_draw_part(unit, part, pattern)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -58,7 +58,7 @@ func _draw() -> void:
 		var part: ShipPart = unit.part
 		if part == null or unit.hp <= 0.0:
 			continue
-		var pattern: ShipPartPattern = patterns.get(part.pattern_key())
+		var pattern := ShipPartPattern.for_cells(patterns.get(part.pattern_key()), part.cell_offsets)
 		if pattern != null and pattern.renders_on_top:
 			_draw_part(unit, part, pattern)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -81,7 +81,7 @@ func _draw_part(unit: Dictionary, part: ShipPart, pattern: ShipPartPattern) -> v
 		bounds = bounds.expand(owned.local_cell_position(cell) - half_cell)
 		bounds = bounds.expand(owned.local_cell_position(cell) + half_cell)
 	draw_texture_rect(
-		pattern.preview_texture,
+		ShipPartPattern.texture_for_part(pattern, part),
 		bounds.grow(-0.3),
 		false,
 		Color.WHITE if unit.hp == unit.max_hp else Color(1.0, 0.7, 0.4)

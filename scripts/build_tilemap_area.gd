@@ -1216,13 +1216,13 @@ func _get_texture_for_part(part: ShipPart) -> Texture2D:
 	if pattern.preview_texture == null:
 		push_error("No preview texture is assigned for %s." % pattern.display_name)
 		return null
-	return pattern.preview_texture
+	return ShipPartPattern.texture_for_part(pattern, part)
 
 
 func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:
 	for pattern in _part_patterns:
 		if pattern.part_type == part.type and pattern.rank == part.rank:
-			return pattern
+			return ShipPartPattern.for_cells(pattern, part.cell_offsets)
 	push_error("Unknown ship part type: %s" % part.type)
 	return null
 

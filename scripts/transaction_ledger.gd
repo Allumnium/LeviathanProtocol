@@ -5,10 +5,10 @@ const KINDS := ["arrival", "casualty", "cargo_sale", "cargo_loss", "victory", "o
 
 
 static func apply(checkpoint: Dictionary, kind: String, source_id: String,
-	credits_delta: int, material_delta: Array, rp_delta: int, details: Dictionary = {}, economy_after: Variant = null) -> Dictionary:
+	credits_delta: int, material_delta: Array, rp_delta: float, details: Dictionary = {}, economy_after: Variant = null) -> Dictionary:
 	if kind not in KINDS or source_id.is_empty() or checkpoint.get("run_id", "").is_empty():
 		return {}
-	if material_delta.size() != 4:
+	if not RunProgressData._rp_number(rp_delta) or material_delta.size() != 4:
 		return {}
 	if economy_after != null and not economy_after is Dictionary:
 		return {}
@@ -31,14 +31,14 @@ static func apply(checkpoint: Dictionary, kind: String, source_id: String,
 	if normalized_economy != null:
 		result.economy = normalized_economy
 	var before := {"credits": int(result.progress.credits), "materials": result.inventory.duplicate(),
-		"rp": int(result.progress.research_points)}
+		"rp": float(result.progress.research_points)}
 	# Bound arithmetic to JSON's exact integer range, including signed debt.
 	if absf(float(before.credits)) + absf(float(credits_delta)) > 9007199254740991.0:
 		return {}
 	if absf(float(before.rp)) + absf(float(rp_delta)) > 9007199254740991.0:
 		return {}
 	result.progress.credits = int(before.credits) + credits_delta
-	result.progress.research_points = int(before.rp) + rp_delta
+	result.progress.research_points = float(before.rp) + rp_delta
 	if result.progress.research_points < 0:
 		return {}
 	for index in range(4):
@@ -68,7 +68,7 @@ static func valid(ledger: Variant, run_id: String) -> bool:
 			return false
 		if not entry.get("fingerprint") is String or entry.fingerprint.length() != 64:
 			return false
-		if not RunProgressData._integer(entry.get("credits_delta")) or not RunProgressData._integer(entry.get("rp_delta")):
+		if not RunProgressData._integer(entry.get("credits_delta")) or not RunProgressData._rp_number(entry.get("rp_delta")):
 			return false
 		if not entry.get("material_delta") is Array or entry.material_delta.size() != 4:
 			return false
@@ -77,7 +77,7 @@ static func valid(ledger: Variant, run_id: String) -> bool:
 		for balance in [entry.get("before"), entry.get("after")]:
 			if not balance is Dictionary or not RunProgressData._integer(balance.get("credits")):
 				return false
-			if not RunProgressData._integer(balance.get("rp")) or balance.rp < 0:
+			if not RunProgressData._rp_number(balance.get("rp")) or balance.rp < 0:
 				return false
 			if not balance.get("materials") is Array or balance.materials.size() != 4:
 				return false
@@ -87,7 +87,7 @@ static func valid(ledger: Variant, run_id: String) -> bool:
 		var test := {"run_id": run_id, "ledger": {}, "progress": {"credits": entry.before.credits,
 			"research_points": entry.before.rp}, "inventory": entry.before.materials}
 		var replay := apply(test, entry.kind, entry.source_id, int(entry.credits_delta), entry.material_delta,
-			int(entry.rp_delta), entry.details, entry.get("economy_after"))
+			float(entry.rp_delta), entry.details, entry.get("economy_after"))
 		if replay.is_empty() or replay.checkpoint.ledger[id].fingerprint != entry.fingerprint:
 			return false
 		# Compare normalized numeric values, not int/JSON-float container identity.

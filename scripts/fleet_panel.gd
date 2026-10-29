@@ -13,7 +13,6 @@ const MATERIAL_ICONS: Array[Texture2D] = [
 ]
 const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 const PLUS_ICON: Texture2D = preload("res://assets/plus.png")
-const MINUS_ICON: Texture2D = preload("res://assets/minus.png")
 const SHIP_LIBRARY_DIALOG = preload("res://scenes/load_design_dialog.tscn")
 
 var selected_design: Ship
@@ -90,7 +89,7 @@ func set_external_panels_visible(is_visible: bool) -> void:
 
 func _build_slot_controls() -> void:
 	var header := Label.new()
-	header.text = "SHIP SLOTS (5)" if GameState.campaign_active else "SHIP TYPES"
+	header.text = "SHIP SLOTS (3)" if GameState.campaign_active else "SHIP TYPES"
 	slot_host.add_child(header)
 	if GameState.campaign_active:
 		_build_compact_slot_controls()
@@ -100,13 +99,6 @@ func _build_slot_controls() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
 		rows.add_child(row)
-		var salvage_host := CenterContainer.new()
-		salvage_host.custom_minimum_size = Vector2(20, 55)
-		row.add_child(salvage_host)
-		var salvage := TextureButton.new()
-		salvage.texture_normal = MINUS_ICON
-		_style_slot_action(salvage)
-		salvage_host.add_child(salvage)
 		var select := Button.new()
 		select.custom_minimum_size = Vector2(100, 76)
 		select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -150,15 +142,12 @@ func _build_slot_controls() -> void:
 		_style_slot_action(construct)
 		construct_host.add_child(construct)
 		select.pressed.connect(_open_picker.bind(index))
-		salvage.pressed.connect(_salvage_slot.bind(index))
 		construct.pressed.connect(_construct_slot.bind(index))
 		slot_widgets.append({
 			"button": select,
 			"preview": preview,
 			"label": name_label,
 			"cost": cost_rows,
-			"salvage": salvage,
-			"salvage_host": salvage_host,
 			"construct": construct,
 			"construct_host": construct_host,
 		})
@@ -172,14 +161,6 @@ func _build_compact_slot_controls() -> void:
 		row.custom_minimum_size.y = 24
 		row.add_theme_constant_override("separation", 2)
 		slot_host.add_child(row)
-		var salvage := TextureButton.new()
-		salvage.texture_normal = MINUS_ICON
-		_style_slot_action(salvage)
-		salvage.custom_minimum_size = Vector2(24, 24)
-		var salvage_host := CenterContainer.new()
-		salvage_host.custom_minimum_size = Vector2(24, 24)
-		row.add_child(salvage_host)
-		salvage_host.add_child(salvage)
 		var select := Button.new()
 		select.custom_minimum_size = Vector2(104, 24)
 		select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -213,10 +194,9 @@ func _build_compact_slot_controls() -> void:
 		row.add_child(construct_host)
 		construct_host.add_child(construct)
 		select.pressed.connect(_open_picker.bind(index))
-		salvage.pressed.connect(_salvage_slot.bind(index))
 		construct.pressed.connect(_construct_slot.bind(index))
 		slot_widgets.append({"button": select, "preview": preview, "label": label,
-			"cost": cost, "salvage": salvage, "salvage_host": salvage_host,
+			"cost": cost,
 			"construct": construct, "construct_host": construct_host})
 
 
@@ -275,23 +255,185 @@ func _assign_slot(slot_index: int, choice: Dictionary) -> void:
 func _construct_slot(slot_index: int) -> void:
 	var slot: Dictionary = slots[slot_index]
 	if slot.design != null:
-		if GameState.campaign_active:
-			var materials := GameState.get_construction_material_costs(slot.design)
-			var body := "%s\nUse stock: Offense %d / Defense %d / Tech %d / Civic %d\nPrice: %d cr (includes material shortages).\nDeployment capacity: %d per intact copy." % [slot.name, materials[0], materials[1], materials[2], materials[3], GameState.get_construction_credit_cost(slot.design), FleetRules.design_capacity(slot.design)]
-			_review_action("CONSTRUCT SHIP", body, GameState.construction_error(slot.design, _slot_role(slot_index)), "CONSTRUCT", func() -> bool: return GameState.purchase_ship(slot.design, slot.name, _slot_role(slot_index)))
-		else:
-			GameState.purchase_saved_ship(slot.name, _slot_role(slot_index))
+		_open_construction_order(slot_index)
 
 
-func _salvage_slot(slot_index: int) -> void:
+func _open_construction_order(slot_index: int) -> void:
+	if is_instance_valid(action_review):
+		return
 	var slot: Dictionary = slots[slot_index]
-	if slot.design != null:
-		if GameState.campaign_active:
-			var occupied := GameState.fleet_slot_members(slot_index).any(func(owned: FleetShip) -> bool: return PassengerRules.occupied(GameState.economy_state, owned.id) > 0)
-			var problem := "Disembark passengers before dismantling this type." if occupied else ("Dismantling requires a secured port." if not GameState.is_shipyard_node(GameState.current_node_id) else "")
-			_review_action("DISMANTLE SHIP", "%s\nDismantle one physical copy. Recover surviving material only; construction credits are not refunded." % slot.name, problem, "DISMANTLE", func() -> bool: return GameState.salvage_fleet_slot(slot_index))
+	var design: Ship = slot.design
+	var overlay := Control.new()
+	action_review = overlay
+	overlay.name = "FleetActionReview"
+	overlay.add_to_group("modal_ui")
+	overlay.z_index = 40
+	get_tree().current_scene.add_child(overlay)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.75)
+	overlay.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.name = "ConstructionModal"
+	panel.theme_type_variation = &"CompactPanel"
+	panel.custom_minimum_size = Vector2(500, 290)
+	center.add_child(panel)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 5)
+	panel.add_child(content)
+	var heading := Label.new()
+	heading.text = "CONSTRUCT SHIPS"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.custom_minimum_size.y = 24
+	content.add_child(heading)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 16)
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(columns)
+	var left := VBoxContainer.new()
+	left.custom_minimum_size.x = 210
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 3)
+	columns.add_child(left)
+	var name_label := Label.new()
+	name_label.text = slot.name
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	left.add_child(name_label)
+	var preview := PREVIEW.new()
+	preview.name = "ConstructionPreview"
+	preview.custom_minimum_size = Vector2(160, 70)
+	left.add_child(preview)
+	preview.set_ship(design)
+	var base_label := Label.new()
+	base_label.text = "BASE COST / SHIP"
+	left.add_child(base_label)
+	var materials := HBoxContainer.new()
+	materials.add_theme_constant_override("separation", 5)
+	left.add_child(materials)
+	var required := GameState.get_design_material_costs(design)
+	var base_credits := 0
+	for category in range(4):
+		_add_cost_item(materials, MATERIAL_ICONS[category], required[category])
+		base_credits += required[category] * GameState.MATERIAL_PRICES[category]
+	var base_price := HBoxContainer.new()
+	left.add_child(base_price)
+	_add_cost_item(base_price, CREDIT_ICON, base_credits)
+	var equipment := Label.new()
+	equipment.name = "EquipmentSummary"
+	var counts := [0, 0, 0, 0]
+	for part in design.parts:
+		if not part.stats.weapons.is_empty():
+			counts[0] += 1
+		elif part.type in [ShipPart.Type.THRUSTER, ShipPart.Type.LARGE_THRUSTER]:
+			counts[2] += 1
+		elif part.type in [ShipPart.Type.SHIELD, ShipPart.Type.ARMOR_BLOCK, ShipPart.Type.SINGLE_PLATE]:
+			counts[1] += 1
 		else:
-			GameState.salvage_ship_type(slot.name)
+			counts[3] += 1
+	equipment.text = "EQUIPMENT\nWeapons %d | Defense %d\nEngines %d | Support %d" % counts
+	left.add_child(equipment)
+	var right := VBoxContainer.new()
+	right.custom_minimum_size.x = 220
+	columns.add_child(right)
+	var quantity_row := HBoxContainer.new()
+	right.add_child(quantity_row)
+	var quantity_label := Label.new()
+	quantity_label.text = "QUANTITY"
+	quantity_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quantity_row.add_child(quantity_label)
+	var quantity := SpinBox.new()
+	quantity.name = "OrderQuantity"
+	quantity.min_value = 1
+	quantity.max_value = 2147483647
+	quantity.step = 1
+	quantity.value = 1
+	quantity.update_on_text_changed = true
+	quantity.custom_minimum_size.x = 100
+	quantity_row.add_child(quantity)
+	var breakdown := VBoxContainer.new()
+	breakdown.name = "OrderBreakdown"
+	right.add_child(breakdown)
+	var status := Label.new()
+	status.name = "ActionStatus"
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(status)
+	var bottom := CenterContainer.new()
+	content.add_child(bottom)
+	var confirm := Button.new()
+	confirm.name = "ConfirmAction"
+	confirm.text = "CONSTRUCT"
+	style_slot_button(confirm)
+	confirm.custom_minimum_size = Vector2(150, 28)
+	bottom.add_child(confirm)
+	var close := preload("res://scenes/close_x_button.tscn").instantiate()
+	panel.add_child(close)
+	close.pressed.connect(overlay.queue_free)
+	var submitting := {"active": false}
+	var refresh := func(_value := 0.0) -> void:
+		for child in breakdown.get_children():
+			breakdown.remove_child(child)
+			child.queue_free()
+		var quote := GameState.construction_order_quote(design, int(quantity.value))
+		var grid := GridContainer.new()
+		grid.columns = 4
+		grid.add_theme_constant_override("h_separation", 8)
+		breakdown.add_child(grid)
+		for text in ["", "NEEDED", "STOCK", "CREDITS"]:
+			var label := Label.new()
+			label.text = text
+			grid.add_child(label)
+		for category in range(4):
+			var icon := TextureRect.new()
+			icon.texture = MATERIAL_ICONS[category]
+			icon.custom_minimum_size = Vector2(13, 13)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			grid.add_child(icon)
+			for amount in [quote.required[category], quote.stock[category]]:
+				var label := Label.new()
+				label.text = str(amount)
+				grid.add_child(label)
+			var price := HBoxContainer.new()
+			grid.add_child(price)
+			_add_cost_item(price, CREDIT_ICON, int(quote.shortages[category]) * GameState.MATERIAL_PRICES[category])
+		var total := HBoxContainer.new()
+		breakdown.add_child(total)
+		var total_label := Label.new()
+		total_label.text = "TOTAL"
+		total.add_child(total_label)
+		_add_cost_item(total, CREDIT_ICON, int(quote.credits))
+		status.text = GameState.construction_order_error(design, _slot_role(slot_index), int(quantity.value))
+		status.visible = not status.text.is_empty()
+		confirm.disabled = status.visible or submitting.active
+	quantity.value_changed.connect(refresh)
+	GameState.credits_changed.connect(refresh)
+	GameState.tile_inventory_changed.connect(refresh)
+	overlay.tree_exiting.connect(func() -> void:
+		GameState.credits_changed.disconnect(refresh)
+		GameState.tile_inventory_changed.disconnect(refresh))
+	refresh.call()
+	confirm.pressed.connect(func() -> void:
+		if submitting.active:
+			return
+		quantity.apply()
+		if not GameState.construction_order_error(design, _slot_role(slot_index), int(quantity.value)).is_empty():
+			refresh.call()
+			return
+		submitting.active = true
+		confirm.disabled = true
+		if GameState.purchase_ships(design, slot.name, _slot_role(slot_index), int(quantity.value)):
+			overlay.queue_free()
+		else:
+			submitting.active = false
+			refresh.call()
+			status.text = "Construction failed. " + GameState.last_save_error
+			status.show())
 
 
 func _refresh_slots() -> void:
@@ -315,19 +457,12 @@ func _refresh_slots() -> void:
 		if GameState.campaign_active:
 			widget.button.disabled = not GameState.is_shipyard_node(GameState.current_node_id) and not GameState.emergency_roster_available()
 		widget.construct.visible = design != null
-		widget.salvage.visible = design != null
-		widget.salvage.disabled = design == null or not _fleet_has_type(slot.name) or GameState.battle_pending
-		if GameState.campaign_active:
-			widget.salvage.disabled = GameState.fleet_slot_members(index).is_empty() or not GameState.is_shipyard_node(GameState.current_node_id)
-			if GameState.fleet_slot_members(index).any(func(owned: FleetShip) -> bool: return PassengerRules.occupied(GameState.economy_state, owned.id) > 0):
-				widget.salvage.disabled = true
 		if design != null and not GameState.campaign_active:
 			var error := GameState.construction_error(design, _slot_role(index))
 			widget.construct.disabled = not error.is_empty()
 		if GameState.campaign_active:
 			# Click opens a priced review, including any current restriction.
 			widget.construct.disabled = design == null
-			widget.salvage.disabled = GameState.fleet_slot_members(index).is_empty() or GameState.battle_pending
 
 
 func _populate_cost_row(container: VBoxContainer, design: Ship) -> void:
@@ -462,22 +597,31 @@ func _seed_slots_from_fleet() -> void:
 
 
 func _slot_count() -> int:
-	return 5 if GameState.campaign_active else SLOT_COUNT
+	return SLOT_COUNT
 
 
 func _slot_role(index: int) -> String:
-	return "regular" if index < 3 else ("science" if index == 3 else "civic")
+	return "regular"
 
 
 func _refresh_roster_summary() -> void:
 	var totals := Label.new()
+	totals.name = "FleetTotals"
 	totals.text = "Deployed: %d / %d" % [GameState.get_deployed_fleet().size(), GameState.fleet.size()]
+	var health := 0.0
+	var maximum := 0.0
+	var damaged := 0
+	for owned in GameState.get_deployed_fleet():
+		damaged += 1 if owned.needs_repair() else 0
+		for unit in owned.units:
+			health += unit.hp
+			maximum += unit.max_hp
+	totals.text += "\nHull: %d%%\nDamaged: %d" % [roundi(100 * health / maximum) if maximum > 0 else 0, damaged]
 	if GameState.campaign_active:
 		totals.text += "\nCapacity %d / %d" % [GameState.used_deployment_capacity(), GameState.deployment_capacity()]
-		totals.text += "\nVictory RP: %d" % int(ScienceRules.snapshot(GameState.get_deployed_fleet()).total_rp)
 		var passengers := PassengerRules.occupied(GameState.economy_state)
 		if passengers > 0:
-			totals.text += "\nPassengers: %d\nLoss: 20 cr/person" % passengers
+			totals.text += "\nPassengers: %d" % passengers
 		if GameState.emergency_roster_available() and not GameState.is_shipyard_node(GameState.current_node_id):
 			totals.text += "\nEmergency: select an owned revision, then deploy reserves."
 		if GameState.used_deployment_capacity() > GameState.deployment_capacity():
@@ -496,6 +640,8 @@ func _refresh_roster_summary() -> void:
 		var disembark := Button.new()
 		disembark.name = "DisembarkPassengers"
 		disembark.text = "DISEMBARK"
+		style_slot_button(disembark)
+		disembark.custom_minimum_size.y = 24
 		disembark.disabled = GameState.port_services().is_empty()
 		disembark.pressed.connect(func() -> void: GameState.disembark_passengers())
 		summary_host.add_child(disembark)
@@ -672,6 +818,8 @@ func _refresh_selected_actions() -> void:
 		problem = "Requires a secured port."
 	elif PassengerRules.occupied(GameState.economy_state, owned.id) > 0:
 		problem = "Disembark passengers first."
+	elif CargoRules.quantity(GameState.economy_state, owned.id) > 0:
+		problem = "Offload cargo first."
 	elif not deployed and not historical:
 		problem = GameState.design_research_error(owned.design)
 		if problem.is_empty():
@@ -693,6 +841,21 @@ func _refresh_selected_actions() -> void:
 	feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	feedback.add_theme_color_override("font_color", Color("ffd28a"))
 	content.add_child(feedback)
+	var salvage := Button.new()
+	salvage.name = "SalvageAction"
+	salvage.text = "SALVAGE"
+	style_slot_button(salvage)
+	salvage.custom_minimum_size.y = 24
+	salvage.disabled = GameState.battle_pending or not GameState.is_shipyard_node(GameState.current_node_id) \
+		or PassengerRules.occupied(GameState.economy_state, owned.id) > 0 or CargoRules.quantity(GameState.economy_state, owned.id) > 0
+	row.add_child(salvage)
+	salvage.pressed.connect(func() -> void:
+		salvage.disabled = true
+		if not GameState.dismantle_ship(owned):
+			feedback.text = "Salvage failed. " + GameState.last_save_error
+			feedback.custom_minimum_size.x = 110
+			feedback.show()
+			salvage.disabled = false)
 	toggle.pressed.connect(func() -> void:
 		var ok := _select_owned_revision(owned) if historical else GameState.set_ship_reserve(owned, deployed)
 		if not ok:

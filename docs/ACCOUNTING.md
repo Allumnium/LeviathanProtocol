@@ -22,6 +22,13 @@ Victory commits route advancement, credits and salvage together. The battle cont
 
 ## Verification
 
+Construction orders price the aggregate material requirements against stock once;
+credits pay only the remaining shortages. `purchase_ships` stages all hulls, unique
+IDs, slot assignments, inventory and credits in one checkpoint before changing live
+state. Single-ship purchases delegate to the same path. All new copies use general
+design families and normal deployment capacity. A failed write builds none of the order. Selected-hull salvage
+immediately applies the existing durable dismantle transaction without confirmation.
+
 `tests/test_transactions.gd` exercises each event kind, duplicate and conflicting events, signed debt, component economic state, retained damage, reload/replay, negative-inventory rejection, interruption before stage/after stage/after backup/promotion, subsequent commits after recovery, corrupt main/stage fallback, preservation of the good backup, stale writers, filesystem write failure with unchanged live state, and actual deployment/victory settlement. Test files use isolated user data.
 
 Step 5 removed the player-count argument and all player-fleet factors from enemy generation. Step 6 supersedes the interim generator with frozen proximity allocations; see ENCOUNTERS.md. `tests/test_encounter_independence.gd` continues to compare complete enemy stats/order and victory rewards for fleets of 1, 4 and 10, with different equipment, damage, upgrades, research and resources, across four seeds and all three difficulties. The new campaign graph remains later work.
@@ -31,3 +38,7 @@ Actual steps 4–5 validation (October 26, 2026): isolated import, definition, r
 Step 29 connects secured inhabited arrivals to the aggregate boarding proposal and the existing arrival ledger identity. Tickets, occupied places and deduplication commit in one generation; replay checks precede loadout evaluation. Campaign balance application now includes its staged economic state. No-cabin fingerprints remain compatible. See PASSENGERS.md for the rules, test-fixture boundary and pending loss/readiness milestone.
 
 Step 30 normalizes casualties before checkpoint validation and stages dead-host removal after its occupied loads have been cleared/charged. Per-component/attempt event identities prevent cabin-then-host double fees. Outcome writes include the surviving fleet, slot/escort cleanup, loss accounting and rewards; failed writes do not remove dead hulls or consume live loads. Explicit saves and midbattle economic checkpoints apply the same proposal. Safe disembarkation at a secured inhabited port is a zero-credit transaction, and loaded reserve/revision/dismantle operations are guarded. Basic passenger equipment is now active; advanced hospitality and cargo remain gated.
+
+Research focus revision (October 28): saved run metadata includes optional research_focus and research_progress fields, defaulting to empty for older saves. Completed journey rewards grant distance times frozen deployed lab productivity. ResearchFocusRules then transfers banked RP into the chosen project through uniquely identified research ledger events in that same checkpoint. Completion appends the research ID and existing branch commitment and retains excess RP; switching focus retains partial work. Failed writes do not change focus, progress, grants or balances. Reopening an arrival never repeats distance earnings. Battle duration is absent from the RP calculation.
+
+Latest daily research revision: RP balances, project progress and RP deltas are finite numeric values, including halves. They are no longer integer-only; credits and material amounts remain integers. Production is (living deployed labs + 0.5) times frozen planned travel days, typically 2-4 per adjacent route. Ledger fingerprint normalization remains backward compatible with old whole-number events. Fractional rewards, project allocations and grants still persist together before live mutation.

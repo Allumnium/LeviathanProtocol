@@ -115,7 +115,7 @@ func run() -> void:
 		await shot("research")
 		map.panel_tabs.get_node("Upgrades").grouped_view._select("civil_hospitality")
 		await shot("research-details")
-		map.panel_tabs.get_node("Upgrades").grouped_view.close_details()
+		map.panel_tabs.get_node("Upgrades").grouped_view.tree_canvas.fit_view()
 		map.panel_tabs.current_tab = 3
 		await shot("archive")
 		map.panel_tabs.current_tab = 0
@@ -126,19 +126,6 @@ func run() -> void:
 		map._on_how_to_play_pressed()
 		await shot("help")
 		map.how_to_play_dialog.hide()
-		map._show_port_services()
-		await shot("port")
-		var balance: int = state.credits
-		state.credits = -48
-		state.credits_changed.emit()
-		map._show_port_services()
-		await shot("port-debt")
-		state.credits = balance
-		state.credits_changed.emit()
-		map.campaign_overlay.queue_free()
-		await process_frame
-		map._show_story(false)
-		await shot("story")
 		await mount("res://scenes/ship_designer.tscn")
 		await shot("designer")
 		state.set_destination(state.get_reachable_nodes(0)[0])

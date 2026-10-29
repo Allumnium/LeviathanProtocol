@@ -316,6 +316,7 @@ func _test_ship_cost() -> void:
 		ShipPart.Type.MINI_TURRET,
 		ShipPart.Type.THRUSTER,
 		ShipPart.Type.LARGE_THRUSTER,
+		ShipPart.Type.PASSENGER_CABIN,
 	]
 	for pattern in ShipPartPattern.get_catalog():
 		var expected_tech_category := ShipPart.TechCategory.CORE
@@ -332,7 +333,7 @@ func _test_ship_cost() -> void:
 			"Working catalog equipment availability must follow current-run research.")
 		_check(
 			pattern.renders_on_top == (pattern.part_type in top_layer_types),
-			"Guns, thrusters, and the command core must render above the translucent hull."
+			"Guns, thrusters, the command core and finished cabin art must render above the translucent hull."
 		)
 		var flipped_offsets := pattern.get_offsets_for_transform(0, true)
 		_check(
@@ -1097,8 +1098,8 @@ func _test_scene() -> void:
 		"Fleet controls do not take keyboard navigation focus."
 	)
 	_check(
-		game_map.map_button != null and game_map.sector_name_label.text == "SECTOR 2",
-		"The top bar must show a Map button beside the current sector name."
+		game_map.map_button != null and not game_map.sector_name_label.visible,
+		"The top bar keeps Map without a sector/Act/row label."
 	)
 	var sector_before_map: int = state.current_node_id
 	game_map._on_map_pressed()
@@ -1254,14 +1255,12 @@ func _test_scene() -> void:
 		)
 		for widget in fleet_panel.slot_widgets:
 			_check(
-				widget.salvage_host.get_index() < widget.button.get_index()
-					and widget.construct_host.get_index() > widget.button.get_index(),
-				"Fleet slot actions must place minus left of the preview and plus right of it."
+				not widget.has("salvage") and widget.construct_host.get_index() > widget.button.get_index(),
+				"Fleet slots expose construction on the right and no salvage button."
 			)
 		for slot_index in range(3):
 			var occupied: bool = fleet_panel.slots[slot_index].design != null
 			_check(fleet_panel.slot_widgets[slot_index].construct.visible == occupied, "Construct buttons must appear only beside occupied ship slots.")
-			_check(fleet_panel.slot_widgets[slot_index].salvage.visible == occupied, "Salvage buttons must appear only beside occupied ship slots.")
 		await process_frame
 		var fleet_center_width: float = center_panel.size.x
 		var fleet_details_width: float = details_panel.size.x
