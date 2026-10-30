@@ -25,6 +25,7 @@ var current_node_id := 0
 var selected_node_id := -1
 var camera_position := WORLD_SIZE * 0.5
 var camera_zoom := 1.0
+var campaign_preview_height := 120.0
 var stars := PackedVector2Array()
 var _dragging := false
 var _drag_moved := false
@@ -124,8 +125,8 @@ func _screen_to_world(screen_position: Vector2) -> Vector2:
 func _reset_camera() -> void:
 	if GameState.campaign_active:
 		var first_row := (GameState.current_act() - 1) * 8
-		camera_zoom = clampf(minf((size.x - 40.0) / 640.0, (size.y - 125.0) / WORLD_SIZE.y), 0.35, 1.0)
-		camera_position = Vector2(WORLD_SIZE.x * lerpf(0.035, 0.965, float(first_row + 4) / 24.0), WORLD_SIZE.y * 0.5 + 60.0 / camera_zoom)
+		camera_zoom = clampf(minf((size.x - 40.0) / 640.0, (size.y - campaign_preview_height - 5.0) / WORLD_SIZE.y), MIN_ZOOM, 1.0)
+		camera_position = Vector2(WORLD_SIZE.x * lerpf(0.035, 0.965, float(first_row + 4) / 24.0), WORLD_SIZE.y * 0.5 + campaign_preview_height * 0.5 / camera_zoom)
 		return
 	camera_position = _node_center(current_node_id)
 	camera_zoom = clampf(

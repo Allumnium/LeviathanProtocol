@@ -319,13 +319,23 @@ func position_selection_actions() -> void:
 	if not Rect2(Vector2(0, 34), Vector2(size.x, maxf(0, size.y - 34))).intersects(Rect2(center - Vector2.ONE * half_hull, Vector2.ONE * half_hull * 2)):
 		selection_actions.hide()
 		return
-	var point := center + Vector2(half_hull + 5, -dimensions.y * 0.5)
-	if point.x + dimensions.x > size.x - 4:
-		point.x = center.x - half_hull - 5 - dimensions.x
-	if point.x < 4:
-		point = center + Vector2(-dimensions.x * 0.5, half_hull + 5)
-	point.x = clampf(point.x, 4, maxf(4, size.x - dimensions.x - 4))
-	point.y = clampf(point.y, 34, maxf(34, size.y - dimensions.y - 4))
+	var candidates: Array[Vector2] = [
+		center + Vector2(half_hull + 5, -dimensions.y * 0.5),
+		center + Vector2(-half_hull - 5 - dimensions.x, -dimensions.y * 0.5),
+		center + Vector2(-dimensions.x * 0.5, half_hull + 5),
+		center + Vector2(-dimensions.x * 0.5, -half_hull - 5 - dimensions.y)]
+	var hull_rect := Rect2(center - Vector2.ONE * half_hull, Vector2.ONE * half_hull * 2)
+	var point := candidates[0]
+	var least_overlap := INF
+	for candidate in candidates:
+		candidate.x = clampf(candidate.x, 4, maxf(4, size.x - dimensions.x - 4))
+		candidate.y = clampf(candidate.y, 34, maxf(34, size.y - dimensions.y - 4))
+		var overlap := Rect2(candidate.round(), dimensions).intersection(hull_rect).get_area()
+		if overlap < least_overlap:
+			least_overlap = overlap
+			point = candidate
+		if is_zero_approx(overlap):
+			break
 	selection_actions.position = point.round()
 	selection_actions.move_to_front()
 

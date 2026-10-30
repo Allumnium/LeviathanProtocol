@@ -176,7 +176,9 @@ func _test_loaded_guards_and_ui() -> void:
 	await process_frame
 	await process_frame
 	var panel: Control = map.panel_tabs.get_node("Fleet")
-	var button: Button = panel.summary_host.get_node_or_null("DisembarkPassengers")
+	panel.board.selected_ships.assign([owned])
+	panel.board.selection_changed.emit()
+	var button: Button = panel.ship_actions.find_child("DisembarkPassengers", true, false)
 	check(button != null and not button.disabled, "Fleet UI exposes free safe disembarkation at a port.")
 	if button != null:
 		button.pressed.emit()

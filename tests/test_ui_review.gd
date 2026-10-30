@@ -78,6 +78,8 @@ func _run() -> void:
 	check(not menu.game_setup.visible, "Escape dismisses setup.")
 	await click(menu.settings_button)
 	check(menu.settings_dialog.visible, "Settings opens through pointer input.")
+	if menu.settings_dialog.reduced_motion_button.button_pressed:
+		await click(menu.settings_dialog.reduced_motion_button, menu.settings_dialog)
 	await click(menu.settings_dialog.reduced_motion_button, menu.settings_dialog)
 	check(state.reduced_motion, "Reduced-motion control updates the preference.")
 	state.reduced_motion = false

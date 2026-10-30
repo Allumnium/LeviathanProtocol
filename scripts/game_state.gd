@@ -30,7 +30,7 @@ var campaign_dag: Dictionary = {}
 var campaign_active := false
 const MIN_ALIEN_FLEET_SIZE := 3
 const MAX_ALIEN_FLEET_SIZE := 8
-const STARTING_CREDITS := 1200
+const STARTING_CREDITS := 300
 const VICTORY_CREDIT_REWARD := 200
 const SAVED_SHIP_DESIGNS_PATH := "user://ship_designs.json"
 const SAVED_SHIP_DESIGNS_VERSION := 1
@@ -86,6 +86,7 @@ var _research_grant_cache: Dictionary = {}
 var research_points := 0.0
 var research_focus := ""
 var research_progress: Dictionary = {}
+var ability_state := BattleAbilities.initial_state()
 var research_branch_choices: Dictionary[String, String] = {}
 var story_flags: Dictionary[String, bool] = {}
 var run_seed := 0
@@ -149,6 +150,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	research_points = 0
 	research_focus = ""
 	research_progress.clear()
+	ability_state = BattleAbilities.initial_state()
 	research_branch_choices.clear()
 	story_flags.clear()
 	destroy_all_neutral_targets = false
@@ -232,6 +234,7 @@ func run_progress_snapshot() -> Dictionary:
 		"research_points": research_points,
 		"research_focus": research_focus,
 		"research_progress": research_progress.duplicate(),
+		"ability_state": ability_state.duplicate(true),
 		"research_ids": current_research_ids.duplicate(),
 		"branch_choices": research_branch_choices.duplicate(),
 		"story_flags": story_flags.duplicate(),
@@ -254,6 +257,7 @@ func restore_run_progress(data: Variant, notify := true) -> bool:
 	research_points = float(data.research_points)
 	research_focus = data.get("research_focus", "")
 	research_progress = data.get("research_progress", {}).duplicate()
+	ability_state = data.get("ability_state", BattleAbilities.initial_state()).duplicate(true)
 	current_research_ids.assign(data.research_ids)
 	research_branch_choices.assign(data.branch_choices)
 	story_flags.assign(data.story_flags)
@@ -433,6 +437,7 @@ func _apply_accounting(data: Dictionary) -> void:
 	research_points = float(data.progress.research_points)
 	research_focus = data.progress.get("research_focus", "")
 	research_progress = data.progress.get("research_progress", {}).duplicate()
+	ability_state = data.progress.get("ability_state", BattleAbilities.initial_state()).duplicate(true)
 	current_research_ids.assign(data.progress.research_ids)
 	research_branch_choices.assign(data.progress.branch_choices)
 	red_tiles_available = int(data.inventory[0])
@@ -877,6 +882,43 @@ func research_grants() -> Dictionary:
 func passenger_manifest() -> Array[Dictionary]:
 	return PassengerRules.snapshot(fleet, economy_state)
 
+
+func fleet_economy_summary(ship_id := 0) -> Dictionary:
+	var ships := get_deployed_fleet() if ship_id == 0 else fleet.filter(func(owned: FleetShip) -> bool: return owned.id == ship_id)
+	var ids: Array[int] = []
+	var deployed_ids: Array[int] = []
+	for owned in ships:
+		ids.append(owned.id)
+		if is_ship_deployed(owned):
+			deployed_ids.append(owned.id)
+	var result := {"passengers": 0, "places": 0, "luxury_min": 0, "luxury_max": 0,
+		"cargo": 0, "cargo_capacity": 0, "cargo_value": 0, "tickets": 0, "has_cabins": false, "has_holds": false}
+	for entry in PassengerRules.snapshot(fleet, economy_state):
+		if int(entry.ship_id) not in ids:
+			continue
+		result.has_cabins = true
+		result.passengers += int(entry.occupied)
+		result.places += int(entry.capacity)
+		if entry.operational:
+			var luxury := int(entry.luxury)
+			result.luxury_min = luxury if result.luxury_min == 0 else mini(result.luxury_min, luxury)
+			result.luxury_max = maxi(result.luxury_max, luxury)
+			if deployed_ids.has(int(entry.ship_id)):
+				result.tickets += int(entry.capacity) * PassengerRules.ticket_price(luxury)
+	for entry in CargoRules.manifest(fleet).values():
+		if int(entry.ship_id) not in ids:
+			continue
+		result.has_holds = true
+		result.cargo_capacity += int(entry.capacity)
+	for record: Dictionary in economy_state.get("cargo", {}).get("holds", {}).values():
+		if int(record.ship_id) in ids:
+			result.cargo += int(record.quantity)
+			result.cargo_value += int(record.quantity) * int(record.unit_value)
+	result["planned"] = get_reachable_nodes(current_node_id).has(planned_destination_node_id)
+	var inhabited: bool = not result.planned or campaign_node(planned_destination_node_id).get("inhabited", false)
+	result["income"] = (result.cargo_value + result.tickets) if inhabited else 0
+	return result
+
 func energy_efficiency() -> float:
 	return float(research_grants().modifiers.get("energy_efficiency", {}).get("value", 0.0))
 
@@ -935,9 +977,57 @@ func battle_support_context() -> Dictionary:
 	if progress.get("field", {}).has("repair_reserves"):
 		context.repair_reserves = progress.field.repair_reserves.duplicate(true)
 	context["repair_pool"] = progress.get("field", {}).get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)
+	if progress.get("field", {}).has("asteroids"):
+		context["asteroids"] = progress.field.asteroids.duplicate(true)
+	if not context.get("ability_ids", []).is_empty():
+		context["ability_state"] = ability_state.duplicate(true)
 	return context
 
+
+func _ready_ability_ids() -> Array[String]:
+	var result: Array[String] = []
+	for id: String in research_grants().ability_ids:
+		var definition := GameDefinitions.find("abilities", id)
+		if not definition.is_empty() and definition.implemented:
+			result.append(id)
+	return result
+
+
+func _mining_materials() -> Array[int]:
+	if current_research_ids.has("deep_extraction"):
+		return [0, 1, 2, 3]
+	if current_research_ids.has("basic_extraction"):
+		return [0, 1]
+	return []
+
+
+func commit_battle_ability(simulation: BattleSimulation, proposal: Dictionary) -> bool:
+	if not battle_pending or simulation.battle_id != battle_identity() or not BattleAbilities.valid(proposal):
+		return false
+	var ids: Array[int] = []
+	for id in encounter_progress.get(str(destination_node_id), {}).get("ship_ids", []):
+		ids.append(int(id))
+	for member in simulation.players:
+		if member.owned_ship == null or not ids.has(member.owned_ship.id):
+			return false
+	var checkpoint := _capture_checkpoint()
+	checkpoint.progress["ability_state"] = proposal.duplicate(true)
+	if not _persist_checkpoint(checkpoint):
+		return false
+	transaction_ledger = checkpoint.ledger
+	_apply_accounting(checkpoint)
+	return true
+
 func update_battle_support(simulation: BattleSimulation) -> void:
+	if battle_pending and not simulation.abilities.available.is_empty():
+		ability_state = simulation.abilities.snapshot()
+	if battle_pending and encounter_progress.has(str(destination_node_id)) and not simulation.asteroid_field.records.is_empty():
+		simulation.asteroid_field.remember(simulation)
+		# Live references avoid copying a whole fracture tree each physics tick.
+		# RunCheckpoint.capture detaches the tree at every persistence boundary.
+		encounter_progress[str(destination_node_id)].field["asteroids"] = {"version": 1,
+			"records": simulation.asteroid_field.records, "roots": simulation.asteroid_field.roots,
+			"impacts": simulation.asteroid_field.impacts}
 	if not battle_pending or simulation.repair_reserves.is_empty() or not encounter_progress.has(str(destination_node_id)) or not SharedSupport.valid_reserves(simulation.repair_reserves):
 		return
 	var ids: Array[int] = []
@@ -1667,7 +1757,7 @@ func record_battle(simulation: BattleSimulation, casualty_scope := "") -> void:
 			"deflected": 0.0, "weapons": {}, "destroyed": true,
 			"passenger_deaths": casualties.deaths, "passenger_fees": casualties.fee})
 	for combatant in simulation.aliens:
-		if combatant.alien == null:
+		if combatant.alien == null or (simulation.visibility_enabled and not simulation.team_can_see(BattleSimulation.Faction.PLAYER, combatant)):
 			continue
 		last_battle_report.append({
 			"alien": combatant.alien,
@@ -1726,7 +1816,18 @@ func node_preview(node_id: int) -> Dictionary:
 	var text: String = node.type.capitalize()
 	text += " • Inhabited • %s goods: %d cr/unit" % [node.goods_grade, int(node.goods_unit_value)] if node.inhabited else " • Uninhabited"
 	var encounter := get_frozen_encounter(node_id)
+	if encounter.has("warden") and get_reachable_nodes(current_node_id).has(node_id):
+		var roles: Array[String] = []
+		for entry: Dictionary in encounter.roster:
+			if not roles.has(entry.role):
+				roles.append(entry.role)
+		var count: int = encounter.roster.size()
+		var summary := "Threat %.0f | %d cr | %d materials | %d-%d contacts: %s" % [encounter.budget, encounter.rewards.credits, _sum_materials(encounter.rewards.materials), maxi(1, count - 1), count + 1, ", ".join(roles)]
+		var objective := "Destroy body | Pylons 2x20% | Exposed 6s | Lance 12s / 3s warning | Focus interrupts" if encounter.warden.lance else "Clear fleet | Pylon protects lead ship: 20% | Destroy pylon: exposed 6s"
+		return {"title": node.name, "text": summary + "\n" + objective}
 	if not encounter.is_empty():
+		if encounter.has("asteroids"):
+			text += "\nAsteroids / optional ore"
 		text += "\nThreat %.0f • %d credits • %d materials" % [float(encounter.budget), int(encounter.rewards.credits), _sum_materials(encounter.rewards.materials)]
 		if get_reachable_nodes(current_node_id).has(node_id):
 			var roles: Array[String] = []
@@ -1734,8 +1835,19 @@ func node_preview(node_id: int) -> Dictionary:
 				if not roles.has(entry.role):
 					roles.append(entry.role)
 			var count: int = encounter.roster.size()
-			text += "\n%d–%d alien contacts • %s\nObjective: destroy marked hostile fleet. No announced special abilities." % [maxi(1, count - 1), count + 1, ", ".join(roles)]
+			text += "\n%d–%d alien contacts • %s" % [maxi(1, count - 1), count + 1, ", ".join(roles)]
+			if encounter.has("warden"):
+				text += "\nDestroy body / 2 pylons: 20% each / Lance 12s, warning 3s" if encounter.warden.lance else "\nPylon protects lead ship: 20% / Clear fleet"
+			elif encounter.has("arena_layout"):
+				text += "\n%s | %s" % ["Defense: 3 waves / 0, 6, 12s / right entry" if int(encounter.wave_count) > 1 else "Clear marked fleet", str(encounter.arena_layout).capitalize()]
+			else:
+				text += "\nObjective: destroy marked hostile fleet."
 			text += "\nSalvage: Defense 35%, Offense 30%, Tech 20%, Civic 15% (rounded)."
+			if encounter.get("enemy_roles", false):
+				var behavior: Array[String] = []
+				for role in roles:
+					behavior.append({"scout": "flank", "fighter": "pressure", "sentinel": "shield", "support": "repair", "chrysalis": "finite drones"}.get(role, role))
+				text += "\n" + " / ".join(behavior)
 	else:
 		text += "\nNo battle."
 		if node.type == "salvage":
@@ -1858,14 +1970,19 @@ func commit_port_service(action: String, economy_after: Dictionary) -> bool:
 	return commit_event("port_service", "node/%d/%s" % [current_node_id, action], 0, [0, 0, 0, 0], 0, {}, economy_after)
 
 
-func disembark_passengers() -> bool:
-	if port_services().is_empty() or not PassengerRules.valid(economy_state, fleet):
+func disembark_passengers(ship_id := 0) -> bool:
+	if battle_pending or port_services().is_empty() or not PassengerRules.valid(economy_state, fleet):
 		return false
-	if PassengerRules.occupied(economy_state) == 0:
+	if ship_id != 0 and not fleet.any(func(owned: FleetShip) -> bool: return owned.id == ship_id):
+		return false
+	if PassengerRules.occupied(economy_state, ship_id) == 0:
 		return true
 	var economy := economy_state.duplicate(true)
 	for record: Dictionary in economy.passengers.components.values():
-		record.occupied = 0
+		if ship_id == 0 or int(record.ship_id) == ship_id:
+			record.occupied = 0
+	if ship_id != 0:
+		return commit_event("port_service", "node/%d/disembark/ship/%d" % [current_node_id, ship_id], 0, [0, 0, 0, 0], 0, {}, economy)
 	return commit_port_service("disembark", economy)
 
 
@@ -1959,7 +2076,9 @@ func set_destination(node_id: int) -> bool:
 	if not get_reachable_nodes(current_node_id).has(node_id):
 		return false
 	var encounter := get_frozen_encounter(node_id)
-	if not EncounterGenerator.valid(encounter) or encounter.template_id not in ["patrol", "elite", "boss_patrol"]:
+	if not EncounterGenerator.valid(encounter) or encounter.template_id not in ["patrol", "elite", "boss_patrol", "relay_defense", "bastion_warden", "pylon_escort"]:
+		return false
+	if encounter.template_id == "relay_defense" and not encounter.has("arena_layout"):
 		return false
 	var next_battle_aliens := EncounterGenerator.initial_fleet(encounter)
 	if next_battle_aliens.is_empty():
@@ -1977,6 +2096,8 @@ func set_destination(node_id: int) -> bool:
 	progress.erase("migrated_support_attempt")
 	progress.attempts = int(progress.attempts) + 1
 	progress.outcome = "active"
+	if encounter.has("asteroids") and not progress.field.has("asteroids"):
+		progress.field["asteroids"] = encounter.asteroids.duplicate(true)
 	progress.ship_ids = []
 	for owned: FleetShip in get_deployed_fleet():
 		progress.ship_ids.append(owned.id)
@@ -1990,8 +2111,17 @@ func set_destination(node_id: int) -> bool:
 	progress.research_distance = research_travel_distance(current_node_id, node_id)
 	progress.research_travel_days = research_travel_time(current_node_id, node_id)
 	progress.deployment["shared_context"] = {"energy_efficiency": energy_efficiency(),
+		"visibility_enabled": true,
+		"enemy_roles": not encounter.legacy and encounter.get("enemy_roles", false),
+		"mining_materials": _mining_materials(),
+		"ability_state": ability_state.duplicate(true),
+		"ability_ids": _ready_ability_ids(),
 		"repair_reserves": progress.field.get("repair_reserves", {}).duplicate(true),
 		"repair_pool": progress.field.get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)}
+	if encounter.has("arena_layout"):
+		progress.deployment.shared_context["encounter_plan"] = encounter.duplicate(true)
+	if progress.field.has("asteroids"):
+		progress.deployment.shared_context["asteroids"] = progress.field.asteroids.duplicate(true)
 	progress.erase("journal")
 	encounter_progress[str(node_id)] = progress
 	if not save_run_checkpoint():
@@ -2202,6 +2332,34 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 	_apply_accounting(checkpoint)
 	_emit_accounting_changes()
 	return true
+
+
+func commit_asteroid_pickup(simulation: BattleSimulation, pickup_id: String, materials: Array, asteroids: Dictionary) -> bool:
+	if not battle_pending or simulation.battle_id != battle_identity() or not AsteroidField.valid(asteroids):
+		return false
+	var ids: Array[String] = []
+	for id: String in asteroids.records:
+		if asteroids.records[id].claimed and simulation.asteroid_field.records.has(id) and not simulation.asteroid_field.records[id].claimed:
+			ids.append(id)
+	if ids.is_empty() or AsteroidField.pickup_key(ids) != pickup_id:
+		return false
+	var proposal: Dictionary = simulation.asteroid_field.propose_pickups(ids)
+	if proposal.is_empty() or proposal.materials != materials or proposal.field != asteroids:
+		return false
+	var expected: Array = encounter_progress.get(str(destination_node_id), {}).get("ship_ids", [])
+	for member in simulation.players:
+		if member.owned_ship == null or not expected.any(func(id: Variant) -> bool: return int(id) == member.owned_ship.id):
+			return false
+	var old_field: Dictionary = encounter_progress.get(str(destination_node_id), {}).get("field", {}).duplicate(true)
+	var field := old_field.duplicate(true)
+	field["asteroids"] = asteroids.duplicate(true)
+	# Include current physical losses, ability cooldowns and repair expenditure in
+	# the same durable generation as the pickup, never a separate material grant.
+	update_battle_support(simulation)
+	var ok := commit_field_pickup("asteroid/" + pickup_id, materials, field)
+	if not ok:
+		encounter_progress[str(destination_node_id)].field = old_field
+	return ok
 
 
 func is_builtin_ship_design(design_name: String) -> bool:

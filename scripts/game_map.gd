@@ -325,6 +325,9 @@ func _return_to_main_menu() -> void:
 func _refresh_top_bar() -> void:
 	$Layout/TopBar/BarContents/CreditAmount.text = str(GameState.credits)
 	$Layout/TopBar/BarContents/CreditAmount.add_theme_color_override("font_color", Color("ffd28a") if GameState.credits < 0 else Color("e0e8ed"))
+	var cargo: Label = $Layout/TopBar/BarContents/HeldCargoValue
+	cargo.text = "Cargo %d cr" % CargoRules.value(GameState.economy_state)
+	cargo.visible = not CargoRules.manifest(GameState.fleet).is_empty()
 	$Layout/TopBar/BarContents/OffenseAmount.text = str(GameState.red_tiles_available)
 	$Layout/TopBar/BarContents/DefenseAmount.text = str(GameState.blue_tiles_available)
 	$Layout/TopBar/BarContents/TechAmount.text = str(GameState.green_tiles_available)
@@ -363,7 +366,21 @@ func _setup_campaign_controls() -> void:
 	route_travel_button.pressed.connect(_on_deploy_pressed)
 	contents.add_child(route_travel_button)
 	graph_view.node_inspected.connect(_show_route_preview)
+	panel.minimum_size_changed.connect(_layout_route_preview)
+	graph_view.resized.connect(_layout_route_preview)
 	_show_route_preview(GameState.current_node_id)
+	call_deferred("_layout_route_preview")
+
+
+func _layout_route_preview() -> void:
+	var panel := graph_view.get_node_or_null("RoutePreview") as PanelContainer
+	if panel == null:
+		return
+	var height := maxf(120, ceilf(panel.get_combined_minimum_size().y) + 5)
+	panel.offset_top = -height
+	graph_view.campaign_preview_height = height
+	graph_view._reset_camera()
+	graph_view.queue_redraw()
 
 
 

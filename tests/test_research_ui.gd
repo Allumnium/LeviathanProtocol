@@ -43,9 +43,9 @@ func _run() -> void:
 	_check(state.start_new_run(1, 42), "Start isolated research UI run.")
 	var live := GameDefinitions.snapshot()
 	var current := ResearchViewModel.nodes(live, ["foundation"], {}, {}, 1000)
-	_check(current.size() == 8 and _find(current, "optics_i").is_empty(), "Functional shared research appears while future branches remain hidden.")
+	_check(current.size() == 10 and _find(current, "optics_i").is_empty(), "Functional shared and mining research appears while future branches remain hidden.")
 	var live_detail := ResearchViewModel.details(live, "foundation", ["foundation"])
-	_check(live_detail.contains("Command Center") and live_detail.contains("Research Lab") and not live_detail.contains("Ability: Scan"), "Owned Foundation exposes only implemented grants.")
+	_check(live_detail.contains("Command Center") and live_detail.contains("Research Lab") and live_detail.contains("Ability: Scan"), "Owned Foundation exposes functional equipment and Scan while later abilities remain gated.")
 	# Enable a detached fixture registry, never production definitions/effects.
 	var fixture := live.duplicate(true)
 	for domain in ["research", "equipment", "abilities"]:
@@ -56,7 +56,7 @@ func _run() -> void:
 	_check(_find(visible, "applied_energy").status == "Ready" and _find(visible, "applied_energy").nearby, "Affordable next options are emphasized.")
 	_check(_find(visible, "laboratory_ii").status == "Need RP" and _find(visible, "laboratory_ii").nearby, "Near-term options remain emphasized when RP is short.")
 	_check(_find(visible, "optics_ii").depth == 1 and _find(visible, "optics_iii").depth == 2, "Combat branches use three depth columns.")
-	_check(_find(visible, "planetary_fracture").depth == 3, "Long shared paths keep their fourth depth column.")
+	_check(_find(visible, "planetary_fracture").depth == 2, "Mining endpoint follows Basic and Deep Extraction without optional spectroscopy.")
 	var ids: Array = visible.map(func(n: Dictionary) -> String: return n.id)
 	var energy_detail := ResearchViewModel.details(fixture, "applied_energy", ids)
 	_check(energy_detail.contains("Laser") and energy_detail.contains("Double Laser") and energy_detail.contains("OOO\n  OOO"), "One research review presents both equipment grants and their recipes.")
@@ -81,8 +81,8 @@ func _run() -> void:
 	var view: Control = map.panel_tabs.get_node("Upgrades").grouped_view
 	map.panel_tabs.current_tab = 2
 	await process_frame
-	_check(view.nodes.size() == 7 and not view.card_buttons.has("foundation"), "All seven available technologies share one tree; Foundation is assumed.")
-	_check(view.tree_canvas.branch_roots.size() == 3 and view.tree_canvas.edges.size() == 7, "Research categories are connected major branches on the same canvas.")
+	_check(view.nodes.size() == 9 and not view.card_buttons.has("foundation"), "All nine available technologies share one tree; Foundation is assumed.")
+	_check(view.tree_canvas.branch_roots.size() == 4 and view.tree_canvas.edges.size() == 9, "Research categories are connected major branches on the same canvas.")
 	view.registry = fixture
 	view.state_override = {"research_ids": ["foundation"], "story_flags": {}, "branch_choices": {}, "research_points": 0}
 	view.refresh()

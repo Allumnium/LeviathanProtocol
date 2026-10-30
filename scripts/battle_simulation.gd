@@ -85,6 +85,7 @@ class Combatant:
 	var analysis_target_id := ""
 	var analysis_remaining := 0.0
 	var repaired_hp := 0.0
+	var resource_contents: Dictionary = {}
 
 	func is_alive() -> bool:
 		return integrity > 0.0
@@ -120,11 +121,15 @@ class Projectile:
 	var is_player := false
 	var interceptable := false
 	var speed := PROJECTILE_SPEED
+	var aim_position := Vector2.ZERO
+	var aim_radius := 18.0
+	var guidance_lost := false
 
 class Beam:
 	var source: Combatant
 	var origin_position := Vector2.ZERO
 	var target: Combatant
+	var aim_position := Vector2.ZERO
 	var lifetime := 0.16
 
 class Drop:
@@ -141,6 +146,15 @@ class Explosion:
 	var lifetime := 0.6
 
 var player: Combatant
+var visibility_enabled := false
+var visibility = preload("res://scripts/battle_visibility.gd").new()
+var abilities = preload("res://scripts/battle_abilities.gd").new()
+var asteroid_field = preload("res://scripts/asteroid_field.gd").new()
+var mining_enabled := false
+var mining_materials: Array[int] = []
+var encounter = preload("res://scripts/battle_encounter.gd").new()
+var enemy_roles = preload("res://scripts/enemy_roles.gd").new()
+var ability_commit := Callable()
 var energy_efficiency := 0.0
 var repair_reserves: Dictionary = {}
 var repair_capacity := 0
@@ -213,6 +227,15 @@ func setup(
 	inactive_seconds = 0.0
 	phase = Phase.COMBAT
 	elapsed = 0.0
+	visibility_enabled = false
+	visibility.reset()
+	abilities.configure({})
+	asteroid_field = preload("res://scripts/asteroid_field.gd").new()
+	mining_enabled = false
+	mining_materials.clear()
+	encounter.configure(self, {})
+	enemy_roles.configure(self, false)
+	ability_commit = Callable()
 	players.clear()
 	aliens.clear()
 	other_entities.clear()
@@ -284,6 +307,10 @@ func _rebuild_member_cache() -> void:
 
 
 func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1, shared_context: Dictionary = {}) -> bool:
+	if not abilities.configure(shared_context):
+		return false
+	if not shared_context.get("visibility_enabled", false) is bool:
+		return false
 	if not SharedSupport.valid_reserves(shared_context.get("repair_reserves", {})):
 		return false
 	if not SharedSupport.valid_pool(shared_context.get("repair_pool", {"capacity": 0, "spent": 0.0})):
@@ -330,6 +357,25 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		member.previous_position = member.position
 	_rebuild_member_cache()
 	SharedSupport.initialize(self)
+	if not abilities.configure(shared_context):
+		return false
+	visibility_enabled = shared_context.get("visibility_enabled", false)
+	mining_enabled = shared_context.has("mining_materials")
+	if mining_enabled:
+		if not AsteroidField.valid_policy({"rate": 0, "materials": shared_context.mining_materials}):
+			return false
+		for category in shared_context.mining_materials:
+			mining_materials.append(int(category))
+	if shared_context.has("asteroids"):
+		if not shared_context.asteroids is Dictionary or not asteroid_field.configure(shared_context.asteroids, shared_context.get("extraction", {})):
+			return false
+		asteroid_field.attach(self)
+	if not shared_context.get("enemy_roles", false) is bool:
+		return false
+	enemy_roles.configure(self, shared_context.get("enemy_roles", false))
+	if not shared_context.get("encounter_plan", {}) is Dictionary or not encounter.configure(self, shared_context.get("encounter_plan", {})):
+		return false
+	refresh_visibility()
 	return entities.size() == _members.size()
 
 
@@ -376,6 +422,9 @@ func set_objective_targets(ids: Array[String]) -> bool:
 	var next_ids: Array[String] = []
 	for id in ids:
 		var target: Combatant = entities.get(id)
+		if target == null and encounter.knows(id) and not next_ids.has(id):
+			next_ids.append(id)
+			continue
 		if target == null or not target.targetable or target.has_tag("drop") or target.faction == Faction.PLAYER or next_ids.has(id):
 			return false
 		next_ids.append(id)
@@ -402,6 +451,12 @@ func remaining_victory_targets() -> Array[Combatant]:
 
 
 func objective_complete() -> bool:
+	if not encounter.pending.is_empty():
+		return false
+	if destroy_all_neutral_targets:
+		for record: Dictionary in asteroid_field.records.values():
+			if record.status == "pending":
+				return false
 	# Unknown objective identities fail closed, rather than becoming free victories.
 	for id in objective_target_ids:
 		if not entities.has(id):
@@ -426,7 +481,7 @@ func can_attack(source: Combatant, target: Combatant) -> bool:
 	if entities.get(source.entity_id) != source or entities.get(target.entity_id) != target:
 		return false
 	return source.is_alive() and target.is_alive() and target.targetable and not target.has_tag("drop") \
-		and source.faction != target.faction
+		and source.faction != target.faction and (not visibility_enabled or team_can_see(source.faction, target))
 
 
 func _hostile(source: Combatant, target: Combatant) -> bool:
@@ -437,6 +492,8 @@ func _hostile(source: Combatant, target: Combatant) -> bool:
 func _auto_candidate(source: Combatant, target: Combatant) -> bool:
 	if not can_attack(source, target) or not target.automatic_targetable:
 		return false
+	if mining_enabled and MiningRules.operational(source, MiningRules.TOOLS) and MiningRules.known_eligible(self, source, target):
+		return true
 	if _hostile(source, target):
 		return true
 	if not destroy_all_neutral_targets or source.faction != Faction.PLAYER or not _neutral_cleanup_target(target):
@@ -492,7 +549,22 @@ func issue_command(type: String, payload: Dictionary = {}) -> bool:
 	return execute_command(command)
 
 
+func record_pickup_rejection(pickup: String) -> void:
+	# External IO failure is replay input. Its command event is emitted at the
+	# collection point, after movement/collisions, rather than before the tick.
+	while _command_receipts.has("%s/command/%d" % [battle_id, _next_command_id]):
+		_next_command_id += 1
+	var command := {"id": "%s/command/%d" % [battle_id, _next_command_id], "tick": tick_index,
+		"type": "pickup_rejection", "payload": {"pickup": pickup}}
+	_next_command_id += 1
+	command_log.append(command)
+	_command_receipts[command.id] = {"fingerprint": _command_fingerprint(command), "status": "accepted"}
+	_record_event("command", {"command_id": command.id, "accepted": true})
+
+
 func _valid_command(command: Dictionary) -> bool:
+	if command.has("persistence_rejected") and (not command.persistence_rejected is bool or command.get("type") not in ["ability_cast", "ability_auto", "ability_pause_aim"]):
+		return false
 	if not command.get("id") is String or command.id.is_empty() or not RunProgressData._integer(command.get("tick")):
 		return false
 	if command.tick < 0 or not command.get("payload") is Dictionary or not RunCheckpoint._json_value(command.payload):
@@ -507,6 +579,16 @@ func _valid_command(command: Dictionary) -> bool:
 			return payload.get("enabled") is bool
 		"withdraw":
 			return payload.is_empty()
+		"ability_cast":
+			return payload.get("ability") is String and payload.get("source", "") is String and RunProgressData._integer(payload.get("faction", 0)) and int(payload.get("faction", 0)) in [0, 1] \
+				and payload.get("position") is Array and payload.position.size() == 2 \
+				and RunProgressData._rp_number(payload.position[0]) and RunProgressData._rp_number(payload.position[1])
+		"ability_auto":
+			return payload.get("ability") is String and payload.get("enabled") is bool
+		"ability_pause_aim":
+			return payload.get("enabled") is bool
+		"pickup_rejection":
+			return payload.get("pickup") is String and not payload.pickup.is_empty()
 	return false
 
 
@@ -539,17 +621,38 @@ func execute_command(command: Dictionary) -> bool:
 func _execute_recorded_command(command: Dictionary, fingerprint: String) -> bool:
 	var payload: Dictionary = command.payload
 	var accepted := false
+	abilities.last_commit_failed = false
+	if command.get("persistence_rejected", false):
+		abilities.retry_delay = 1.0
+		_command_receipts[command.id] = {"fingerprint": fingerprint, "status": "rejected"}
+		_record_event("command", {"command_id": command.id, "accepted": false})
+		return false
 	match command.type:
+		"pickup_rejection":
+			asteroid_field.replayed_rejections[payload.pickup] = command.id
+			_command_receipts[command.id] = {"fingerprint": fingerprint, "status": "accepted"}
+			return true
 		"attack":
 			accepted = request_attack(payload.source, payload.target)
 		"clear_attack":
 			accepted = clear_attack_order(payload.source)
+		"ability_cast":
+			accepted = abilities.cast(self, payload.ability, Vector2(payload.position[0], payload.position[1]), payload.get("source", ""), int(payload.get("faction", 0)))
+		"ability_auto":
+			accepted = abilities.set_auto(self, payload.ability, payload.enabled)
+		"ability_pause_aim":
+			accepted = abilities.set_pause_aim(self, payload.enabled)
 		"neutral_cleanup":
 			accepted = set_destroy_all_neutral_targets(payload.enabled)
 		"withdraw":
 			accepted = phase == Phase.COMBAT and not withdrawing
 			if accepted:
 				request_withdrawal()
+	if abilities.last_commit_failed:
+		for recorded in command_log:
+			if recorded.id == command.id:
+				recorded["persistence_rejected"] = true
+				break
 	_command_receipts[command.id] = {"fingerprint": fingerprint, "status": "accepted" if accepted else "rejected"}
 	_record_event("command", {"command_id": command.id, "accepted": accepted})
 	return accepted
@@ -606,11 +709,14 @@ func authoritative_snapshot() -> Dictionary:
 			"target": shot.target.entity_id if shot.target != null else "", "damage": shot.damage,
 			"position": [shot.position.x, shot.position.y], "origin": [shot.origin.x, shot.origin.y], "weapon": shot.weapon_name,
 			"interceptable": shot.interceptable, "speed": shot.speed})
+		if visibility_enabled:
+			shots[-1]["aim"] = [shot.aim_position.x, shot.aim_position.y]
+			shots[-1]["guidance_lost"] = shot.guidance_lost
 	var salvage: Array = []
 	for drop in drops:
 		salvage.append({"id": drop.entity_id, "category": drop.category, "collected": drop.collected,
 			"position": [drop.position.x, drop.position.y]})
-	return {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
+	var result := {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
 		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
 		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
 		"rng_state": str(random.state), "actors": actors, "projectiles": shots, "drops": salvage,
@@ -618,6 +724,28 @@ func authoritative_snapshot() -> Dictionary:
 		"remaining_targets": _remaining_target_ids(), "withdrawing": withdrawing,
 		"retreat_remaining": retreat_remaining, "inactive": inactive_seconds,
 		"materials": collected_categories.duplicate(), "pending_commands": _pending_commands.duplicate(true)}
+	if visibility_enabled:
+		result["visibility"] = visibility.diagnostic_snapshot()
+		result["ability_state"] = abilities.snapshot()
+		result["enemy_cooldowns"] = abilities.enemy_cooldowns.duplicate()
+		result["ability_retry_delay"] = abilities.retry_delay
+		var effects: Array = []
+		for effect: Dictionary in abilities.effects:
+			var detached := effect.duplicate(true)
+			detached.position = [effect.position.x, effect.position.y]
+			effects.append(detached)
+		result["ability_effects"] = effects
+		result["resource_knowledge"] = {"0": abilities.resource_knowledge[0].duplicate(true), "1": abilities.resource_knowledge[1].duplicate(true)}
+	if not asteroid_field.records.is_empty():
+		asteroid_field.remember(self)
+		result["asteroids"] = asteroid_field.snapshot()
+		result["ore_retry"] = asteroid_field.retry_remaining
+		result["ore_rejections"] = asteroid_field.replayed_rejections.duplicate()
+	if not encounter.plan.is_empty():
+		result["encounter"] = encounter.snapshot()
+	if enemy_roles.enabled:
+		result["enemy_roles"] = enemy_roles.snapshot()
+	return result
 
 
 func _remaining_target_ids() -> Array[String]:
@@ -696,12 +824,20 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
+		encounter.advance(self, delta)
 		SharedSupport.repair(self, delta)
+		enemy_roles.advance(self, delta)
+		refresh_visibility()
+		_apply_pending_commands()
+		if visibility_enabled:
+			abilities.auto_cast(self)
+		abilities.advance(self, delta)
+		refresh_visibility()
 		_update_analysis(delta)
 		_combat_elapsed += delta
-		_apply_pending_commands()
 		var previous_phase := phase
 		_damage_this_step = false
+		encounter.warden.advance(self, delta)
 		_rebuild_pending_projectile_damage()
 		_rebuild_spatial_index()
 		for index in range(_members.size()):
@@ -716,7 +852,17 @@ func advance(delta: float) -> void:
 		for entity in other_entities:
 			if entity.is_alive() and entity.has_tag("combatant"):
 				_update_ship(entity, delta, not resolving_victory)
+		asteroid_field.advance(self, delta)
+		refresh_visibility()
 		_update_projectiles(delta)
+		asteroid_field._flush_fractures(self)
+		refresh_visibility()
+		if visibility_enabled:
+			for member in _members:
+				if member.target != null and not team_can_see(member.faction, member.target):
+					member.target = null
+				if member.commanded_target != null and not team_can_see(member.faction, member.commanded_target):
+					member.commanded_target = null
 		var accelerating := false
 		for index in range(_members.size()):
 			if _members[index].is_alive() and _members[index].velocity.distance_to(_previous_velocities[index]) > 0.01 * delta:
@@ -731,7 +877,7 @@ func advance(delta: float) -> void:
 		elif objective_complete() and not _victory_projectiles_pending():
 			_collect_all_salvage()
 			phase = Phase.VICTORY
-		elif inactive_seconds >= 10.0:
+		elif inactive_seconds >= 10.0 and encounter.pending.is_empty():
 			phase = Phase.WITHDRAWN
 		if phase != previous_phase:
 			_record_event("objective", {"phase": phase, "remaining": _remaining_target_ids(),
@@ -921,7 +1067,8 @@ func _pending_projectile_damage(target: Combatant) -> float:
 func _rebuild_pending_projectile_damage() -> void:
 	_pending_damage_by_target.clear()
 	for projectile in projectiles:
-		_add_pending_damage(projectile.target, projectile.damage)
+		if not projectile.guidance_lost:
+			_add_pending_damage(projectile.target, projectile.damage)
 
 
 func _add_pending_damage(target: Combatant, amount: float) -> void:
@@ -947,6 +1094,10 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		if ship.retreat_cooldown <= 0.0:
 			ship.retreat_time = 2.5
 			ship.retreat_cooldown = 9.0
+	if encounter.warden.braced(ship):
+		ship.velocity = Vector2.ZERO
+		ship.thruster_activation_elapsed = 0
+		return
 	ship.target_refresh_remaining -= delta
 	if ship.commanded_target != null and not can_attack(ship, ship.commanded_target):
 		ship.commanded_target = null
@@ -955,10 +1106,25 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	elif ship.target != null and not _auto_candidate(ship, ship.target):
 		ship.target = null
 		ship.target_refresh_remaining = random.randf_range(0.0, TARGET_REFRESH_INTERVAL)
+	if mining_enabled and ship.commanded_target == null and ship.target_refresh_remaining <= 0:
+		var mining_target: Combatant = MiningRules.target(self, ship)
+		if mining_target != null:
+			ship.target = mining_target
+			ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
+	if enemy_roles.enabled and ship.commanded_target == null and ship.target_refresh_remaining <= 0:
+		var role_target: Combatant = enemy_roles.choose_target(self, ship)
+		if role_target != null:
+			ship.target = role_target
+			ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null and ship.target_refresh_remaining <= 0.0:
-		ship.target = _choose_target(ship)
+		ship.target = MiningRules.target(self, ship) if mining_enabled else null
+		if ship.target == null:
+			ship.target = _choose_target(ship)
 		ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null:
+		if visibility_enabled:
+			_investigate_contacts(ship, delta)
+			return
 		ship.thruster_activation_elapsed = 0.0
 		_apply_passive_drag(ship, delta)
 		ship.position += ship.velocity * delta
@@ -970,6 +1136,21 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		offset / distance if distance > 0.001 else Vector2.from_angle(ship.heading)
 	)
 	var steering_direction := _flyby_direction(ship, ship.target)
+	steering_direction = enemy_roles.steering(self, ship, steering_direction)
+	var mining_in_range := false
+	var pickup_approach_speed := INF
+	if ship.target.has_tag("asteroid") and MiningRules.operational(ship, MiningRules.TOOLS):
+		steering_direction = MiningRules.steering(self, ship, ship.target)
+		for weapon in ship.stats.weapons:
+			if weapon.weapon_name in MiningRules.WEAPONS and MiningRules.in_range(_get_weapon_origin(ship, weapon), ship.target, weapon.range_units * 0.8):
+				mining_in_range = true
+		if mining_in_range:
+			ship.velocity = ship.velocity.move_toward(ship.target.velocity, ship.acceleration * delta)
+	elif mining_enabled and not withdrawing:
+		var pickup: Variant = MiningRules.pickup_destination(self, ship)
+		if pickup != null:
+			steering_direction = ship.position.direction_to(pickup)
+			pickup_approach_speed = minf(ship.speed, maxf(8, ship.position.distance_to(pickup) * 0.6))
 	var escort_distance := INF
 	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty()) and ship.commanded_target == null:
 		var anchor := _escort_anchor(ship)
@@ -995,6 +1176,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 					separation = Vector2.UP
 					separation_distance = 1.0
 				desired += separation / separation_distance * ship.speed * (1.0 - separation_distance / clearance)
+	desired = encounter.steer(ship.position, desired, ship.speed)
 	var distance_from_center := ship.position.length()
 	if distance_from_center > ARENA_RADIUS - SOFT_BOUNDARY_MARGIN:
 		var boundary_progress := clampf(
@@ -1009,6 +1191,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	if withdrawing and ship.is_player:
 		direction = -direction
 		desired = direction * ship.speed
+	desired = MiningRules.avoidance(self, ship, desired)
+	desired = encounter.warden.avoidance(self, ship, desired)
 	var desired_velocity := desired.limit_length(ship.speed)
 	var desired_heading := direction.angle()
 	if desired_velocity.length_squared() > 0.01:
@@ -1020,7 +1204,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	_apply_passive_drag(ship, delta)
 	if ship.retreat_time <= 0.0 and not (withdrawing and ship.is_player):
 		_apply_limited_reverse_thrust(ship, desired_velocity, delta)
-	if escort_distance > 20.0 or ship.retreat_time > 0.0 or withdrawing:
+	if ((escort_distance > 20.0 and not mining_in_range) or ship.retreat_time > 0.0 or withdrawing) \
+		and ship.velocity.length() < pickup_approach_speed:
 		ship.velocity += forward * ship.acceleration * delta
 	ship.velocity = ship.velocity.limit_length(ship.speed)
 	ship.position += ship.velocity * delta
@@ -1051,12 +1236,17 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 			if shot_index == 0:
 				weapon_fired.emit()
 			if ship.is_player and not weapon.is_projectile_weapon:
+				var hit_target := ship.target
+				var obstruction = asteroid_field.intercept(self, weapon_origin, hit_target.position)
+				if obstruction != null:
+					hit_target = obstruction
 				var beam := Beam.new()
 				beam.source = ship
 				beam.origin_position = weapon_origin
-				beam.target = ship.target
+				beam.target = hit_target
+				beam.aim_position = hit_target.position
 				beams.append(beam)
-				_damage(ship.target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name)
+				_damage(hit_target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name)
 			else:
 				var projectile := Projectile.new()
 				projectile.source = ship
@@ -1065,12 +1255,59 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				projectile.position = weapon_origin
 				projectile.previous_position = weapon_origin
 				projectile.target = ship.target
+				projectile.aim_position = ship.target.position
+				projectile.aim_radius = ship.target.radius
 				projectile.damage = weapon.damage_per_shot
 				projectile.is_player = ship.is_player
 				projectile.interceptable = weapon.interceptable
 				projectile.speed = 200.0 if weapon.interceptable else PROJECTILE_SPEED
 				projectiles.append(projectile)
 				_add_pending_damage(projectile.target, projectile.damage)
+
+
+func _investigate_contacts(ship: Combatant, delta: float) -> void:
+	# Search a deterministic patrol or anonymous sensor position. Hidden actor
+	# references and hit points must never steer pursuit or choose a lock.
+	var phase_offset := 0.0 if ship.faction == Faction.PLAYER else PI
+	var angle := elapsed * 0.08 + phase_offset
+	var destination := Vector2(cos(angle), sin(angle)) * ARENA_RADIUS * 0.6
+	var nearest := INF
+	for contact: Dictionary in visibility.contacts(ship.faction):
+		var distance := ship.position.distance_squared_to(contact.position)
+		if distance < nearest:
+			nearest = distance
+			destination = contact.position
+	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty()):
+		destination = _escort_anchor(ship)
+	if withdrawing and ship.faction == Faction.PLAYER:
+		destination = ship.position + Vector2.LEFT * ARENA_RADIUS
+	var direction := ship.position.direction_to(destination)
+	var role_direction: Vector2 = enemy_roles.steering(self, ship, direction)
+	if role_direction != direction:
+		destination = ship.position + role_direction * 100
+	var pickup: Variant = MiningRules.pickup_destination(self, ship) if mining_enabled and not withdrawing else null
+	if pickup != null:
+		destination = pickup
+	var desired := MiningRules.avoidance(self, ship, ship.position.direction_to(destination) * ship.speed)
+	desired = encounter.steer(ship.position, desired, ship.speed)
+	desired = encounter.warden.avoidance(self, ship, desired)
+	direction = desired.normalized()
+	if direction.is_zero_approx():
+		_apply_passive_drag(ship, delta)
+	else:
+		ship.heading = rotate_toward(ship.heading, direction.angle(), ship.turn_rate * delta)
+		_apply_passive_drag(ship, delta)
+		var approach_speed := ship.speed if pickup == null else minf(ship.speed, maxf(8, ship.position.distance_to(pickup) * 0.6))
+		if pickup != null:
+			_apply_limited_reverse_thrust(ship, direction * approach_speed, delta)
+		var forward := Vector2.from_angle(ship.heading)
+		if ship.velocity.length() < approach_speed and (pickup == null or forward.dot(direction) > 0.5):
+			ship.velocity += forward * ship.acceleration * delta
+		ship.velocity = ship.velocity.limit_length(ship.speed)
+	ship.position += ship.velocity * delta
+	ship.thruster_activation_elapsed += delta
+	for index in range(ship.cooldowns.size()):
+		ship.cooldowns[index] = maxf(0, ship.cooldowns[index] - delta)
 
 
 func _escort_anchor(ship: Combatant) -> Vector2:
@@ -1145,11 +1382,29 @@ func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
 func _update_projectiles(delta: float) -> void:
 	for index in range(projectiles.size() - 1, -1, -1):
 		var projectile := projectiles[index]
-		var destination := projectile.target.position
+		if projectile.target == null:
+			projectiles.remove_at(index)
+			continue
+		if visibility_enabled:
+			if not projectile.guidance_lost and not team_can_see(projectile.source.faction if projectile.source != null else (Faction.PLAYER if projectile.is_player else Faction.ALIEN), projectile.target):
+				projectile.guidance_lost = true
+				_add_pending_damage(projectile.target, -projectile.damage)
+			if not projectile.guidance_lost:
+				projectile.aim_position = projectile.target.position
+				projectile.aim_radius = projectile.target.radius
+		var destination := projectile.aim_position if visibility_enabled else projectile.target.position
+		var start := projectile.position
 		projectile.position = projectile.position.move_toward(destination, projectile.speed * delta)
-		if projectile.position.distance_to(destination) <= projectile.target.radius:
+		var obstruction = asteroid_field.intercept(self, start, projectile.position)
+		if obstruction != null:
 			_add_pending_damage(projectile.target, -projectile.damage)
-			_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
+			_damage(obstruction, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
+			projectiles.remove_at(index)
+			continue
+		if projectile.position.distance_to(destination) <= (projectile.aim_radius if visibility_enabled else projectile.target.radius):
+			_add_pending_damage(projectile.target, -projectile.damage)
+			if not projectile.guidance_lost or projectile.position.distance_to(projectile.target.position) <= projectile.target.radius:
+				_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
 			projectiles.remove_at(index)
 
 
@@ -1157,7 +1412,7 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 	var target: Combatant
 	var attacking_players := false
 	var required := remaining_victory_targets()
-	if required.size() == 1:
+	if required.size() == 1 and encounter.pending.is_empty():
 		target = required[0]
 		attacking_players = true
 	elif living_player_count() == 1:
@@ -1167,18 +1422,24 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 				break
 	else:
 		return null
+	if visibility_enabled and not team_can_see(Faction.PLAYER, target):
+		return null
 	var incoming: Array[Projectile] = []
 	for projectile in projectiles:
 		if (
 			projectile.target == target
+			and not projectile.guidance_lost
 			and projectile.is_player == attacking_players
 		):
+			var obstruction = asteroid_field.intercept(self, projectile.position, target.position)
+			if obstruction != null and obstruction != target:
+				continue
 			incoming.append(projectile)
 	incoming.sort_custom(func(left: Projectile, right: Projectile) -> bool:
 		return left.position.distance_squared_to(target.position) < right.position.distance_squared_to(target.position))
 	var committed_damage := 0.0
 	for projectile in incoming:
-		committed_damage += projectile.damage
+		committed_damage += projectile.damage * enemy_roles.protection(self, target) * encounter.warden.protection(self, target)
 		if committed_damage < target.integrity + target.shields:
 			continue
 		var time_to_impact := maxf(
@@ -1190,6 +1451,7 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 
 
 func _refresh_owned_stats(target: Combatant) -> void:
+	var was_alive := target.is_alive()
 	# Match cooldowns by physical source rather than by the changing weapon index.
 	var cooldowns_by_source: Dictionary = {}
 	for index in range(target.stats.weapons.size()):
@@ -1214,9 +1476,15 @@ func _refresh_owned_stats(target: Combatant) -> void:
 				remaining *= weapon.fire_interval_seconds / float(previous.interval)
 		target.cooldowns.append(remaining)
 	_refresh_mobility(target)
+	if was_alive != target.is_alive():
+		refresh_visibility()
 
 
 func team_can_see(faction: int, target: Combatant) -> bool:
+	if target == null:
+		return false
+	if visibility_enabled:
+		return visibility.can_see(faction, target.entity_id)
 	# Conservative Command Center sight until the shared fog/sensor milestone.
 	if not target.is_alive() or not target.targetable:
 		return false
@@ -1225,6 +1493,15 @@ func team_can_see(faction: int, target: Combatant) -> bool:
 			and observer.position.distance_to(target.position) <= 260.0:
 			return true
 	return false
+
+
+func refresh_visibility() -> void:
+	if visibility_enabled:
+		visibility.refresh(self)
+
+
+func point_visible(faction: int, point: Vector2) -> bool:
+	return not visibility_enabled or visibility.point_visible(faction, point)
 
 
 func _update_analysis(delta: float) -> void:
@@ -1266,6 +1543,10 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
 	damage *= _analysis_multiplier(source, target)
+	damage *= enemy_roles.protection(self, target)
+	damage *= encounter.warden.protection(self, target)
+	if target.has_tag("asteroid") and weapon_name in MiningRules.WEAPONS:
+		damage *= 4.0
 	var absorbed := minf(target.shields, damage)
 	target.shields -= absorbed
 	target.shield_damage_taken += absorbed
@@ -1300,6 +1581,9 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if absorbed > 0.0:
 		target.shield_flash = 0.2
 		shield_hit.emit()
+	encounter.warden.on_damage(self, target, actual)
+	if target.has_tag("asteroid"):
+		asteroid_field.on_damage(self, target, source, weapon_name)
 	if target.is_alive():
 		return
 	var component_hp: Array = []
@@ -1313,6 +1597,8 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		target.velocity = Vector2.from_angle(random.randf_range(0.0, TAU)) * random.randf_range(8.0, 20.0)
 	target.wreck_angular_velocity = random.randf_range(-0.45, 0.45)
 	target.wreck_motion_remaining = WRECK_MOTION_SECONDS
+	if target.has_tag("asteroid"):
+		target.wreck_motion_remaining = 0.0
 	if absf(target.wreck_angular_velocity) < 0.12:
 		target.wreck_angular_velocity = 0.12 if target.wreck_angular_velocity >= 0.0 else -0.12
 	var explosion := Explosion.new()

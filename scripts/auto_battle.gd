@@ -31,6 +31,9 @@ const MAX_SIMULATION_STEPS_PER_FRAME := 6
 
 var simulation := BattleSimulation.new()
 var _dragging := false
+var _left_pressed := false
+var _left_dragged := false
+var _left_press_screen := Vector2.ZERO
 var _auto_camera_active := true
 var _camera_inactive_seconds := 0.0
 var _finished := false
@@ -44,6 +47,8 @@ var _cinematic_zoom_start := 1.0
 var _cinematic_transition_elapsed := 0.0
 var _result_delay_remaining := -1.0
 var _pending_result_won := false
+var ability_bar: Control
+var _paused_before_aim := false
 var _simulation_accumulator := 0.0
 var repair_label: Label
 var objective_label: Label
@@ -63,6 +68,32 @@ func _ready() -> void:
 		return
 	simulation.victory_materials = GameState.battle_material_rewards()
 	simulation.battle_id = GameState.battle_identity()
+	simulation.ability_commit = _commit_battle_ability
+	simulation.asteroid_field.pickup_commit = _commit_asteroid_pickup
+	if simulation.visibility_enabled:
+		var radar: Control = load("res://scripts/battle_radar.gd").new()
+		radar.name = "Radar"
+		radar.simulation = simulation
+		add_child(radar)
+		radar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		radar.offset_left = -120
+		radar.offset_top = -96
+		radar.offset_right = -8
+		radar.offset_bottom = -8
+	if not simulation.abilities.available.is_empty():
+		ability_bar = load("res://scripts/battle_ability_bar.gd").new()
+		ability_bar.name = "AbilityBar"
+		ability_bar.simulation = simulation
+		ability_bar.visuals = visuals
+		add_child(ability_bar)
+		ability_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+		ability_bar.offset_left = 8
+		ability_bar.offset_top = -62
+		ability_bar.offset_right = minf(500, 8 + ability_bar.get_combined_minimum_size().x)
+		ability_bar.offset_bottom = -8
+		ability_bar.targeting_changed.connect(_ability_targeting_changed)
+		ability_bar.minimum_size_changed.connect(_layout_ability_bar.call_deferred)
+		_layout_ability_bar.call_deferred()
 	if not simulation.set_objective_targets(GameState.battle_objective_ids()):
 		push_error("Battle objective refers to an unknown target.")
 		GameState.cancel_battle()
@@ -75,7 +106,7 @@ func _ready() -> void:
 	add_child(repair_label)
 	objective_label = Label.new()
 	objective_label.position = Vector2(8, 38)
-	objective_label.text = "OBJECTIVE: Destroy %d marked targets" % simulation.remaining_victory_targets().size()
+	objective_label.text = simulation.encounter.label(simulation)
 	add_child(objective_label)
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
@@ -109,6 +140,10 @@ func _ready() -> void:
 	defeat_close_button.pressed.connect(_return_to_main_menu)
 
 
+func _commit_asteroid_pickup(id: String, materials: Array, field: Dictionary) -> bool:
+	return GameState.commit_asteroid_pickup(simulation, id, materials, field)
+
+
 func _physics_process(delta: float) -> void:
 	if _finished:
 		return
@@ -124,7 +159,7 @@ func _physics_process(delta: float) -> void:
 	if pause_button.button_pressed:
 		return
 	# Simulation speed must not depend on the render callback clearing a spent shot.
-	if _cinematic_projectile != null and not simulation.projectiles.has(_cinematic_projectile):
+	if _cinematic_projectile != null and (not simulation.projectiles.has(_cinematic_projectile) or _cinematic_projectile.guidance_lost):
 		_cinematic_projectile = null
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
@@ -149,7 +184,7 @@ func _physics_process(delta: float) -> void:
 		withdraw_button.text = "RETREAT %d" % ceili(simulation.retreat_remaining)
 	visuals.queue_redraw()
 	if objective_label != null:
-		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else "OBJECTIVE: %d targets remaining" % simulation.remaining_victory_targets().size()
+		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else simulation.encounter.label(simulation)
 	if repair_label != null:
 		repair_label.visible = not simulation.repair_reserves.is_empty()
 		var remaining := 0.0
@@ -209,7 +244,10 @@ func _on_fast_forward_toggled(is_fast: bool) -> void:
 func _process(delta: float) -> void:
 	if _report_open or _result_delay_remaining >= 0.0:
 		return
-	if _cinematic_projectile != null and simulation.projectiles.has(_cinematic_projectile):
+	if ability_bar != null and ability_bar.targeting:
+		visuals.queue_redraw()
+		return
+	if _cinematic_projectile != null and not _cinematic_projectile.guidance_lost and simulation.projectiles.has(_cinematic_projectile):
 		_cinematic_transition_elapsed += delta
 		var transition_weight := smoothstep(
 			0.0,
@@ -253,12 +291,47 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if ability_bar != null and ability_bar.targeting:
+		if ability_bar.menu_open():
+			return
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			ability_bar.cancel_targeting()
+			get_viewport().set_input_as_handled()
+			return
+		if event is InputEventMouseMotion:
+			ability_bar.set_preview(visuals.world_transform().affine_inverse() * event.position)
+			return
+		if event is InputEventMouseButton:
+			if ability_bar.get_global_rect().has_point(event.position):
+				return
+			if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				ability_bar.cast_at(visuals.world_transform().affine_inverse() * event.position)
+				get_viewport().set_input_as_handled()
+				return
+			if event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+				ability_bar.cancel_targeting()
+				get_viewport().set_input_as_handled()
+				return
 	var focus := get_viewport().gui_get_focus_owner()
 	if event is InputEventKey and (focus is BaseButton or focus is Range):
 		return
 	if _report_open or _result_delay_remaining >= 0.0 or _cinematic_projectile != null:
 		return
 	if event is InputEventMouseButton:
+		if not _battlefield_input(event.position):
+			if not event.pressed:
+				_dragging = false
+				_left_pressed = false
+			return
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_left_pressed = true
+				_left_dragged = false
+				_left_press_screen = event.position
+			else:
+				if _left_pressed and not _left_dragged and _left_press_screen.distance_to(event.position) <= 5:
+					_issue_target_at(visuals.world_transform().affine_inverse() * event.position)
+				_left_pressed = false
 		if event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
 			_dragging = event.pressed
 		if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
@@ -268,6 +341,8 @@ func _input(event: InputEvent) -> void:
 			visuals.camera_position = world_under_cursor - (event.position - visuals.size * 0.5) / visuals.camera_zoom
 			_mark_manual_camera_input()
 	elif event is InputEventMouseMotion and _dragging:
+		if _left_pressed and _left_press_screen.distance_to(event.position) > 5:
+			_left_dragged = true
 		visuals.camera_position -= event.relative / visuals.camera_zoom
 		_mark_manual_camera_input()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE:
@@ -276,9 +351,62 @@ func _input(event: InputEvent) -> void:
 			_camera_inactive_seconds = AUTO_CAMERA_RETURN_DELAY
 
 
+func _battlefield_input(point: Vector2) -> bool:
+	if ability_bar != null and ability_bar.visible and ability_bar.get_global_rect().has_point(point):
+		return false
+	var radar := get_node_or_null("Radar") as Control
+	if radar != null and radar.get_global_rect().has_point(point):
+		return false
+	var hovered := get_viewport().gui_get_hovered_control()
+	return hovered == null or hovered == self or hovered == visuals
+
+
+func _issue_target_at(point: Vector2) -> void:
+	var selected: BattleSimulation.Combatant
+	var nearest := INF
+	for actor in simulation._members:
+		if actor.faction == BattleSimulation.Faction.PLAYER or not actor.is_alive() or not actor.targetable \
+			or (simulation.visibility_enabled and not simulation.team_can_see(0, actor)):
+			continue
+		var distance: float = point.distance_to(actor.position)
+		if distance <= actor.radius + 4 and distance < nearest:
+			selected = actor
+			nearest = distance
+	for member in simulation.players:
+		if not member.is_alive() or member.stats.weapons.is_empty():
+			continue
+		if selected != null:
+			simulation.issue_command("attack", {"source": member.entity_id, "target": selected.entity_id})
+		elif member.commanded_target != null:
+			simulation.issue_command("clear_attack", {"source": member.entity_id})
+
+
 func _mark_manual_camera_input() -> void:
 	_auto_camera_active = false
 	_camera_inactive_seconds = 0.0
+
+
+func _commit_battle_ability(proposal: Dictionary) -> bool:
+	return GameState.commit_battle_ability(simulation, proposal)
+
+
+func _layout_ability_bar() -> void:
+	if ability_bar == null:
+		return
+	var minimum := ability_bar.get_combined_minimum_size()
+	ability_bar.offset_top = -8 - maxf(54, minimum.y)
+	ability_bar.offset_right = minf(500, 8 + minimum.x)
+
+
+func _ability_targeting_changed(enabled: bool) -> void:
+	_dragging = false
+	if enabled:
+		_mark_manual_camera_input()
+		_paused_before_aim = pause_button.button_pressed
+		if simulation.abilities.state.pause_aim:
+			pause_button.set_pressed_no_signal(true)
+	else:
+		pause_button.set_pressed_no_signal(_paused_before_aim)
 
 
 func _update_auto_camera(delta: float) -> void:
@@ -289,7 +417,7 @@ func _update_auto_camera(delta: float) -> void:
 			center += member.position
 			ship_count += 1
 	for member in simulation.aliens:
-		if member.is_alive():
+		if member.is_alive() and (not simulation.visibility_enabled or simulation.team_can_see(BattleSimulation.Faction.PLAYER, member)):
 			center += member.position
 			ship_count += 1
 	if ship_count == 0 or visuals.size.x <= 0.0 or visuals.size.y <= 0.0:
@@ -303,7 +431,7 @@ func _update_auto_camera(delta: float) -> void:
 		extent.x = maxf(extent.x, distance.x)
 		extent.y = maxf(extent.y, distance.y)
 	for member in simulation.aliens:
-		if not member.is_alive():
+		if not member.is_alive() or (simulation.visibility_enabled and not simulation.team_can_see(BattleSimulation.Faction.PLAYER, member)):
 			continue
 		var alien_distance := (member.position - center).abs() + Vector2.ONE * member.radius
 		extent.x = maxf(extent.x, alien_distance.x)
@@ -331,7 +459,7 @@ func _on_ship_destroyed(is_player: bool) -> void:
 
 
 func _try_begin_finishing_shot() -> void:
-	if GameState.reduced_motion:
+	if GameState.reduced_motion or (ability_bar != null and ability_bar.targeting):
 		return
 	var projectile := simulation.get_finishing_projectile(FINISHING_SHOT_WINDOW_SECONDS)
 	if projectile == null:
@@ -343,6 +471,9 @@ func _try_begin_finishing_shot() -> void:
 
 
 func _begin_result_delay(won: bool) -> void:
+	if ability_bar != null:
+		ability_bar.cancel_targeting()
+		ability_bar.hide()
 	_pending_result_won = won
 	_result_delay_remaining = RESULT_DELAY_SECONDS
 	_cinematic_projectile = null
@@ -353,6 +484,9 @@ func _begin_result_delay(won: bool) -> void:
 
 
 func _finish_battle(won: bool) -> void:
+	if ability_bar != null:
+		ability_bar.cancel_targeting()
+		ability_bar.hide()
 	withdraw_button.hide()
 	battle_speed_controls.hide()
 	var credits_before := GameState.credits

@@ -55,6 +55,7 @@ func _ready() -> void:
 	GameState.credits_changed.connect(_queue_refresh)
 	GameState.tile_inventory_changed.connect(_queue_refresh)
 	GameState.build_area_changed.connect(_queue_refresh)
+	GameState.travel_plan_changed.connect(_queue_refresh)
 	_refresh_choices()
 
 func _queue_refresh() -> void:
@@ -506,6 +507,7 @@ func _refresh_summary() -> void:
 	if summary_host == null:
 		return
 	for child in summary_host.get_children():
+		summary_host.remove_child(child)
 		child.queue_free()
 	var header := Label.new()
 	header.text = "FLEET SUMMARY"
@@ -619,9 +621,11 @@ func _refresh_roster_summary() -> void:
 	totals.text += "\nHull: %d%%\nDamaged: %d" % [roundi(100 * health / maximum) if maximum > 0 else 0, damaged]
 	if GameState.campaign_active:
 		totals.text += "\nCapacity %d / %d" % [GameState.used_deployment_capacity(), GameState.deployment_capacity()]
-		var passengers := PassengerRules.occupied(GameState.economy_state)
-		if passengers > 0:
-			totals.text += "\nPassengers: %d" % passengers
+		var economy := GameState.fleet_economy_summary()
+		if economy.has_cabins:
+			totals.text += "\nPassengers %d/%d" % [economy.passengers, economy.places]
+		if economy.has_holds:
+			totals.text += "\nCargo %d/%d" % [economy.cargo, economy.cargo_capacity]
 		if GameState.emergency_roster_available() and not GameState.is_shipyard_node(GameState.current_node_id):
 			totals.text += "\nEmergency: select an owned revision, then deploy reserves."
 		if GameState.used_deployment_capacity() > GameState.deployment_capacity():
@@ -629,6 +633,9 @@ func _refresh_roster_summary() -> void:
 	totals.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	totals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	summary_host.add_child(totals)
+	var economy := GameState.fleet_economy_summary()
+	if economy.has_cabins or economy.has_holds:
+		_add_income_row(summary_host, economy)
 	reserve_button = Button.new()
 	reserve_button.name = "OpenReserve"
 	reserve_button.text = "RESERVE (%d)" % (GameState.fleet.size() - GameState.get_deployed_fleet().size())
@@ -636,15 +643,6 @@ func _refresh_roster_summary() -> void:
 	reserve_button.custom_minimum_size.y = 26
 	reserve_button.pressed.connect(_open_reserve)
 	summary_host.add_child(reserve_button)
-	if PassengerRules.occupied(GameState.economy_state) > 0:
-		var disembark := Button.new()
-		disembark.name = "DisembarkPassengers"
-		disembark.text = "DISEMBARK"
-		style_slot_button(disembark)
-		disembark.custom_minimum_size.y = 24
-		disembark.disabled = GameState.port_services().is_empty()
-		disembark.pressed.connect(func() -> void: GameState.disembark_passengers())
-		summary_host.add_child(disembark)
 	var readiness := GameState.deployment_error()
 	if not readiness.is_empty():
 		var warning := Label.new()
@@ -816,10 +814,8 @@ func _refresh_selected_actions() -> void:
 		problem = "Unavailable during deployment."
 	elif not GameState.is_shipyard_node(GameState.current_node_id) and not GameState.emergency_roster_available():
 		problem = "Requires a secured port."
-	elif PassengerRules.occupied(GameState.economy_state, owned.id) > 0:
-		problem = "Disembark passengers first."
-	elif CargoRules.quantity(GameState.economy_state, owned.id) > 0:
-		problem = "Offload cargo first."
+	elif PassengerRules.occupied(GameState.economy_state, owned.id) > 0 or CargoRules.quantity(GameState.economy_state, owned.id) > 0:
+		problem = "Unload first."
 	elif not deployed and not historical:
 		problem = GameState.design_research_error(owned.design)
 		if problem.is_empty():
@@ -881,7 +877,56 @@ func _refresh_selected_actions() -> void:
 				blocked = "Insufficient credits."
 			var material: Array = quote.reconstruction
 			_review_action("REPAIR " + owned.display_name, "Repair/reconstruction price: %d cr.\nRebuild: Offense %d / Defense %d / Tech %d / Civic %d.\nStored materials are used first; the price includes shortages. Rebuilt accommodation starts empty." % [quote.credits, material[0], material[1], material[2], material[3]], blocked, "REPAIR", func() -> bool: return GameState.repair_ship(owned)))
+	_add_selected_economy(content, owned)
 	board.position_selection_actions()
+	board.position_selection_actions.call_deferred()
+
+
+func _add_income_row(host: Container, economy: Dictionary) -> void:
+	var row := HBoxContainer.new()
+	row.name = "ArrivalIncome"
+	host.add_child(row)
+	var label := Label.new()
+	label.text = "Arrival" if economy.planned else "Next port"
+	row.add_child(label)
+	_add_cost_item(row, CREDIT_ICON, int(economy.income))
+
+
+func _add_selected_economy(content: VBoxContainer, owned: FleetShip) -> void:
+	var economy := GameState.fleet_economy_summary(owned.id)
+	if not economy.has_cabins and not economy.has_holds:
+		return
+	var info := Label.new()
+	info.name = "ShipEconomy"
+	var lines: Array[String] = []
+	if economy.has_cabins:
+		lines.append("Passengers %d/%d" % [economy.passengers, economy.places])
+		var luxury := str(economy.luxury_min) if economy.luxury_min == economy.luxury_max else "%d-%d" % [economy.luxury_min, economy.luxury_max]
+		lines.append("Luxury " + luxury)
+	if economy.has_holds:
+		lines.append("Cargo %d/%d" % [economy.cargo, economy.cargo_capacity])
+	info.text = "\n".join(lines)
+	content.add_child(info)
+	_add_income_row(content, economy)
+	var actions := HBoxContainer.new()
+	content.add_child(actions)
+	var at_port := not GameState.battle_pending and not GameState.port_services().is_empty()
+	for kind in ["cargo", "passengers"]:
+		if int(economy[kind]) == 0:
+			continue
+		var button := Button.new()
+		button.name = "OffloadCargo" if kind == "cargo" else "DisembarkPassengers"
+		button.text = "OFFLOAD" if kind == "cargo" else "DISEMBARK"
+		style_slot_button(button)
+		button.custom_minimum_size.y = 24
+		button.disabled = not at_port
+		actions.add_child(button)
+		button.pressed.connect(func() -> void:
+			var ok := GameState.offload_cargo(owned.id) if kind == "cargo" else GameState.disembark_passengers(owned.id)
+			if not ok:
+				var feedback: Label = ship_actions.find_child("ActionStatus", true, false)
+				feedback.text = "Unload failed. " + GameState.last_save_error
+				feedback.show())
 
 
 func _review_action(title: String, body: String, problem: String, action_name: String, action: Callable) -> void:

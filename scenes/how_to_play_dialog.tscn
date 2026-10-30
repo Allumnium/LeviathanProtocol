@@ -27,7 +27,7 @@ LOSSES AND RECOVERY
 Intact disconnected parts still work. Repair damage and reconstruct destroyed parts at ports. Passengers board on inhabited arrival; each death costs 20 credits and may cause debt. Disembark before reserving or replacing an occupied ship.
 
 CONTROLS
-Wheel: zoom. Drag / WASD: pan. Click a hull for its actions; reserved ships are managed through Reserve. Esc: close a dialog or clear canvas focus. Builder: 1–4 materials, M mirror, Ctrl+Z/Y undo/redo, Ctrl+S/L save/load. Battle: Space restores auto-camera."
+Wheel: zoom. Drag / WASD: pan. Click a hull for its actions; reserved ships are managed through Reserve. Esc: close a dialog or clear canvas focus. Builder: 1–4 materials, M mirror, Ctrl+Z/Y undo/redo, Ctrl+S/L save/load. Battle: click a target to focus fire; click empty battlefield to clear orders. Space restores auto-camera."
 autowrap_mode = 2
 horizontal_alignment = 0
 vertical_alignment = 0

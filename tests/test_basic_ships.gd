@@ -55,8 +55,9 @@ func run() -> void:
 	var matches: Array = state.get_visible_ship_designs("Scout")
 	check(matches.size() == 1 and not matches[0].get("builtin", false) and state.load_saved_ship_design("Scout")
 		and FleetRules.fingerprint(state.ship) == FleetRules.fingerprint(BUILTINS.drone()), "Existing same-name player designs remain visible and load unchanged.")
-	state.saved_ship_designs = original_library
+	state.saved_ship_designs.clear()
 	await test_library_ui()
+	state.saved_ship_designs = original_library
 	if "--capture" in OS.get_cmdline_user_args():
 		await capture()
 	print("Basic ship tests finished: %d failures" % failures)

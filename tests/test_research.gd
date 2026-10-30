@@ -101,7 +101,7 @@ func _run() -> void:
 	_check(state.save_run_checkpoint() and state.load_run_checkpoint() and state.research_grants().modifiers.energy_efficiency.value == 0.1,
 		"Grants recompute from persisted research IDs without a second mutable unlock ledger.")
 	_check(state.is_equipment_available(ShipPart.Type.RESEARCH_LAB) and state.is_equipment_available(ShipPart.Type.CREW_QUARTERS)
-		and GameDefinitions.entries("research", true).size() == 8, "Only functional shared research is ready for purchase.")
+		and GameDefinitions.entries("research", true).size() == 10, "Only functional shared and mining research is ready for purchase.")
 	_check(state.start_new_run(1, 42) and not state.research_grants().equipment_ids.has("laser") and state.research_grants().modifiers.is_empty(), "New runs reset resolved grants.")
 	print("Research definition tests finished: %d failures; 46 nodes; 56 equipment; 20 abilities" % failures)
 	quit(0 if failures == 0 else 1)

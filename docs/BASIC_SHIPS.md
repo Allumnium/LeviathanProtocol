@@ -11,7 +11,7 @@ The shared design library now includes these optional templates alongside Drone:
 | Surveyor | Command Center, Thruster, Lab I, Crew Quarters, 2 Mini Turrets, plates | 19 | 5 |
 | Hauler | Command Center, Thruster, Cargo Hold, Crew Quarters, Mini Turret, plates | 19 | 4 |
 
-All use Foundation equipment, fit the starting build area and have connected, nonoverlapping component footprints. Load them through Ship Designer's library or select them for a general Fleet slot, then construct normally. Existing starting ships and credits are unchanged. Templates cannot be overwritten or deleted; edited copies need another name. Previously saved player designs with these new names retain priority and remain editable.
+All use Foundation equipment, fit the starting build area and have connected, nonoverlapping component footprints. Load them through Ship Designer's library or select them for a general Fleet slot, then construct normally. Adding these templates did not change the starting fleet or credits. The subsequent [opening-loop review](OPENING_LOOP.md) activates 300 starting credits while retaining three Drones. Templates cannot be overwritten or deleted; edited copies need another name. Previously saved player designs with these new names retain priority and remain editable.
 
 The paged library removes outgoing rows from its layout before queuing their deletion. This prevents old and new pages being counted together and permanently expanding the popup off-screen at 640×360.
 
@@ -21,4 +21,4 @@ Validation: `tests/test_basic_ships.gd` checks Foundation authorization, connect
 
 Evidence is under `.local/basic-ships/`: `recipes.log`, `final-native/run.log`, construction-order, fleet-slot and research-enforcement logs. All six targeted suites passed. The final isolated UI review is `ui-final/run.log`; its placement/add/remove timings were 75/514/477 ms, all within existing test budgets. An earlier concurrent timing run exceeded the fleet-add budget; the isolated runs passed. Native preview and library captures are `designs.png` and `library.png`.
 
-This adds basic choices, not a completed opening-loop balance review. Step 18 remains open for that review and any starting-credit decision.
+This added basic choices separately from the opening-loop balance review. That subsequent review is now complete in [OPENING_LOOP.md](OPENING_LOOP.md); full economy validation remains step 35.

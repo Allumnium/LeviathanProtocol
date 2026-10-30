@@ -32,6 +32,7 @@ var rank := 1
 static var _lab_textures: Dictionary = {}
 static var _legacy_cabin_pattern: ShipPartPattern
 static var _cabin_textures: Dictionary = {}
+static var _catalog: Array[ShipPartPattern] = []
 
 
 func pattern_key() -> String:
@@ -77,6 +78,10 @@ func _init(
 
 
 static func get_catalog() -> Array[ShipPartPattern]:
+	# Templates are immutable catalog data. Physical ShipParts copy their stats
+	# and geometry; callers receive their own list and may sort/filter it safely.
+	if not _catalog.is_empty():
+		return _catalog.duplicate()
 	var patterns: Array[ShipPartPattern] = []
 	patterns.append(ShipPartPattern.new(
 		ShipPart.Type.COMMAND_CENTER, ShipPart.Category.SPECIAL,
@@ -283,6 +288,14 @@ static func get_catalog() -> Array[ShipPartPattern]:
 	patterns.append(_shared_pattern(ShipPart.Type.PASSENGER_CABIN, ShipPartStats.new(0, 0, 6, 0)))
 	patterns.append(_shared_pattern(ShipPart.Type.OBSERVATION_DECK, ShipPartStats.new(0, 0, 6, 0)))
 	patterns.append(_shared_pattern(ShipPart.Type.CARGO_HOLD, ShipPartStats.new(0, 0, 6, 0)))
+	var mining_laser := ShipPartStats.with_weapon("Mining Laser", 6, 0.5, 1.5, 1)
+	mining_laser.weapons[0].range_units = 300
+	patterns.append(_shared_pattern(ShipPart.Type.MINING_LASER, mining_laser))
+	var drill := ShipPartStats.with_weapon("Extraction Drill", 6, 0.25, 1.5, 1)
+	drill.weapons[0].range_units = 45
+	patterns.append(_shared_pattern(ShipPart.Type.EXTRACTION_DRILL, drill))
+	patterns.append(_shared_pattern(ShipPart.Type.ORE_PROCESSOR, ShipPartStats.new(0, 0, 9, 0)))
+	patterns.append(_shared_pattern(ShipPart.Type.SEISMIC_CUTTER, ShipPartStats.new(0, 0, 8, 0)))
 	var lab_definition := GameDefinitions.equipment(ShipPart.Type.RESEARCH_LAB)
 	for physical_rank: Dictionary in lab_definition.ranks:
 		var offsets: Array[Vector2i] = []
@@ -321,7 +334,8 @@ static func get_catalog() -> Array[ShipPartPattern]:
 		pattern.definition_id = definition.id
 		pattern.definition_revision = int(definition.revision)
 		implemented_patterns.append(pattern)
-	return implemented_patterns
+	_catalog = implemented_patterns
+	return _catalog.duplicate()
 
 
 static func _lab_texture(cells: Dictionary) -> Texture2D:

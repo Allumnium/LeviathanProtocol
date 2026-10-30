@@ -28,6 +28,7 @@ var stars := PackedVector2Array()
 var _owned_render_cache: Dictionary = {}
 var _visible_world_rect := Rect2()
 var _thruster_frames_by_type: Dictionary = {}
+var ability_preview: Dictionary = {}
 
 
 func world_transform() -> Transform2D:
@@ -66,11 +67,19 @@ func _draw() -> void:
 		size / camera_zoom
 	).grow(80.0)
 	draw_set_transform_matrix(world_transform())
+	_draw_visibility()
+	if simulation.encounter.plan.get("arena_layout", "open") == "corridor":
+		for y in [-240, 240]:
+			draw_line(Vector2(-800, y), Vector2(800, y), Color(0.35, 0.6, 0.7, 0.45), 2)
+	if not simulation.encounter.pending.is_empty():
+		# Announced entry zone, independent of any hidden actor's live position.
+		for y in [-90, 0, 90]:
+			draw_polyline(PackedVector2Array([Vector2(635, y - 12), Vector2(620, y), Vector2(635, y + 12)]), Color(1.0, 0.7, 0.3, 0.65), 2)
 	for star in stars:
 		if _visible_world_rect.has_point(star):
 			draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
 	for drop in simulation.drops:
-		if not drop.collected and _visible_world_rect.has_point(drop.position):
+		if not drop.collected and _visible_world_rect.has_point(drop.position) and simulation.point_visible(BattleSimulation.Faction.PLAYER, drop.position):
 			var tile_texture := _get_tile_texture(drop.category)
 			if tile_texture != null:
 				var drop_size := Vector2.ONE * drop.size
@@ -82,16 +91,23 @@ func _draw() -> void:
 	for player_ship in simulation.players:
 		_draw_player_ship(player_ship)
 	_draw_alien_fleet()
+	_draw_warden()
 	_draw_other_entities()
+	_draw_manual_target()
 	draw_set_transform_matrix(world_transform())
 	for beam in simulation.beams:
-		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(beam.target.position):
+		var end := beam.target.position if not simulation.visibility_enabled or simulation.team_can_see(BattleSimulation.Faction.PLAYER, beam.target) else beam.aim_position
+		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(end):
 			continue
-		draw_line(beam.origin_position, beam.target.position,
-			Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
+		var steps := maxi(1, ceili(beam.origin_position.distance_to(end) / 24.0))
+		for index in range(steps):
+			var start := beam.origin_position.lerp(end, float(index) / steps)
+			var finish := beam.origin_position.lerp(end, float(index + 1) / steps)
+			if simulation.point_visible(BattleSimulation.Faction.PLAYER, (start + finish) * 0.5):
+				draw_line(start, finish, Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
 	for projectile in simulation.projectiles:
 		var projectile_position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
-		if not _visible_world_rect.has_point(projectile_position):
+		if not _visible_world_rect.has_point(projectile_position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, projectile_position):
 			continue
 		if projectile.is_player and projectile.weapon_name == "Mini Turret":
 			var initial_rotation := (
@@ -112,7 +128,8 @@ func _draw() -> void:
 			)
 			draw_set_transform_matrix(world_transform())
 			continue
-		var direction := (projectile.target.position - projectile_position).normalized()
+		var aim := projectile.aim_position if simulation.visibility_enabled else projectile.target.position
+		var direction := (aim - projectile_position).normalized()
 		var trail_color := Color(0.4, 1.0, 0.25, 0.7)
 		var projectile_color := Color(0.8, 1.0, 0.3)
 		if projectile.is_player:
@@ -122,12 +139,45 @@ func _draw() -> void:
 			trail_color, 2.0, true)
 		draw_circle(projectile_position, 2.5, projectile_color)
 	for explosion in simulation.explosions:
-		if not _visible_world_rect.has_point(explosion.position):
+		if not _visible_world_rect.has_point(explosion.position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, explosion.position):
 			continue
 		var progress := 1.0 - explosion.lifetime / 0.6
 		draw_arc(explosion.position, 4.0 + progress * 32.0, 0.0, TAU, 24,
 			Color(1.0, 0.45, 0.1, 1.0 - progress), 3.0, true)
+	if not ability_preview.is_empty():
+		var definition := GameDefinitions.find("abilities", ability_preview.id)
+		var color := Color("8cd4e8") if ability_preview.valid else Color("ed8975")
+		draw_arc(ability_preview.position, float(definition.radius_units), 0, TAU, 48, color, 1.5)
+		for source in ability_preview.sources:
+			draw_arc(simulation.abilities.origin(source, ability_preview.id), float(definition.range_units), 0, TAU, 64, Color(0.5, 0.7, 0.8, 0.4), 1)
+	for effect: Dictionary in simulation.abilities.effects:
+		if int(effect.faction) == 0:
+			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+func _draw_visibility() -> void:
+	if not simulation.visibility_enabled:
+		return
+	var fog = simulation.visibility
+	draw_rect(_visible_world_rect, Color("010305"))
+	for cell: Vector2i in fog.explored_cells.get(BattleSimulation.Faction.PLAYER, {}):
+		var memory := Rect2(Vector2(cell) * fog.MEMORY_CELL, Vector2.ONE * fog.MEMORY_CELL)
+		if memory.intersects(_visible_world_rect):
+			draw_rect(memory, Color("081018"))
+	for source: Dictionary in fog.sources.get(BattleSimulation.Faction.PLAYER, []):
+		draw_circle(source.position, float(source.sight), Color("101c27"))
+	for contact: Dictionary in fog.contacts(BattleSimulation.Faction.PLAYER):
+		if not _visible_world_rect.has_point(contact.position):
+			continue
+		if contact.kind == "radar":
+			var radius := 4.0 + sin(simulation.elapsed * 4.0) * 1.0
+			draw_arc(contact.position, radius, 0, TAU, 16, Color("e9bb70"), 1.5)
+		else:
+			var color := Color("708595")
+			color.a = 1.0 - float(contact.age) / fog.STALE_SECONDS
+			draw_line(contact.position - Vector2(4, 4), contact.position + Vector2(4, 4), color, 1.0)
+			draw_line(contact.position - Vector2(4, -4), contact.position + Vector2(4, -4), color, 1.0)
 
 
 func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
@@ -225,12 +275,36 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	draw_set_transform_matrix(world_transform())
 
 
+func _draw_manual_target() -> void:
+	for member in simulation.players:
+		var target := member.commanded_target
+		if target == null or not target.is_alive() or (simulation.visibility_enabled and not simulation.team_can_see(0, target)):
+			continue
+		var position := target.previous_position.lerp(target.position, interpolation_alpha)
+		for quadrant in range(4):
+			var angle := quadrant * PI * 0.5 + PI * 0.1
+			draw_arc(position, target.radius + 5, angle, angle + PI * 0.3, 8, Color("efd580"), 1.5)
+		break
+
+
 func _draw_other_entities() -> void:
+	var rock_texture: Texture2D = preload("res://assets/asteroids_s.png")
 	for entity in simulation.other_entities:
-		if not entity.is_alive():
+		if not entity.is_alive() or (entity.faction != BattleSimulation.Faction.PLAYER and not simulation.team_can_see(BattleSimulation.Faction.PLAYER, entity) and simulation.visibility_enabled):
 			continue
 		var position := entity.previous_position.lerp(entity.position, interpolation_alpha)
 		if not _visible_world_rect.has_point(position):
+			continue
+		if entity.has_tag("asteroid"):
+			var sprite := int(entity.entity_id.hash() & 63)
+			var region := Rect2(Vector2(sprite % 8, sprite / 8) * 32, Vector2(32, 32))
+			draw_texture_rect_region(rock_texture, Rect2(position - Vector2.ONE * entity.radius, Vector2.ONE * entity.radius * 2), region)
+			# Motion is visible only with legitimate sight; no mineral overlays.
+			if entity.velocity.length_squared() > 1:
+				draw_line(position, position + entity.velocity * 1.5, Color(0.7, 0.75, 0.8, 0.35), 1.0)
+			continue
+		if entity.has_tag("craft") and entity.alien != null:
+			draw_texture_rect(entity.alien.texture, Rect2(position - Vector2.ONE * entity.radius, Vector2.ONE * entity.radius * 2), false)
 			continue
 		var color := Color("929b9d")
 		if entity.faction == BattleSimulation.Faction.ALIEN:
@@ -239,24 +313,78 @@ func _draw_other_entities() -> void:
 			color = Color("73bddc")
 		draw_circle(position, entity.radius, color.darkened(0.55))
 		draw_arc(position, entity.radius, 0.0, TAU, 24, color, 1.0)
+	for r: Dictionary in simulation.asteroid_field.records.values():
+		if r.status != "terminal" or r.claimed or not simulation.asteroid_field.recoverable(r):
+			continue
+		var point := Vector2(r.position[0], r.position[1])
+		if simulation.point_visible(0, point):
+			draw_circle(point, 3, Color("dfc26b"))
 
 
 func _draw_alien_fleet() -> void:
 	for alien in simulation.aliens:
-		if not alien.is_alive():
+		if not alien.is_alive() or (simulation.visibility_enabled and not simulation.team_can_see(BattleSimulation.Faction.PLAYER, alien)):
 			continue
 		var render_position := alien.previous_position.lerp(alien.position, interpolation_alpha)
 		if not _visible_world_rect.has_point(render_position):
 			continue
+		if simulation.enemy_roles.role(alien) == "sentinel":
+			draw_arc(render_position, 140, 0, TAU, 48, Color(0.4, 0.7, 0.85, 0.25), 1)
 		var texture_size := alien.alien.texture.get_size()
-		var draw_size := texture_size * (16.0 / maxf(texture_size.x, texture_size.y))
+		var extent := 48.0 if alien.alien.role_id == "warden" else (22.0 if alien.alien.role_id == "pylon" else 16.0)
+		var draw_size := texture_size * (extent / maxf(texture_size.x, texture_size.y))
 		var render_heading := lerp_angle(alien.previous_heading, alien.heading, interpolation_alpha)
 		_set_ship_transform(render_position, render_heading + PI * 0.5)
 		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else Color.WHITE
 		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false, color)
 		if simulation.player != null and simulation._analysis_multiplier(simulation.player, alien) > 1.0:
 			draw_arc(Vector2.ZERO, alien.radius + 3, 0, TAU, 24, Color("88ddec"), 1.0)
+		if alien.alien.role_id in ["warden", "pylon"]:
+			var r := alien.radius + 4
+			var cue_color := Color("83c9dc") if alien.alien.role_id == "pylon" else Color("e1af69")
+			draw_polyline(PackedVector2Array([Vector2(-r, 0), Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0)]), cue_color, 1.5)
 	draw_set_transform_matrix(world_transform())
+	for alien in simulation.aliens:
+		if not alien.is_alive() or alien.alien.role_id not in ["warden", "pylon"] or (simulation.visibility_enabled and not simulation.team_can_see(0, alien)):
+			continue
+		var r := alien.radius + 4
+		var point := alien.previous_position.lerp(alien.position, interpolation_alpha) + Vector2(0, r + 5)
+		var color := Color("83c9dc") if alien.alien.role_id == "pylon" else Color("e1af69")
+		draw_line(point - Vector2(r, 0), point + Vector2(r, 0), Color("35434d"), 3)
+		draw_line(point - Vector2(r, 0), point + Vector2(-r + 2 * r * alien.integrity / alien.stats.integrity, 0), color, 3)
+	for link: Dictionary in simulation.enemy_roles.repair_links:
+		var source: BattleSimulation.Combatant = simulation.entities.get(link.source)
+		var target: BattleSimulation.Combatant = simulation.entities.get(link.target)
+		if source != null and target != null and source.is_alive() and target.is_alive() \
+			and (not simulation.visibility_enabled or (simulation.team_can_see(0, source) and simulation.team_can_see(0, target))):
+			draw_line(source.position, target.position, Color(0.5, 0.85, 0.6, 0.65), 1)
+
+
+func _draw_warden() -> void:
+	var warden = simulation.encounter.warden
+	if warden.rules.is_empty():
+		return
+	var body: BattleSimulation.Combatant = simulation.entities.get(warden.rules.body_id)
+	if not warden.visible(simulation):
+		return
+	draw_set_transform_matrix(world_transform())
+	for id in warden.rules.pylon_ids:
+		var pylon: BattleSimulation.Combatant = simulation.entities.get(id)
+		if pylon != null and pylon.is_alive() and (not simulation.visibility_enabled or simulation.team_can_see(0, pylon)):
+			draw_line(body.position, pylon.position, Color(0.4, 0.75, 0.9, 0.5), 1.5)
+	if warden.exposed > 0:
+		draw_arc(body.position, body.radius + 9, 0, TAU, 32, Color("8ad481"), 2)
+	if not warden.charging and warden.flash <= 0:
+		return
+	var normal := Vector2(-warden.direction.y, warden.direction.x) * float(warden.rules.half_width)
+	var end: Vector2 = warden.origin + warden.direction * float(warden.rules.range)
+	var points := PackedVector2Array([warden.origin + normal, end + normal, end - normal, warden.origin - normal])
+	var color := Color(1, 0.7, 0.3, 0.12 if warden.charging else 0.28)
+	draw_colored_polygon(points, color)
+	draw_line(points[0], points[1], Color(1, 0.75, 0.35, 0.8), 1.5)
+	draw_line(points[2], points[3], Color(1, 0.75, 0.35, 0.8), 1.5)
+	if warden.flash > 0:
+		draw_line(warden.origin, end, Color(1, 0.85, 0.55, 0.8), 4)
 
 
 func _get_pattern_for_part(part: ShipPart) -> ShipPartPattern:

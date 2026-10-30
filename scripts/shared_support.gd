@@ -107,6 +107,8 @@ static func intercept(sim, member, weapon: ShipWeaponStats, origin: Vector2) -> 
 	return true
 
 static func weapon_target(sim, member, weapon: ShipWeaponStats, origin: Vector2):
+	if weapon.weapon_name in MiningRules.WEAPONS:
+		return MiningRules.weapon_target(sim, member, weapon, origin)
 	if member.owned_ship != null and member.owned_ship.units[weapon.component_index].part.type == ShipPart.Type.POINT_DEFENSE_TURRET:
 		var chosen = null
 		var nearest := INF

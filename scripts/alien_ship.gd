@@ -5,6 +5,7 @@ const CHRYSALIS_TEXTURE: Texture2D = preload("res://assets/drone_chrysalis.png")
 const FIGHTER_TEXTURE: Texture2D = preload("res://assets/drone_fighter.png")
 const SCOUT_TEXTURE: Texture2D = preload("res://assets/drone_scout.png")
 const SENTINEL_TEXTURE: Texture2D = preload("res://assets/drone_sentinel.png")
+const PYLON_TEXTURE: Texture2D = preload("res://assets/shield.png")
 const SUPPORT_TEXTURE: Texture2D = preload("res://assets/drone_support.png")
 
 var display_name: String
@@ -52,6 +53,23 @@ func scaled_for_difficulty(difficulty_multiplier: float) -> AlienShip:
 	return AlienShip.new(display_name, texture, base_stats, difficulty_multiplier)
 
 
+static func warden_variant(pylon: bool, hull: float, shield: float, cost: float) -> AlienShip:
+	var value := ShipStats.new()
+	value.integrity = hull
+	value.shields = shield
+	value.weight = 20 if pylon else 60
+	value.thrust = 0 if pylon else 2
+	value.collision_radius = 12 if pylon else 26
+	value.weapons.append(ShipWeaponStats.new("Pylon Pulse" if pylon else "Warden Pulse", 2.5 if pylon else 1.4, 0.2 if pylon else 0.8, 1, 210))
+	var unit := AlienShip.new("Shield Pylon" if pylon else "Bastion Warden", PYLON_TEXTURE if pylon else SENTINEL_TEXTURE, value)
+	unit.stats.collision_radius = value.collision_radius
+	unit.role_id = "pylon" if pylon else "warden"
+	unit.definition_id = "warden/pylon" if pylon else "warden/body"
+	unit.entity_kind = "organ" if pylon else "ship"
+	unit.threat_cost = cost
+	return unit
+
+
 static func threat_variant(role: String, rank: int) -> AlienShip:
 	if not ROLE_COSTS.has(role) or rank < 0 or rank > 2:
 		return null
@@ -89,9 +107,13 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 		if definition.display_name == entry.name:
 			result = definition
 			break
+	if entry.name in ["Shield Pylon", "Bastion Warden"]:
+		result = warden_variant(entry.name == "Shield Pylon", 1, 0, 1)
 	if result == null:
 		return null
 	var restored := ShipStats.new()
+	if entry.name in ["Shield Pylon", "Bastion Warden"]:
+		restored.collision_radius = 12 if entry.name == "Shield Pylon" else 26
 	restored.shields = entry.stats[0]
 	restored.integrity = entry.stats[1]
 	restored.weight = entry.stats[2]
@@ -115,7 +137,7 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 static func snapshot_valid(entry: Variant) -> bool:
 	if not entry is Dictionary or not entry.get("name") is String or not entry.get("stats") is Array:
 		return false
-	if entry.name not in ["Scout", "Fighter", "Sentinel", "Support", "Chrysalis"]:
+	if entry.name not in ["Scout", "Fighter", "Sentinel", "Support", "Chrysalis", "Shield Pylon", "Bastion Warden"]:
 		return false
 	if entry.stats.size() != 4 or not entry.get("weapons") is Array or entry.weapons.is_empty():
 		return false

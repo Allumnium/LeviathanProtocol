@@ -255,6 +255,11 @@ static func decode(data: Variant) -> Dictionary:
 			return {}
 		if active and (int(frozen.global_row) != int(graph.columns[node]) or not _campaign_encounter_matches(frozen, data.campaign_graph.nodes[node])):
 			return {}
+		var context: Dictionary = data.encounter_progress.get(str(node), {}).get("deployment", {}).get("shared_context", {})
+		if frozen.has("arena_layout") and data.encounter_progress.get(str(node), {}).has("deployment") and not context.has("encounter_plan"):
+			return {}
+		if context.has("encounter_plan") and not _same(context.encounter_plan, frozen):
+			return {}
 	return {"data": data, "fleet": fleet, "aliens": aliens, "editor": editor}
 
 
@@ -264,6 +269,10 @@ static func _same(left: Variant, right: Variant) -> bool:
 
 static func _campaign_encounter_matches(encounter: Dictionary, node: Dictionary) -> bool:
 	var expected := "boss_patrol" if node.kind == "boss" else ("elite" if node.elite else "patrol")
+	if encounter.has("arena_layout") and node.kind == "combat" and not node.elite and int(node.combat_index) % 2 == 0:
+		expected = "relay_defense"
+	if encounter.has("warden"):
+		expected = "bastion_warden" if node.kind == "boss" and int(node.act) == 1 else ("pylon_escort" if node.kind == "combat" and int(node.act) == 1 and int(node.local_row) == 5 else "invalid")
 	return encounter.template_id == expected
 
 
@@ -286,15 +295,37 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 			return false
 		if entry.field.has("repair_pool") and not SharedSupport.valid_pool(entry.field.repair_pool):
 			return false
+		if entry.field.has("asteroids") and not AsteroidField.valid(entry.field.asteroids):
+			return false
 		if entry.has("journal") and (not entry.journal is Dictionary or not _json_value(entry.journal)):
 			return false
 		if entry.has("deployment") and (not entry.deployment is Dictionary or not _json_value(entry.deployment)):
 			return false
 		if entry.get("deployment", {}).has("shared_context"):
 			var context: Variant = entry.deployment.shared_context
+			if context is Dictionary and context.has("encounter_plan") and not EncounterGenerator.valid(context.encounter_plan):
+				return false
+			if context is Dictionary and context.has("asteroids") and not AsteroidField.valid(context.asteroids):
+				return false
+			if context is Dictionary and context.has("mining_materials") and not AsteroidField.valid_policy({"rate": 0, "materials": context.mining_materials}):
+				return false
+			if context is Dictionary and context.has("enemy_roles") and not context.enemy_roles is bool:
+				return false
 			if not context is Dictionary or not _number(context.get("energy_efficiency")) or context.energy_efficiency < 0 or context.energy_efficiency > 0.3 \
 				or not SharedSupport.valid_reserves(context.get("repair_reserves")):
 				return false
+			if context.has("visibility_enabled") and not context.visibility_enabled is bool:
+				return false
+			if context.has("ability_state") and not BattleAbilities.valid(context.ability_state):
+				return false
+			if context.has("ability_ids"):
+				if not context.ability_ids is Array:
+					return false
+				var seen_abilities := {}
+				for id in context.ability_ids:
+					if not id is String or seen_abilities.has(id) or GameDefinitions.find("abilities", id).is_empty():
+						return false
+					seen_abilities[id] = true
 			if not SharedSupport.valid_pool(context.get("repair_pool", {"capacity": 0, "spent": 0.0})):
 				return false
 		if entry.has("ship_ids"):

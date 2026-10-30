@@ -888,7 +888,7 @@ func _test_scene() -> void:
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	_check(state.credits == GameState.STARTING_CREDITS,
-		"A new run must start with 1200 credits.")
+		"A new run must start with the reviewed credit budget.")
 	_check(state.player_ship_count == 0,
 		"A new run must have no ships until a design is purchased.")
 	for pattern in ShipPartPattern.get_catalog():
@@ -1421,10 +1421,19 @@ func _test_scene() -> void:
 		await process_frame
 		_check(load_dialog.get_node_or_null("Contents/Pager/PreviousRuns") == null,
 			"The ship library must always include saved designs without a previous-runs checkbox.")
+		_check(page_back.visible and page_count_label.visible and page_forward.visible,
+			"The built-in templates and saved designs use paging.")
+		load_dialog.search.text = "Preview"
+		load_dialog._refresh_rows()
+		await process_frame
 		_check(
 			not page_back.visible and not page_count_label.visible and not page_forward.visible,
 			"Single-page ship libraries must hide their paging controls."
 		)
+		load_dialog.search.text = ""
+		load_dialog.page = 1
+		load_dialog._refresh_rows()
+		await process_frame
 		_check(
 			design_scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED
 				and design_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED,
@@ -1442,12 +1451,12 @@ func _test_scene() -> void:
 			"The shared ship-library modal must remain compact, not %s." % load_dialog.size
 		)
 		_check(
-			design_rows.get_child_count() == 3
-				and design_rows.get_child(2) is PanelContainer,
+			design_rows.get_child_count() == 4
+				and design_rows.get_child(3) is PanelContainer,
 			"Each saved design must appear in its own row in the load modal."
 		)
-		if design_rows.get_child_count() == 3:
-			var row_contents := design_rows.get_child(2).get_child(0) as HBoxContainer
+		if design_rows.get_child_count() == 4:
+			var row_contents := design_rows.get_child(3).get_child(0) as HBoxContainer
 			var cost_row := row_contents.get_child(2) as HBoxContainer
 			var drone_contents := design_rows.get_child(1).get_child(0) as HBoxContainer
 			var drone_cost_row := drone_contents.get_child(2) as HBoxContainer
@@ -1730,9 +1739,9 @@ func _test_design_selection() -> void:
 		{"name": "New Frigate", "ship": blueprint.to_design_data()},
 	]
 	state.saved_ship_designs = fixtures
-	_check(state.get_visible_ship_designs().size() == 3,
-		"The design library must always include every saved design plus the built-in Drone.")
-	_check(state.get_visible_ship_designs("FRIG").size() == 1 and state.get_visible_ship_designs("escort").size() == 1,
+	_check(state.get_visible_ship_designs().size() == fixtures.size() + preload("res://scripts/builtin_ships.gd").NAMES.size(),
+		"The design library includes every saved design and all built-in templates.")
+	_check(state.get_visible_ship_designs("FRIG").size() == 1 and state.get_visible_ship_designs("OLD ESCORT").size() == 1,
 		"Saved-design search must be case-insensitive across designs from every run.")
 	_check(not state.purchase_saved_ship("Unsaved"), "Construction must reject names that are not saved designs.")
 	_check(state.ship.tiles.is_empty() and state.purchase_saved_ship("Old Escort"), "The selected library design must construct independently of the editor.")
@@ -1784,7 +1793,7 @@ func _test_design_selection() -> void:
 	_check(state.purchase_saved_ship("New Frigate") and not state.fleet[1].design.tiles.has(Vector2i(7, 7)), "Construction must use the saved snapshot rather than unsaved edits.")
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
-	_check(state.get_visible_ship_designs().size() == 3,
+	_check(state.get_visible_ship_designs().size() == fixtures.size() + preload("res://scripts/builtin_ships.gd").NAMES.size(),
 		"Starting a new run must not hide designs saved during previous runs.")
 	state.saved_ship_designs = originals
 	var audio := root.get_node("AudioManager")
@@ -1865,6 +1874,11 @@ func _test_run_loss() -> void:
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
 	state.credits = 0
+	_check(not state.is_run_lost(), "An empty fleet can rebuild a basic Scout using starting materials alone.")
+	state.red_tiles_available = 0
+	state.blue_tiles_available = 0
+	state.green_tiles_available = 0
+	state.core_tiles_available = 0
 	_check(state.is_run_lost(), "An empty fleet with no affordable ship must lose the run.")
 	state.credits = 100000
 	_check(not state.is_run_lost(), "An empty fleet that can afford a ship must be allowed to rebuild.")
@@ -1874,16 +1888,16 @@ func _test_build_area() -> void:
 	var state := root.get_node("GameState")
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)
 	_clear_test_fleet(state)
-	_check(state.credits == 1200 and state.build_area_size() == 20, "New runs must start with 1200 credits and a 20 by 20 build area.")
+	_check(state.credits == 300 and state.build_area_size() == 20, "New runs start with 300 credits and a 20 by 20 build area.")
 	var original_inventory := [state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available]
 	_check(state.purchase_build_area_upgrade(), "The first area upgrade must be purchasable.")
-	_check(state.build_area_size() == 22 and state.credits == 1150, "Area upgrades must add two tiles per side for 50 credits.")
+	_check(state.build_area_size() == 22 and state.credits == 250, "Area upgrades must add two tiles per side for 50 credits.")
 	_check([state.red_tiles_available, state.blue_tiles_available, state.green_tiles_available, state.core_tiles_available] == [original_inventory[0] - 1, original_inventory[1] - 1, original_inventory[2] - 1, original_inventory[3] - 1], "Area upgrades must consume one of each material.")
 	var design := _fleet_blueprint()
 	design.set_tile_at(Vector2i(22, 0), ShipPart.Category.DEFENSE)
 	_check(not state.design_fits_build_area(design), "The first out-of-bounds column must require an upgrade.")
 	state.blue_tiles_available = 0
-	_check(state.purchase_build_area_upgrade() and state.build_area_size() == 24 and state.credits == 1098, "Area upgrades automatically cover the missing Defense material for two credits.")
+	_check(state.purchase_build_area_upgrade() and state.build_area_size() == 24 and state.credits == 198, "Area upgrades automatically cover the missing Defense material for two credits.")
 	state.credits = 0
 	_check(not state.purchase_build_area_upgrade() and state.build_area_size() == 24 and state.credits == 0, "Unaffordable upgrades must not change size or credits.")
 	state.start_new_run(GameState.Difficulty.MEDIUM, -1, false)

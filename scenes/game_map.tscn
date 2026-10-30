@@ -78,6 +78,11 @@ stretch_mode = 5
 layout_mode = 2
 vertical_alignment = 1
 
+[node name="HeldCargoValue" type="Label" parent="Layout/TopBar/BarContents"]
+visible = false
+layout_mode = 2
+vertical_alignment = 1
+
 [node name="OffenseIcon" type="TextureRect" parent="Layout/TopBar/BarContents"]
 custom_minimum_size = Vector2(12, 12)
 layout_mode = 2

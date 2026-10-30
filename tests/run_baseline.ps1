@@ -80,6 +80,26 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Recipe suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_basic_ships.gd --log-file (Join-Path $runRoot 'basic-ships.log')
     if ($LASTEXITCODE -ne 0) { throw "Basic ship suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_opening_loop.gd --log-file (Join-Path $runRoot 'opening-loop.log')
+    if ($LASTEXITCODE -ne 0) { throw "Opening research/economy loop failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_economy_ui.gd --log-file (Join-Path $runRoot 'economy-ui.log')
+    if ($LASTEXITCODE -ne 0) { throw "Economy UI/loaded refit suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_economy_loop.gd --log-file (Join-Path $runRoot 'economy-loop.log')
+    if ($LASTEXITCODE -ne 0) { throw "Economy loop suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_visibility.gd --log-file (Join-Path $runRoot 'visibility.log')
+    if ($LASTEXITCODE -ne 0) { throw "Visibility suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_abilities.gd --log-file (Join-Path $runRoot 'abilities.log')
+    if ($LASTEXITCODE -ne 0) { throw "Abilities/Scan suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_asteroids.gd --log-file (Join-Path $runRoot 'asteroids.log')
+    if ($LASTEXITCODE -ne 0) { throw "Asteroid/finite ore suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_mining.gd --log-file (Join-Path $runRoot 'mining.log')
+    if ($LASTEXITCODE -ne 0) { throw "Mining/avoidance suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_enemy_roles.gd --log-file (Join-Path $runRoot 'enemy-roles.log')
+    if ($LASTEXITCODE -ne 0) { throw "Enemy role suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_battle_encounters.gd --log-file (Join-Path $runRoot 'battle-encounters.log')
+    if ($LASTEXITCODE -ne 0) { throw "Battle objective/arena suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_warden.gd --log-file (Join-Path $runRoot 'warden.log')
+    if ($LASTEXITCODE -ne 0) { throw "Bastion Warden suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_battle.gd --log-file (Join-Path $runRoot 'tests.log')
     if ($LASTEXITCODE -ne 0) { throw "Battle suite failed: $LASTEXITCODE" }
 } finally {

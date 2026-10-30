@@ -9,7 +9,7 @@ const THEMES := ["The Broken Lanes", "The Graveyard Current", "The Whispering Da
 const STORIES := {
 	"haven": {"title": "Haven Anchorage", "text": "An expedition leaves Haven to trace a moving anomaly through failing jump lanes. Settlements report coordinated attacks. Follow the signal and keep the fleet together."},
 	"relay": {"title": "Relay Outpost", "text": "The relay has decoded a repeating command. The scattered guardians share a signal network. Beyond this outpost, the Bastion Warden guards the inner route."},
-	"warden_brief": {"title": "Bastion Warden briefing", "text": "A guardian formation blocks the relay exit. Clear every marked hostile to open the inner route. Prepare and repair here before departure."},
+	"warden_brief": {"title": "Bastion Warden briefing", "text": "Destroy the Warden body. Two pylons reduce its damage taken by 20% each. Its lance warns for 3 seconds; move clear or interrupt with focused damage."},
 	"refuge": {"title": "Refuge Dock", "text": "Refuge crews describe ship nurseries made from missing vessels. The Leviathan is repurposing ships and settlements. Their records identify the brood network's controlling signal."},
 	"architect_brief": {"title": "Brood Architect briefing", "text": "The nursery's guardian formation controls the next passage. Clear the marked hostiles to expose the Leviathan's approach. Refuge Dock offers full preparation services."},
 	"last_light": {"title": "Last Light Anchorage", "text": "The anomaly is an ancient autonomous ark. Its corrupted preservation system consumes the settlements it was built to protect. Sever its command network to end the assimilation. Last Light is the final preparation stop."},

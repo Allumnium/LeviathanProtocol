@@ -37,7 +37,14 @@ func _run() -> void:
 
 	var state := root.get_node("GameState")
 	var catalog := ShipPartPattern.get_catalog()
-	_check(catalog.size() == 19, "Functional shared equipment, Cargo Hold and all three lab ranks enter the catalog.")
+	var detached_list := ShipPartPattern.get_catalog()
+	detached_list.clear()
+	_check(ShipPartPattern.get_catalog().size() == 23, "Sorting/filtering a caller's catalog list cannot mutate the shared registry.")
+	var laser: ShipPartPattern = catalog.filter(func(pattern: ShipPartPattern) -> bool: return pattern.part_type == ShipPart.Type.MINING_LASER)[0]
+	var physical := ShipPart.new(laser.part_type, laser.category, Vector2i.ZERO, laser.cell_offsets, laser.stats)
+	physical.stats.weapons[0].damage_per_shot = 999
+	_check(laser.stats.weapons[0].damage_per_shot == 1.5, "Physical stat changes cannot mutate cached catalog templates.")
+	_check(catalog.size() == 23, "Functional shared equipment, mining tools and all three lab ranks enter the catalog.")
 	var numeric_ids: Array[int] = []
 	for definition in GameDefinitions.entries("equipment"):
 		var type_id := int(definition.type_id)
@@ -51,8 +58,9 @@ func _run() -> void:
 	for pattern in catalog:
 		_check(pattern.definition_id == GameDefinitions.equipment(pattern.part_type).id,
 			"Live patterns must reference a stable definition.")
-	_check(GameDefinitions.entries("research", true).size() == 8, "Only functional shared research and lab ranks are ready.")
-	_check(GameDefinitions.entries("abilities", true).is_empty(), "Planned abilities must remain gated.")
+	_check(GameDefinitions.entries("research", true).size() == 10, "Functional shared research, mining and lab ranks are ready.")
+	_check(GameDefinitions.entries("abilities", true).size() == 2 and GameDefinitions.find("abilities", "scan").implemented
+		and GameDefinitions.find("abilities", "seismic_cut").implemented, "Scan and Deep Extraction's Cutter are ready; other future abilities remain gated.")
 
 	var energy := GameDefinitions.find("research", "applied_energy")
 	_check(energy.grants.equipment_ids == ["laser", "double_laser"], "Research must support multiple equipment grants.")

@@ -22,6 +22,8 @@ static func validate(data: Variant) -> String:
 		return "Invalid neutral cleanup preference."
 	if data.has("run_ended") and not data.run_ended is bool:
 		return "Invalid terminal run state."
+	if data.has("ability_state") and not BattleAbilities.valid(data.ability_state):
+		return "Invalid ability state."
 	for key in ["research_ids", "active_design_families", "current_run_design_names"]:
 		if not data.get(key) is Array:
 			return "Run progress requires %s." % key

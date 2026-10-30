@@ -2,6 +2,12 @@
 
 Design baseline: October 26, 2026. This document supersedes the earlier proposal. It specifies proposed behavior, not functionality already implemented. Numerical balance values are initial tuning targets. Implement the milestones in order; do not attempt the entire catalog in one change.
 
+Core/extra dependency follow-up (October 29, 2026): Basic Extraction follows Foundation directly. Optional Mineral Spectroscopy is not a prerequisite for required mining. Foundation Scan supplies basic discovery; the advanced overlays remain deferred. Current asteroid/mining and enemy-role implementation/tuning is recorded in docs/MINING.md and docs/ENEMY_ROLES.md; TODO.md retains the required-versus-extra scheduling authority.
+
+Objective scope follow-up (October 29, 2026): Core step 51 supplies patrol and finite-wave fleet defense in open/corridor layouts; see docs/BATTLE_ENCOUNTERS.md. The complete convoy/interception/objective/layout matrix and drifting-field variants remain optional 51a. Broader variety and three-geometries-per-act targets below describe that deferred expansion, not prerequisites for the core release.
+
+First-boss follow-up (October 29, 2026): Step 52 activates the Bastion Warden and an earlier visible pylon guard in new campaigns. Ordinary focused damage interrupts a charge; no optional disruption ability is required. Current rules, reused art, first-act Auto results and persistence/UI evidence are recorded in docs/WARDEN.md. Historical frozen encounters retain their saved rules. Laboratory III's story gate opens after victory; research itself still uses daily travel production and its existing price.
+
 **1. Product decisions and scope**
 
 - The player builds a fleet, chooses routes toward the Leviathan, researches material combinations, and fights primarily automatic battles with optional targeted abilities.
