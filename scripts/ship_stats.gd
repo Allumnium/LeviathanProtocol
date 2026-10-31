@@ -50,7 +50,7 @@ static func cell_bounds(cells: Array[Vector2i]) -> Rect2:
 	return bounds
 
 
-static func from_units(units: Array[Dictionary], center: Vector2, laser_level := 0, energy_efficiency := 0.0, cell_position := Callable()) -> ShipStats:
+static func from_units(units: Array[Dictionary], center: Vector2, laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 	var result := ShipStats.new()
 	var cells: Array[Vector2i] = []
 	var radius_squared := 0.0
@@ -65,7 +65,7 @@ static func from_units(units: Array[Dictionary], center: Vector2, laser_level :=
 		var mount := Vector2.ZERO
 		for cell: Vector2i in unit.cells:
 			cells.append(cell)
-			mount += cell_position.call(cell) if cell_position.is_valid() else (Vector2(cell) + Vector2.ONE * 0.5 - center) * BATTLE_CELL_SIZE
+			mount += (Vector2(cell) + Vector2.ONE * 0.5 - center) * BATTLE_CELL_SIZE
 			for corner in [Vector2.ZERO, Vector2.RIGHT, Vector2.DOWN, Vector2.ONE]:
 				radius_squared = maxf(radius_squared, ((Vector2(cell) + corner - center) * BATTLE_CELL_SIZE).length_squared())
 		var part: ShipPart = unit.part
@@ -84,7 +84,6 @@ static func from_units(units: Array[Dictionary], center: Vector2, laser_level :=
 			var copy := weapon.copy()
 			copy.mount_offset += mount
 			copy.component_index = index
-			copy.range_units *= 1.0 + unit.get("modifiers", {}).get("weapon_range", 0.0)
 			copy.fire_interval_seconds /= rate
 			if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER]:
 				var multiplier := 1.0 + 0.1 * laser_level

@@ -92,6 +92,12 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 			match equipment_id:
 				"focusing_lens": lines.append("2 adjacent beams\n+20% damage / range\n+25% interval, +0.25s charge")
 				"beam_lance": lines.append("12 damage, 1.2s charge\n2 components, 360 range")
+				"flight_deck": lines.append("6 interceptors / 2 active\n12 shots each; missile screen")
+				"torpedo_bomber_bay": lines.append("4 bombers / 2 active\n2 torpedoes each; interceptable")
+				"ammunition_magazine": lines.append("All host weapons\n+20% cycling per magazine")
+				"railgun": lines.append("24 damage / 500 range / 6s\nPierces Sentinel hull cover")
+				"tactical_computer": lines.append("All host weapons\nUnshielded-target salvo / 12s\nCopies add synchronization rate")
+				"command_uplink": lines.append("Auto mark / 20s\n+20% allied damage / 5s\n500 range; strongest mark")
 				"ion_emitter": lines.append("2x shield / 0.5x hull")
 				"gravitic_snare": lines.append("35% slow, 5s")
 				"reactive_bulkhead": lines.append("2 adjacent components\n-30% projectile hull damage")
@@ -106,7 +112,8 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 	for rank: Dictionary in node.grants.ranks:
 		var equipment := find(registry, "equipment", rank.equipment_id)
 		if equipment.implemented:
-			lines.append("Lab %s\n1 RP/day" % ("II" if int(rank.rank) == 2 else "III"))
+			var rate := int(rank.rank) if registry.get("lab_production_by_rank", false) else 1
+			lines.append("%d RP/day" % rate if registry.get("lab_production_by_rank", false) else "Lab %s\n%d RP/day" % ["II" if int(rank.rank) == 2 else "III", rate])
 	for ability_id: String in node.grants.ability_ids:
 		var ability := find(registry, "abilities", ability_id)
 		if ability.implemented:

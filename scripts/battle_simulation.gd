@@ -86,11 +86,11 @@ class Combatant:
 	var analysis_remaining := 0.0
 	var repaired_hp := 0.0
 	var resource_contents: Dictionary = {}
+	var sortie_ammo := -1 # -1: ordinary weapons; finite carrier-craft activations.
+	var carrier_source_id := ""
 
 	func is_alive() -> bool:
-		if owned_ship != null and owned_ship.is_hex_ship():
-			return owned_ship.is_alive()
-		return integrity > 0.0
+		return owned_ship.is_alive() if owned_ship != null and owned_ship.is_slot_ship() else integrity > 0.0
 
 	func has_tag(tag: String) -> bool:
 		return tags.get(tag, false)
@@ -153,6 +153,7 @@ var visibility = preload("res://scripts/battle_visibility.gd").new()
 var abilities = preload("res://scripts/battle_abilities.gd").new()
 var asteroid_field = preload("res://scripts/asteroid_field.gd").new()
 var mining_enabled := false
+var credits_only := false
 var mining_materials: Array[int] = []
 var encounter = preload("res://scripts/battle_encounter.gd").new()
 var enemy_roles = preload("res://scripts/enemy_roles.gd").new()
@@ -202,12 +203,12 @@ func setup(
 	fleet: Array[RefCounted],
 	seed_value: int = -1,
 	player_ship_count: int = 1,
-	allow_zero_player_integrity := false
+	allow_unarmed_player := false
 ) -> bool:
 	if player_ship_count <= 0:
 		push_error("Battle requires at least one player ship.")
 		return false
-	if not _validate_stats(player_stats, allow_zero_player_integrity) or fleet.is_empty():
+	if not _validate_stats(player_stats, allow_unarmed_player) or fleet.is_empty():
 		push_error("Battle requires an armed player ship and a nonempty alien fleet.")
 		return false
 	if seed_value >= 0:
@@ -326,34 +327,24 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 	var requested_energy := float(requested)
 	if ships.is_empty():
 		return false
-	var hex_fleet := ships[0] != null and ships[0].is_hex_ship()
-	var flagships := 0
-	var commands := 0
-	var command_limit := 0
-	var ids := {}
 	for owned in ships:
-		if owned == null or owned.is_hex_ship() != hex_fleet:
+		if owned == null:
 			return false
-		if hex_fleet:
-			if not owned.is_alive() or owned.in_reserve or owned.id <= 0 or ids.has(owned.id):
-				return false
-			ids[owned.id] = true
-			var chassis := (owned as HexBattleShip).state.design.chassis()
-			commands += chassis.command_cost
-			if chassis.flagship:
-				flagships += 1
-				command_limit = chassis.command_points
-	if hex_fleet and (flagships != 1 or commands > command_limit):
-		return false
 	# Use an armed member for legacy setup validation; disabled weapons may remain
 	# aboard other surviving ships in the deployment.
 	var armed: FleetShip
 	for owned in ships:
-		if not owned.get_stats(upgrade_level, requested_energy).weapons.is_empty():
+		if not owned.get_stats(upgrade_level, requested_energy).weapons.is_empty() or HangarCarriers.has_bay(owned):
 			armed = owned
-	if armed == null or not setup(armed.get_stats(upgrade_level, requested_energy), fleet, seed_value, ships.size(), hex_fleet):
+	if armed == null:
+		return false
+	var bootstrap_stats := armed.get_stats(upgrade_level, requested_energy)
+	if armed.is_slot_ship() and armed.is_alive():
+		bootstrap_stats.integrity = maxf(bootstrap_stats.integrity, 0.00001)
+	if not setup(bootstrap_stats, fleet, seed_value, ships.size(), HangarCarriers.has_bay(armed)):
 		return false
 	energy_efficiency = requested_energy
+	credits_only = shared_context.get("credits_only", false)
 	repair_reserves = shared_context.get("repair_reserves", {}).duplicate(true)
 	var pool: Dictionary = shared_context.get("repair_pool", {"capacity": 0, "spent": 0.0})
 	repair_capacity = int(pool.capacity)
@@ -361,11 +352,8 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 	allied_drop_chance = salvage_chance
 	laser_upgrade_level = upgrade_level
 	var formation_center := Vector2.ZERO
-	var formation_spacing := 65.0
 	for owned in ships:
 		formation_center += Vector2(owned.formation)
-		if hex_fleet:
-			formation_spacing = maxf(formation_spacing, owned.get_stats().collision_radius * 2.0 + 12.0)
 	formation_center /= float(ships.size())
 	for index in range(ships.size()):
 		var member := players[index]
@@ -380,7 +368,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		for weapon in member.stats.weapons:
 			member.cooldowns.append(0.0)
 			member.weapon_damage[weapon.weapon_name] = 0.0
-		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * formation_spacing
+		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * 65.0
 		member.previous_position = member.position
 	_rebuild_member_cache()
 	SharedSupport.initialize(self)
@@ -594,9 +582,9 @@ func record_pickup_rejection(pickup: String) -> void:
 func _valid_command(command: Dictionary) -> bool:
 	if command.has("persistence_rejected") and (not command.persistence_rejected is bool or command.get("type") not in ["ability_cast", "ability_auto", "ability_pause_aim"]):
 		return false
-	if not command.get("id") is String or command.id.is_empty() or not RunProgressData._integer(command.get("tick")):
+	if not command.get("id") is String or command.id.is_empty() or not SaveValidation.integer(command.get("tick")):
 		return false
-	if command.tick < 0 or not command.get("payload") is Dictionary or not RunCheckpoint._json_value(command.payload):
+	if command.tick < 0 or not command.get("payload") is Dictionary or not SaveValidation.json_value(command.payload):
 		return false
 	var payload: Dictionary = command.payload
 	match command.get("type"):
@@ -609,9 +597,9 @@ func _valid_command(command: Dictionary) -> bool:
 		"withdraw":
 			return payload.is_empty()
 		"ability_cast":
-			return payload.get("ability") is String and payload.get("source", "") is String and RunProgressData._integer(payload.get("faction", 0)) and int(payload.get("faction", 0)) in [0, 1] \
+			return payload.get("ability") is String and payload.get("source", "") is String and SaveValidation.integer(payload.get("faction", 0)) and int(payload.get("faction", 0)) in [0, 1] \
 				and payload.get("position") is Array and payload.position.size() == 2 \
-				and RunProgressData._rp_number(payload.position[0]) and RunProgressData._rp_number(payload.position[1])
+				and SaveValidation.bounded_number(payload.position[0]) and SaveValidation.bounded_number(payload.position[1])
 		"ability_auto":
 			return payload.get("ability") is String and payload.get("enabled") is bool
 		"ability_pause_aim":
@@ -727,15 +715,12 @@ func authoritative_snapshot() -> Dictionary:
 			"velocity": [member.velocity.x, member.velocity.y] if member.is_alive() else null,
 			"heading": member.heading if member.is_alive() else null, "integrity": member.integrity, "shields": member.shields,
 			"cooldowns": member.cooldowns.duplicate(), "component_hp": hp,
+			"sortie_ammo": member.sortie_ammo, "carrier_source": member.carrier_source_id,
 			"target": member.target.entity_id if member.target != null else "",
 			"order": member.commanded_target.entity_id if member.commanded_target != null else "",
 			"damage": member.damage_dealt, "taken": member.damage_taken,
 			"retreat": member.retreat_time, "retreat_cooldown": member.retreat_cooldown,
 			"since_damage": member.since_damage, "target_refresh": member.target_refresh_remaining})
-		if member.owned_ship is HexBattleShip:
-			var physical := (member.owned_ship as HexBattleShip).state
-			actors[-1]["hex"] = {"chassis_id": physical.design.chassis_id, "chassis_revision": physical.design.chassis_revision,
-				"chassis_integrity": physical.chassis_integrity, "flagship": member.owned_ship.is_flagship()}
 	var shots: Array = []
 	for shot in projectiles:
 		shots.append({"source": shot.source.entity_id if shot.source != null else "",
@@ -806,8 +791,8 @@ func _get_formation_position(
 	)
 
 
-func _validate_stats(stats: ShipStats, allow_zero_integrity := false) -> bool:
-	if stats == null or not is_finite(stats.integrity) or stats.integrity < 0.0 or (stats.integrity == 0.0 and not allow_zero_integrity) or stats.weapons.is_empty():
+func _validate_stats(stats: ShipStats, allow_unarmed := false) -> bool:
+	if stats == null or not is_finite(stats.integrity) or stats.integrity <= 0.0 or (stats.weapons.is_empty() and not allow_unarmed):
 		push_error("A combat ship requires positive integrity and working weapons.")
 		return false
 	for weapon in stats.weapons:
@@ -905,7 +890,7 @@ func advance(delta: float) -> void:
 		inactive_seconds = 0.0 if _damage_this_step or accelerating else inactive_seconds + delta
 		if withdrawing:
 			retreat_remaining -= delta
-		if _flagship_destroyed() or living_player_count() == 0:
+		if living_player_count() == 0 or players.any(func(member: Combatant) -> bool: return member.owned_ship != null and member.owned_ship.is_flagship() and not member.is_alive()):
 			phase = Phase.DEFEAT
 		elif withdrawing and retreat_remaining <= 0.0:
 			phase = Phase.WITHDRAWN
@@ -918,13 +903,6 @@ func advance(delta: float) -> void:
 			_record_event("objective", {"phase": phase, "remaining": _remaining_target_ids(),
 				"materials": collected_categories.duplicate()})
 		tick_index += 1
-
-
-func _flagship_destroyed() -> bool:
-	for member in players:
-		if member.owned_ship != null and member.owned_ship.is_flagship() and not member.is_alive():
-			return true
-	return false
 
 
 func _victory_projectiles_pending() -> bool:
@@ -1255,6 +1233,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	if not allow_weapons:
 		return
 	for index in range(ship.stats.weapons.size()):
+		if ship.sortie_ammo == 0:
+			break
 		var weapon := ship.stats.weapons[index]
 		if ship.owned_ship != null and ship.owned_ship.units[weapon.component_index].hp <= 0.0:
 			continue
@@ -1263,12 +1243,16 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 			continue
 		var weapon_origin := _get_weapon_origin(ship, weapon)
 		if SharedSupport.intercept(self, ship, weapon, weapon_origin):
+			if ship.sortie_ammo > 0:
+				ship.sortie_ammo -= 1
 			ship.cooldowns[index] = weapon.fire_interval_seconds
 			continue
 		var weapon_target: Combatant = SharedSupport.weapon_target(self, ship, weapon, weapon_origin)
 		if weapon_target == null:
 			continue
 		ship.target = weapon_target
+		if ship.sortie_ammo > 0:
+			ship.sortie_ammo -= 1
 		ship.cooldowns[index] = weapon.fire_interval_seconds
 		_record_event("expenditure", {"source": ship.entity_id, "weapon_index": index,
 			"weapon": weapon.weapon_name, "cooldown": ship.cooldowns[index], "target": weapon_target.entity_id})
@@ -1523,6 +1507,7 @@ func _refresh_owned_stats(target: Combatant) -> void:
 				remaining *= weapon.fire_interval_seconds / float(previous.interval)
 		target.cooldowns.append(remaining)
 	_refresh_mobility(target)
+	doctrines.carriers.prune(self)
 	if was_alive != target.is_alive():
 		refresh_visibility()
 
@@ -1579,6 +1564,9 @@ func _update_analysis(delta: float) -> void:
 func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
 	if source == null or not team_can_see(source.faction, target):
 		return 1.0
+	var mark := doctrines.mark_multiplier(self, source, target)
+	if mark > 1:
+		return mark
 	for member in _members:
 		if member.faction == source.faction and member.is_alive() and member.owned_ship != null \
 			and ScienceRules.active_lab(member.owned_ship) >= 0 and member.analysis_target_id == target.entity_id:
@@ -1590,7 +1578,9 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
 	damage *= _analysis_multiplier(source, target)
-	damage *= enemy_roles.protection(self, target)
+	# Railgun penetrates Sentinel hull cover; shields and boss protection still work.
+	if weapon_name != "Railgun" or target.shields > 0:
+		damage *= enemy_roles.protection(self, target)
 	damage *= encounter.warden.protection(self, target)
 	if target.has_tag("asteroid") and weapon_name in MiningRules.WEAPONS:
 		damage *= 4.0
@@ -1616,7 +1606,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 			remaining -= result.damage
 			target.permanent_damage_taken += result.removed.size()
 			for removed_cell in result.removed:
-				if random.randf() < allied_drop_chance:
+				if not credits_only and random.randf() < allied_drop_chance:
 					var drop := Drop.new()
 					drop.entity_id = "%s/wreck/%d/%d" % [target.entity_id, removed_cell.x, removed_cell.y]
 					drop.category = owned.design.tiles[removed_cell]
@@ -1636,6 +1626,10 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if source != null:
 		source.damage_dealt += actual
 		source.weapon_damage[weapon_name] = source.weapon_damage.get(weapon_name, 0.0) + actual
+		if not source.carrier_source_id.is_empty() and entities.has(source.carrier_source_id):
+			var carrier: Combatant = entities[source.carrier_source_id]
+			carrier.damage_dealt += actual
+			carrier.weapon_damage[weapon_name] = carrier.weapon_damage.get(weapon_name, 0.0) + actual
 	target.since_damage = 0.0
 	if absorbed > 0.0:
 		target.shield_flash = 0.2
@@ -1665,7 +1659,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	explosions.append(explosion)
 	if target.has_tag("combatant"):
 		ship_destroyed.emit(target.is_player)
-	if target.faction == Faction.ALIEN and target.has_tag("combatant") and not target.has_tag("summon") \
+	if not credits_only and target.faction == Faction.ALIEN and target.has_tag("combatant") and not target.has_tag("summon") \
 		and not target.has_tag("decoy") and not target.has_tag("hazard") and random.randf() < DROP_CHANCE:
 		var drop := Drop.new()
 		drop.entity_id = target.entity_id + "/salvage"

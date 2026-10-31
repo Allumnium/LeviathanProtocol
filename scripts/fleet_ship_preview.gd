@@ -8,13 +8,20 @@ var patterns: Dictionary = {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for pattern in ShipPartPattern.get_catalog():
-		patterns[pattern.pattern_key()] = pattern
 	resized.connect(queue_redraw)
 
 func _draw() -> void:
 	if owned == null:
 		return
+	if owned.is_slot_ship():
+		var chassis: Dictionary = (owned as HangarShip).chassis
+		var side := minf(size.x, size.y)
+		draw_texture_rect((owned as HangarShip).art_texture, Rect2((size - Vector2.ONE * side) * 0.5, Vector2.ONE * side), false)
+		return
+	# Only historical DTO previews need the square recipe catalog.
+	if patterns.is_empty():
+		for pattern in ShipPartPattern.get_catalog():
+			patterns[pattern.pattern_key()] = pattern
 	var footprint := ShipStats.cell_bounds(owned.design.get_tile_cells()).size * owned.cell_size
 	var scale_factor := minf(size.x / (footprint.x + 8.0), size.y / (footprint.y + 8.0))
 	var cells: Array[Vector2i] = []

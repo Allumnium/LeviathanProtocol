@@ -82,7 +82,6 @@ var hidden_tile_offsets: Array[Vector2i] = []
 var stats: ShipPartStats
 var definition_id := ""
 var rank := 1
-var hex_cells := false # Footprint topology, never a functional facing.
 var quarter_turns := -1 # Legacy instances infer from their ordered offsets.
 var horizontally_flipped := false
 var crew_manual := false
@@ -127,8 +126,6 @@ func get_transform(pattern: ShipPartPattern) -> Vector2i:
 
 
 func facing(pattern: ShipPartPattern) -> Vector2i:
-	if hex_cells:
-		return Vector2i.ZERO
 	var orientation := get_transform(pattern)
 	return MaterialRecipe.direction(Vector2i.RIGHT, orientation.x, orientation.y == 1)
 

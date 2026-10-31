@@ -65,7 +65,7 @@ func _read(path: String, validator: Callable) -> Dictionary:
 	if not envelope is Dictionary or envelope.get("version") != VERSION:
 		return {}
 	var generation: Variant = envelope.get("generation")
-	if not RunProgressData._integer(generation) or generation < 1:
+	if not SaveValidation.integer(generation) or generation < 1:
 		return {}
 	if not envelope.get("payload") is String or not envelope.get("sha256") is String:
 		return {}

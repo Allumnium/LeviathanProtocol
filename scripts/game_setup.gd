@@ -46,18 +46,15 @@ func _update_difficulty_details(selected_difficulty: int) -> void:
 	match selected_difficulty:
 		GameState.Difficulty.EASY:
 			difficulty_details.text = (
-				"Alien ship stats are 75% of base values.\n"
-				+ "50% of materials from destroyed allied blocks are recovered."
+				"Alien strength: 75%"
 			)
 		GameState.Difficulty.MEDIUM:
 			difficulty_details.text = (
-				"Alien ship stats are at base values.\n"
-				+ "30% of materials from destroyed allied blocks are recovered."
+				"Alien strength: 100%"
 			)
 		GameState.Difficulty.HARD:
 			difficulty_details.text = (
-				"Alien ship stats are 150% of base values.\n"
-				+ "Materials from destroyed allied blocks are not recovered."
+				"Alien strength: 150%"
 			)
 		_:
 			push_error("Cannot show details for an unknown difficulty.")

@@ -8,10 +8,26 @@ static func format_rp(value: float) -> String:
 	return str(int(value)) if value == floor(value) else str(value)
 
 static func production_rate(science: Dictionary) -> float:
-	return float(science.labs.size()) + BASELINE_LABS
+	var rate := BASELINE_LABS
+	for lab: Dictionary in science.labs:
+		# Older grid-era snapshots retain their original one-RP-per-lab rate.
+		rate += float(lab.rank) if science.get("production_version", 1) == 2 else 1.0
+	return rate
 
 static func journey_rp(science: Dictionary, travel_days: float) -> float:
 	return production_rate(science) * maxf(0, travel_days)
+
+static func production_label(science: Dictionary) -> String:
+	if science.get("production_version", 1) != 2:
+		return "%d labs" % science.labs.size()
+	var counts := [0, 0, 0]
+	for lab: Dictionary in science.labs:
+		counts[int(lab.rank) - 1] += 1
+	var lines: Array[String] = []
+	for index in range(3):
+		if counts[index] > 0:
+			lines.append("%d x Lab %s" % [counts[index], ["I", "II", "III"][index]])
+	return "\n".join(lines) if not lines.is_empty() else "0 labs"
 
 static func active_lab(owned: FleetShip) -> int:
 	if not owned.is_alive():
@@ -31,6 +47,8 @@ static func _adjacent(a: ShipPart, b: ShipPart) -> bool:
 
 static func snapshot(deployed: Array[FleetShip], legacy := false) -> Dictionary:
 	var result := {"version": 1 if legacy else 2, "labs": [], "total_rp": 0}
+	if not legacy and deployed.any(func(owned: FleetShip) -> bool: return owned.is_slot_ship()):
+		result["production_version"] = 2
 	for owned in deployed:
 		if not owned.is_alive():
 			continue
@@ -55,18 +73,18 @@ static func snapshot(deployed: Array[FleetShip], legacy := false) -> Dictionary:
 
 static func valid(value: Variant, ship_ids: Array) -> bool:
 	if not value is Dictionary or (value.get("version") != 1 and value.get("version") != 2) or not value.get("labs") is Array \
-		or not RunProgressData._integer(value.get("total_rp")) or value.total_rp < 0:
+		or not SaveValidation.integer(value.get("total_rp")) or value.total_rp < 0:
 		return false
 	var ids: Array[int] = []
 	for id in ship_ids:
-		if not RunProgressData._integer(id):
+		if not SaveValidation.integer(id):
 			return false
 		ids.append(int(id))
 	var seen: Array[String] = []
 	var total := 0
 	for lab in value.labs:
-		if not lab is Dictionary or not RunProgressData._integer(lab.get("ship_id")) or not RunProgressData._integer(lab.get("unit_index")) \
-			or not RunProgressData._integer(lab.get("rank")) or not RunProgressData._integer(lab.get("rp")):
+		if not lab is Dictionary or not SaveValidation.integer(lab.get("ship_id")) or not SaveValidation.integer(lab.get("unit_index")) \
+			or not SaveValidation.integer(lab.get("rank")) or not SaveValidation.integer(lab.get("rp")):
 			return false
 		var key := str(int(lab.ship_id)) if value.version == 1 else "%d/%d" % [int(lab.ship_id), int(lab.unit_index)]
 		if int(lab.ship_id) not in ids or seen.has(key) or lab.unit_index < 0 or lab.rank < 1 or lab.rank > 3 \
@@ -82,7 +100,7 @@ static func valid(value: Variant, ship_ids: Array) -> bool:
 static func matches_deployment(value: Dictionary, deployment: Array) -> bool:
 	var physical: Array[FleetShip] = []
 	for entry in deployment:
-		if not entry is Dictionary or not RunProgressData._integer(entry.get("id")) or not entry.get("hp") is Array:
+		if not entry is Dictionary or not SaveValidation.integer(entry.get("id")) or not entry.get("hp") is Array:
 			return false
 		var design := Ship.new()
 		if not design.load_design_data(entry.get("design")):

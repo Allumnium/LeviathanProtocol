@@ -1,31 +1,452 @@
-{"version":1,"chassis":[
-{"id":"corsair","name":"Corsair","art":"res://assets/corsair.png","slots":[
-{"id":"fore","size":"L","type":"offense","rect":[210,60,92,92]},
-{"id":"port","size":"M","type":"offense","rect":[72,284,64,64]},
-{"id":"starboard","size":"M","type":"offense","rect":[376,284,64,64]},
-{"id":"center","size":"M","type":"tech","rect":[220,244,72,72]},
-{"id":"aft","size":"S","type":"defense","rect":[238,364,36,36]}]},
-{"id":"fighter","name":"Fighter","art":"res://assets/fighter.png","slots":[
-{"id":"fore","size":"M","type":"offense","rect":[230,112,52,52]},
-{"id":"port","size":"S","type":"offense","rect":[106,320,40,40]},
-{"id":"starboard","size":"S","type":"offense","rect":[366,320,40,40]}]},
-{"id":"transport","name":"Transport","art":"res://assets/transport.png","slots":[
-{"id":"hold","size":"XL","type":"civic","rect":[198,176,116,174]},
-{"id":"port","size":"M","type":"defense","rect":[88,230,52,52]},
-{"id":"starboard","size":"M","type":"tech","rect":[372,230,52,52]},
-{"id":"fore","size":"S","type":"offense","rect":[240,112,32,32]},
-{"id":"aft","size":"S","type":"tech","rect":[240,394,32,32]}]},
-{"id":"frigate","name":"Frigate","art":"res://assets/frigate.png","slots":[
-{"id":"fore","size":"L","type":"tech","rect":[232,72,46,146]},
-{"id":"port","size":"S","type":"offense","rect":[174,238,34,34]},
-{"id":"starboard","size":"S","type":"offense","rect":[302,238,34,34]},
-{"id":"center","size":"M","type":"civic","rect":[230,302,50,60]},
-{"id":"aft","size":"S","type":"defense","rect":[238,410,34,34]}]},
-{"id":"drone","name":"Drone","art":"res://assets/drone.png","slots":[
-{"id":"fore","size":"S","type":"offense","rect":[234,68,44,44]},
-{"id":"sensor","size":"S","type":"tech","rect":[240,160,32,32]},
-{"id":"port","size":"S","type":"offense","rect":[106,244,32,32]},
-{"id":"starboard","size":"S","type":"defense","rect":[374,244,32,32]},
-{"id":"center","size":"M","type":"civic","rect":[214,226,84,96]},
-{"id":"aft","size":"S","type":"tech","rect":[238,360,36,36]}]}
-]}
+{
+  "version": 1,
+  "chassis": [
+    {
+      "id": "flagship_basic",
+      "name": "Flagship",
+      "art": "res://assets/flagship_basic.png",
+      "price": 1200,
+      "integrity": 260,
+      "mass": 65,
+      "thrust": 55,
+      "radius": 43,
+      "command": 12,
+      "command_cost": 0,
+      "slots": [
+        {
+          "id": "fore",
+          "size": "L",
+          "type": "tech",
+          "rect": [
+            234,
+            55,
+            44,
+            48
+          ]
+        },
+        {
+          "id": "port",
+          "size": "M",
+          "type": "offense",
+          "rect": [
+            170,
+            116,
+            40,
+            40
+          ]
+        },
+        {
+          "id": "starboard",
+          "size": "M",
+          "type": "offense",
+          "rect": [
+            302,
+            116,
+            40,
+            40
+          ]
+        },
+        {
+          "id": "spine",
+          "size": "M",
+          "type": "civic",
+          "rect": [
+            242,
+            220,
+            28,
+            56
+          ]
+        },
+        {
+          "id": "hold",
+          "size": "XL",
+          "type": "civic",
+          "rect": [
+            232,
+            288,
+            48,
+            74
+          ]
+        },
+        {
+          "id": "aft_port",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            108,
+            366,
+            38,
+            38
+          ]
+        },
+        {
+          "id": "aft_starboard",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            366,
+            366,
+            38,
+            38
+          ]
+        },
+        {
+          "id": "inner_port",
+          "size": "M",
+          "type": "defense",
+          "rect": [
+            176,
+            380,
+            38,
+            38
+          ]
+        },
+        {
+          "id": "inner_starboard",
+          "size": "M",
+          "type": "tech",
+          "rect": [
+            298,
+            380,
+            38,
+            38
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corsair",
+      "name": "Corsair",
+      "art": "res://assets/corsair.png",
+      "slots": [
+        {
+          "id": "fore",
+          "size": "L",
+          "type": "offense",
+          "rect": [
+            210,
+            60,
+            92,
+            92
+          ]
+        },
+        {
+          "id": "port",
+          "size": "M",
+          "type": "offense",
+          "rect": [
+            72,
+            284,
+            64,
+            64
+          ]
+        },
+        {
+          "id": "starboard",
+          "size": "M",
+          "type": "offense",
+          "rect": [
+            376,
+            284,
+            64,
+            64
+          ]
+        },
+        {
+          "id": "center",
+          "size": "M",
+          "type": "tech",
+          "rect": [
+            220,
+            244,
+            72,
+            72
+          ]
+        },
+        {
+          "id": "aft",
+          "size": "S",
+          "type": "defense",
+          "rect": [
+            238,
+            364,
+            36,
+            36
+          ]
+        }
+      ],
+      "price": 450,
+      "integrity": 110,
+      "mass": 32,
+      "thrust": 35,
+      "radius": 35,
+      "command": 0,
+      "command_cost": 4
+    },
+    {
+      "id": "fighter",
+      "name": "Fighter",
+      "art": "res://assets/fighter.png",
+      "slots": [
+        {
+          "id": "fore",
+          "size": "M",
+          "type": "offense",
+          "rect": [
+            230,
+            112,
+            52,
+            52
+          ]
+        },
+        {
+          "id": "port",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            106,
+            320,
+            40,
+            40
+          ]
+        },
+        {
+          "id": "starboard",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            366,
+            320,
+            40,
+            40
+          ]
+        }
+      ],
+      "price": 250,
+      "integrity": 75,
+      "mass": 20,
+      "thrust": 32,
+      "radius": 31,
+      "command": 0,
+      "command_cost": 2
+    },
+    {
+      "id": "transport",
+      "name": "Transport",
+      "art": "res://assets/transport.png",
+      "slots": [
+        {
+          "id": "hold",
+          "size": "XL",
+          "type": "civic",
+          "rect": [
+            198,
+            176,
+            116,
+            174
+          ]
+        },
+        {
+          "id": "port",
+          "size": "M",
+          "type": "defense",
+          "rect": [
+            88,
+            230,
+            52,
+            52
+          ]
+        },
+        {
+          "id": "starboard",
+          "size": "M",
+          "type": "tech",
+          "rect": [
+            372,
+            230,
+            52,
+            52
+          ]
+        },
+        {
+          "id": "fore",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            240,
+            112,
+            32,
+            32
+          ]
+        },
+        {
+          "id": "aft",
+          "size": "S",
+          "type": "tech",
+          "rect": [
+            240,
+            394,
+            32,
+            32
+          ]
+        }
+      ],
+      "price": 350,
+      "integrity": 140,
+      "mass": 55,
+      "thrust": 28,
+      "radius": 40,
+      "command": 0,
+      "command_cost": 3
+    },
+    {
+      "id": "frigate",
+      "name": "Frigate",
+      "art": "res://assets/frigate.png",
+      "slots": [
+        {
+          "id": "fore",
+          "size": "L",
+          "type": "tech",
+          "rect": [
+            232,
+            72,
+            46,
+            146
+          ]
+        },
+        {
+          "id": "port",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            174,
+            238,
+            34,
+            34
+          ]
+        },
+        {
+          "id": "starboard",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            302,
+            238,
+            34,
+            34
+          ]
+        },
+        {
+          "id": "center",
+          "size": "L",
+          "type": "civic",
+          "rect": [
+            230,
+            302,
+            50,
+            60
+          ]
+        },
+        {
+          "id": "aft",
+          "size": "S",
+          "type": "defense",
+          "rect": [
+            238,
+            410,
+            34,
+            34
+          ]
+        }
+      ],
+      "price": 800,
+      "integrity": 180,
+      "mass": 45,
+      "thrust": 40,
+      "radius": 40,
+      "command": 0,
+      "command_cost": 4
+    },
+    {
+      "id": "drone",
+      "name": "Drone",
+      "art": "res://assets/drone.png",
+      "slots": [
+        {
+          "id": "fore",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            234,
+            68,
+            44,
+            44
+          ]
+        },
+        {
+          "id": "sensor",
+          "size": "S",
+          "type": "tech",
+          "rect": [
+            240,
+            160,
+            32,
+            32
+          ]
+        },
+        {
+          "id": "port",
+          "size": "S",
+          "type": "offense",
+          "rect": [
+            106,
+            244,
+            32,
+            32
+          ]
+        },
+        {
+          "id": "starboard",
+          "size": "S",
+          "type": "defense",
+          "rect": [
+            374,
+            244,
+            32,
+            32
+          ]
+        },
+        {
+          "id": "center",
+          "size": "M",
+          "type": "civic",
+          "rect": [
+            214,
+            226,
+            84,
+            96
+          ]
+        },
+        {
+          "id": "aft",
+          "size": "S",
+          "type": "tech",
+          "rect": [
+            238,
+            360,
+            36,
+            36
+          ]
+        }
+      ],
+      "price": 150,
+      "integrity": 55,
+      "mass": 15,
+      "thrust": 24,
+      "radius": 30,
+      "command": 0,
+      "command_cost": 1
+    }
+  ]
+}

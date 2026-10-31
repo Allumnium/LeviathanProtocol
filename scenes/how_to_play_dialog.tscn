@@ -1,19 +1,30 @@
-[gd_scene load_steps=2 format=3 uid="uid://yojn4otwqbnx"]
+[gd_scene format=3 uid="uid://bba03wcrloe4"]
 
-[ext_resource type="PackedScene" path="res://scenes/modal_dialog.tscn" id="1_modal"]
+[ext_resource type="PackedScene" uid="uid://tpx12myxr54h" path="res://scenes/modal_dialog.tscn" id="1_modal"]
 
-[node name="HowToPlayDialog" instance=ExtResource("1_modal")]
+[node name="HowToPlayDialog" unique_id=521645721 instance=ExtResource("1_modal")]
 size = Vector2i(560, 320)
 
-[node name="Title" parent="Contents" index="0"]
+[node name="CloseX" parent="." index="1"]
+layout_mode = 3
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 100.0
+offset_bottom = 52.0
+
+[node name="Contents" parent="." index="2" unique_id=569822189]
+offset_right = 100.0
+offset_bottom = 52.0
+
+[node name="Title" parent="Contents" index="0" unique_id=253182740]
 text = "HOW TO PLAY"
 
-[node name="HelpScroll" type="ScrollContainer" parent="Contents/ContentArea" index="0"]
+[node name="HelpScroll" type="ScrollContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="0" unique_id=1718880264]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Body" type="Label" parent="Contents/ContentArea/HelpScroll" index="0"]
+[node name="Body" type="Label" parent="Contents/ContentArea/HelpScroll" index="0" unique_id=1201166832]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -38,5 +49,3 @@ Intact disconnected parts still work. Repair damage and reconstruct destroyed pa
 CONTROLS
 Wheel: zoom. Drag / WASD: pan. Click a hull for its actions; reserved ships are managed through Reserve. Esc: close a dialog or clear canvas focus. Builder: 1–4 materials, M mirror, Ctrl+Z/Y undo/redo, Ctrl+S/L save/load. Battle: click a target to focus fire; click empty battlefield to clear orders. Space restores auto-camera."
 autowrap_mode = 2
-horizontal_alignment = 0
-vertical_alignment = 0

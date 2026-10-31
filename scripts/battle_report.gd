@@ -31,7 +31,8 @@ func show_report(
 	entries: Array[Dictionary],
 	outcome: String,
 	gained_materials: Array[int],
-	credits_gained: int = 0
+	credits_gained: int = 0,
+	equipment_loot: String = ""
 ) -> void:
 	add_to_group("modal_ui")
 	z_index = 40
@@ -44,6 +45,10 @@ func show_report(
 	var column := VBoxContainer.new()
 	add_child(column)
 	_add_title(column, outcome, credits_gained)
+	if not equipment_loot.is_empty():
+		var loot_label := Label.new()
+		loot_label.text = "Loot: " + equipment_loot
+		column.add_child(loot_label)
 	var deaths := 0
 	var fees := 0
 	for entry in entries:
@@ -105,7 +110,7 @@ func show_report(
 	accept_button.name = "AcceptButton"
 	accept_button.text = "CONTINUE" if GameState.is_run_lost() else "BACK TO FLEET"
 	accept_button.custom_minimum_size = Vector2(112, 34)
-	preload("res://scripts/fleet_panel.gd").compact_button(accept_button)
+	accept_button.theme_type_variation = &"FramedButton"
 	accept_button.pressed.connect(func() -> void: closed.emit())
 	button_center.add_child(accept_button)
 
@@ -222,31 +227,14 @@ func _add_grouped_reward(parent: HFlowContainer, category: int, count: int) -> v
 
 func _summarize_by_slot(entries: Array[Dictionary]) -> Array[Dictionary]:
 	var summaries: Array[Dictionary] = []
-	for slot_index in range(GameState.fleet_design_slots.size()):
-		var design_name := GameState.fleet_design_slots[slot_index]
-		if design_name.is_empty():
-			continue
-		var summary := {
-			"slot": slot_index, "name": design_name, "ship": null,
-			"damage": 0.0, "taken": 0.0, "repair_damage": 0.0,
-			"deflected": 0.0, "destroyed": 0,
-		}
-		for entry in entries:
-			var ship := entry.get("ship") as FleetShip
-			if ship == null:
-				continue
-			if _ship_type_name(ship.display_name) != design_name:
-				continue
-			if summary.ship == null:
-				summary.ship = ship
-			summary.damage += float(entry.damage)
-			summary.taken += float(entry.taken)
-			summary.repair_damage += float(entry.get("repair_damage", 0.0))
-			summary.deflected += float(entry.get("deflected", 0.0))
-			if entry.destroyed:
-				summary.destroyed += 1
-		if summary.ship != null:
-			summaries.append(summary)
+	if entries.any(func(entry: Dictionary) -> bool: return entry.get("ship") is HangarShip):
+		for entry: Dictionary in entries:
+			if entry.get("ship") is HangarShip:
+				var summary := entry.duplicate()
+				summary["name"] = entry.ship.display_name
+				summary["destroyed"] = 1 if entry.destroyed else 0
+				summaries.append(summary)
+		return summaries
 	return summaries
 
 

@@ -89,7 +89,7 @@ func _refresh_production() -> void:
 	_clear(groups_host)
 	groups_host.add_child(_label("PRODUCTION"))
 	var science := ScienceRules.snapshot(GameState.get_deployed_fleet())
-	groups_host.add_child(_label("%d labs\n+ 0.5 baseline" % science.labs.size()))
+	groups_host.add_child(_label(ScienceRules.production_label(science) + "\n+ 0.5 baseline"))
 	groups_host.add_child(_label("%.1f RP/day" % ScienceRules.production_rate(science)))
 	var destination := GameState.planned_destination_node_id
 	if destination < 0:

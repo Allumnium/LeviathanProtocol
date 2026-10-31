@@ -47,6 +47,12 @@ func set_design(next: SlotShipDesign, research: Dictionary) -> void:
 			button.set_item_metadata(index, {"id": item.id, "rank": item.rank})
 			button.set_item_disabled(index, not available)
 		var fitted: Dictionary = design.equipment.get(slot.id, {})
+		if not fitted.is_empty():
+			var old_item := SlotCatalog.find_equipment(fitted.id, fitted.rank)
+			if old_item.get("retired", false):
+				button.add_item(old_item.name + " (Retired)")
+				button.set_item_metadata(button.item_count - 1, fitted)
+				button.set_item_disabled(button.item_count - 1, true)
 		for index in range(button.item_count):
 			var item: Dictionary = button.get_item_metadata(index)
 			if item.id == fitted.get("id", "") and item.rank == fitted.get("rank", 1):

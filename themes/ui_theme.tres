@@ -1,13 +1,13 @@
 [gd_resource type="Theme" format=3 uid="uid://dda4r57psoolt"]
 
-[ext_resource type="StyleBox" path="res://assets/ui/panels/panel_nine_patch.tres" id="1_panel"]
-[ext_resource type="Texture2D" path="res://assets/ui/buttons/button.png" id="2_button"]
-[ext_resource type="Texture2D" path="res://assets/ui/buttons/button_pressed.png" id="3_button_pressed"]
-[ext_resource type="FontFile" path="res://assets/fonts/_73A5E77.TTF" id="5_6hnno"]
-[ext_resource type="Texture2D" path="res://assets/ui/buttons/button_highlighted.png" id="6_button_highlighted"]
-[ext_resource type="Texture2D" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
-[ext_resource type="FontFile" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="8_ntpv8"]
-[ext_resource type="StyleBox" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="8_popup_panel"]
+[ext_resource type="StyleBox" uid="uid://bqn2tsvmxlmkl" path="res://assets/ui/panels/panel_nine_patch.tres" id="1_panel"]
+[ext_resource type="Texture2D" uid="uid://cuo4815jnqj5h" path="res://assets/ui/buttons/button.png" id="2_button"]
+[ext_resource type="Texture2D" uid="uid://cdj7cxq56vqxq" path="res://assets/ui/buttons/button_pressed.png" id="3_button_pressed"]
+[ext_resource type="FontFile" uid="uid://dnfx18rrv3abw" path="res://assets/fonts/_73A5E77.TTF" id="5_6hnno"]
+[ext_resource type="Texture2D" uid="uid://dvjqfo0psdmk5" path="res://assets/ui/buttons/button_highlighted.png" id="6_button_highlighted"]
+[ext_resource type="Texture2D" uid="uid://ceuy7glfq4gtg" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
+[ext_resource type="FontFile" uid="uid://3oynvtt8h876" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="8_ntpv8"]
+[ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="8_popup_panel"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_6hnno"]
 content_margin_left = 3.0
@@ -103,7 +103,7 @@ texture_margin_top = 10.0
 texture_margin_right = 32.0
 texture_margin_bottom = 10.0
 
-[sub_resource type="Image" id="Image_thhn4"]
+[sub_resource type="Image" id="Image_6hnno"]
 data = {
 "data": PackedByteArray(127, 127, 255, 2, 142, 163, 177, 95, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 163, 177, 92, 255, 255, 255, 1, 140, 164, 177, 96, 123, 144, 156, 240, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 124, 146, 157, 241, 140, 166, 177, 89, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 30, 39, 46, 255, 81, 93, 100, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 130, 143, 149, 255, 207, 222, 228, 255, 117, 130, 136, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 79, 90, 96, 255, 207, 222, 228, 255, 201, 216, 222, 255, 56, 67, 73, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 40, 50, 58, 255, 191, 205, 212, 255, 207, 222, 228, 255, 103, 115, 122, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 98, 110, 117, 255, 38, 49, 55, 255, 23, 33, 40, 255, 23, 33, 40, 255, 155, 169, 175, 255, 207, 222, 228, 255, 155, 169, 175, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 98, 110, 117, 255, 207, 222, 228, 255, 174, 187, 194, 255, 38, 49, 55, 255, 104, 116, 123, 255, 207, 222, 228, 255, 191, 205, 212, 255, 40, 50, 58, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 38, 49, 55, 255, 175, 188, 195, 255, 207, 222, 228, 255, 207, 222, 228, 255, 207, 222, 228, 255, 207, 222, 228, 255, 79, 90, 96, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 38, 49, 55, 255, 175, 189, 195, 255, 207, 222, 228, 255, 207, 222, 228, 255, 130, 143, 149, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 39, 49, 56, 255, 175, 189, 195, 255, 176, 190, 196, 255, 30, 39, 46, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 39, 49, 56, 255, 53, 64, 71, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 163, 177, 92, 124, 145, 158, 242, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 125, 146, 159, 242, 141, 165, 177, 85, 255, 255, 255, 1, 141, 164, 178, 90, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 85, 0, 0, 0, 0),
 "format": "RGBA8",
@@ -113,9 +113,9 @@ data = {
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_3exg8"]
-image = SubResource("Image_thhn4")
+image = SubResource("Image_6hnno")
 
-[sub_resource type="Image" id="Image_qwk3i"]
+[sub_resource type="Image" id="Image_ntpv8"]
 data = {
 "data": PackedByteArray(127, 127, 255, 2, 142, 163, 177, 95, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 163, 177, 92, 255, 255, 255, 1, 140, 164, 177, 96, 123, 144, 156, 240, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 124, 146, 157, 241, 140, 166, 177, 89, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 165, 177, 128, 82, 99, 109, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 23, 33, 40, 255, 82, 99, 109, 255, 141, 165, 177, 128, 141, 163, 177, 92, 124, 145, 158, 242, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 82, 99, 109, 255, 125, 146, 159, 242, 141, 165, 177, 85, 255, 255, 255, 1, 141, 164, 178, 90, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 128, 141, 165, 177, 85, 0, 0, 0, 0),
 "format": "RGBA8",
@@ -125,7 +125,7 @@ data = {
 }
 
 [sub_resource type="ImageTexture" id="ImageTexture_0a3p0"]
-image = SubResource("Image_qwk3i")
+image = SubResource("Image_ntpv8")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nefmk"]
 content_margin_left = 2.0
@@ -186,6 +186,25 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.38039216, 0.46666667, 0.5019608, 1)
+
+[sub_resource type="StyleBoxFlat" id="CountBadgePanel"]
+bg_color = Color(0.05, 0.05, 0.05, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="CrispPopupPanel"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0.105, 0.135, 0.16, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.48, 0.58, 0.64, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_mbqy0"]
 content_margin_left = 10.0
@@ -471,51 +490,9 @@ texture_margin_right = 8.0
 texture_margin_bottom = 8.0
 modulate_color = Color(0.72, 0.78, 0.82, 1)
 
-[sub_resource type="StyleBoxFlat" id="CrispPopupPanel"]
-content_margin_left = 10.0
-content_margin_top = 10.0
-content_margin_right = 10.0
-content_margin_bottom = 10.0
-bg_color = Color(0.105, 0.135, 0.16, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.48, 0.58, 0.64, 1)
-
-[sub_resource type="StyleBoxFlat" id="CountBadgePanel"]
-bg_color = Color(0.05, 0.05, 0.05, 0.9)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
 [resource]
 default_font = ExtResource("8_ntpv8")
 default_font_size = 13
-SlotCanvas/colors/background_color = Color(0.176, 0.137, 0.188, 1)
-SlotDesigner/colors/background_color = Color(0.035, 0.055, 0.07, 1)
-SlotCanvas/colors/offense_color = Color(1, 0.6, 0.45, 1)
-SlotCanvas/colors/defense_color = Color(0.5, 0.75, 1, 1)
-SlotCanvas/colors/tech_color = Color(0.65, 0.92, 0.62, 1)
-SlotCanvas/colors/civic_color = Color(0.86, 0.7, 1, 1)
-HexEquipmentLabel/base_type = &"Label"
-HexEquipmentLabel/font_sizes/font_size = 13
-HexEquipmentLabel/colors/font_color = Color(1, 0.98, 0.88, 1)
-HexEquipmentLabel/colors/font_outline_color = Color(0.025, 0.035, 0.045, 1)
-HexEquipmentLabel/colors/group_outline_color = Color(0.95, 0.94, 0.77, 1)
-CompactPanel/base_type = &"PanelContainer"
-CompactPanel/styles/panel = ExtResource("8_popup_panel")
-CompactFrame/base_type = &"Panel"
-CompactFrame/styles/panel = ExtResource("8_popup_panel")
-CompactPopup/base_type = &"PopupPanel"
-CompactPopup/styles/panel = ExtResource("8_popup_panel")
-CrispPopup/base_type = &"PopupPanel"
-CrispPopup/styles/panel = SubResource("CrispPopupPanel")
-CrispPanel/base_type = &"PanelContainer"
-CrispPanel/styles/panel = SubResource("CrispPopupPanel")
-CountBadge/base_type = &"PanelContainer"
-CountBadge/styles/panel = SubResource("CountBadgePanel")
 ArchiveButton/base_type = &"Button"
 ArchiveButton/styles/disabled = SubResource("StyleBoxTexture_6hnno")
 ArchiveButton/styles/hover = SubResource("StyleBoxTexture_ntpv8")
@@ -544,8 +521,20 @@ CompactButton/styles/disabled = SubResource("StyleBoxFlat_nefmk")
 CompactButton/styles/hover = SubResource("StyleBoxFlat_i14v0")
 CompactButton/styles/normal = SubResource("StyleBoxFlat_dv04h")
 CompactButton/styles/pressed = SubResource("StyleBoxFlat_awtby")
+CompactFrame/base_type = &"Panel"
+CompactFrame/styles/panel = ExtResource("8_popup_panel")
+CompactPanel/base_type = &"PanelContainer"
+CompactPanel/styles/panel = ExtResource("8_popup_panel")
+CompactPopup/base_type = &"PopupPanel"
+CompactPopup/styles/panel = ExtResource("8_popup_panel")
 ContextPanel/base_type = &"PanelContainer"
 ContextPanel/styles/panel = SubResource("StyleBoxFlat_xpwjo")
+CountBadge/base_type = &"PanelContainer"
+CountBadge/styles/panel = SubResource("CountBadgePanel")
+CrispPanel/base_type = &"PanelContainer"
+CrispPanel/styles/panel = SubResource("CrispPopupPanel")
+CrispPopup/base_type = &"PopupPanel"
+CrispPopup/styles/panel = SubResource("CrispPopupPanel")
 FramedButton/base_type = &"Button"
 FramedButton/styles/disabled = SubResource("StyleBoxTexture_mbqy0")
 FramedButton/styles/hover = SubResource("StyleBoxTexture_7pgcl")
@@ -580,6 +569,12 @@ ResearchPanel/base_type = &"PanelContainer"
 ResearchPanel/styles/panel = SubResource("StyleBoxFlat_mlkb4")
 RoutePanel/base_type = &"PanelContainer"
 RoutePanel/styles/panel = SubResource("StyleBoxFlat_vvjmk")
+SlotCanvas/colors/background_color = Color(0.176, 0.137, 0.188, 1)
+SlotCanvas/colors/civic_color = Color(0.86, 0.7, 1, 1)
+SlotCanvas/colors/defense_color = Color(0.5, 0.75, 1, 1)
+SlotCanvas/colors/offense_color = Color(1, 0.6, 0.45, 1)
+SlotCanvas/colors/tech_color = Color(0.65, 0.92, 0.62, 1)
+SlotDesigner/colors/background_color = Color(0.035, 0.055, 0.07, 1)
 TabContainer/colors/font_disabled_color = Color(0.38, 0.41, 0.43, 1)
 TabContainer/colors/font_hovered_color = Color(0.84, 0.93, 0.94, 1)
 TabContainer/colors/font_selected_color = Color(0.92, 0.96, 0.97, 1)

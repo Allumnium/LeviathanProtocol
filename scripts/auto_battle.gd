@@ -109,6 +109,7 @@ func _ready() -> void:
 	objective_label.text = simulation.encounter.label(simulation)
 	add_child(objective_label)
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
+	destroy_neutral_targets.hide()
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
 	simulation.weapon_fired.connect(
 		AudioManager.play_sfx.bind(SHOOT_SOUND, 1.0, COMBAT_BLASTER_VOLUME_DB, 35)
@@ -119,7 +120,7 @@ func _ready() -> void:
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
 	withdraw_button = Button.new()
 	withdraw_button.text = "RETREAT"
-	preload("res://scripts/fleet_panel.gd").compact_button(withdraw_button)
+	withdraw_button.theme_type_variation = &"FramedButton"
 	withdraw_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	withdraw_button.offset_left = -100
 	withdraw_button.offset_right = -8
@@ -199,6 +200,11 @@ func _physics_process(delta: float) -> void:
 		repair_label.text = "REPAIR: %.1f HP" % (minf(remaining, maxf(0, simulation.repair_capacity - simulation.repair_spent)) + drone_remaining)
 		if simulation.doctrines.pool.get("rebuild_capacity", 0) > 0:
 			repair_label.text += " | REBUILD: %d" % rebuilds
+		if not simulation.doctrines.carriers.reserves.is_empty():
+			var available := simulation.doctrines.carriers.available(simulation)
+			var craft_text := "CRAFT: %d ready / %d active" % [available.x, available.y]
+			repair_label.text = repair_label.text + " | " + craft_text if repair_label.visible else craft_text
+			repair_label.show()
 
 
 func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
@@ -539,6 +545,7 @@ func _show_report(won: bool) -> void:
 			"Withdrawn" if simulation.phase == BattleSimulation.Phase.WITHDRAWN else "Defeat"
 		),
 		simulation.collected_categories,
-		_battle_credit_reward
+		_battle_credit_reward,
+		GameState.last_equipment_loot
 	)
 	report.closed.connect(_on_report_closed)

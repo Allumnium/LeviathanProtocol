@@ -54,6 +54,8 @@ func load_data(data: Variant) -> bool:
 
 func authorization_error(grants: Dictionary) -> String:
 	for value: Dictionary in equipment.values():
+		if SlotCatalog.find_equipment(value.id, value.rank).get("retired", false):
+			return "Equipment retired."
 		if not SlotCatalog.unlocked(SlotCatalog.find_equipment(value.id, value.rank), grants):
 			return "Research required."
 	return grants.get("error", "")

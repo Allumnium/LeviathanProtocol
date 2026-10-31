@@ -20,7 +20,7 @@ var center := Vector2.ZERO
 var cell_size := ShipStats.BATTLE_CELL_SIZE
 var visual_revision := 0
 
-func is_hex_ship() -> bool:
+func is_slot_ship() -> bool:
 	return false
 
 func is_flagship() -> bool:

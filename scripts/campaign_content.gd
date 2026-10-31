@@ -111,9 +111,9 @@ static func valid(graph: Dictionary) -> bool:
 		if not node.get("material_reward") is Array or node.material_reward.size() != 4:
 			return false
 		for amount in node.material_reward:
-			if not RunProgressData._integer(amount) or amount < 0 or amount > 6:
+			if not SaveValidation.integer(amount) or amount < 0 or amount > 6:
 				return false
-		if not RunCheckpoint._same(node.material_reward, [3, 2, 1, 0] if node.type == "salvage" else [0, 0, 0, 0]):
+		if not SaveValidation.same(node.material_reward, [3, 2, 1, 0] if node.type == "salvage" else [0, 0, 0, 0]):
 			return false
 	if graph.routes.size() != graph.edges.size():
 		return false
@@ -125,7 +125,7 @@ static func valid(graph: Dictionary) -> bool:
 			return false
 		if route.get("hazard") not in ["none", "debris", "ion_storm", "gravity"] or route.get("active") != false:
 			return false
-		if not RunProgressData._integer(route.get("duration")) or not route.get("seed") is String or not route.seed.is_valid_int():
+		if not SaveValidation.integer(route.get("duration")) or not route.get("seed") is String or not route.seed.is_valid_int():
 			return false
 		if route.hazard == "none":
 			if route.duration != 0:

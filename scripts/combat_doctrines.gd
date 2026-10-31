@@ -7,18 +7,24 @@ var charges: Dictionary = {}
 var drones: Array[Dictionary] = []
 var launch_timers: Dictionary = {}
 var serial := 0
+var carriers := HangarCarriers.new()
+var synchronization: Dictionary = {}
+var mark_timers: Dictionary = {}
+var marks: Dictionary = {}
 
 static func valid_pool(value: Variant) -> bool:
 	if not value is Dictionary:
 		return false
 	if value.is_empty():
 		return true # Historical deployments have no doctrine reserve.
-	if value.size() != 5 or value.get("version") != 1 or not value.get("rebuilt") is Array:
+	if value.size() != (6 if value.has("carriers") else 5) or value.get("version") != 1 or not value.get("rebuilt") is Array:
+		return false
+	if value.has("carriers") and not HangarCarriers.valid(value.carriers):
 		return false
 	for key in ["repair_capacity", "rebuild_capacity"]:
-		if not RunProgressData._integer(value.get(key)) or value[key] < 0 or value[key] > 100000:
+		if not SaveValidation.integer(value.get(key)) or value[key] < 0 or value[key] > 100000:
 			return false
-	if int(value.repair_capacity) % 20 != 0 or not RunProgressData._rp_number(value.get("repair_spent")) \
+	if int(value.repair_capacity) % 20 != 0 or not SaveValidation.bounded_number(value.get("repair_spent")) \
 		or value.repair_spent < 0 or value.repair_spent > value.repair_capacity or value.rebuilt.size() > value.rebuild_capacity:
 		return false
 	var seen := {}
@@ -36,6 +42,9 @@ func configure(sim, value: Variant) -> bool:
 	drones.clear()
 	launch_timers.clear()
 	serial = 0
+	synchronization.clear()
+	mark_timers.clear()
+	marks.clear()
 	if pool.is_empty():
 		pool = {"version": 1, "repair_capacity": 0, "repair_spent": 0.0, "rebuild_capacity": 0, "rebuilt": []}
 		for member in sim.players:
@@ -44,7 +53,9 @@ func configure(sim, value: Variant) -> bool:
 			pool.repair_capacity += operational(member, ShipPart.Type.REPAIR_DRONE_BAY).size() * 20
 			if not operational(member, ShipPart.Type.NANOFORGE).is_empty():
 				pool.rebuild_capacity += 1
-	return true
+	if not pool.has("carriers"):
+		pool["carriers"] = {}
+	return carriers.configure(sim, pool.carriers)
 
 static func operational(member, type: int) -> Array[int]:
 	var result: Array[int] = []
@@ -101,6 +112,11 @@ func interrupt(sim, target) -> bool:
 	return interrupted
 
 func advance(sim, delta: float) -> void:
+	carriers.advance(sim, delta)
+	for id: String in marks.keys():
+		marks[id].remaining -= delta
+		if marks[id].remaining <= 0:
+			marks.erase(id)
 	for key in charges.keys():
 		var charge: Dictionary = charges[key]
 		var source = sim.entities.get(charge.source)
@@ -132,8 +148,71 @@ func advance(sim, delta: float) -> void:
 		if member.owned_ship == null or not member.is_alive():
 			continue
 		_relay(sim, member, delta)
+		_mark(sim, member, delta)
+		_synchronize(sim, member, delta)
 		_rebuild(sim, member)
 		_launch(sim, member, delta)
+
+func _mark(sim, source, delta: float) -> void:
+	if not source.owned_ship is HangarShip:
+		return
+	var uplinks := operational(source, ShipPart.Type.COMMAND_UPLINK)
+	if uplinks.is_empty():
+		marks.erase(source.entity_id)
+		return
+	mark_timers[source.entity_id] = maxf(0, float(mark_timers.get(source.entity_id, 0)) - delta)
+	if mark_timers[source.entity_id] > 0:
+		return
+	var target = sim._choose_weapon_target(source, source.position, 500)
+	if target == null:
+		return
+	marks[source.entity_id] = {"index": uplinks[0], "target": target.entity_id, "remaining": 5.0}
+	mark_timers[source.entity_id] = 20.0
+	sim._record_event("focus_mark", {"source": source.entity_id, "target": target.entity_id, "seconds": 5.0})
+
+func mark_multiplier(sim, source, target) -> float:
+	for id: String in marks:
+		var host = sim.entities.get(id)
+		var mark: Dictionary = marks[id]
+		if mark.remaining > 0 and mark.target == target.entity_id and host != null and host.is_alive() \
+			and host.faction == source.faction and host.owned_ship.units[mark.index].hp > 0:
+			return 1.2
+	return 1.0
+
+func _synchronize(sim, source, delta: float) -> void:
+	if not source.owned_ship is HangarShip:
+		return
+	var computers := operational(source, ShipPart.Type.TACTICAL_COMPUTER).size()
+	if computers == 0:
+		synchronization.erase(source.entity_id)
+		return
+	synchronization[source.entity_id] = minf(12, float(synchronization.get(source.entity_id, 0)) + delta * computers)
+	if synchronization[source.entity_id] < 12:
+		return
+	# Hold the synchronized salvo for a visible, unshielded target in reach.
+	var target = null
+	for weapon: ShipWeaponStats in source.stats.weapons:
+		var candidate = sim._choose_weapon_target(source, sim._get_weapon_origin(source, weapon), weapon.range_units)
+		if candidate != null and candidate.shields <= 0:
+			target = candidate
+			break
+	if target == null:
+		if HangarCarriers.has_bay(source.owned_ship):
+			var candidate = sim._choose_weapon_target(source, source.position, 500)
+			if candidate != null and candidate.shields <= 0:
+				target = candidate
+		if target == null:
+			return
+	synchronization[source.entity_id] = 0.0
+	for index in range(source.stats.weapons.size()):
+		var weapon: ShipWeaponStats = source.stats.weapons[index]
+		# Do not overwrite a beam already charging.
+		if not charges.has("%s/%d" % [source.entity_id, weapon.component_index]):
+			source.cooldowns[index] = 0.0
+	for instance: Dictionary in source.owned_ship.mounts.values():
+		if instance.equipment_id in HangarCarriers.CAPACITIES:
+			carriers.timers[instance.uid] = 0.0
+	sim._record_event("synchronized_salvo", {"source": source.entity_id, "target": target.entity_id, "computers": computers})
 
 func _relay(sim, source, delta: float) -> void:
 	if operational(source, ShipPart.Type.SHIELD_RELAY).is_empty() or source.shields <= 0 or source.stats.shields <= 0:
@@ -257,4 +336,6 @@ func snapshot() -> Dictionary:
 	for job in drones:
 		jobs.append({"actor": job.actor.entity_id, "source": job.source, "index": job.index,
 			"target": job.target, "unit": job.unit, "amount": job.amount, "remaining": job.remaining})
-	return {"pool": pool.duplicate(true), "charges": pending, "drones": jobs, "timers": launch_timers.duplicate(), "serial": serial}
+	return {"pool": pool.duplicate(true), "charges": pending, "drones": jobs, "timers": launch_timers.duplicate(), "serial": serial,
+		"carriers": carriers.snapshot(), "synchronization": synchronization.duplicate(),
+		"marks": marks.duplicate(true), "mark_timers": mark_timers.duplicate()}

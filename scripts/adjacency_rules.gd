@@ -2,11 +2,10 @@ class_name AdjacencyRules
 extends RefCounted
 
 static func touches(a: ShipPart, b: ShipPart) -> bool:
-	if a == b or a.hex_cells != b.hex_cells:
+	if a == b:
 		return false
-	var neighbors: Array = HexGrid.NEIGHBORS if a.hex_cells else FleetShip.NEIGHBORS
 	for cell in a.get_occupied_cells():
-		for offset in neighbors:
+		for offset in FleetShip.NEIGHBORS:
 			if b.occupies_cell(cell + offset):
 				return true
 	return false

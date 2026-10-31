@@ -28,7 +28,7 @@ func _reopen(reference: WeakRef) -> void:
  var popup: Popup = reference.get_ref()
  if is_instance_valid(popup) and popup.is_inside_tree():
   popup.popup_centered()
-  if popup is ShipLibraryDialog:
+  if popup.has_method("close_library"):
    popup.search.grab_focus()
 
 func _popup_input(event: InputEvent, popup: Popup) -> void:
@@ -40,7 +40,7 @@ func _popup_input(event: InputEvent, popup: Popup) -> void:
  if event.keycode != KEY_ESCAPE:
   return
  var nested := false
- if popup is ShipLibraryDialog and popup.delete_confirmation.visible:
+ if popup.has_method("close_library") and popup.delete_confirmation.visible:
   nested = true
   popup._cancel_delete()
  elif popup.has_method("_on_quit_cancelled") and popup.quit_confirmation_overlay.visible:
@@ -48,7 +48,7 @@ func _popup_input(event: InputEvent, popup: Popup) -> void:
   popup._on_quit_cancelled()
  if nested:
   popup.set_meta("restore_after_nested_cancel", true)
- if popup is ShipLibraryDialog and not nested:
+ if popup.has_method("close_library") and not nested:
   popup.close_library()
  else:
   popup.hide()

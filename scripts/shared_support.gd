@@ -5,7 +5,7 @@ const REPAIR_RESERVE := 20.0
 const REPAIR_RATE := 2.0
 
 static func valid_pool(value: Variant) -> bool:
-	return value is Dictionary and RunProgressData._integer(value.get("capacity")) and value.capacity >= 0 \
+	return value is Dictionary and SaveValidation.integer(value.get("capacity")) and value.capacity >= 0 \
 		and value.capacity <= 1000000 and int(value.capacity) % 20 == 0 \
 		and (value.get("spent") is float or value.get("spent") is int) and is_finite(value.spent) and value.spent >= 0 and value.spent <= value.capacity
 
@@ -79,11 +79,14 @@ static func repair(sim, delta: float) -> void:
 			sim._refresh_owned_stats(member)
 
 static func intercept(sim, member, weapon: ShipWeaponStats, origin: Vector2) -> bool:
-	if not member.is_alive() or member.owned_ship == null or weapon.component_index < 0 or weapon.component_index >= member.owned_ship.units.size():
+	if not member.is_alive():
 		return false
-	var unit: Dictionary = member.owned_ship.units[weapon.component_index]
-	if unit.hp <= 0 or unit.part == null or unit.part.type != ShipPart.Type.POINT_DEFENSE_TURRET:
-		return false
+	if not member.has_tag("interceptor"):
+		if member.owned_ship == null or weapon.component_index < 0 or weapon.component_index >= member.owned_ship.units.size():
+			return false
+		var unit: Dictionary = member.owned_ship.units[weapon.component_index]
+		if unit.hp <= 0 or unit.part == null or unit.part.type != ShipPart.Type.POINT_DEFENSE_TURRET:
+			return false
 	var chosen := -1
 	var nearest := INF
 	for index in range(sim.projectiles.size()):

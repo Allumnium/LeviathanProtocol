@@ -150,7 +150,7 @@ static func snapshot_valid(entry: Variant) -> bool:
 		if entry.has(key) and not entry[key] is String:
 			return false
 	for key in ["tier", "wave"]:
-		if entry.has(key) and (not RunProgressData._integer(entry[key]) or entry[key] < 0):
+		if entry.has(key) and (not SaveValidation.integer(entry[key]) or entry[key] < 0):
 			return false
 	if entry.has("threat_cost") and (not _finite_number(entry.threat_cost) or entry.threat_cost < 0):
 		return false
@@ -162,7 +162,7 @@ static func snapshot_valid(entry: Variant) -> bool:
 		for index in [1, 2, 4]:
 			if not _finite_number(weapon[index]) or weapon[index] <= 0:
 				return false
-		if not RunProgressData._integer(weapon[3]) or weapon[3] < 1:
+		if not SaveValidation.integer(weapon[3]) or weapon[3] < 1:
 			return false
 	return true
 

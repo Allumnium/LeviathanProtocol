@@ -256,7 +256,7 @@ static func valid(encounter: Variant) -> bool:
 		or encounter.get("wave_count") != TEMPLATES[encounter.template_id].waves):
 		return false
 	for key in ["node_id", "global_row", "wave_count"]:
-		if not RunProgressData._integer(encounter.get(key)):
+		if not SaveValidation.integer(encounter.get(key)):
 			return false
 	if encounter.global_row < 1 or encounter.global_row > 24 or encounter.wave_count < 1 or encounter.wave_count > 3:
 		return false
@@ -283,7 +283,7 @@ static func valid(encounter: Variant) -> bool:
 	for entry in encounter.roster:
 		if not AlienShip.snapshot_valid(entry) or not entry.get("entity_id") is String or entry.entity_id.is_empty():
 			return false
-		if ids.has(entry.entity_id) or not RunProgressData._integer(entry.get("wave")):
+		if ids.has(entry.entity_id) or not SaveValidation.integer(entry.get("wave")):
 			return false
 		if entry.wave < 0 or entry.wave >= encounter.wave_count or entry.get("kind") not in ["ship", "organ", "craft"]:
 			return false
@@ -326,12 +326,12 @@ static func valid(encounter: Variant) -> bool:
 	if not encounter.legacy and encounter.budget - spent >= encounter.unspent_tolerance + 0.000001:
 		return false
 	var rewards: Variant = encounter.get("rewards")
-	if not rewards is Dictionary or not RunProgressData._integer(rewards.get("credits")) or rewards.credits < 0:
+	if not rewards is Dictionary or not SaveValidation.integer(rewards.get("credits")) or rewards.credits < 0:
 		return false
 	if not rewards.get("materials") is Array or rewards.materials.size() != 4:
 		return false
 	for amount in rewards.materials:
-		if not RunProgressData._integer(amount) or amount < 0 or amount > 128:
+		if not SaveValidation.integer(amount) or amount < 0 or amount > 128:
 			return false
 	# Older frozen snapshots may omit the descriptive pool. When present it
 	# must describe the same finite budget that authoritative victory pays.
@@ -339,7 +339,7 @@ static func valid(encounter: Variant) -> bool:
 		if not rewards.material_pool is Array or rewards.material_pool.size() != 4:
 			return false
 		for category in range(4):
-			if not RunProgressData._integer(rewards.material_pool[category]) or rewards.material_pool[category] != rewards.materials[category] * 2:
+			if not SaveValidation.integer(rewards.material_pool[category]) or rewards.material_pool[category] != rewards.materials[category] * 2:
 				return false
 		if rewards.get("initial_recovery_rate") != 0.5:
 			return false

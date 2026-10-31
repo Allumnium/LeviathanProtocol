@@ -20,7 +20,7 @@ static func valid(value: Variant) -> bool:
 	for id in value.cooldowns:
 		var definition := GameDefinitions.find("abilities", str(id))
 		var remaining: Variant = value.cooldowns[id]
-		if not id is String or definition.is_empty() or not RunProgressData._rp_number(remaining) or remaining < 0 or remaining > float(definition.cooldown_seconds):
+		if not id is String or definition.is_empty() or not SaveValidation.bounded_number(remaining) or remaining < 0 or remaining > float(definition.cooldown_seconds):
 			return false
 	for id in value.auto:
 		if not id is String or GameDefinitions.find("abilities", id).is_empty() or not value.auto[id] is bool:

@@ -119,11 +119,11 @@ static func errors(value: Variant) -> Array[String]:
 		if not node is Dictionary:
 			return ["Invalid node."]
 		for key in ["id", "row", "act", "local_row", "lane", "combat_index"]:
-			if not RunProgressData._integer(node.get(key)):
+			if not SaveValidation.integer(node.get(key)):
 				return ["Invalid node number."]
 		if node.id != id or node.row < 0 or node.row > 24 or not node.get("elite") is bool:
 			return ["Invalid node identity/row."]
-		if not RunCheckpoint._vector(node.get("position")) or node.position[0] < 0 or node.position[0] > 1 or node.position[1] < 0 or node.position[1] > 1:
+		if not SaveValidation.vector(node.get("position")) or node.position[0] < 0 or node.position[0] > 1 or node.position[1] < 0 or node.position[1] > 1:
 			return ["Invalid node position."]
 		rows[int(node.row)].append(id)
 		incoming.append([])
@@ -160,7 +160,7 @@ static func errors(value: Variant) -> Array[String]:
 				return ["Invalid row/lane geometry."]
 			last_y = node.position[1]
 	for edge in value.edges:
-		if not edge is Array or edge.size() != 2 or not RunCheckpoint._node(edge[0], nodes.size()) or not RunCheckpoint._node(edge[1], nodes.size()):
+		if not edge is Array or edge.size() != 2 or not SaveValidation.node(edge[0], nodes.size()) or not SaveValidation.node(edge[1], nodes.size()):
 			return ["Invalid edge."]
 		var source := int(edge[0])
 		var target := int(edge[1])
@@ -168,7 +168,7 @@ static func errors(value: Variant) -> Array[String]:
 			return ["Backward, skipped-row or duplicate edge."]
 		outgoing[source].append(target)
 		incoming[target].append(source)
-	if not RunCheckpoint._node(value.get("final"), nodes.size()) or value.final != expected_bosses[2]:
+	if not SaveValidation.node(value.get("final"), nodes.size()) or value.final != expected_bosses[2]:
 		return ["Invalid final boss."]
 	if not _same_ids(value.get("staging"), expected_staging) or not _same_ids(value.get("bosses"), expected_bosses):
 		return ["Invalid checkpoint identities."]
@@ -209,6 +209,6 @@ static func _same_ids(actual: Variant, expected: Array[int]) -> bool:
 	if not actual is Array or actual.size() != expected.size():
 		return false
 	for index in range(expected.size()):
-		if not RunProgressData._integer(actual[index]) or actual[index] != expected[index]:
+		if not SaveValidation.integer(actual[index]) or actual[index] != expected[index]:
 			return false
 	return true

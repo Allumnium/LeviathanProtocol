@@ -1,0 +1,839 @@
+{
+  "equipment": [
+    {
+      "id": "armor_block",
+      "name": "Armor Block",
+      "part_type": 0,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 50,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 4
+      },
+      "type": "defense",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "beam_lance",
+      "name": "Beam Lance",
+      "part_type": 15,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 1.2,
+            "count": 1,
+            "damage": 12,
+            "interceptable": false,
+            "interval": 4,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Beam Lance",
+            "projectile": false,
+            "range": 360
+          }
+        ],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "cargo_hold",
+      "name": "Cargo Hold",
+      "part_type": 42,
+      "rank": 1,
+      "revision": 2,
+      "size": "XL",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 250,
+      "hit_points": 60
+    },
+    {
+      "id": "crew_quarters",
+      "name": "Crew Quarters",
+      "part_type": 9,
+      "rank": 1,
+      "revision": 3,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 2
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "double_laser",
+      "name": "Double Laser",
+      "part_type": 2,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 2,
+            "damage": 14.4,
+            "interceptable": false,
+            "interval": 4,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Double Laser",
+            "projectile": false,
+            "range": 220
+          }
+        ],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "extraction_drill",
+      "name": "Extraction Drill",
+      "part_type": 52,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 1,
+            "damage": 1.5,
+            "interceptable": false,
+            "interval": 0.25,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Extraction Drill",
+            "projectile": false,
+            "range": 45
+          }
+        ],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": true,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "focusing_lens",
+      "name": "Focusing Lens",
+      "part_type": 14,
+      "rank": 1,
+      "revision": 2,
+      "size": "S",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "gravitic_snare",
+      "name": "Gravitic Snare",
+      "part_type": 18,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "ion_emitter",
+      "name": "Ion Emitter",
+      "part_type": 17,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 1,
+            "damage": 2,
+            "interceptable": false,
+            "interval": 2,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Ion Emitter",
+            "projectile": false,
+            "range": 300
+          }
+        ],
+        "weight": 4
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "large_thruster",
+      "name": "Large Thruster",
+      "part_type": 7,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 150,
+        "weapons": [],
+        "weight": 10
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "laser",
+      "name": "Laser",
+      "part_type": 1,
+      "rank": 1,
+      "revision": 1,
+      "size": "S",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 1,
+            "damage": 12,
+            "interceptable": false,
+            "interval": 4,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Laser",
+            "projectile": false,
+            "range": 220
+          }
+        ],
+        "weight": 3
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "mini_turret",
+      "name": "Mini Turret",
+      "part_type": 5,
+      "rank": 1,
+      "revision": 1,
+      "size": "S",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 1,
+            "damage": 1,
+            "interceptable": false,
+            "interval": 1,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Mini Turret",
+            "projectile": true,
+            "range": 220
+          }
+        ],
+        "weight": 1
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "mining_laser",
+      "name": "Mining Laser",
+      "part_type": 51,
+      "rank": 1,
+      "revision": 2,
+      "size": "S",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 1,
+            "damage": 1.5,
+            "interceptable": false,
+            "interval": 0.5,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Mining Laser",
+            "projectile": false,
+            "range": 300
+          }
+        ],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": true,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "missile_rack",
+      "name": "Missile Rack",
+      "part_type": 13,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 3,
+            "damage": 3,
+            "interceptable": true,
+            "interval": 5,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Missile Rack",
+            "projectile": true,
+            "range": 340
+          }
+        ],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "nanoforge",
+      "name": "Nanoforge",
+      "part_type": 24,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "observation_deck",
+      "name": "Observation Deck",
+      "part_type": 39,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "ore_processor",
+      "name": "Ore Processor",
+      "part_type": 53,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 9
+      },
+      "type": "offense",
+      "retired": true,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "passenger_cabin",
+      "name": "Passenger Cabin",
+      "part_type": 38,
+      "rank": 1,
+      "revision": 4,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "point_defense_turret",
+      "name": "Point-Defense Turret",
+      "part_type": 12,
+      "rank": 1,
+      "revision": 2,
+      "size": "S",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "charge": 0,
+            "count": 1,
+            "damage": 0.6,
+            "interceptable": false,
+            "interval": 0.5,
+            "mount": [
+              0,
+              0
+            ],
+            "name": "Point Defense",
+            "projectile": true,
+            "range": 160
+          }
+        ],
+        "weight": 4
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "reactive_bulkhead",
+      "name": "Reactive Bulkhead",
+      "part_type": 20,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "repair_drone_bay",
+      "name": "Repair Drone Bay",
+      "part_type": 23,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "repair_station",
+      "name": "Repair Station",
+      "part_type": 11,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 3
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "research_lab",
+      "name": "Research Lab I",
+      "part_type": 10,
+      "rank": 1,
+      "revision": 2,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "research_lab",
+      "name": "Research Lab II",
+      "part_type": 10,
+      "rank": 2,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 9
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 320,
+      "hit_points": 40
+    },
+    {
+      "id": "research_lab",
+      "name": "Research Lab III",
+      "part_type": 10,
+      "rank": 3,
+      "revision": 2,
+      "size": "XL",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 12
+      },
+      "type": "civic",
+      "retired": false,
+      "price": 750,
+      "hit_points": 60
+    },
+    {
+      "id": "seismic_cutter",
+      "name": "Seismic Cutter",
+      "part_type": 54,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 8
+      },
+      "type": "offense",
+      "retired": true,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "shield_generator",
+      "name": "Shield",
+      "part_type": 4,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 40,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 9
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25
+    },
+    {
+      "id": "shield_relay",
+      "name": "Shield Relay",
+      "part_type": 21,
+      "rank": 1,
+      "revision": 2,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40
+    },
+    {
+      "id": "hull_plate",
+      "name": "Single Plate",
+      "part_type": 3,
+      "rank": 1,
+      "revision": 1,
+      "size": "S",
+      "stats": {
+        "integrity": 5,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 1
+      },
+      "type": "defense",
+      "retired": false,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "thruster",
+      "name": "Thruster",
+      "part_type": 6,
+      "rank": 1,
+      "revision": 1,
+      "size": "S",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 25,
+        "weapons": [],
+        "weight": 3
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 40,
+      "hit_points": 15
+    },
+    {
+      "id": "flight_deck",
+      "name": "Flight Deck",
+      "part_type": 29,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 190,
+      "hit_points": 25
+    },
+    {
+      "id": "torpedo_bomber_bay",
+      "name": "Torpedo Bomber Bay",
+      "part_type": 30,
+      "rank": 1,
+      "revision": 1,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 9
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 280,
+      "hit_points": 40
+    },
+    {
+      "id": "ammunition_magazine",
+      "name": "Ammunition Magazine",
+      "part_type": 26,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 4
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 120,
+      "hit_points": 25
+    },
+    {
+      "id": "railgun",
+      "name": "Railgun",
+      "part_type": 27,
+      "rank": 1,
+      "revision": 1,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "name": "Railgun",
+            "interval": 6,
+            "damage": 24,
+            "count": 1,
+            "range": 500,
+            "mount": [
+              0,
+              0
+            ],
+            "projectile": true,
+            "interceptable": false,
+            "charge": 0
+          }
+        ],
+        "weight": 10
+      },
+      "type": "offense",
+      "retired": false,
+      "price": 240,
+      "hit_points": 40
+    },
+    {
+      "id": "command_uplink",
+      "name": "Command Uplink",
+      "part_type": 32,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 4
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 140,
+      "hit_points": 25
+    },
+    {
+      "id": "tactical_computer",
+      "name": "Tactical Computer",
+      "part_type": 33,
+      "rank": 1,
+      "revision": 1,
+      "size": "L",
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 6
+      },
+      "type": "tech",
+      "retired": false,
+      "price": 220,
+      "hit_points": 35
+    }
+  ],
+  "version": 1
+}

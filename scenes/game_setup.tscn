@@ -76,15 +76,14 @@ text = "NORMAL"
 [node name="DifficultyDetails" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows" unique_id=1062794109]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-text = "Alien ship stats are at base values.
-30% of materials from destroyed allied blocks are recovered."
+text = "Alien strength: 100%"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="CheckpointWarning" type="Label" parent="CenterContainer/SetupModal/Contents"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.824, 0.541, 1)
-text = "Starting replaces the current run checkpoint.\nSaved blueprints are kept."
+text = "Starting replaces the current run."
 horizontal_alignment = 1
 
 [node name="Buttons" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents" unique_id=1650797096]

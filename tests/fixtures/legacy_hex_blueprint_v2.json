@@ -1,0 +1,36 @@
+{
+	"chassis_id": "wren",
+	"chassis_revision": 1,
+	"components": [
+		{
+			"equipment_id": "laser",
+			"flipped": false,
+			"origin": [
+				-1,
+				-1
+			],
+			"rank": 1,
+			"recipe_revision": 1,
+			"turns": 0
+		}
+	],
+	"tiles": [
+		[
+			-1,
+			-1,
+			0
+		],
+		[
+			0,
+			-1,
+			0
+		],
+		[
+			1,
+			-1,
+			0
+		]
+	],
+	"topology": "hex_axial_v1",
+	"version": 2
+}

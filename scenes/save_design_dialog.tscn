@@ -1,36 +1,41 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://3thvt8lxm570"]
 
-[ext_resource type="Theme" path="res://themes/ui_theme.tres" id="1_theme"]
+[ext_resource type="Theme" uid="uid://dda4r57psoolt" path="res://themes/ui_theme.tres" id="1_theme"]
 [ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="3_close"]
 
-[node name="SaveDesignDialog" type="PopupPanel"]
+[node name="SaveDesignDialog" type="PopupPanel" unique_id=144779046]
+oversampling_override = 1.0
 initial_position = 1
 size = Vector2i(360, 192)
-visible = false
+visible = true
 exclusive = true
-content_scale_factor = 1.0
 theme = ExtResource("1_theme")
 
-[node name="CloseX" parent="." instance=ExtResource("3_close")]
+[node name="CloseX" parent="." unique_id=331625762 instance=ExtResource("3_close")]
+layout_mode = 3
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 348.0
+offset_bottom = 180.0
 
-[node name="Contents" type="VBoxContainer" parent="."]
+[node name="Contents" type="VBoxContainer" parent="." unique_id=700237141]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 12.0
-offset_top = 10.0
+offset_top = 12.0
 offset_right = -12.0
-offset_bottom = -10.0
+offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 6
 
-[node name="Title" type="Label" parent="Contents"]
+[node name="Title" type="Label" parent="Contents" unique_id=821681315]
 layout_mode = 2
 text = "SAVE SHIP DESIGN"
 horizontal_alignment = 1
 
-[node name="ShipNameInput" type="LineEdit" parent="Contents"]
+[node name="ShipNameInput" type="LineEdit" parent="Contents" unique_id=509662349]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -38,19 +43,19 @@ placeholder_text = "Ship name"
 max_length = 32
 select_all_on_focus = true
 
-[node name="StatusLabel" type="Label" parent="Contents"]
+[node name="StatusLabel" type="Label" parent="Contents" unique_id=1306335184]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Buttons" type="HBoxContainer" parent="Contents"]
+[node name="Buttons" type="HBoxContainer" parent="Contents" unique_id=100886468]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="ConfirmSaveButton" type="Button" parent="Contents/Buttons"]
+[node name="ConfirmSaveButton" type="Button" parent="Contents/Buttons" unique_id=1782228618]
 custom_minimum_size = Vector2(100, 34)
 layout_mode = 2
 text = "SAVE"

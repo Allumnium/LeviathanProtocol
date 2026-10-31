@@ -157,13 +157,10 @@ func _refresh_fleet_preview() -> void:
 
 
 func _representative_ship() -> FleetShip:
-	for design_name in GameState.fleet_design_slots:
-		if design_name.is_empty():
-			continue
-		for owned in GameState.get_deployed_fleet():
-			if _ship_type_name(owned.display_name) == design_name:
-				return owned
-	return null
+	for owned in GameState.get_deployed_fleet():
+		if owned.is_flagship():
+			return owned
+	return GameState.get_deployed_fleet()[0] if not GameState.get_deployed_fleet().is_empty() else null
 
 
 func _ship_type_name(display_name: String) -> String:
