@@ -13,6 +13,9 @@ var selected_difficulty := GameState.Difficulty.MEDIUM
 
 
 func _ready() -> void:
+	AudioManager.connect_ui_button(difficulty_button, &"detail")
+	AudioManager.connect_ui_button(back_button)
+	AudioManager.connect_ui_button(start_button)
 	difficulty_button.pressed.connect(_on_difficulty_pressed)
 	back_button.pressed.connect(_on_back_pressed)
 	start_button.pressed.connect(_on_start_pressed)

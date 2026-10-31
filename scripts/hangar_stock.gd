@@ -166,17 +166,21 @@ func _render() -> void:
 		second_line.add_child(cancel)
 		cancel.hide()
 		cancel.pressed.connect(func() -> void: _set_pending_sale(""))
+		AudioManager.connect_ui_button(cancel)
 		var sell: Button = ActionButton.new()
 		sell.name = "SellAction"
 		second_line.add_child(sell)
 		sell.pressed.connect(func() -> void:
 			if pending_sale != instance.uid:
+				AudioManager.play_ui_sfx(&"question")
 				_set_pending_sale(instance.uid)
 			else:
 				sell.disabled = true
 				var ok: bool = GameState.sell_equipment(instance.uid)
 				if not ok:
 					sell.disabled = false
+				else:
+					AudioManager.play_ui_sfx(&"accept")
 				equipment_sold.emit(ok))
 		sale_controls[instance.uid] = {"summary": summary, "text": summary.text, "cancel": cancel, "sell": sell}
 	if candidates.is_empty():

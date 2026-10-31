@@ -28,6 +28,7 @@ func _ready() -> void:
 	continue_button.custom_minimum_size = Vector2(180, 40)
 	play_button.get_parent().add_child(continue_button)
 	play_button.get_parent().move_child(continue_button, 0)
+	AudioManager.connect_ui_button(continue_button)
 	continue_button.pressed.connect(_on_continue_pressed)
 	status_label = Label.new()
 	status_label.name = "CheckpointStatus"
@@ -47,6 +48,9 @@ func _ready() -> void:
 		status_label.text = "This run has ended. Start a new run."
 		status_label.show()
 	AudioManager.play_menu_music()
+	AudioManager.connect_ui_button(play_button)
+	AudioManager.connect_ui_button(settings_button, &"detail")
+	AudioManager.connect_ui_button(quit_button, &"question")
 	play_button.pressed.connect(_on_play_pressed)
 	settings_button.pressed.connect(_on_settings_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)

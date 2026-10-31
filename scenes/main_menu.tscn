@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/circular_icon_button.tscn" id="4_icon_button"]
 [ext_resource type="FontFile" uid="uid://dnfx18rrv3abw" path="res://assets/fonts/_73A5E77.TTF" id="5_title_font"]
 [ext_resource type="PackedScene" path="res://scenes/game_setup.tscn" id="6_game_setup"]
+[ext_resource type="Texture2D" path="res://assets/ui/SciFiBg002_Cyan.png" id="7_space_background"]
 
 [node name="MainMenu" type="Control" unique_id=513972528]
 layout_mode = 3
@@ -27,6 +28,19 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 1)
+
+[node name="SpaceBackground" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture_filter = 1
+texture = ExtResource("7_space_background")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="Starfield" type="Control" parent="." unique_id=1469941867]
 layout_mode = 1

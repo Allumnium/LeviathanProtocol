@@ -12,6 +12,15 @@ const MENU_THRUSTER_LOW: AudioStreamMP3 = preload(
 const MENU_THRUSTER_LARGE: AudioStreamMP3 = preload(
 	"res://assets/audio/sfx/thrust-large-loop.mp3"
 )
+const UI_SFX: Dictionary[StringName, AudioStream] = {
+	&"accept": preload("res://assets/audio/sfx/accept.wav"),
+	&"detail": preload("res://assets/audio/sfx/detail.wav"),
+	&"place": preload("res://assets/audio/sfx/place.wav"),
+	&"purchase": preload("res://assets/audio/sfx/purchase.wav"),
+	&"question": preload("res://assets/audio/sfx/question.wav"),
+	&"select_tab": preload("res://assets/audio/sfx/select_tab.wav"),
+	&"animate_ui": preload("res://assets/audio/sfx/animate_ui.wav"),
+}
 const DEFAULT_VOLUME_PERCENT := 50.0
 const OUTPUT_GAIN_DB := -6.0
 const MAX_SFX_PLAYERS := 32
@@ -146,6 +155,20 @@ func play_sfx(
 	player.pitch_scale = pitch_scale
 	player.volume_db = volume_db
 	player.play()
+
+
+func play_ui_sfx(effect: StringName) -> void:
+	if not UI_SFX.has(effect):
+		push_error("Unknown UI sound effect '%s'." % effect)
+		return
+	play_sfx(UI_SFX[effect], 1.0, -4.0, 40)
+
+
+func connect_ui_button(button: BaseButton, effect: StringName = &"accept") -> void:
+	if not UI_SFX.has(effect):
+		push_error("Unknown UI sound effect '%s'." % effect)
+		return
+	button.pressed.connect(play_ui_sfx.bind(effect))
 
 
 func play_menu_music() -> void:

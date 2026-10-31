@@ -24,6 +24,13 @@ func _ready() -> void:
 	ambience_slider.value = AudioManager.get_bus_volume_percent(AudioManager.AMBIENCE_BUS)
 	effects_slider.value = AudioManager.get_bus_volume_percent(AudioManager.SFX_BUS)
 	_update_battle_auto_camera_button()
+	for button: BaseButton in [
+		battle_auto_camera_button,
+		quit_to_menu_button,
+		quit_confirmation_button,
+		cancel_quit_button,
+	]:
+		AudioManager.connect_ui_button(button, &"detail" if button == battle_auto_camera_button else &"accept")
 	var row := HBoxContainer.new()
 	var label := Label.new()
 	label.text = "Reduced motion"
@@ -38,6 +45,7 @@ func _ready() -> void:
 		reduced_motion_button.text = "ON" if GameState.reduced_motion else "OFF"
 		_save_preferences())
 	row.add_child(reduced_motion_button)
+	AudioManager.connect_ui_button(reduced_motion_button, &"detail")
 	var content := $Contents/ContentArea
 	content.add_child(row)
 	content.move_child(row, content.get_child_count() - 2)

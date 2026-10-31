@@ -1,6 +1,9 @@
 extends Control
 
 const EquipmentFilters = preload("res://scripts/hangar_equipment_filters.gd")
+const CREDITS_ICON: Texture2D = preload("res://assets/credits.png")
+const SCIENCE_ICON: Texture2D = preload("res://assets/science.png")
+const BUY_ICON: Texture2D = preload("res://assets/ui/Btn_BuyCoins_n.png")
 
 var selected_ship_id := -1
 var selected_slot := ""
@@ -8,6 +11,7 @@ var roster: VBoxContainer
 var details: VBoxContainer
 var center: Control
 var header: Label
+var research_rate: Label
 var feedback: Label
 var canvas: Control
 var shop: Control
@@ -52,29 +56,52 @@ func _ready() -> void:
 	var top := HBoxContainer.new()
 	column.add_child(top)
 	var credit_icon := TextureRect.new()
-	credit_icon.texture = load("res://assets/credits.png")
+	credit_icon.name = "CreditsIcon"
+	credit_icon.texture = CREDITS_ICON
 	credit_icon.custom_minimum_size = Vector2(20, 20)
 	credit_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	credit_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	credit_icon.size_flags_vertical = SIZE_SHRINK_CENTER
 	top.add_child(credit_icon)
 	header = _label("")
-	header.size_flags_horizontal = SIZE_EXPAND_FILL
+	header.size_flags_horizontal = SIZE_SHRINK_BEGIN
+	header.size_flags_vertical = SIZE_SHRINK_CENTER
 	header.autowrap_mode = TextServer.AUTOWRAP_OFF
 	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(header)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
+	top.add_child(spacer)
+	var science_icon := TextureRect.new()
+	science_icon.name = "ScienceIcon"
+	science_icon.texture = SCIENCE_ICON
+	science_icon.custom_minimum_size = Vector2(20, 20)
+	science_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	science_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	science_icon.size_flags_vertical = SIZE_SHRINK_CENTER
+	top.add_child(science_icon)
+	research_rate = _label("")
+	research_rate.name = "ResearchRate"
+	research_rate.size_flags_vertical = SIZE_SHRINK_CENTER
+	research_rate.autowrap_mode = TextServer.AUTOWRAP_OFF
+	research_rate.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	top.add_child(research_rate)
 	flagship_icon = load("res://assets/flag.png")
 	top.add_child(_button("MENU", func() -> void: get_tree().change_scene_to_file("res://scenes/main_menu.tscn")))
 	var tabs := HBoxContainer.new()
 	column.add_child(tabs)
 	for title in ["FLEET", "SHIPS", "RESEARCH", "MAP"]:
-		var tab := _button(title, func() -> void:
+		var tab := _button_with_sound(title, func() -> void:
 			if traveling:
 				return
 			active_tab = title
+			for tab_button: Button in tabs.get_children():
+				tab_button.set_pressed_no_signal(tab_button.text == title)
 			buy_open = false
-			_refresh())
+			_refresh(), &"select_tab")
 		tab.size_flags_horizontal = SIZE_EXPAND_FILL
+		tab.toggle_mode = true
+		tab.button_pressed = active_tab == title
 		tabs.add_child(tab)
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = SIZE_EXPAND_FILL
@@ -115,13 +142,34 @@ func _panel(parent: Node, width: float) -> VBoxContainer:
 	return box
 
 func _button(title: String, action: Callable) -> Button:
+	return _button_with_sound(title, action, &"accept")
+
+func _button_with_sound(title: String, action: Callable, sound: StringName) -> Button:
 	var button := Button.new()
 	button.text = title
-	button.theme_type_variation = &"CompactButton"
+	button.theme_type_variation = &"TacticalButton"
 	button.focus_mode = FOCUS_NONE
-	button.custom_minimum_size.y = 26
+	button.custom_minimum_size.y = 30
+	if not sound.is_empty():
+		AudioManager.connect_ui_button(button, sound)
 	button.pressed.connect(action)
 	return button
+
+func _add_buy_icon(button: Button) -> void:
+	var icon := TextureRect.new()
+	icon.texture = BUY_ICON
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = MOUSE_FILTER_IGNORE
+	icon.anchor_left = 1.0
+	icon.anchor_right = 1.0
+	icon.anchor_top = 0.5
+	icon.anchor_bottom = 0.5
+	icon.offset_left = -22.0
+	icon.offset_right = -6.0
+	icon.offset_top = -8.0
+	icon.offset_bottom = 8.0
+	button.add_child(icon)
 
 func _label(title: String) -> Label:
 	var label := Label.new()
@@ -152,6 +200,8 @@ func _refresh() -> void:
 			formation_selection.assign(formation_view.selected_ids)
 	formation_view = null
 	header.text = str(GameState.credits)
+	var science := ScienceRules.snapshot(GameState.get_deployed_fleet())
+	research_rate.text = "%s RP/day" % ScienceRules.format_rp(ScienceRules.production_rate(science))
 	_clear(roster)
 	_clear(details)
 	if is_instance_valid(shop) and shop.get_parent() == center:
@@ -209,7 +259,7 @@ func _refresh() -> void:
 		button.button_pressed = owned.id == selected_ship_id
 		ship_rows.add_child(button)
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
-	var buy := _button("BUY", _open_shop)
+	var buy := _button_with_sound("BUY", _open_shop, &"animate_ui")
 	buy.name = "BuyToggle"
 	buy.toggle_mode = true
 	buy.button_pressed = buy_open
@@ -281,7 +331,10 @@ func _refresh() -> void:
 				_show_details())
 			canvas.instance_selected.connect(func(key: String, uid: String) -> void:
 				selected_slot = key
-				_result(GameState.fit_equipment(selected_ship_id, key, uid)))
+				var ok := GameState.fit_equipment(selected_ship_id, key, uid)
+				if ok:
+					AudioManager.play_ui_sfx(&"place")
+				_result(ok))
 	_show_details()
 	if buy_open:
 		_show_buy_panel()
@@ -428,6 +481,7 @@ func _modal(title: String) -> VBoxContainer:
 	var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
 	card.add_child(close)
 	close.set_anchors_preset(PRESET_TOP_RIGHT)
+	AudioManager.connect_ui_button(close)
 	close.pressed.connect(func() -> void:
 		shop.queue_free()
 		shop = null)
@@ -454,6 +508,7 @@ func _show_buy_panel() -> void:
 	var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
 	card.add_child(close)
 	close.set_anchors_preset(PRESET_TOP_RIGHT)
+	AudioManager.connect_ui_button(close)
 	close.pressed.connect(func() -> void:
 		buy_open = false
 		_refresh())
@@ -499,7 +554,16 @@ func _shop_equipment() -> void:
 			return a_name < b_name
 		return int(a.price) < int(b.price))
 	for item: Dictionary in candidates:
-		var button := _button("%s\n%s %s | %d cr%s" % [item.name, item.type.capitalize(), item.size, item.price, "" if SlotCatalog.unlocked(item, grants) else " | Research"], func() -> void: _result(GameState.buy_equipment(item.id, int(item.rank))))
+		var button := _button_with_sound(
+			"%s\n%s %s | %d cr%s" % [item.name, item.type.capitalize(), item.size, item.price, "" if SlotCatalog.unlocked(item, grants) else " | Research"],
+			func() -> void:
+				var ok := GameState.buy_equipment(item.id, int(item.rank))
+				if ok:
+					AudioManager.play_ui_sfx(&"purchase")
+				_result(ok),
+			&""
+		)
+		_add_buy_icon(button)
 		button.disabled = not SlotCatalog.unlocked(item, grants) or GameState.credits < int(item.price)
 		shop_rows.add_child(button)
 	if candidates.is_empty():
@@ -535,7 +599,16 @@ func _shop_ships() -> void:
 		image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(image)
-		var button := _button("%s\n%d command | %d cr" % [chassis.name, chassis.command_cost, chassis.price], func() -> void: _result(GameState.buy_chassis(chassis.id)))
+		var button := _button_with_sound(
+			"%s\n%d command | %d cr" % [chassis.name, chassis.command_cost, chassis.price],
+			func() -> void:
+				var ok := GameState.buy_chassis(chassis.id)
+				if ok:
+					AudioManager.play_ui_sfx(&"purchase")
+				_result(ok),
+			&""
+		)
+		_add_buy_icon(button)
 		button.disabled = GameState.credits < int(chassis.price) or GameState.used_command() + int(chassis.command_cost) > GameState.command_limit()
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(button)
@@ -557,6 +630,7 @@ func _show_map() -> void:
 func _select_destination(id: int) -> void:
 	if traveling:
 		return
+	AudioManager.play_ui_sfx(&"detail")
 	GameState.set_planned_destination(id)
 	_clear(details)
 	var preview: Dictionary = GameState.node_preview(id)
@@ -564,8 +638,8 @@ func _select_destination(id: int) -> void:
 	details.add_child(_label(preview.text))
 	var days: float = GameState.research_travel_time(GameState.current_node_id, id)
 	details.add_child(_label("%s RP on arrival" % ScienceRules.format_rp(ScienceRules.journey_rp(ScienceRules.snapshot(GameState.get_deployed_fleet()), days))))
-	details.add_child(_button("TRAVEL", func() -> void:
-		_begin_travel(id)))
+	details.add_child(_button_with_sound("TRAVEL", func() -> void:
+		_begin_travel(id), &""))
 
 func _begin_travel(id: int) -> void:
 	if traveling:
@@ -576,6 +650,7 @@ func _begin_travel(id: int) -> void:
 		traveling = false
 		_result(false)
 		return
+	AudioManager.play_ui_sfx(&"animate_ui")
 	for button in details.find_children("*", "Button", true, false):
 		button.disabled = true
 	graph.start_travel(id)
@@ -590,6 +665,7 @@ func _confirm_salvage(id: int) -> void:
 	var owned: HangarShip = GameState.owned_ship(id)
 	if owned == null or owned.flagship:
 		return
+	AudioManager.play_ui_sfx(&"question")
 	var column := _modal("SALVAGE " + owned.display_name + "?")
 	var card: PanelContainer = column.get_parent()
 	card.set_anchors_and_offsets_preset(PRESET_CENTER)

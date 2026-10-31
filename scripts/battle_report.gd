@@ -111,6 +111,7 @@ func show_report(
 	accept_button.text = "CONTINUE" if GameState.is_run_lost() else "BACK TO FLEET"
 	accept_button.custom_minimum_size = Vector2(112, 34)
 	accept_button.theme_type_variation = &"FramedButton"
+	AudioManager.connect_ui_button(accept_button)
 	accept_button.pressed.connect(func() -> void: closed.emit())
 	button_center.add_child(accept_button)
 

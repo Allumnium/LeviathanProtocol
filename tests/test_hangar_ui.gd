@@ -69,7 +69,14 @@ func run() -> void:
 	var flagship_row: Button = screen.roster.find_child("Ship1", true, false)
 	check(screen.selected_ship_id == state.fleet[0].id and state.fleet[0].flagship, "Ships selects the flagship when no ship is selected")
 	check(flagship_row.text == state.fleet[0].display_name and flagship_row.icon != null and flagship_row.icon.resource_path == "res://assets/flag.png", "Flagship row uses the supplied flag artwork instead of a generated icon")
-	check(screen.find_child("ScienceIcon", true, false) == null and screen.header.text == str(state.credits), "Header shows credits without a research-point balance")
+	var science_icon: TextureRect = screen.find_child("ScienceIcon", true, false)
+	check(science_icon != null and screen.header.text == str(state.credits), "Header shows credits and the science production icon")
+	check(screen.research_rate.text.ends_with(" RP/day")
+		and screen.research_rate.autowrap_mode == TextServer.AUTOWRAP_OFF,
+		"Header shows the one-line science production rate, not an RP balance")
+	check(absf(science_icon.global_position.y + science_icon.size.y / 2.0
+		- screen.research_rate.global_position.y - screen.research_rate.size.y / 2.0) <= 1.0,
+		"Research icon and rate are vertically aligned")
 	var preview: Control = load("res://scripts/fleet_ship_preview.gd").new()
 	preview.owned = state.fleet[0]
 	preview.size = Vector2(64, 64)
@@ -139,7 +146,9 @@ func run() -> void:
 		await settle()
 		check(screen.shop.get_global_rect().is_equal_approx(screen.center.get_global_rect()), "Buy panel covers exactly the center area")
 		check(not screen.shop.is_in_group("modal_ui") and not screen.shop.get_global_rect().intersects(screen.details_panel.get_global_rect()), "Buy panel leaves stock and roster accessible without a modal backdrop")
-		check(screen.find_child("ScienceIcon", true, false) == null, "No research-point resource appears in the header")
+		check(screen.find_child("ScienceIcon", true, false) != null
+			and screen.research_rate.text.ends_with(" RP/day"),
+			"Science production indicator remains visible on every tab")
 		for purchase: Button in screen.shop_rows.get_children():
 			check(purchase.size.x <= screen.shop.size.x, "Purchase text fits center panel width")
 		for filters: Control in [screen.stock.filters, screen.shop_filters]:

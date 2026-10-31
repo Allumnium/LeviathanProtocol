@@ -60,6 +60,27 @@ func star_layout(field: Control) -> Array:
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://.local/ui-polish"))
 	root.size = Vector2i(1280, 720)
+	var ui_theme: Theme = load("res://themes/ui_theme.tres")
+	var button_style := ui_theme.get_stylebox("normal", "Button") as StyleBoxFlat
+	var hover_style := ui_theme.get_stylebox("hover", "TacticalButton") as StyleBoxFlat
+	var pressed_style := ui_theme.get_stylebox("pressed", "TacticalButton") as StyleBoxFlat
+	check(button_style != null and button_style.bg_color.a == 1.0
+		and button_style.border_color != hover_style.border_color
+		and hover_style.border_width_left > button_style.border_width_left
+		and pressed_style.content_margin_top > button_style.content_margin_top,
+		"Tactical buttons have distinct hover and pressed feedback")
+	var panel_style := ui_theme.get_stylebox("panel", "PanelContainer") as StyleBoxFlat
+	check(panel_style != null and panel_style.corner_radius_top_left <= 6
+		and panel_style.border_width_left == 1,
+		"Panel containers use a subtle, low-chamfer shared frame")
+	check(ui_theme.get_stylebox("normal", "LineEdit") != null
+		and ui_theme.get_stylebox("normal", "TextEdit") != null,
+		"Single-line and multiline text boxes use shared themed surfaces")
+	var save_dialog: PopupPanel = load("res://scenes/save_design_dialog.tscn").instantiate()
+	check(save_dialog.theme == ui_theme
+		and save_dialog.get_node("Contents/ShipNameInput") is LineEdit,
+		"Ship-name editor field inherits the shared UI theme")
+	save_dialog.free()
 	state = root.get_node("GameState")
 	state.run_save_path = "user://ui-polish.json"
 	check(state.start_new_run(1, 151), "Start isolated UI fixture")
@@ -71,7 +92,15 @@ func run() -> void:
 	current_scene = screen
 	await settle()
 	check(screen.active_tab == "FLEET", "Fleet opens first")
-	check(screen.find_child("ScienceIcon", true, false) == null and screen.header.text == str(state.credits), "Header shows credits without a research-point balance")
+	var credits_icon: TextureRect = screen.find_child("CreditsIcon", true, false)
+	var science_icon: TextureRect = screen.find_child("ScienceIcon", true, false)
+	check(credits_icon != null and credits_icon.texture.resource_path == "res://assets/credits.png"
+		and science_icon != null and screen.header.text == str(state.credits)
+		and screen.research_rate.text.ends_with(" RP/day"),
+		"Header uses the credits icon and current science production")
+	check(absf(science_icon.global_position.y + science_icon.size.y / 2.0
+		- screen.research_rate.global_position.y - screen.research_rate.size.y / 2.0) <= 1.0,
+		"Science icon and production value align vertically")
 	var board: Control = screen.formation_view
 	board.camera = Vector2(20, -15)
 	board.zoom = 1.2

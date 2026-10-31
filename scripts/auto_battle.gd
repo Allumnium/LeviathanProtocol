@@ -111,6 +111,8 @@ func _ready() -> void:
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
 	destroy_neutral_targets.hide()
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
+	AudioManager.connect_ui_button(pause_button, &"detail")
+	AudioManager.connect_ui_button(fast_forward_button, &"detail")
 	simulation.weapon_fired.connect(
 		AudioManager.play_sfx.bind(SHOOT_SOUND, 1.0, COMBAT_BLASTER_VOLUME_DB, 35)
 	)
@@ -132,11 +134,14 @@ func _ready() -> void:
 	add_child(withdraw_button)
 	withdraw_button.offset_left = -110
 	withdraw_button.offset_right = -8
+	AudioManager.connect_ui_button(withdraw_button, &"question")
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
 	fast_forward_button.set_pressed_no_signal(GameState.battle_fast_forward)
 	pause_button.toggled.connect(_on_pause_toggled)
 	fast_forward_button.toggled.connect(_on_fast_forward_toggled)
+	AudioManager.connect_ui_button(defeat_accept_button)
+	AudioManager.connect_ui_button(defeat_close_button)
 	defeat_accept_button.pressed.connect(_return_to_main_menu)
 	defeat_close_button.pressed.connect(_return_to_main_menu)
 

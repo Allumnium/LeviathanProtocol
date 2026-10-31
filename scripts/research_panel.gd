@@ -154,6 +154,7 @@ func _refresh_summary() -> void:
 		summary_host.add_child(_label("%s / %d RP" % [ScienceRules.format_rp(float(state.get("research_progress", {}).get(selected_id, 0))), int(row.cost)]))
 		focus_button = _button("FOCUSED" if focused else "SET FOCUS")
 		focus_button.disabled = focused or not row.nearby or (state_override.is_empty() and (GameState.battle_pending or GameState.run_ended))
+		AudioManager.connect_ui_button(focus_button)
 		focus_button.pressed.connect(func() -> void: focus_requested.emit(selected_id))
 		summary_host.add_child(focus_button)
 	feedback = _label("")
