@@ -16,7 +16,7 @@
         {
           "id": "fore",
           "size": "L",
-          "type": "tech",
+          "type": "general",
           "rect": [
             234,
             55,
@@ -27,7 +27,7 @@
         {
           "id": "port",
           "size": "M",
-          "type": "offense",
+          "type": "general",
           "rect": [
             170,
             116,
@@ -38,7 +38,7 @@
         {
           "id": "starboard",
           "size": "M",
-          "type": "offense",
+          "type": "general",
           "rect": [
             302,
             116,
@@ -49,7 +49,7 @@
         {
           "id": "spine",
           "size": "M",
-          "type": "civic",
+          "type": "general",
           "rect": [
             242,
             220,
@@ -60,7 +60,7 @@
         {
           "id": "hold",
           "size": "XL",
-          "type": "civic",
+          "type": "general",
           "rect": [
             232,
             288,
@@ -71,7 +71,7 @@
         {
           "id": "aft_port",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             108,
             366,
@@ -82,7 +82,7 @@
         {
           "id": "aft_starboard",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             366,
             366,
@@ -93,7 +93,7 @@
         {
           "id": "inner_port",
           "size": "M",
-          "type": "defense",
+          "type": "general",
           "rect": [
             176,
             380,
@@ -104,7 +104,7 @@
         {
           "id": "inner_starboard",
           "size": "M",
-          "type": "tech",
+          "type": "general",
           "rect": [
             298,
             380,
@@ -133,7 +133,7 @@
         {
           "id": "port",
           "size": "M",
-          "type": "offense",
+          "type": "general",
           "rect": [
             72,
             284,
@@ -144,7 +144,7 @@
         {
           "id": "starboard",
           "size": "M",
-          "type": "offense",
+          "type": "general",
           "rect": [
             376,
             284,
@@ -155,7 +155,7 @@
         {
           "id": "center",
           "size": "M",
-          "type": "tech",
+          "type": "general",
           "rect": [
             220,
             244,
@@ -166,7 +166,7 @@
         {
           "id": "aft",
           "size": "S",
-          "type": "defense",
+          "type": "engine",
           "rect": [
             238,
             364,
@@ -202,7 +202,7 @@
         {
           "id": "port",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             106,
             320,
@@ -213,7 +213,7 @@
         {
           "id": "starboard",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             366,
             320,
@@ -238,7 +238,7 @@
         {
           "id": "hold",
           "size": "XL",
-          "type": "civic",
+          "type": "general",
           "rect": [
             198,
             176,
@@ -249,7 +249,7 @@
         {
           "id": "port",
           "size": "M",
-          "type": "defense",
+          "type": "general",
           "rect": [
             88,
             230,
@@ -260,7 +260,7 @@
         {
           "id": "starboard",
           "size": "M",
-          "type": "tech",
+          "type": "general",
           "rect": [
             372,
             230,
@@ -282,7 +282,7 @@
         {
           "id": "aft",
           "size": "S",
-          "type": "tech",
+          "type": "engine",
           "rect": [
             240,
             394,
@@ -307,7 +307,7 @@
         {
           "id": "fore",
           "size": "L",
-          "type": "tech",
+          "type": "general",
           "rect": [
             232,
             72,
@@ -318,7 +318,7 @@
         {
           "id": "port",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             174,
             238,
@@ -329,7 +329,7 @@
         {
           "id": "starboard",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             302,
             238,
@@ -340,7 +340,7 @@
         {
           "id": "center",
           "size": "L",
-          "type": "civic",
+          "type": "general",
           "rect": [
             230,
             302,
@@ -351,7 +351,7 @@
         {
           "id": "aft",
           "size": "S",
-          "type": "defense",
+          "type": "engine",
           "rect": [
             238,
             410,
@@ -387,7 +387,7 @@
         {
           "id": "sensor",
           "size": "S",
-          "type": "tech",
+          "type": "general",
           "rect": [
             240,
             160,
@@ -398,7 +398,7 @@
         {
           "id": "port",
           "size": "S",
-          "type": "offense",
+          "type": "general",
           "rect": [
             106,
             244,
@@ -409,7 +409,7 @@
         {
           "id": "starboard",
           "size": "S",
-          "type": "defense",
+          "type": "general",
           "rect": [
             374,
             244,
@@ -420,7 +420,7 @@
         {
           "id": "center",
           "size": "M",
-          "type": "civic",
+          "type": "general",
           "rect": [
             214,
             226,
@@ -431,7 +431,7 @@
         {
           "id": "aft",
           "size": "S",
-          "type": "tech",
+          "type": "engine",
           "rect": [
             238,
             360,

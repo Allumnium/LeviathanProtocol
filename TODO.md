@@ -1,11 +1,13 @@
 # Leviathan TODO
 
-Current model: a physical hangar with owned chassis and individual equipment instances. Credits are the only spendable resource. No square/hex building, materials, equipment recipes or construction regions. Optional extras remain deferred.
+Current target: a medium-sized vertical slice, with UI/UX finalized before deeper content expansion. Keep the physical hangar, existing equipment and enough progression to exercise the whole play loop. Let the story drive later depth. The full-campaign backlog below is deferred, not a prerequisite for this slice.
+
+Current model: owned chassis and individual equipment instances; credits are the only spendable resource. No square/hex building, materials, equipment recipes or construction regions. Preserve implemented content and saves; this scope change does not require deleting working systems. Optional extras remain deferred.
 
 ## Confirmed design
 
 - Six supplied chassis: the required flagship_basic.png flagship, plus Corsair, Fighter, Transport, Frigate and Drone. Slot positions/types/sizes remain draft content for review.
-- Slots use Offense, Defense, Tech or Civic and S/M/L/XL. Require exact type AND size matches. Smaller equipment does not fill larger slots.
+- Slots require exact S/M/L/XL size matches; smaller equipment does not fill larger slots. General mounts accept any equipment category of matching size. Keep only artwork-supported forward Offense or rear Thruster/Defense restrictions. Transport side mounts and ordinary side/utility mounts across all chassis are general-purpose. Offense/Defense/Tech/Civic describe equipment, not mandatory categories for general mounts.
 - Mount dropdowns equip owned equipment instances from a shared inventory. Transfers are free. Buy researched equipment/chassis at shipyards; battles also grant equipment loot. No design drafts, named blueprints or free copies.
 - No functional equipment orientation. Weapons aim automatically; thrusters provide ship-wide thrust.
 - Exactly one flagship, mandatory every battle. Its command budget limits the other ships; no reserves, design-family limits or old act-based deployment capacity. Flagship loss ends the run.
@@ -27,11 +29,29 @@ Current model: a physical hangar with owned chassis and individual equipment ins
 
 The playable entry is NEW RUN -> Hangar. CONTINUE resumes physical hangar checkpoints; old material runs remain separate. Shipyards sell physical ships, not bulk blueprint construction orders. Passenger/cargo trade remains core. RP remains travel-generated progression. Slot bonuses and adjacency equipment stay deferred.
 
-## Remaining core content
+## Completed intermediate batch
 
 Original milestone IDs are retained for historical cross-reference; all implementations must use slots and credits.
 
 - [x] 56a: Magazine/Railgun, Flight Deck/Bomber and Uplink/Computer are physical, research-gated equipment. Magazines/computers support all host weapons and stack as requested. Finite UID-based carrier reserves persist across retries/transfers; craft have payload/lifetime/entity limits, point-defense counters and source-loss handling. Command marks respect visibility. 143 carrier checks, 155 intermediate checks, six natural Act II combat fixtures and the eleven-suite baseline pass. See docs/INTERMEDIATE_EQUIPMENT.md; broad tuning remains 61/67/70.
+
+## Active priority: medium vertical slice and UI/UX
+
+Do these next, in order. Use existing content; add only what is necessary to make the slice understandable and complete. Do not continue filling the equipment tree or all three acts first.
+
+- [ ] V1: Audit the actual native game from game-design and UX perspectives: new run, hangar, equipment ownership/selection, shop, formation, research, map, battle, report and Continue. Review positioning, hierarchy, usability, color, feedback and bugs at supported resolutions. Record concrete findings and prioritize blockers. Preserve Starhull/shared theme, minimal text, no hover tooltips or Tab/arrow cycling, and the shared X.
+- [ ] V2: Fix the audit findings across the core screens. Make fitting compatibility, owned versus purchasable equipment, damage/repair, research focus/progress, travel choices and battle outcomes clear. Avoid unnecessary scrolling, repeated stats, extra dialogs and unexplained controls. Prefer consistent existing interactions over new systems.
+- [ ] V3: Shape a coherent representative route using current content: shipyard purchase/refit -> travel/research -> combat -> report/loot/repair -> another meaningful fleet choice -> a clear slice endpoint. Include passenger/cargo usefulness and a small range of encounter roles. Choose route length from playtesting; no new boss phases, full Act II/III expansion or finished story required. Keep existing full-route content/saves intact while the slice route is defined.
+- [ ] V4: Tune only the slice's credits, command/mount choices, travel days and research costs so players can experience a few distinct viable loadouts without excessive grind. Use current labs, weapons, support equipment and trade. Defer exhaustive balance and new research tiers.
+- [ ] V5: Verify the slice's saves/Continue, failed transaction rollback, ownership, travel/reward settlement, flagship defeat and finite resources. Profile purchases, transfers, repairs and battles; eliminate noticeable interaction stalls. Reuse existing coverage and add regressions for discovered issues.
+- [ ] V6: Play the whole slice through the actual UI at supported resolutions, including readable combat/status effects and reduced flashes. Deliver a reviewable build with remaining UX issues recorded. Finalize UI/UX with the owner, then revisit content depth around the story.
+
+Implemented playtest adjustment: reviewed all six chassis against the art and generalized ordinary mounts; retained four forward weapon mounts and four rear engine/defense mounts. Sizes/positions are unchanged. Shared fit, checkpoint and dropdown rules now agree; see docs/MOUNT_RULES.md. V1-V6 remain the active work queue.
+
+## Deferred: story-led depth after UI/UX
+
+These retain the earlier full-campaign milestone IDs. They are not required for the current slice and must not automatically resume just because an earlier item is implemented. Revisit scope, progression and priorities when the story needs are clearer. The broader versions of 66-70 below extend the slice checks; they do not defer essential slice readability, reliability or performance.
+
 - [ ] 56b: Finish ECM Suite / Phase Drive using physical ships and credits: bounded lock breaks, target coordination, valid-space/range checks, source loss, research gates and persistent cooldowns. No optional abilities or adjacency bonuses.
 - [ ] 58: Intermediate passenger/science content: Luxury Suites, Analysis Array and bounded support effects. No material refinery requirements.
 - [ ] 59: Act II enemy combinations with readable roles and counters, independent of player fleet strength. Optional cloak/environment variants remain deferred.

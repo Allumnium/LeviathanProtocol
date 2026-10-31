@@ -184,7 +184,7 @@ func _show_details() -> void:
 	if not selected_slot.is_empty():
 		for slot: Dictionary in owned.chassis.slots:
 			if slot.id == selected_slot:
-				details.add_child(_label("%s | %s" % [slot.type.capitalize(), slot.size]))
+				details.add_child(_label(SlotCatalog.slot_label(slot)))
 		var instance: Dictionary = owned.mounts.get(selected_slot, {})
 		if not instance.is_empty():
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))

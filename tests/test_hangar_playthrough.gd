@@ -7,6 +7,7 @@ var failures := 0
 var checks := 0
 var summaries: Array[Dictionary] = []
 var science_build := false
+var loadout_preferences: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/playthrough_mount_preferences.json"))
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -19,14 +20,15 @@ func check(ok: bool, title: String) -> void:
 
 func item_score(item: Dictionary, slot: Dictionary, trade: bool) -> float:
 	var stats := SlotCatalog.stats_for(item.id, int(item.rank))
-	if slot.type == "offense":
+	var preference: String = slot.get("preference", slot.type)
+	if preference == "offense":
 		var dps := 0.0
 		for weapon in stats.weapons:
 			dps += weapon.get_dps()
 		return dps
-	if slot.type == "defense":
+	if preference == "defense":
 		return stats.integrity
-	if slot.type == "tech":
+	if preference == "tech":
 		if stats.shields > 0:
 			return 100 + stats.shields
 		if item.id == "repair_drone_bay":
@@ -47,6 +49,10 @@ func item_score(item: Dictionary, slot: Dictionary, trade: bool) -> float:
 func outfit(ship_id: int, trade: bool) -> void:
 	var original: HangarShip = state.owned_ship(ship_id)
 	for slot: Dictionary in original.chassis.slots:
+		# Fixed build goals preserve these regression policies; they do not limit
+		# what the game permits in a general-purpose mount.
+		slot = slot.duplicate(true)
+		slot["preference"] = loadout_preferences[original.chassis_id][slot.id]
 		var owned: HangarShip = state.owned_ship(ship_id)
 		var current: Dictionary = owned.mounts.get(slot.id, {})
 		var score := -1.0 if current.is_empty() else item_score(SlotCatalog.find_equipment(current.equipment_id, int(current.rank)), slot, trade)

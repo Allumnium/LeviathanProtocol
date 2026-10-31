@@ -2,7 +2,7 @@
 
 Milestone 56a adds six physical equipment types. ECM Suite and Phase Drive remain unfinished under 56b. No optional abilities, slot bonuses or material systems are activated.
 
-| Item | Exact mount | Credits | Effect |
+| Item | Class / size | Credits | Effect |
 | --- | --- | ---: | --- |
 | Ammunition Magazine | Tech M | 120 | +20% host weapon cycling per operational magazine; additive stacking, including bay launch cycling. |
 | Railgun | Offense L | 240 | 24 damage, 500 range, 6s cycle. Projectile cannot be intercepted as a missile. Ignores Sentinel protection against unshielded hull; shields and boss protection still apply. |
@@ -11,7 +11,7 @@ Milestone 56a adds six physical equipment types. ECM Suite and Phase Drive remai
 | Command Uplink | Tech M | 140 | Automatically marks a visible target within 500 every 20s. +20% allied damage for 5s; strongest mark/analysis effect, without multiplying them. |
 | Tactical Computer | Tech L | 220 | Each operational computer contributes one synchronization per 12s. Releases all host weapon cooldowns against a visible, unshielded target; also synchronizes bay launch timers. |
 
-Prices, stats and current mount maps remain initial tuning. Magazines and computers support **all host weapons**, without adjacency or a target-count limit. Their copies stack as explicitly requested: two magazines give +40% cycling; two computers synchronize twice as often. They do not multiply damage or refill craft. Stacking tests use additional matching mounts in an in-memory future-chassis fixture: the supplied draft layouts currently have at most one Tech M and one Tech L mount per chassis.
+Equipment classes in this table are metadata. General mounts accept any matching-size class; only artwork-supported restrictions apply. See [MOUNT_RULES.md](MOUNT_RULES.md). Prices, stats and current mount maps remain initial tuning. Magazines and computers support **all host weapons**, without adjacency or a target-count limit. Their copies stack as explicitly requested: two magazines give +40% cycling; two computers synchronize twice as often. They do not multiply damage or refill craft. The focused physics tests use extra matching mounts in memory. The current general-mount checks also buy and fit two real magazines in a Transport and two real computers in a Frigate, preserving ownership and stacking across reload.
 
 Siege I/II, Carrier I/II and Command I/II are active research nodes with their existing prerequisites, prices and mutually exclusive branch rules. Purchase/fitting remains research-gated; acquisition is physical, at shipyards or through eligible battle loot. No new menu, modal, hover tooltip or keyboard focus navigation is added. Bay details show the allowance; battle status shows ready/active craft. Marked visible enemies have a small gold ring.
 

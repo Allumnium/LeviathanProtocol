@@ -2,6 +2,7 @@ class_name SlotCatalog
 extends RefCounted
 
 const TYPES := ["offense", "defense", "tech", "civic"]
+const SLOT_TYPES := ["general", "engine", "offense", "defense", "tech", "civic"]
 const SIZES := ["S", "M", "L", "XL"]
 const EQUIPMENT_PATH := "res://data/slot_equipment.json"
 static var _chassis: Array[Dictionary] = []
@@ -43,7 +44,24 @@ static func find_equipment(id: String, rank := 1) -> Dictionary:
 	return {}
 
 static func compatible(slot: Dictionary, item: Dictionary) -> bool:
-	return not item.is_empty() and slot.size == item.size and slot.type == item.type
+	if item.is_empty() or slot.get("size") != item.get("size"):
+		return false
+	match slot.get("type"):
+		"general":
+			return item.get("type") in TYPES
+		"engine":
+			return item.get("type") == "defense" or int(item.get("part_type", -1)) in [ShipPart.Type.THRUSTER,
+				ShipPart.Type.LARGE_THRUSTER, ShipPart.Type.SHIELD, ShipPart.Type.SHIELD_RELAY]
+		_:
+			# Explicit category mounts remain usable in historical DTO fixtures.
+			return slot.get("type") == item.get("type")
+
+static func slot_label(slot: Dictionary) -> String:
+	match slot.get("type"):
+		"general": return slot.size
+		"engine": return "%s | Thruster / Defense" % slot.size
+		"offense": return "%s | Weapons" % slot.size
+		_: return "%s | %s" % [slot.size, str(slot.type).capitalize()]
 
 static func unlocked(item: Dictionary, grants: Dictionary) -> bool:
 	return not item.is_empty() and not item.get("retired", false) and grants.get("error", "").is_empty() and item.id in grants.get("equipment_ids", []) and item.rank <= int(grants.get("ranks", {}).get(item.id, 0))
@@ -119,7 +137,7 @@ static func valid_chassis(data: Variant) -> bool:
 				return false
 		var slots := {}
 		for slot: Variant in entry.slots:
-			if not slot is Dictionary or not slot.get("id") is String or slots.has(slot.id) or slot.get("type") not in TYPES or slot.get("size") not in SIZES or not slot.get("rect") is Array or slot.rect.size() != 4:
+			if not slot is Dictionary or not slot.get("id") is String or slots.has(slot.id) or slot.get("type") not in SLOT_TYPES or slot.get("size") not in SIZES or not slot.get("rect") is Array or slot.rect.size() != 4:
 				return false
 			slots[slot.id] = true
 			for value: Variant in slot.rect:

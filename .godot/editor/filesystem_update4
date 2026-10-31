@@ -133,3 +133,7 @@ res://scripts/hangar_canvas.gd
 res://scripts/hangar_research.gd
 res://scripts/legacy/hex_design_library.gd
 res://tests/test_legacy_archives.gd
+res://scripts/hangar_carriers.gd
+res://tests/test_hangar_carriers.gd
+res://tests/test_hangar_playthrough.gd
+res://tests/test_hangar_mounts.gd

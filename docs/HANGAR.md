@@ -1,10 +1,12 @@
 # Physical hangar
 
+Current scope is a medium vertical slice focused on UI/UX, using the existing systems and equipment. Follow V1-V6 in TODO.md. Further equipment tiers, bespoke boss phases and full-campaign depth are deferred for a later story-led pass. The implementation and test history below describes existing work, not a requirement to finish all that depth before reviewing the slice.
+
 The actual campaign now uses the hangar. Start a new run from the main menu; Continue resumes a physical hangar checkpoint. The previous material run and blueprint libraries remain separate. There is no active ship-design screen or material wallet.
 
 ## Ownership and transactions
 
-- Each owned chassis has fixed typed mounts. Equipment must match both type and size exactly.
+- Each chassis has fixed mounts with exact S/M/L/XL size matching. Most accept any same-size equipment; restrict only clearly forward weapon or rear engine/defense mounts. See [MOUNT_RULES.md](MOUNT_RULES.md).
 - Equipment has a unique inventory ID and persistent HP. A mount references that instance; free transfers move it between ships or stock. Replacing an item returns the old item to stock.
 - Buy ships/equipment at inhabited shipyards. Research unlocks equipment purchases/fitting. Winning a battle also awards one deterministic, usable equipment instance. Loot is committed with the battle outcome and cannot be claimed twice.
 - Credits pay for purchases and repairs. Stock equipment and non-flagship chassis can be sold/salvaged immediately. Salvaging returns damaged equipment to stock. The flagship cannot be salvaged or bought a second time.
@@ -41,8 +43,8 @@ Hangar-specific checks cover exact fitting, physical ownership, credit charging,
 
 Nine natural full-route playthroughs now pass: combat, trade and science policies across three seeds, totaling 126 battles with normal purchases, repair costs and research. See [HANGAR_PLAYTEST.md](HANGAR_PLAYTEST.md). The earlier forced-outcome traversal remains a persistence/connectivity test. Neither test establishes unfinished Brood Architect/Leviathan mechanics; those and broader balance remain in TODO.md.
 
-Verification: nine current baseline suites passed; the native UI suite passed 289 checks, including all six chassis at three resolutions, main-menu Continue and ranked-lab production/details. Physical-state, persistence and traversal suites passed 47, 89 and 193 checks respectively. A 13-ship refit fixture completed each transaction in under 40 ms in the recorded runs. After C2 cleanup, static runtime resource validation found 106 references with none missing. Existing Windows certificate-store and renderer shutdown diagnostics are still emitted by this Godot environment.
+Verification: the latest mount-policy pass has twelve current baseline suites passing; the native UI suite passed 313 checks, including all six chassis at three resolutions, main-menu Continue and ranked-lab production/details. Physical-state, persistence and traversal suites passed 47, 89 and 193 checks respectively. A 13-ship refit fixture completed each transaction in under 40 ms in the recorded runs. After the mount-policy pass, static runtime resource validation found 109 references with none missing. Existing Windows certificate-store and renderer shutdown diagnostics are still emitted by this Godot environment.
 
 Gravitic Snare / Disruption II are deferred because their old ability path is not wired into physical-ship/credit transactions. They are hidden from new purchases, research focus and loot. Previously earned research and item instances remain loadable; inactive fitted items must be unequipped before departure and can be sold. This avoids silently invalidating older physical saves.
 
-Six core intermediates now operate in the physical model: ship-wide stacking magazines/computers, railguns, finite interceptor/bomber bays and automatic command marks. See [INTERMEDIATE_EQUIPMENT.md](INTERMEDIATE_EQUIPMENT.md) for conservation rules, exact mounts and test limits. ECM/Phase remain unfinished. The current runner has eleven suites.
+Six core intermediates now operate in the physical model: ship-wide stacking magazines/computers, railguns, finite interceptor/bomber bays and automatic command marks. See [INTERMEDIATE_EQUIPMENT.md](INTERMEDIATE_EQUIPMENT.md) for conservation rules, exact mounts and test limits. ECM/Phase remain unfinished. The current runner has twelve suites.

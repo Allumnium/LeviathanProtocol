@@ -1,0 +1,47 @@
+{
+  "flagship_basic": {
+    "fore": "tech",
+    "port": "offense",
+    "starboard": "offense",
+    "spine": "civic",
+    "hold": "civic",
+    "aft_port": "offense",
+    "aft_starboard": "offense",
+    "inner_port": "defense",
+    "inner_starboard": "tech"
+  },
+  "corsair": {
+    "fore": "offense",
+    "port": "offense",
+    "starboard": "offense",
+    "center": "tech",
+    "aft": "defense"
+  },
+  "fighter": {
+    "fore": "offense",
+    "port": "offense",
+    "starboard": "offense"
+  },
+  "transport": {
+    "hold": "civic",
+    "port": "defense",
+    "starboard": "tech",
+    "fore": "offense",
+    "aft": "tech"
+  },
+  "frigate": {
+    "fore": "tech",
+    "port": "offense",
+    "starboard": "offense",
+    "center": "civic",
+    "aft": "defense"
+  },
+  "drone": {
+    "fore": "offense",
+    "sensor": "tech",
+    "port": "offense",
+    "starboard": "defense",
+    "center": "civic",
+    "aft": "tech"
+  }
+}

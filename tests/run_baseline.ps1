@@ -7,7 +7,7 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 $runRoot = Join-Path $projectRoot ('.local/checks/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $runRoot | Out-Null
 $previousAppData = $env:APPDATA
-$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_playthrough', 'hangar_ui', 'legacy_archives', 'ship_stats', 'battle_replay')
+$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'hangar_playthrough', 'hangar_ui', 'legacy_archives', 'ship_stats', 'battle_replay')
 try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     foreach ($suite in $suites) {
