@@ -1,6 +1,15 @@
 class_name ResearchFocusRules
 extends RefCounted
 
+# Keep historical project prices and ledger debits intact when loading older runs.
+const PRICING_VERSION := 1
+const LEGACY_PRICES := {"laboratory_ii": 40, "laboratory_iii": 80}
+
+static func cost(id: String, progress: Dictionary) -> int:
+	if int(progress.get("research_pricing_version", 0)) == 0 and LEGACY_PRICES.has(id):
+		return LEGACY_PRICES[id]
+	return int(GameDefinitions.find("research", id).get("cost_rp", 0))
+
 # Focus eligibility deliberately does not depend on the unspent RP balance.
 static func eligible(id: String, progress: Dictionary) -> bool:
 	var r := ResearchRules.requirements(id, progress.research_ids, progress.story_flags, progress.branch_choices)
@@ -15,8 +24,7 @@ static func validate(progress: Dictionary) -> String:
 	for id in projects:
 		if not id is String or not eligible(id, progress):
 			return "Invalid research project."
-		var definition := GameDefinitions.find("research", id)
-		if not RunProgressData._rp_number(projects[id]) or projects[id] < 0 or projects[id] >= definition.cost_rp:
+		if not RunProgressData._rp_number(projects[id]) or projects[id] < 0 or projects[id] >= cost(id, progress):
 			return "Invalid research project progress."
 	if not focus.is_empty() and not eligible(focus, progress):
 		return "Unavailable research focus."
@@ -36,7 +44,7 @@ static func allocate(checkpoint: Dictionary) -> Dictionary:
 	var definition := GameDefinitions.find("research", id)
 	var projects: Dictionary = progress.get("research_progress", {}).duplicate()
 	var before := float(projects.get(id, 0))
-	var amount := minf(float(progress.research_points), float(definition.cost_rp) - before)
+	var amount := minf(float(progress.research_points), float(cost(id, progress)) - before)
 	if amount <= 0:
 		return result
 	var after := before + amount
@@ -46,7 +54,7 @@ static func allocate(checkpoint: Dictionary) -> Dictionary:
 		return {}
 	result = transaction.checkpoint
 	projects[id] = after
-	if after == int(definition.cost_rp):
+	if after == cost(id, progress):
 		result.progress.research_ids.append(id)
 		if not definition.family_id.is_empty():
 			result.progress.branch_choices[definition.family_id] = definition.path_id

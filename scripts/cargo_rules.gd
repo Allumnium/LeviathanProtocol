@@ -67,7 +67,7 @@ static func manifest(fleet: Array[FleetShip]) -> Dictionary:
 				continue
 			var operational: bool = owned.is_alive() and unit.hp > 0
 			result[PassengerRules.component_id(owned.id, index)] = {"ship_id": owned.id,
-				"unit_index": index, "capacity": CAPACITY if operational else 0, "operational": operational}
+				"unit_index": index, "capacity": CAPACITY if operational else 0, "operational": operational, "load_lost": unit.get("load_lost", false)}
 	return result
 
 static func empty_record(entry: Dictionary) -> Dictionary:
@@ -153,7 +153,7 @@ static func settle_losses(checkpoint: Dictionary, fleet: Array[FleetShip], scope
 	ids.sort()
 	for id: String in ids:
 		var record: Dictionary = records[id]
-		if int(record.quantity) == 0 or (current.get(id, {}).get("operational", false) and int(record.ship_id) not in lost_ships):
+		if int(record.quantity) == 0 or (current.get(id, {}).get("operational", false) and not current.get(id, {}).get("load_lost", false) and int(record.ship_id) not in lost_ships):
 			continue
 		var economy: Dictionary = result.economy.duplicate(true)
 		economy.cargo.holds[id] = empty_record(record)

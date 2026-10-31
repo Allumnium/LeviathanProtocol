@@ -10,6 +10,7 @@ var mount_offset := Vector2.ZERO
 var is_projectile_weapon := false
 var component_index := -1
 var interceptable := false
+var charge_seconds := 0.0
 
 
 func _init(
@@ -55,4 +56,5 @@ func copy() -> ShipWeaponStats:
 	copied_weapon.is_projectile_weapon = is_projectile_weapon
 	copied_weapon.component_index = component_index
 	copied_weapon.interceptable = interceptable
+	copied_weapon.charge_seconds = charge_seconds
 	return copied_weapon

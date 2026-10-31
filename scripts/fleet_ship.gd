@@ -175,6 +175,7 @@ func damage_cell(cell: Vector2i, amount: float) -> Dictionary:
 	var dealt := minf(unit.hp, amount)
 	unit.hp -= dealt
 	if unit.hp <= 0.0:
+		unit["load_lost"] = true # Reconstruction restores hardware, never its former contents.
 		removed.append_array(unit.cells)
 		visual_revision += 1
 		# Losing the command center destroys the ship, but does not physically

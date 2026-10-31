@@ -80,7 +80,7 @@ Invariants: proximity-only enemy strength; three general design families with pl
 | C | 17–27 | Reviewed functional support/research loop and general-slot opening routes at 300 credits. See docs/SHARED_RESEARCH.md and docs/OPENING_LOOP.md |
 | D | 28–35, excluding optional 34 | Reviewed: passengers, cargo, finite salvage and economy/debt routes; see docs/ECONOMY_LOOP.md |
 | E | 36–46, excluding optional 37/40/44 | Base visibility, Scan, asteroids, finite ore and mining; hazards are optional |
-| F | 50–54 | Complete first act |
+| F | 50-54 | Reviewed: first-act Auto routes, affordable lab progression, persistence/economy/visibility/ore and native minimum-size/2x checks; see docs/FIRST_ACT.md |
 | G | 55–61, excluding optional 57 | Intermediate doctrines and second boss |
 | H | 62–70 | Endpoints, full campaign and release validation |
 
@@ -363,18 +363,26 @@ Invariants: proximity-only enemy strength; three general design families with pl
 
     **Integration validation (step 52; 2026-10-29):** All 45 suites pass in .local/warden/baseline.log (isolated run .local/checks/c6195ad0087a43c495fead290afd1e6c/). Final affected reruns additionally pass Warden/native, frozen encounters (1,512 allocations), transactions, battle encounters, campaign traversal/map (1,000 content seeds), nine opening Auto routes and fresh-profile UI review. Final evidence: native-final.log, frozen_encounters-final.log, transactions-final.log, battle_encounters-final.log, campaign-map-final.log, opening_loop-final.log and ui-fresh.log under .local/warden/. Native 640x360 checks include independent body/pylon pointer targets, hidden-state pixel equality and the scroll-free boss preview. Preview sizing/camera reservation also fixes its clipped travel-button frame. The fresh UI run records placement/add/remove 58/343/255 ms; an earlier reused-profile preference fixture needed the fresh rerun. Whitespace checks pass. Optional extras stay deferred; step 53 is next.
 
-53. [ ] **Complete the first act.**
+53. [x] **Complete the first act.**
     Replace relevant placeholders and introduce research/adjacency, boarding/trade, Scan and optional mining with short contextual guidance.
     Keep guidance concise and contextual; no Port/Story navigation buttons or automatic narrative/service text panels. Players choose how to integrate economic and science equipment into their three general design families.
     **Done when:** several ordinary fleets finish on Auto and the intended baseline lab progression is affordable. The act is complete without optional upgrades, additional early abilities, cloak or environmental hazards.
 
-54. [ ] **Review the vertical slice.**
+    **Result (2026-10-30):** New-run lab II/III costs are 12/24 RP for daily production; historical runs retain 40/80 prices and partial projects through versioned validation, allocation and tree display. Six actual eight-journey Auto routes across seeds 42/1357/12345 pass with starter-only and player-chosen lab fleets. All three lab routes research and construct a normally priced Lab II revision at row four, before boss rewards, and finish with 716?736 credits after repairs. Added concise, explicitly opened help for adjacency/research/boarding/trade/Scan/mining and inline targeting instructions; no automatic panels or tooltips. Wider lab-rank/research balance remains step 61. See docs/FIRST_ACT.md.
+
+54. [x] **Review the vertical slice.**
     Run persistence, economy, visibility, ore conservation and full-act checks plus actual minimum-resolution/fast-forward playtests.
     **Done when:** no duplication, targeting leak or progression blocker remains. Review Gate F before expanding content.
 
-55. [ ] **Implement Energy and Survival intermediates.**
+    **Gate F review (2026-10-30):** All 45 suites pass in .local/first-act/baseline.log (isolated run .local/checks/f3b7744952e1404f920c00d733be82ee/), covering persistence, failed/duplicate settlement, economy/debt, visibility, finite ore, six full acts and 600 basic battles. Four native research/Scan/mining/Warden suites pass at 640x360, including actual pointer input, pause/2x, hidden-state pixel equality and the scroll-free boss preview. Historical-save and live-tree price assertions additionally pass in compat-research_focus.log and compat-research_ui.log. Reviewed native captures and whitespace checks pass; UI placement/add/remove is 47/275/216 ms. Known certificate-store and engine shutdown diagnostics remain separately tracked. This signs off the first act, not the full MVP; required step 55 is next and optional extras remain deferred.
+
+55. [x] **Implement Energy and Survival intermediates.**
     Add Lens/Lance versus Ion/Snare, and Bulkhead/Relay versus Drone Bay/Nanoforge.
     **Done when:** exclusive recipes stay unambiguous, repairs/shields are bounded and each path changes combat decisions.
+
+    **Result (2026-10-30):** Enabled Optics/Disruption and Bastion/Renewal tiers I-II and eight components, while endpoints stay gated. Lens adjacency/charged two-component Lance, shield-pressure Ion/Pulse interruption, visible-area Gravity Well, bounded Bulkhead/Relay protection and finite interceptable repair drones/once-per-host Nanoforge reconstruction work with normal branch recipes and paid general-slot construction. Shared cooldowns, source loss, hidden-state honesty, per-encounter support expenditure and occupied reconstruction losses survive saves/retries; no passengers or cargo return from a rebuilt component. Crew affects drone cadence without enlarging reserves; new energy weapons receive Energy Manipulation under the existing cap. See docs/COMBAT_DOCTRINES.md.
+
+    **Integration validation (step 55):** All 46 suites pass in .local/doctrines/baseline-final.log (isolated run .local/checks/8ac33a9b093f4a6eb7d2421266ee6877/), including first-act Auto routes, finite ore, economy/debt, failed/duplicate writes, replay and 600 battles. Final rate integration and reconstructed-battle settlement additionally pass six affected suites in integration-*.log. Native final doctrine and research-tree checks pass at 640x360: actual pointer casts, pause/2x, durable cooldowns, visible charge warning, hidden-geometry pixel equality and fitting research details/focus controls. Reviewed captures are in .local/doctrines/. Placement/add/remove: 46/274/213 ms; builder mean 39.37 ms. Whitespace checks pass. Wider research/campaign tuning remains steps 61/67; optional extras stay deferred. Step 56 is next.
 
 56. [ ] **Implement Force-projection and Fleet-operations intermediates.**
     Add Magazine/Railgun versus Flight Deck/Bomber, and Uplink/Computer versus ECM/Phase.

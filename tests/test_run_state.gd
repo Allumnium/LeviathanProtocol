@@ -92,7 +92,8 @@ func _run() -> void:
 		"Signed debt, RP and full-precision seed must survive JSON round-trip.")
 	_check(state.is_equipment_available(ShipPart.Type.LASER) and state.research_branch_choices.get("energy") == "optics",
 		"Restore research and branch commitment from the run, not Archive.")
-	_check(not state.is_equipment_available(ShipPart.Type.FOCUSING_LENS), "Unimplemented grants remain unavailable.")
+	_check(state.is_equipment_available(ShipPart.Type.FOCUSING_LENS) and not state.is_equipment_available(ShipPart.Type.STELLAR_LANCE),
+		"Restored intermediate grants are available while unimplemented endpoints stay unavailable.")
 	_check(state.fleet_design_slots.has("Archived Laser") and state.story_flags.get("boss_i_defeated", false),
 		"Restore active design families and story flags.")
 	var valid: Dictionary = state.run_progress_snapshot()

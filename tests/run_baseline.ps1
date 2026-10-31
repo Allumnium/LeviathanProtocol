@@ -32,6 +32,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Baseline tuning suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_shared_research.gd --log-file (Join-Path $runRoot 'shared-research.log')
     if ($LASTEXITCODE -ne 0) { throw "Shared research suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_combat_doctrines.gd --log-file (Join-Path $runRoot 'combat-doctrines.log')
+    if ($LASTEXITCODE -ne 0) { throw "Energy/Survival doctrine suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_passengers.gd --log-file (Join-Path $runRoot 'passengers.log')
     if ($LASTEXITCODE -ne 0) { throw "Passenger state suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_passenger_art.gd --log-file (Join-Path $runRoot 'passenger-art.log')

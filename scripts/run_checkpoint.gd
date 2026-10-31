@@ -293,6 +293,8 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 			return false
 		if entry.field.has("repair_reserves") and not SharedSupport.valid_reserves(entry.field.repair_reserves):
 			return false
+		if entry.field.has("doctrine_pool") and not CombatDoctrines.valid_pool(entry.field.doctrine_pool):
+			return false
 		if entry.field.has("repair_pool") and not SharedSupport.valid_pool(entry.field.repair_pool):
 			return false
 		if entry.field.has("asteroids") and not AsteroidField.valid(entry.field.asteroids):
@@ -326,6 +328,8 @@ static func _valid_encounter_progress(value: Variant, count: int) -> bool:
 					if not id is String or seen_abilities.has(id) or GameDefinitions.find("abilities", id).is_empty():
 						return false
 					seen_abilities[id] = true
+			if not CombatDoctrines.valid_pool(context.get("doctrine_pool", {})):
+				return false
 			if not SharedSupport.valid_pool(context.get("repair_pool", {"capacity": 0, "spent": 0.0})):
 				return false
 		if entry.has("ship_ids"):

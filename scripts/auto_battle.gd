@@ -186,7 +186,7 @@ func _physics_process(delta: float) -> void:
 	if objective_label != null:
 		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else simulation.encounter.label(simulation)
 	if repair_label != null:
-		repair_label.visible = not simulation.repair_reserves.is_empty()
+		repair_label.visible = not simulation.repair_reserves.is_empty() or simulation.doctrines.pool.get("repair_capacity", 0) > 0 or simulation.doctrines.pool.get("rebuild_capacity", 0) > 0
 		var remaining := 0.0
 		for member in simulation.players:
 			if not member.is_alive() or member.owned_ship == null:
@@ -194,7 +194,11 @@ func _physics_process(delta: float) -> void:
 			for index in range(member.owned_ship.units.size()):
 				if member.owned_ship.units[index].hp > 0:
 					remaining += float(simulation.repair_reserves.get(SharedSupport.reserve_key(member.owned_ship, index), 0.0))
-		repair_label.text = "REPAIR RESERVE: %.1f HP" % minf(remaining, maxf(0, simulation.repair_capacity - simulation.repair_spent))
+		var drone_remaining := maxf(0, simulation.doctrines.pool.get("repair_capacity", 0) - simulation.doctrines.pool.get("repair_spent", 0))
+		var rebuilds: int = simulation.doctrines.pool.get("rebuild_capacity", 0) - simulation.doctrines.pool.get("rebuilt", []).size()
+		repair_label.text = "REPAIR: %.1f HP" % (minf(remaining, maxf(0, simulation.repair_capacity - simulation.repair_spent)) + drone_remaining)
+		if simulation.doctrines.pool.get("rebuild_capacity", 0) > 0:
+			repair_label.text += " | REBUILD: %d" % rebuilds
 
 
 func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:

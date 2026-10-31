@@ -296,6 +296,16 @@ static func get_catalog() -> Array[ShipPartPattern]:
 	patterns.append(_shared_pattern(ShipPart.Type.EXTRACTION_DRILL, drill))
 	patterns.append(_shared_pattern(ShipPart.Type.ORE_PROCESSOR, ShipPartStats.new(0, 0, 9, 0)))
 	patterns.append(_shared_pattern(ShipPart.Type.SEISMIC_CUTTER, ShipPartStats.new(0, 0, 8, 0)))
+	for type in [ShipPart.Type.FOCUSING_LENS, ShipPart.Type.GRAVITIC_SNARE, ShipPart.Type.REACTIVE_BULKHEAD,
+		ShipPart.Type.SHIELD_RELAY, ShipPart.Type.REPAIR_DRONE_BAY, ShipPart.Type.NANOFORGE]:
+		patterns.append(_shared_pattern(type, ShipPartStats.new(0, 0, 6, 0)))
+	var lance := ShipPartStats.with_weapon("Beam Lance", 6, 4, 12, 1)
+	lance.weapons[0].range_units = 360
+	lance.weapons[0].charge_seconds = 1.2
+	patterns.append(_shared_pattern(ShipPart.Type.BEAM_LANCE, lance))
+	var ion := ShipPartStats.with_weapon("Ion Emitter", 4, 2, 2, 1)
+	ion.weapons[0].range_units = 300
+	patterns.append(_shared_pattern(ShipPart.Type.ION_EMITTER, ion))
 	var lab_definition := GameDefinitions.equipment(ShipPart.Type.RESEARCH_LAB)
 	for physical_rank: Dictionary in lab_definition.ranks:
 		var offsets: Array[Vector2i] = []

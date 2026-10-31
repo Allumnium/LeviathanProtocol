@@ -156,6 +156,7 @@ var encounter = preload("res://scripts/battle_encounter.gd").new()
 var enemy_roles = preload("res://scripts/enemy_roles.gd").new()
 var ability_commit := Callable()
 var energy_efficiency := 0.0
+var doctrines := CombatDoctrines.new()
 var repair_reserves: Dictionary = {}
 var repair_capacity := 0
 var repair_spent := 0.0
@@ -212,6 +213,7 @@ func setup(
 		random.randomize()
 	withdrawing = false
 	energy_efficiency = 0.0
+	doctrines = CombatDoctrines.new()
 	repair_reserves.clear()
 	repair_capacity = 0
 	repair_spent = 0.0
@@ -357,6 +359,8 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		member.previous_position = member.position
 	_rebuild_member_cache()
 	SharedSupport.initialize(self)
+	if not doctrines.configure(self, shared_context.get("doctrine_pool", {})):
+		return false
 	if not abilities.configure(shared_context):
 		return false
 	visibility_enabled = shared_context.get("visibility_enabled", false)
@@ -719,6 +723,7 @@ func authoritative_snapshot() -> Dictionary:
 	var result := {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
 		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
 		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
+		"doctrines": doctrines.snapshot(),
 		"rng_state": str(random.state), "actors": actors, "projectiles": shots, "drops": salvage,
 		"objectives": objective_target_ids.duplicate(), "neutral_cleanup": destroy_all_neutral_targets,
 		"remaining_targets": _remaining_target_ids(), "withdrawing": withdrawing,
@@ -824,7 +829,9 @@ func advance(delta: float) -> void:
 		if explosions[index].lifetime <= 0.0:
 			explosions.remove_at(index)
 	if phase == Phase.COMBAT:
+		_damage_this_step = false
 		encounter.advance(self, delta)
+		doctrines.advance(self, delta)
 		SharedSupport.repair(self, delta)
 		enemy_roles.advance(self, delta)
 		refresh_visibility()
@@ -836,7 +843,6 @@ func advance(delta: float) -> void:
 		_update_analysis(delta)
 		_combat_elapsed += delta
 		var previous_phase := phase
-		_damage_this_step = false
 		encounter.warden.advance(self, delta)
 		_rebuild_pending_projectile_damage()
 		_rebuild_spatial_index()
@@ -1081,12 +1087,12 @@ func _add_pending_damage(target: Combatant, amount: float) -> void:
 
 
 func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
-	if not ship.is_alive():
+	if not ship.is_alive() or ship.has_tag("repair_drone"):
 		return
 	ship.since_damage += delta
 	ship.retreat_time = maxf(0.0, ship.retreat_time - delta)
 	ship.retreat_cooldown = maxf(0.0, ship.retreat_cooldown - delta)
-	if ship.since_damage >= 4.0:
+	if ship.since_damage >= 4.0 and not abilities.suppressed(ship):
 		var recharge := ship.stats.shield_recharge if ship.owned_ship != null else ship.stats.shields
 		var recharge_delta := minf(delta, maxf(0.0, ship.since_damage - 4.0))
 		ship.shields = minf(ship.stats.shields, ship.shields + recharge * 0.04 * recharge_delta)
@@ -1193,11 +1199,12 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		desired = direction * ship.speed
 	desired = MiningRules.avoidance(self, ship, desired)
 	desired = encounter.warden.avoidance(self, ship, desired)
-	var desired_velocity := desired.limit_length(ship.speed)
+	var slow := abilities.movement_rate(ship)
+	var desired_velocity := desired.limit_length(ship.speed * slow)
 	var desired_heading := direction.angle()
 	if desired_velocity.length_squared() > 0.01:
 		desired_heading = desired_velocity.angle()
-	ship.heading = rotate_toward(ship.heading, desired_heading, delta * ship.turn_rate)
+	ship.heading = rotate_toward(ship.heading, desired_heading, delta * ship.turn_rate * slow)
 	# Ships have forward thrust only. They shed speed through passive drag rather
 	# than braking, so reversals and course corrections form broad flight arcs.
 	var forward := Vector2.from_angle(ship.heading)
@@ -1206,8 +1213,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		_apply_limited_reverse_thrust(ship, desired_velocity, delta)
 	if ((escort_distance > 20.0 and not mining_in_range) or ship.retreat_time > 0.0 or withdrawing) \
 		and ship.velocity.length() < pickup_approach_speed:
-		ship.velocity += forward * ship.acceleration * delta
-	ship.velocity = ship.velocity.limit_length(ship.speed)
+		ship.velocity += forward * ship.acceleration * delta * slow
+	ship.velocity = ship.velocity.limit_length(ship.speed * slow)
 	ship.position += ship.velocity * delta
 	if not allow_weapons:
 		return
@@ -1229,6 +1236,9 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		ship.cooldowns[index] = weapon.fire_interval_seconds
 		_record_event("expenditure", {"source": ship.entity_id, "weapon_index": index,
 			"weapon": weapon.weapon_name, "cooldown": ship.cooldowns[index], "target": weapon_target.entity_id})
+		if weapon.charge_seconds > 0:
+			doctrines.begin_charge(self, ship, weapon, weapon_target, weapon_origin)
+			continue
 		for shot_index in range(weapon.projectiles_per_activation):
 			ship.target = SharedSupport.weapon_target(self, ship, weapon, weapon_origin)
 			if ship.target == null:
@@ -1281,6 +1291,7 @@ func _investigate_contacts(ship: Combatant, delta: float) -> void:
 		destination = _escort_anchor(ship)
 	if withdrawing and ship.faction == Faction.PLAYER:
 		destination = ship.position + Vector2.LEFT * ARENA_RADIUS
+	var slow := abilities.movement_rate(ship)
 	var direction := ship.position.direction_to(destination)
 	var role_direction: Vector2 = enemy_roles.steering(self, ship, direction)
 	if role_direction != direction:
@@ -1295,15 +1306,15 @@ func _investigate_contacts(ship: Combatant, delta: float) -> void:
 	if direction.is_zero_approx():
 		_apply_passive_drag(ship, delta)
 	else:
-		ship.heading = rotate_toward(ship.heading, direction.angle(), ship.turn_rate * delta)
+		ship.heading = rotate_toward(ship.heading, direction.angle(), ship.turn_rate * delta * slow)
 		_apply_passive_drag(ship, delta)
 		var approach_speed := ship.speed if pickup == null else minf(ship.speed, maxf(8, ship.position.distance_to(pickup) * 0.6))
 		if pickup != null:
 			_apply_limited_reverse_thrust(ship, direction * approach_speed, delta)
 		var forward := Vector2.from_angle(ship.heading)
 		if ship.velocity.length() < approach_speed and (pickup == null or forward.dot(direction) > 0.5):
-			ship.velocity += forward * ship.acceleration * delta
-		ship.velocity = ship.velocity.limit_length(ship.speed)
+			ship.velocity += forward * ship.acceleration * delta * slow
+		ship.velocity = ship.velocity.limit_length(ship.speed * slow)
 	ship.position += ship.velocity * delta
 	ship.thruster_activation_elapsed += delta
 	for index in range(ship.cooldowns.size()):
@@ -1398,13 +1409,13 @@ func _update_projectiles(delta: float) -> void:
 		var obstruction = asteroid_field.intercept(self, start, projectile.position)
 		if obstruction != null:
 			_add_pending_damage(projectile.target, -projectile.damage)
-			_damage(obstruction, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
+			_damage(obstruction, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
 			projectiles.remove_at(index)
 			continue
 		if projectile.position.distance_to(destination) <= (projectile.aim_radius if visibility_enabled else projectile.target.radius):
 			_add_pending_damage(projectile.target, -projectile.damage)
 			if not projectile.guidance_lost or projectile.position.distance_to(projectile.target.position) <= projectile.target.radius:
-				_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name)
+				_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
 			projectiles.remove_at(index)
 
 
@@ -1539,7 +1550,7 @@ func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
 	return 1.0
 
 
-func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "") -> void:
+func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false) -> void:
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
 	damage *= _analysis_multiplier(source, target)
@@ -1547,25 +1558,37 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	damage *= encounter.warden.protection(self, target)
 	if target.has_tag("asteroid") and weapon_name in MiningRules.WEAPONS:
 		damage *= 4.0
+	var ion_shield := weapon_name == "Ion Emitter" and target.shields > 0
+	if weapon_name == "Ion Emitter":
+		damage *= 2.0 if target.shields > 0 else 0.5
 	var absorbed := minf(target.shields, damage)
+	if ion_shield:
+		damage = absorbed + (damage - absorbed) * 0.25
 	target.shields -= absorbed
 	target.shield_damage_taken += absorbed
 	var actual := absorbed
 	if target.owned_ship != null and damage > absorbed:
 		var owned := target.owned_ship
 		var local_origin := (origin - target.position).rotated(-target.heading)
-		var cell := owned.hit_cell(local_origin, random)
-		var result := owned.damage_cell(cell, damage - absorbed)
-		actual += result.damage
-		target.permanent_damage_taken += result.removed.size()
-		for removed_cell in result.removed:
-			if random.randf() < allied_drop_chance:
-				var drop := Drop.new()
-				drop.entity_id = "%s/wreck/%d/%d" % [target.entity_id, removed_cell.x, removed_cell.y]
-				drop.category = owned.design.tiles[removed_cell]
-				drop.position = target.position + owned.local_cell_position(removed_cell).rotated(target.heading)
-				drop.size = owned.cell_size
-				drops.append(drop)
+		var remaining := damage - absorbed
+		for penetration in range(2 if weapon_name == "Beam Lance" else 1):
+			var cell := owned.hit_cell(local_origin, random)
+			if projectile_hit and owned.cell_units.has(cell) and CombatDoctrines.protected_unit(owned, owned.cell_units[cell]):
+				remaining *= 0.7
+			var result := owned.damage_cell(cell, remaining)
+			actual += result.damage
+			remaining -= result.damage
+			target.permanent_damage_taken += result.removed.size()
+			for removed_cell in result.removed:
+				if random.randf() < allied_drop_chance:
+					var drop := Drop.new()
+					drop.entity_id = "%s/wreck/%d/%d" % [target.entity_id, removed_cell.x, removed_cell.y]
+					drop.category = owned.design.tiles[removed_cell]
+					drop.position = target.position + owned.local_cell_position(removed_cell).rotated(target.heading)
+					drop.size = owned.cell_size
+					drops.append(drop)
+			if remaining <= 0 or result.removed.is_empty() or not owned.is_alive():
+				break
 		_refresh_owned_stats(target)
 	else:
 		var hull_damage := minf(target.integrity, damage - absorbed)

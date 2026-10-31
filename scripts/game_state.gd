@@ -86,6 +86,7 @@ var _research_grant_cache: Dictionary = {}
 var research_points := 0.0
 var research_focus := ""
 var research_progress: Dictionary = {}
+var research_pricing_version := 0
 var ability_state := BattleAbilities.initial_state()
 var research_branch_choices: Dictionary[String, String] = {}
 var story_flags: Dictionary[String, bool] = {}
@@ -150,6 +151,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	research_points = 0
 	research_focus = ""
 	research_progress.clear()
+	research_pricing_version = ResearchFocusRules.PRICING_VERSION
 	ability_state = BattleAbilities.initial_state()
 	research_branch_choices.clear()
 	story_flags.clear()
@@ -234,6 +236,7 @@ func run_progress_snapshot() -> Dictionary:
 		"research_points": research_points,
 		"research_focus": research_focus,
 		"research_progress": research_progress.duplicate(),
+		"research_pricing_version": research_pricing_version,
 		"ability_state": ability_state.duplicate(true),
 		"research_ids": current_research_ids.duplicate(),
 		"branch_choices": research_branch_choices.duplicate(),
@@ -257,6 +260,7 @@ func restore_run_progress(data: Variant, notify := true) -> bool:
 	research_points = float(data.research_points)
 	research_focus = data.get("research_focus", "")
 	research_progress = data.get("research_progress", {}).duplicate()
+	research_pricing_version = int(data.get("research_pricing_version", 0))
 	ability_state = data.get("ability_state", BattleAbilities.initial_state()).duplicate(true)
 	current_research_ids.assign(data.research_ids)
 	research_branch_choices.assign(data.branch_choices)
@@ -437,6 +441,7 @@ func _apply_accounting(data: Dictionary) -> void:
 	research_points = float(data.progress.research_points)
 	research_focus = data.progress.get("research_focus", "")
 	research_progress = data.progress.get("research_progress", {}).duplicate()
+	research_pricing_version = int(data.progress.get("research_pricing_version", 0))
 	ability_state = data.progress.get("ability_state", BattleAbilities.initial_state()).duplicate(true)
 	current_research_ids.assign(data.progress.research_ids)
 	research_branch_choices.assign(data.progress.branch_choices)
@@ -444,6 +449,10 @@ func _apply_accounting(data: Dictionary) -> void:
 	blue_tiles_available = int(data.inventory[1])
 	green_tiles_available = int(data.inventory[2])
 	core_tiles_available = int(data.inventory[3])
+	# All pending occupied losses were settled before this successful checkpoint.
+	for owned in fleet:
+		for unit in owned.units:
+			unit.erase("load_lost")
 
 
 func _emit_accounting_changes() -> void:
@@ -948,9 +957,10 @@ func purchase_research(id: String) -> bool:
 		or not requirements.conflicts.is_empty() or requirements.branch_conflict:
 		return false
 	var definition := GameDefinitions.find("research", id)
-	if int(definition.cost_rp) > research_points:
+	var price := ResearchFocusRules.cost(id, run_progress_snapshot())
+	if price > research_points:
 		return false
-	var result := TransactionLedger.apply(_capture_checkpoint(), "research", id, 0, [0, 0, 0, 0], -int(definition.cost_rp), {"research_id": id})
+	var result := TransactionLedger.apply(_capture_checkpoint(), "research", id, 0, [0, 0, 0, 0], -price, {"research_id": id})
 	if result.is_empty() or result.replayed:
 		return false
 	var checkpoint: Dictionary = result.checkpoint
@@ -976,6 +986,7 @@ func battle_support_context() -> Dictionary:
 		"repair_reserves": progress.get("field", {}).get("repair_reserves", {}).duplicate(true)}).duplicate(true)
 	if progress.get("field", {}).has("repair_reserves"):
 		context.repair_reserves = progress.field.repair_reserves.duplicate(true)
+	context["doctrine_pool"] = progress.get("field", {}).get("doctrine_pool", {}).duplicate(true)
 	context["repair_pool"] = progress.get("field", {}).get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)
 	if progress.get("field", {}).has("asteroids"):
 		context["asteroids"] = progress.field.asteroids.duplicate(true)
@@ -1012,13 +1023,20 @@ func commit_battle_ability(simulation: BattleSimulation, proposal: Dictionary) -
 			return false
 	var checkpoint := _capture_checkpoint()
 	checkpoint.progress["ability_state"] = proposal.duplicate(true)
+	var field: Dictionary = checkpoint.encounter_progress[str(destination_node_id)].field
+	field["doctrine_pool"] = simulation.doctrines.pool.duplicate(true)
+	field["repair_reserves"] = simulation.repair_reserves.duplicate(true)
+	field["repair_pool"] = {"capacity": simulation.repair_capacity, "spent": simulation.repair_spent}
 	if not _persist_checkpoint(checkpoint):
 		return false
 	transaction_ledger = checkpoint.ledger
+	encounter_progress = checkpoint.encounter_progress
 	_apply_accounting(checkpoint)
 	return true
 
 func update_battle_support(simulation: BattleSimulation) -> void:
+	if battle_pending and simulation.battle_id == battle_identity() and encounter_progress.has(str(destination_node_id)):
+		encounter_progress[str(destination_node_id)].field["doctrine_pool"] = simulation.doctrines.pool.duplicate(true)
 	if battle_pending and not simulation.abilities.available.is_empty():
 		ability_state = simulation.abilities.snapshot()
 	if battle_pending and encounter_progress.has(str(destination_node_id)) and not simulation.asteroid_field.records.is_empty():
@@ -2117,6 +2135,7 @@ func set_destination(node_id: int) -> bool:
 		"ability_state": ability_state.duplicate(true),
 		"ability_ids": _ready_ability_ids(),
 		"repair_reserves": progress.field.get("repair_reserves", {}).duplicate(true),
+		"doctrine_pool": progress.field.get("doctrine_pool", {}).duplicate(true),
 		"repair_pool": progress.field.get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)}
 	if encounter.has("arena_layout"):
 		progress.deployment.shared_context["encounter_plan"] = encounter.duplicate(true)
@@ -2314,6 +2333,7 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 	# Repair expenditure is durable battle state, not part of ore pickup identity.
 	field_after.erase("repair_reserves")
 	field_after.erase("repair_pool")
+	field_after.erase("doctrine_pool")
 	if not checkpoint.encounter_progress.has(key):
 		checkpoint.encounter_progress[key] = {"attempts": 1, "outcome": "active", "field": {}}
 	var result := TransactionLedger.apply(checkpoint, "ore_pickup", "node/%s/%s" % [key, pickup_id], 0, materials, 0, {"field": field_after})
@@ -2321,6 +2341,8 @@ func commit_field_pickup(pickup_id: String, materials: Array, field_after: Dicti
 		return false
 	checkpoint = result.checkpoint
 	if not result.replayed:
+		if checkpoint.encounter_progress[key].field.has("doctrine_pool"):
+			field_after["doctrine_pool"] = checkpoint.encounter_progress[key].field.doctrine_pool.duplicate(true)
 		if checkpoint.encounter_progress[key].field.has("repair_reserves"):
 			field_after["repair_reserves"] = checkpoint.encounter_progress[key].field.repair_reserves.duplicate(true)
 			field_after["repair_pool"] = checkpoint.encounter_progress[key].field.get("repair_pool", {"capacity": 0, "spent": 0.0}).duplicate(true)

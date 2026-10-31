@@ -11,6 +11,7 @@ func _initialize() -> void:
 func check(ok: bool, message: String) -> void:
 	if not ok:
 		failures += 1
+		print("FAIL: " + message)
 		push_error(message)
 
 func fixture() -> BattleSimulation:
@@ -227,6 +228,7 @@ func test_ui() -> void:
 	check(not sim.abilities.state.auto.scan, "Auto toggle changes the authoritative preference through a real mouse click.")
 	await click(bar.pause_aim)
 	await click(bar.action_buttons.scan)
+	check(bar.status.text == "Click to scan" and battle.get_global_rect().encloses(bar.get_global_rect()), "Contextual Scan guidance stays inline and fits at 640x360.")
 	check(bar.targeting and battle.pause_button.button_pressed, "Manual targeting can pause the simulation without requiring a lab.")
 	var point: Vector2 = battle.visuals.world_transform() * Vector2(400, 0)
 	var motion := InputEventMouseMotion.new()

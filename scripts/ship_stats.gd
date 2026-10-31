@@ -55,6 +55,7 @@ static func from_units(units: Array[Dictionary], center: Vector2, laser_level :=
 	var cells: Array[Vector2i] = []
 	var radius_squared := 0.0
 	var rates := AdjacencyRules.rates(units)
+	var lenses := CombatDoctrines.adjacency_targets(units, ShipPart.Type.FOCUSING_LENS, [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.BEAM_LANCE])
 	var effective_thrust := 0.0
 	for index in range(units.size()):
 		var unit := units[index]
@@ -72,7 +73,7 @@ static func from_units(units: Array[Dictionary], center: Vector2, laser_level :=
 			continue
 		result.shields += part.stats.shields
 		var rate: float = rates.get(index, 1.0)
-		if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.SHIELD]:
+		if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.BEAM_LANCE, ShipPart.Type.ION_EMITTER, ShipPart.Type.SHIELD]:
 			rate = AdjacencyRules.ordinary_rate({"crew": rate - 1.0, "energy": energy_efficiency})
 		result.shield_recharge += part.stats.shields * rate
 		result.thrust += part.stats.thrust
@@ -88,6 +89,11 @@ static func from_units(units: Array[Dictionary], center: Vector2, laser_level :=
 				var multiplier := 1.0 + 0.1 * laser_level
 				copy.damage_per_shot *= multiplier
 				copy.fire_interval_seconds /= multiplier
+			if lenses.has(index):
+				copy.damage_per_shot *= 1.2
+				copy.range_units *= 1.2
+				copy.fire_interval_seconds *= 1.25
+				copy.charge_seconds += 0.25
 			result.weapons.append(copy)
 	result.occupied_cells = cells.size()
 	result.engine_rate = effective_thrust / result.thrust if result.thrust > 0 else 1.0

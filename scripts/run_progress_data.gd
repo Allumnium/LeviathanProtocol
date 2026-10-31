@@ -46,6 +46,8 @@ static func validate(data: Variant) -> String:
 	for key in data.story_flags:
 		if not key is String or key.is_empty() or not data.story_flags[key] is bool:
 			return "Invalid story flag."
+	if not _integer(data.get("research_pricing_version", 0)) or int(data.get("research_pricing_version", 0)) not in [0, ResearchFocusRules.PRICING_VERSION]:
+		return "Unsupported research pricing version."
 	var selection := ResearchRules.selection_error(data.research_ids, data.story_flags, data.branch_choices)
 	return selection if not selection.is_empty() else ResearchFocusRules.validate(data)
 

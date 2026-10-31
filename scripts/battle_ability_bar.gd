@@ -85,7 +85,7 @@ func refresh() -> void:
 		button.disabled = simulation.phase != BattleSimulation.Phase.COMBAT or cooldown > 0 or simulation.abilities.sources(simulation, 0, id).is_empty()
 	if auto_button == null:
 		return
-	auto_button.set_pressed_no_signal(simulation.abilities.state.auto.get(selected_id, selected_id == "seismic_cut"))
+	auto_button.set_pressed_no_signal(simulation.abilities.state.auto.get(selected_id, selected_id != "scan"))
 	pause_aim.set_pressed_no_signal(simulation.abilities.state.pause_aim)
 	var ids: Array[String] = []
 	for source in simulation.abilities.sources(simulation, 0, selected_id):
@@ -113,7 +113,7 @@ func begin_targeting(id: String) -> void:
 	if simulation.abilities.remaining(id) > 0 or simulation.abilities.sources(simulation, 0, id).is_empty():
 		return
 	targeting = true
-	status.text = ""
+	status.text = "Click to scan" if id == "scan" else "Click asteroid" if id == "seismic_cut" else "Click target"
 	targeting_changed.emit(true)
 	set_preview(visuals.camera_position)
 
@@ -131,6 +131,7 @@ func cast_at(point: Vector2) -> bool:
 
 func cancel_targeting() -> void:
 	targeting = false
+	status.text = ""
 	visuals.ability_preview = {}
 	visuals.queue_redraw()
 	targeting_changed.emit(false)

@@ -20,7 +20,7 @@ static func settle_losses(checkpoint: Dictionary, fleet: Array[FleetShip], scope
 	ids.sort()
 	for id: String in ids:
 		var record: Dictionary = records[id]
-		if int(record.occupied) == 0 or (current.get(id, {}).get("operational", false) and int(record.ship_id) not in lost_ships):
+		if int(record.occupied) == 0 or (current.get(id, {}).get("operational", false) and not current.get(id, {}).get("load_lost", false) and int(record.ship_id) not in lost_ships):
 			continue
 		var deaths := int(record.occupied)
 		var economy: Dictionary = result.economy.duplicate(true)
@@ -188,7 +188,7 @@ static func manifest(fleet: Array[FleetShip]) -> Dictionary:
 			var operational: bool = owned.is_alive() and unit.hp > 0
 			result[component_id(owned.id, index)] = {"ship_id": owned.id, "unit_index": index,
 				"equipment_id": GameDefinitions.equipment(unit.part.type).id, "capacity": PLACES if operational else 0,
-				"luxury": int(levels.get(index, base_luxury(unit.part))), "operational": operational}
+				"luxury": int(levels.get(index, base_luxury(unit.part))), "operational": operational, "load_lost": unit.get("load_lost", false)}
 	return result
 
 static func empty_record(entry: Dictionary) -> Dictionary:

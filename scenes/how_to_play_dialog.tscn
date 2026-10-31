@@ -20,8 +20,17 @@ size_flags_vertical = 3
 text = "PREPARE AT INHABITED PORTS
 Design in Ship Designer, save a blueprint, then select a Fleet slot and press + to construct. Stored materials are used first; credits buy shortages. Every hull needs one Command Center (the Tech/Civic checkerboard). Combat hulls also need a weapon.
 
+ADJACENCY
+Crew Quarters: +12% operating rate to three touching components. Identical bonuses do not stack.
+
 TRAVEL AND RESEARCH
-Open Map, inspect a reachable node, then choose Travel. Select a Research node, read its details, then Set Research Focus. Travel research: (labs + 0.5) x days. Enemy strength depends on the route, not your fleet.
+Open Map, inspect a reachable node, then choose Travel. Select a Research node, read its details, then Set Research Focus. Travel research: (labs + 0.5) x days. Each living lab produces 1 RP/day at every rank. Enemy strength depends on the route, not your fleet.
+
+PASSENGERS AND TRADE
+Cabins board passengers on inhabited arrivals. Cargo holds load goods on arrival and sell them at another port. Both need room and operating equipment. Review loads and earnings in the Fleet summary.
+
+SCAN AND MINING
+Click Scan, then a battlefield position to reveal nearby contacts. Mining is optional. Lasers mine automatically. Seismic Cut: click a visible asteroid, or enable Auto. Collect finite ore for construction materials.
 
 LOSSES AND RECOVERY
 Intact disconnected parts still work. Repair damage and reconstruct destroyed parts at ports. Passengers board on inhabited arrival; each death costs 20 credits and may cause debt. Disembark before reserving or replacing an occupied ship.

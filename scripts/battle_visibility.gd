@@ -42,6 +42,8 @@ func refresh(sim) -> void:
 		sources[member.faction].append({"position": origin, "sight": SIGHT, "radar": RADAR})
 		_mark_explored(member.faction, origin)
 	for effect: Dictionary in sim.abilities.effects:
+		if effect.id != "scan":
+			continue
 		var source = sim.entities.get(effect.source)
 		if source == null or not sim.abilities.sources(sim, int(effect.faction), effect.id).has(source):
 			continue

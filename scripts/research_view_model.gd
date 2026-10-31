@@ -90,6 +90,14 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 		if equipment.implemented:
 			lines.append(equipment.display_name)
 			match equipment_id:
+				"focusing_lens": lines.append("2 adjacent beams\n+20% damage / range\n+25% interval, +0.25s charge")
+				"beam_lance": lines.append("12 damage, 1.2s charge\n2 components, 360 range")
+				"ion_emitter": lines.append("2x shield / 0.5x hull")
+				"gravitic_snare": lines.append("35% slow, 5s")
+				"reactive_bulkhead": lines.append("2 adjacent components\n-30% projectile hull damage")
+				"shield_relay": lines.append("2 shields/s to ally\n180 range; host pays")
+				"repair_drone_bay": lines.append("4 HP / drone, 20 HP reserve\n220 range; interceptable")
+				"nanoforge": lines.append("1 component / host\n25% HP; empty contents")
 				"repair_station": lines.append("2 HP/s, 2 adjacent\n20 HP reserve")
 				"point_defense_turret": lines.append("Missile defense")
 				"missile_rack": lines.append("3 missiles / burst")

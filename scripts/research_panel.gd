@@ -70,6 +70,10 @@ func refresh(fit := false) -> void:
 	if tree_canvas == null:
 		return
 	var state := _state()
+	if state_override.is_empty():
+		var progress := GameState.run_progress_snapshot()
+		for node: Dictionary in registry.research:
+			node.cost_rp = ResearchFocusRules.cost(node.id, progress)
 	nodes = ResearchViewModel.nodes(registry, state.research_ids, state.story_flags, state.branch_choices, int(state.research_points))
 	nodes.assign(nodes.filter(func(row: Dictionary) -> bool: return row.id != "foundation"))
 	if not nodes.any(func(row: Dictionary) -> bool: return row.id == selected_id):

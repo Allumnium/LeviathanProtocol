@@ -100,9 +100,14 @@ func remaining(id: String, faction := 0) -> float:
 	return float((state.cooldowns if faction == 0 else enemy_cooldowns).get(id, 0.0))
 
 func can_cast(sim, id: String, point: Vector2, source_id := "", faction := 0) -> bool:
-	if sim.phase != 0 or not sim.visibility_enabled or id not in ["scan", "seismic_cut"] or not available.has(id) \
+	if sim.phase != 0 or not sim.visibility_enabled or id not in ["scan", "seismic_cut", "ion_pulse", "gravity_well"] or not available.has(id) \
 		or faction not in [0, 1] or remaining(id, faction) > 0 or choose_source(sim, faction, id, point, source_id) == null:
 		return false
+	if id == "ion_pulse":
+		var target = visible_target(sim, faction, point)
+		return target != null and choose_source(sim, faction, id, target.position, source_id) != null
+	if id == "gravity_well":
+		return sim.point_visible(faction, point)
 	if id == "seismic_cut":
 		for member in sim.other_entities:
 			if member.has_tag("asteroid") and member.is_alive() and sim.team_can_see(faction, member) and member.position.distance_to(point) <= 100:
@@ -126,7 +131,15 @@ func cast(sim, id: String, point: Vector2, source_id := "", faction := 0) -> boo
 		retry_delay = 0.0
 	else:
 		enemy_cooldowns[id] = float(definition.cooldown_seconds)
-	if id == "scan":
+	if id == "ion_pulse":
+		var target = visible_target(sim, faction, point)
+		sim.doctrines.interrupt(sim, target)
+		effects.append({"id": id, "faction": faction, "source": source.entity_id, "target": target.entity_id,
+			"position": target.position, "radius": 12.0, "remaining": float(definition.duration_seconds)})
+	elif id == "gravity_well":
+		effects.append({"id": id, "faction": faction, "source": source.entity_id, "position": point,
+			"radius": float(definition.radius_units), "remaining": float(definition.duration_seconds)})
+	elif id == "scan":
 		effects.append({"id": id, "faction": faction, "source": source.entity_id, "position": point,
 			"radius": float(definition.radius_units), "remaining": float(definition.duration_seconds)})
 		for member in sim._members:
@@ -180,7 +193,40 @@ func advance(sim, delta: float) -> void:
 		if effect.remaining <= 0 or source == null or not sources(sim, int(effect.faction), effect.id).has(source):
 			effects.remove_at(index)
 
+func visible_target(sim, faction: int, point: Vector2):
+	var chosen = null
+	var nearest := INF
+	for target in sim._members:
+		if target.faction == faction or target.faction == 2 or not target.is_alive() or not target.has_tag("combatant") or not sim.team_can_see(faction, target):
+			continue
+		var distance: float = target.position.distance_to(point)
+		if distance <= target.radius and distance < nearest:
+			chosen = target
+			nearest = distance
+	return chosen
+
+func suppressed(member) -> bool:
+	for effect in effects:
+		if effect.id == "ion_pulse" and effect.get("target", "") == member.entity_id:
+			return true
+	return false
+
+func movement_rate(member) -> float:
+	for effect in effects:
+		if effect.id == "gravity_well" and int(effect.faction) != member.faction and member.position.distance_to(effect.position) <= effect.radius:
+			return 0.65
+	return 1.0
+
 func auto_cast(sim) -> void:
+	for id in ["ion_pulse", "gravity_well"]:
+		if not available.has(id) or not state.auto.get(id, true) or remaining(id) > 0 or retry_delay > 0:
+			continue
+		for target in sim._members:
+			if target.faction != 1 or not target.is_alive() or not sim.team_can_see(0, target) or not target.has_tag("combatant"):
+				continue
+			if can_cast(sim, id, target.position):
+				sim.issue_command("ability_cast", {"ability": id, "position": [target.position.x, target.position.y], "source": "", "faction": 0})
+				break
 	if available.has("seismic_cut") and state.auto.get("seismic_cut", true) and retry_delay <= 0 and remaining("seismic_cut") <= 0:
 		for member in sim.other_entities:
 			if member.has_tag("asteroid") and member.is_alive() and sim.team_can_see(0, member) and MiningRules.known_eligible(sim, sim.get_living_player(), member) \

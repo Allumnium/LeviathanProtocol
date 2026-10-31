@@ -24,21 +24,38 @@ func run() -> void:
 	old.erase("research_focus")
 	old.erase("research_progress")
 	check(RunProgressData.validate(old).is_empty(), "Older saves default to no focus or partial projects.")
-	state.research_points = 35
+	var price := ResearchFocusRules.cost("laboratory_ii", state.run_progress_snapshot())
+	var partial := price - 5
+	state.research_points = partial
 	check(state.set_research_focus("laboratory_ii"), "An eligible node can be focused before it is affordable.")
-	check(state.research_focus == "laboratory_ii" and state.research_points == 0 and state.research_progress.get("laboratory_ii") == 35,
+	check(state.research_focus == "laboratory_ii" and state.research_points == 0 and state.research_progress.get("laboratory_ii") == partial,
 		"Existing banked RP funds partial progress immediately.")
-	check(state.set_research_focus("applied_energy") and state.research_progress.get("laboratory_ii") == 35,
+	check(state.set_research_focus("applied_energy") and state.research_progress.get("laboratory_ii") == partial,
 		"Changing focus preserves earlier partial work.")
-	check(state.set_research_focus("laboratory_ii") and state.load_run_checkpoint() and state.research_progress.get("laboratory_ii") == 35,
+	check(state.set_research_focus("laboratory_ii") and state.load_run_checkpoint() and state.research_progress.get("laboratory_ii") == partial,
 		"Switching back and reloading retain focus and progress.")
 	check(not state.set_research_focus("laboratory_iii") and not state.set_research_focus("foundation") and not state.set_research_focus("bad"),
 		"Unknown, owned and prerequisite-gated nodes cannot be focused.")
 	var forged: Dictionary = state.run_progress_snapshot()
-	forged.research_progress.laboratory_ii = 40
+	forged.research_progress.laboratory_ii = price
 	check(not RunProgressData.validate(forged).is_empty(), "Completed progress must be converted into a real grant.")
 	forged.research_progress.laboratory_ii = "bad"
 	check(not RunProgressData.validate(forged).is_empty(), "Reject nonnumeric research progress.")
+	var legacy: Dictionary = state.run_progress_snapshot()
+	legacy.erase("research_pricing_version")
+	legacy.research_progress = {"laboratory_ii": 35}
+	check(RunProgressData.validate(legacy).is_empty() and ResearchFocusRules.cost("laboratory_ii", legacy) == 40,
+		"Historical 35/40 projects remain valid at their original price.")
+	check(state.restore_run_progress(legacy) and state.research_pricing_version == 0,
+		"Loading old progress preserves historical research pricing.")
+	check(state.save_run_checkpoint() and state.load_run_checkpoint() and state.research_pricing_version == 0
+		and state.research_progress.get("laboratory_ii") == 35, "Historical pricing and partial work survive full checkpoint reload.")
+	check(state.restore_run_progress(forged.merged({"research_progress": {"laboratory_ii": partial}}, true)),
+		"Restore the new-run project after compatibility checks.")
+	for bad in [-1, 2, 0.5, "1"]:
+		var invalid: Dictionary = state.run_progress_snapshot()
+		invalid["research_pricing_version"] = bad
+		check(not RunProgressData.validate(invalid).is_empty(), "Reject malformed research pricing metadata.")
 	state.credits = 100000
 	var design := Ship.new()
 	BUILTINS._add_part(design, ShipPart.Type.COMMAND_CENTER, Vector2i.ZERO)
@@ -49,15 +66,15 @@ func run() -> void:
 	check(ScienceRules.journey_rp(science, 1) == 1.5 and ScienceRules.journey_rp(science, 3) == 4.5 and ScienceRules.journey_rp(science, 0) == 0,
 		"One lab plus baseline earns 1.5 RP per travel day.")
 	var next: int = state.get_reachable_nodes(state.current_node_id)[0]
-	var after_battle: float = 35 + ScienceRules.journey_rp(science, state.research_travel_time(state.current_node_id, next))
+	var after_battle: float = partial + ScienceRules.journey_rp(science, state.research_travel_time(state.current_node_id, next))
 	check(state.travel_to(next) and state.battle_pending, "First journey freezes a combat departure.")
 	check(not state.set_research_focus("applied_energy"), "Research focus stays fixed during a pending deployment.")
 	check(state.load_run_checkpoint(), "Pending research journey reloads.")
 	for frame in range(12):
 		await process_frame
-	check(state.research_progress.get("laboratory_ii") == 35 and state.research_points == 0,
+	check(state.research_progress.get("laboratory_ii") == partial and state.research_points == 0,
 		"Waiting during battle produces no RP.")
-	check(state.cancel_battle() and state.research_progress.get("laboratory_ii") == 35, "Withdrawal does not complete travel or fund research.")
+	check(state.cancel_battle() and state.research_progress.get("laboratory_ii") == partial, "Withdrawal does not complete travel or fund research.")
 	check(state.travel_to(next), "Retry frozen encounter.")
 	var blocker := FileAccess.open("user://research_focus/blocker", FileAccess.WRITE)
 	blocker.store_string("file")
@@ -66,7 +83,7 @@ func run() -> void:
 	state.run_save_path = "user://research_focus/blocker/run.json"
 	var printed := Engine.print_error_messages
 	Engine.print_error_messages = false
-	check(not state.complete_battle() and state.research_progress.get("laboratory_ii") == 35 and state.battle_pending,
+	check(not state.complete_battle() and state.research_progress.get("laboratory_ii") == partial and state.battle_pending,
 		"Failed reward save leaves RP, partial work and pending battle untouched.")
 	Engine.print_error_messages = printed
 	state.run_save_path = path
@@ -78,7 +95,7 @@ func run() -> void:
 	Engine.print_error_messages = printed
 	next = state.get_reachable_nodes(state.current_node_id)[0]
 	check(state.campaign_node(next).kind not in ["combat", "boss"], "Next route is a quiet journey.")
-	var overflow: float = after_battle + ScienceRules.journey_rp(science, state.research_travel_time(state.current_node_id, next)) - 40
+	var overflow: float = after_battle + ScienceRules.journey_rp(science, state.research_travel_time(state.current_node_id, next)) - price
 	state.run_save_path = "user://research_focus/blocker/run.json"
 	Engine.print_error_messages = false
 	check(not state.travel_to(next) and state.research_progress.get("laboratory_ii") == after_battle and state.research_points == 0

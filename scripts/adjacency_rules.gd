@@ -13,7 +13,7 @@ static func touches(a: ShipPart, b: ShipPart) -> bool:
 static func eligible(part: ShipPart) -> bool:
 	return part != null and (not part.stats.weapons.is_empty() or part.stats.thrust > 0 or part.stats.shields > 0 \
 		or part.type in [ShipPart.Type.RESEARCH_LAB, ShipPart.Type.REPAIR_STATION,
-		ShipPart.Type.REPAIR_DRONE_BAY, ShipPart.Type.NANOFORGE])
+		ShipPart.Type.REPAIR_DRONE_BAY])
 
 static func recipients(units: Array[Dictionary], source_index: int) -> Array[int]:
 	var result: Array[int] = []

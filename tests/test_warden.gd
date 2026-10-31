@@ -56,8 +56,9 @@ func run() -> void:
 					break
 			check(sim.phase == BattleSimulation.Phase.VICTORY, "Ordinary %s seed %d wins on Auto." % ["Escorts" if shielded else "Drones", seed_value])
 			print("Warden Auto seed %d, shields %s: phase %d, seconds %.1f, surviving %d" % [seed_value, shielded, sim.phase, sim.elapsed, sim.living_player_count()])
-	play_act(42, false)
-	play_act(1357, true)
+	for seed_value in [42, 1357, 12345]:
+		play_act(seed_value, false)
+		play_act(seed_value, true)
 	await test_controller()
 	if "--capture" in OS.get_cmdline_user_args():
 		await native_capture()
@@ -247,16 +248,20 @@ func test_failed_reward() -> void:
 
 func play_act(seed_value: int, add_lab: bool) -> void:
 	var state := root.get_node("GameState")
-	state.run_save_path = "user://warden/act-%d.json" % seed_value
+	state.run_save_path = "user://warden/act-%d-%s.json" % [seed_value, add_lab]
 	check(state.start_new_run(1, seed_value), "Start real first act.")
 	if add_lab:
 		check(state.purchase_ship(BUILTINS.surveyor(), "Surveyor"), "Mixed lab fleet uses ordinary construction cost and slots.")
 	check(state.deployment_capacity() == 30, "First act capacity starts at 30.")
+	check(state.set_research_focus("laboratory_ii"), "Choose lab progression without free RP or grants.")
+	var upgraded_lab := false
+	var research_earned := 0.0
 	var taught := false
 	var teaching_pylon_seen := false
 	for visit in range(8):
 		var choices: Array = state.get_reachable_nodes(state.current_node_id)
 		var destination: int = choices[(seed_value + visit) % choices.size()]
+		research_earned += ScienceRules.journey_rp(ScienceRules.snapshot(state.get_deployed_fleet()), state.research_travel_time(state.current_node_id, destination))
 		check(state.travel_to(destination), "Travel along an actual first-act route.")
 		if state.battle_pending:
 			var value: Dictionary = state.get_frozen_encounter(destination)
@@ -282,6 +287,25 @@ func play_act(seed_value: int, add_lab: bool) -> void:
 			for owned in state.get_deployed_fleet():
 				if owned.needs_repair():
 					check(state.repair_ship(owned), "Earned resources afford actual first-act repairs.")
+			if add_lab and not upgraded_lab and state.current_research_ids.has("laboratory_ii"):
+				var design := Ship.new()
+				for part in BUILTINS.surveyor().parts:
+					BUILTINS._add_part(design, part.type, part.origin, 2 if part.type == ShipPart.Type.RESEARCH_LAB else part.rank)
+				var index: int = state.roster_state.active.find(state.family_for_design(BUILTINS.surveyor()))
+				var price: int = state.get_construction_credit_cost(design)
+				var before: int = state.credits
+				check(state.assign_fleet_design(index, "Surveyor", design, true) and state.purchase_ship(design, "Surveyor"),
+					"Earned resources afford a real Lab II revision at a first-act shipyard.")
+				check(state.credits == before - price and state.used_deployment_capacity() <= 30,
+					"The rank refit pays its normal price and stays within normal deployment capacity.")
+				check(visit < 7, "Lab II is built before the boss journey, without a boss reward subsidy.")
+				print("Lab II refit seed %d: row %d, earned RP %s" % [seed_value, visit + 1, ScienceRules.format_rp(research_earned)])
+				upgraded_lab = true
+	var research_total: float = state.research_points + float(state.research_progress.get("laboratory_ii", 0))
+	if state.current_research_ids.has("laboratory_ii"):
+		research_total += ResearchFocusRules.cost("laboratory_ii", state.run_progress_snapshot())
+	check(is_equal_approx(research_total, research_earned), "Whole-act research conserves daily production across refits and reloads.")
+	check(not add_lab or upgraded_lab, "One ordinary lab affords and constructs Lab II before the first boss.")
 	check(taught, "Every first-act route teaches a weaker pylon before the boss.")
 	check(teaching_pylon_seen, "The teaching pylon is actually seen during ordinary Auto play before boss arrival.")
 	check(state.story_flags.get("boss_i_defeated", false) and state.deployment_capacity() == 42, "Warden victory opens the next act and capacity 42.")

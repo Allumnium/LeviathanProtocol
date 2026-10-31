@@ -150,6 +150,11 @@ func _draw() -> void:
 		draw_arc(ability_preview.position, float(definition.radius_units), 0, TAU, 48, color, 1.5)
 		for source in ability_preview.sources:
 			draw_arc(simulation.abilities.origin(source, ability_preview.id), float(definition.range_units), 0, TAU, 64, Color(0.5, 0.7, 0.8, 0.4), 1)
+	for charge: Dictionary in simulation.doctrines.charges.values():
+		var source = simulation.entities.get(charge.source)
+		var target = simulation.entities.get(charge.target)
+		if source != null and target != null and simulation.team_can_see(0, source) and simulation.team_can_see(0, target):
+			draw_line(charge.origin, charge.aim, Color(0.9, 0.7, 0.35, 0.7), 2.0, true)
 	for effect: Dictionary in simulation.abilities.effects:
 		if int(effect.faction) == 0:
 			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
