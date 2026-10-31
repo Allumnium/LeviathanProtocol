@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://cjp5lrj52hk1"]
+
+[ext_resource type="Script" path="res://scripts/build_selector_button.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://bqiq2ctv2f17k" path="res://assets/ui/buttons/circular_button.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://c5rr6oyjjqrvx" path="res://assets/ui/buttons/circular_button_highlighted.png" id="3"]
+[ext_resource type="Texture2D" uid="uid://bxte2mv6f1qcx" path="res://assets/ui/buttons/circular_button_pressed.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://btgtm0otctvoh" path="res://assets/ui/buttons/circular_button_selected.png" id="5"]
+[ext_resource type="Texture2D" uid="uid://cfg1t7agkctln" path="res://assets/ui/icons/red_square.png" id="6"]
+
+[node name="BuildSelectorButton" type="TextureButton" unique_id=2106866950]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+toggle_mode = true
+texture_normal = ExtResource("2")
+texture_pressed = ExtResource("4")
+texture_hover = ExtResource("3")
+ignore_texture_size = true
+stretch_mode = 5
+script = ExtResource("1")
+selected_texture = ExtResource("5")
+
+[node name="CountBadge" type="PanelContainer" parent="." unique_id=333453061]
+visible = false
+z_index = 1
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.62
+anchor_top = 0.02
+anchor_right = 1.0
+anchor_bottom = 0.38
+offset_left = -1.0
+mouse_filter = 2
+theme_type_variation = &"CountBadge"
+
+[node name="CountLabel" type="Label" parent="CountBadge" unique_id=1177414642]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="." unique_id=1675871275]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.3
+anchor_top = 0.3
+anchor_right = 0.7
+anchor_bottom = 0.7
+mouse_filter = 2
+texture = ExtResource("6")
+expand_mode = 1
+stretch_mode = 5

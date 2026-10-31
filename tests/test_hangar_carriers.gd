@@ -183,6 +183,7 @@ func pool_checks(pool: Dictionary, uid: String) -> void:
 func native_checks() -> void:
 	root.size = Vector2i(1280, 720)
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
+	screen.active_tab = "SHIPS"
 	root.add_child(screen)
 	current_scene = screen
 	await process_frame
@@ -190,7 +191,7 @@ func native_checks() -> void:
 	screen.selected_ship_id = 1
 	screen.selected_slot = "port"
 	screen._show_details()
-	check(text_under(screen.details).contains("6 craft / 2 active"), "Selected bay explains its finite allowance inline")
+	check(text_under(screen.center).contains("6 craft / 2 active"), "Selected bay explains its finite allowance inline")
 	screen.queue_free()
 	await process_frame
 	for step in range(3):

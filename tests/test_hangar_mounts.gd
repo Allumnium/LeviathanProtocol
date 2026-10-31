@@ -86,6 +86,7 @@ func settle() -> void:
 
 func ui_checks(transport_id: int, uids: Array[String]) -> void:
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
+	screen.active_tab = "SHIPS"
 	root.add_child(screen)
 	current_scene = screen
 	screen.selected_ship_id = transport_id
@@ -95,23 +96,18 @@ func ui_checks(transport_id: int, uids: Array[String]) -> void:
 		root.size = resolution
 		await settle()
 		for side in ["port", "starboard"]:
-			var button: OptionButton = screen.canvas.slot_buttons[side]
-			var offered: Array[String] = []
-			for index in range(1, button.item_count):
-				offered.append(button.get_item_metadata(index).uid)
+			var button: Button = screen.canvas.slot_buttons[side]
 			for uid: String in uids:
-				check(uid in offered, "Both native side menus offer all four matching-size categories")
+				if state.equipment_location(uid).is_empty():
+					check(uid in screen.stock.visible_uids and button._can_drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uid)), "Both side targets accept stock from all matching-size categories")
 			check(button.focus_mode == Control.FOCUS_NONE and button.tooltip_text.is_empty(), "General mount retains focus/tooltip preferences")
 		check(screen.canvas.slot_buttons.port.get_global_rect().intersects(screen.canvas.slot_buttons.starboard.get_global_rect()) == false, "Broader menus do not overlap controls")
 	root.size = Vector2i(1280, 720)
 	await settle()
-	var button: OptionButton = screen.canvas.slot_buttons.port
-	for index in range(1, button.item_count):
-		if button.get_item_metadata(index).uid == uids[0]:
-			button.get_popup().index_pressed.emit(index)
-			break
+	var button: Button = screen.canvas.slot_buttons.port
+	button._drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uids[0]))
 	await settle()
-	check(state.owned_ship(transport_id).mounts.port.uid == uids[0], "Native dropdown fits a weapon in the former Defense mount")
+	check(state.owned_ship(transport_id).mounts.port.uid == uids[0], "Drop target fits a weapon in the former Defense mount")
 	screen.selected_slot = "port"
 	screen._show_details()
 	check(not text_under(screen.details).contains("General |"), "General mount has no redundant category text")

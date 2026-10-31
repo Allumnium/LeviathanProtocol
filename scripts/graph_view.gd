@@ -40,9 +40,16 @@ var _travel_start := Vector2.ZERO
 var _travel_end := Vector2.ZERO
 var _ship_world_position := Vector2.ZERO
 var _ship_rotation := 0.0
+var starfield: Control
 
 
 func _ready() -> void:
+	starfield = load("res://scripts/main_menu_starfield.gd").new()
+	starfield.stationary = true
+	starfield.show_behind_parent = true
+	starfield.mouse_filter = MOUSE_FILTER_IGNORE
+	add_child(starfield)
+	starfield.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	focus_mode = Control.FOCUS_CLICK
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
@@ -64,6 +71,8 @@ func _ready() -> void:
 
 func set_current_node(node_id: int) -> void:
 	current_node_id = node_id
+	if is_instance_valid(starfield):
+		starfield.set_area(GameState.run_seed, node_id)
 	selected_node_id = (
 		GameState.planned_destination_node_id
 		if GameState.get_reachable_nodes(current_node_id).has(GameState.planned_destination_node_id)
@@ -80,7 +89,7 @@ func _process(delta: float) -> void:
 	if _traveling:
 		_travel_elapsed = minf(_travel_elapsed + delta, _travel_duration)
 		var progress := _travel_elapsed / _travel_duration
-		var eased_progress := progress * progress * (3.0 - 2.0 * progress)
+		var eased_progress := progress
 		_ship_world_position = _travel_start.lerp(_travel_end, eased_progress)
 		_update_fleet_preview_transform()
 		if is_equal_approx(_travel_elapsed, _travel_duration):
@@ -136,12 +145,12 @@ func _reset_camera() -> void:
 	)
 
 
-func start_travel(destination_node_id: int, duration: float = 2.0) -> void:
+func start_travel(destination_node_id: int, duration: float = -1.0) -> void:
 	_travel_start = _node_center(current_node_id)
 	_travel_end = _node_center(destination_node_id)
 	_ship_world_position = _travel_start
-	_ship_rotation = (_travel_end - _travel_start).angle()
-	_travel_duration = maxf(duration, 0.01)
+	_ship_rotation = (_travel_end - _travel_start).angle() + PI / 2
+	_travel_duration = maxf(duration, 0.01) if duration > 0 else clampf(_travel_start.distance_to(_travel_end) / 60.0, 2.0, 3.0)
 	_travel_elapsed = 0.0
 	_traveling = true
 	_update_fleet_preview_transform()
@@ -171,7 +180,7 @@ func _ship_type_name(display_name: String) -> String:
 func _update_fleet_preview_transform() -> void:
 	if _fleet_preview == null:
 		return
-	var preview_size := Vector2.ONE * 21.0 * camera_zoom
+	var preview_size := Vector2.ONE * 36.0 * camera_zoom
 	_fleet_preview.size = preview_size
 	_fleet_preview.pivot_offset = preview_size * 0.5
 	_fleet_preview.position = world_transform() * _ship_world_position - preview_size * 0.5
@@ -179,10 +188,7 @@ func _update_fleet_preview_transform() -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color.BLACK, true)
 	draw_set_transform_matrix(world_transform())
-	for star in stars:
-		draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))
 	for edge in GameState.GRAPH_EDGES:
 		if not GameState.node_visible(edge.x) or not GameState.node_visible(edge.y):
 			continue
@@ -260,6 +266,9 @@ func _draw_sector_star(node_id: int, center: Vector2, tint: Color) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	starfield._gui_input(event)
+	if _traveling:
+		return
 	if event is InputEventMouseButton and event.pressed:
 		grab_focus()
 	var mouse_button := event as InputEventMouseButton

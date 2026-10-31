@@ -7,7 +7,7 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 $runRoot = Join-Path $projectRoot ('.local/checks/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $runRoot | Out-Null
 $previousAppData = $env:APPDATA
-$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'hangar_playthrough', 'hangar_ui', 'legacy_archives', 'ship_stats', 'battle_replay')
+$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'hangar_drag', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay')
 try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     foreach ($suite in $suites) {
@@ -17,10 +17,22 @@ try {
         if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw "$suite emitted script errors" }
     }
     if ($Native) {
+        $log = Join-Path $runRoot 'native-surface-art.log'
+        & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_surface_art.gd --log-file $log
+        if ($LASTEXITCODE -ne 0) { throw "Native surface art failed: $LASTEXITCODE" }
+        if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error|Shader compilation failed' -Quiet) { throw 'Native surface art emitted errors' }
+    }
+    if ($Native) {
         $log = Join-Path $runRoot 'native-ui.log'
         & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_hangar_ui.gd --log-file $log -- --capture
         if ($LASTEXITCODE -ne 0) { throw "Native UI failed: $LASTEXITCODE" }
         if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native UI emitted script errors' }
+    }
+    if ($Native) {
+        $log = Join-Path $runRoot 'native-polish.log'
+        & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_ui_polish.gd --log-file $log
+        if ($LASTEXITCODE -ne 0) { throw "Native polish failed: $LASTEXITCODE" }
+        if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native polish emitted script errors' }
     }
     Write-Output "All $($suites.Count) current baseline suites passed."
 } finally {

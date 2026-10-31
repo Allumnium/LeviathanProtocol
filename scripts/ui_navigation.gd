@@ -19,6 +19,14 @@ func _configure(node: Node) -> void:
   node.window_input.connect(_popup_input.bind(node))
   node.popup_hide.connect(_popup_hidden.bind(node))
 
+func _process(_delta: float) -> void:
+ var viewport := get_viewport()
+ var bounds := viewport.get_visible_rect()
+ var mouse := viewport.get_mouse_position()
+ var enabled := bounds.has_point(mouse) and get_tree().root.has_focus() and Input.mouse_mode != Input.MOUSE_MODE_HIDDEN and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED
+ var uv := (mouse - bounds.position) / bounds.size
+ RenderingServer.global_shader_parameter_set("cursor_light", Vector4(uv.x, uv.y, 48.0 / bounds.size.x, 0.75 if enabled else 0.0))
+
 func _popup_hidden(popup: Popup) -> void:
  if popup.get_meta("restore_after_nested_cancel", false):
   popup.remove_meta("restore_after_nested_cancel")

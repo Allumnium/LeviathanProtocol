@@ -63,7 +63,7 @@ func _state() -> Dictionary:
 	if not state_override.is_empty():
 		return state_override
 	return {"research_ids": GameState.current_research_ids, "story_flags": GameState.story_flags,
-		"branch_choices": GameState.research_branch_choices, "research_points": GameState.research_points,
+		"branch_choices": GameState.research_branch_choices,
 		"research_focus": GameState.research_focus, "research_progress": GameState.research_progress}
 
 func refresh(fit := false) -> void:
@@ -74,7 +74,7 @@ func refresh(fit := false) -> void:
 		var progress := GameState.run_progress_snapshot()
 		for node: Dictionary in registry.research:
 			node.cost_rp = ResearchFocusRules.cost(node.id, progress)
-	nodes = ResearchViewModel.nodes(registry, state.research_ids, state.story_flags, state.branch_choices, int(state.research_points))
+	nodes = ResearchViewModel.nodes(registry, state.research_ids, state.story_flags, state.branch_choices)
 	nodes.assign(nodes.filter(func(row: Dictionary) -> bool: return row.id != "foundation"))
 	if not nodes.any(func(row: Dictionary) -> bool: return row.id == selected_id):
 		selected_id = "" if nodes.is_empty() else nodes[0].id
@@ -89,15 +89,27 @@ func _refresh_production() -> void:
 	_clear(groups_host)
 	groups_host.add_child(_label("PRODUCTION"))
 	var science := ScienceRules.snapshot(GameState.get_deployed_fleet())
-	groups_host.add_child(_label(ScienceRules.production_label(science) + "\n+ 0.5 baseline"))
-	groups_host.add_child(_label("%.1f RP/day" % ScienceRules.production_rate(science)))
+	groups_host.add_child(_label(ScienceRules.production_label(science)))
+	groups_host.add_child(_label("%s RP/day" % ScienceRules.format_rp(ScienceRules.production_rate(science))))
 	var destination := GameState.planned_destination_node_id
 	if destination < 0:
-		groups_host.add_child(_label("RP/day x travel days"))
+		groups_host.add_child(_label("Choose a destination to preview research"))
 		return
 	var duration := GameState.research_travel_time(GameState.current_node_id, destination)
 	groups_host.add_child(_label("%s days" % ScienceRules.format_rp(duration)))
-	groups_host.add_child(_label("%s RP on arrival" % ScienceRules.format_rp(ScienceRules.journey_rp(science, duration))))
+	var output := ScienceRules.journey_rp(science, duration)
+	var focus := GameState.research_focus
+	if focus.is_empty():
+		groups_host.add_child(_label("%s RP discarded: no focus" % ScienceRules.format_rp(output)))
+		return
+	var research: Dictionary = GameState.hangar_snapshot().research
+	var required := ResearchFocusRules.cost(focus, research)
+	var current := float(GameState.research_progress.get(focus, 0))
+	var allocated := minf(output, maxf(0, required - current))
+	var project_name := str(GameDefinitions.find("research", focus).display_name)
+	groups_host.add_child(_label("%s RP to %s on arrival" % [ScienceRules.format_rp(allocated), project_name]))
+	if output > allocated:
+		groups_host.add_child(_label("%s excess RP discarded" % ScienceRules.format_rp(output - allocated)))
 func _select(id: String) -> void:
 	selected_id = id
 	tree_canvas.select(id)

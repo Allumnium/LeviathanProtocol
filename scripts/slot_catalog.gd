@@ -7,6 +7,7 @@ const SIZES := ["S", "M", "L", "XL"]
 const EQUIPMENT_PATH := "res://data/slot_equipment.json"
 static var _chassis: Array[Dictionary] = []
 static var _equipment: Array[Dictionary] = []
+static var _equipment_textures: Dictionary[String, Texture2D] = {}
 
 static func chassis() -> Array[Dictionary]:
 	if _chassis.is_empty():
@@ -42,6 +43,22 @@ static func find_equipment(id: String, rank := 1) -> Dictionary:
 		if item.id == id and item.rank == rank:
 			return item
 	return {}
+
+static func equipment_texture(item: Dictionary) -> Texture2D:
+	var path: String = item.get("art", "")
+	if path.is_empty():
+		return null
+	if not _equipment_textures.has(path):
+		_equipment_textures[path] = SurfaceArt.texture(path)
+	return _equipment_textures[path]
+
+static func fitted_art_rect(texture: Texture2D, bounds: Rect2, mount: Array = []) -> Rect2:
+	var extent := texture.get_size()
+	if mount.size() == 3:
+		var scale := minf(bounds.size.x, bounds.size.y) / float(mount[2])
+		return Rect2(bounds.get_center() - Vector2(mount[0], mount[1]) * scale, extent * scale)
+	var fitted := extent * minf(bounds.size.x / extent.x, bounds.size.y / extent.y)
+	return Rect2(bounds.get_center() - fitted * 0.5, fitted)
 
 static func compatible(slot: Dictionary, item: Dictionary) -> bool:
 	if item.is_empty() or slot.get("size") != item.get("size"):
@@ -88,6 +105,16 @@ static func valid_equipment(data: Variant) -> bool:
 		if not item is Dictionary or not item.get("id") is String or not item.get("name") is String or not _integer(item.get("rank")) or not _integer(item.get("revision")) or not _integer(item.get("part_type"), 0) or item.get("size") not in SIZES or item.get("type") not in TYPES or not item.get("stats") is Dictionary or not item.get("retired", false) is bool:
 			return false
 		var definition := GameDefinitions.find("equipment", item.id)
+		if item.has("art") and (not item.art is String or not ResourceLoader.exists(item.art, "Texture2D")):
+			return false
+		if item.has("art_mount"):
+			if not item.art_mount is Array or item.art_mount.size() != 3:
+				return false
+			for value: Variant in item.art_mount:
+				if not (value is float or value is int) or not is_finite(float(value)) or value < 0:
+					return false
+			if item.art_mount[2] <= 0:
+				return false
 		var key := "%s/%d" % [item.id, item.rank]
 		if definition.is_empty() or not definition.implemented or definition.type_id != item.part_type or item.id == "command_center" or seen.has(key):
 			return false

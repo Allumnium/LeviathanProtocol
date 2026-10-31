@@ -10,13 +10,17 @@ var hull_max := 0.0
 var mounts: Dictionary = {} # slot ID -> unique owned equipment instance
 var chassis: Dictionary = {}
 var art_texture: Texture2D
+var equipment_art_mounts: Dictionary = {}
+var equipment_art: Dictionary[String, Texture2D] = {}
 
 func initialize_chassis(chassis_key: String, ship_id: int, is_lead := false) -> bool:
 	chassis = SlotCatalog.find_chassis(chassis_key)
 	if chassis.is_empty():
 		return false
 	chassis_id = chassis_key
-	art_texture = load(chassis.art)
+	art_texture = SurfaceArt.texture(chassis.art)
+	if art_texture == null:
+		return false
 	id = ship_id
 	display_name = chassis.name + " %d" % id
 	flagship = is_lead
@@ -33,6 +37,8 @@ func is_flagship() -> bool:
 	return flagship
 
 func rebuild_units(previous: Dictionary = {}) -> void:
+	equipment_art.clear()
+	equipment_art_mounts.clear()
 	var old_max := hull_max
 	hull_max = float(chassis.integrity)
 	for instance: Dictionary in mounts.values():
@@ -54,6 +60,10 @@ func rebuild_units(previous: Dictionary = {}) -> void:
 			continue
 		var instance: Dictionary = mounts[slot.id]
 		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
+		var sprite := SlotCatalog.equipment_texture(item)
+		if sprite != null:
+			equipment_art[slot.id] = sprite
+			equipment_art_mounts[slot.id] = item.get("art_mount", [])
 		var part := ShipPart.new(0, 0, Vector2i.ZERO, [], ShipPartStats.new())
 		part.type = int(item.part_type)
 		part.definition_id = item.id
@@ -74,6 +84,21 @@ func health_by_mount() -> Dictionary:
 	for unit in units:
 		result[unit.key] = unit.hp
 	return result
+
+func draw_fitted_equipment(target: CanvasItem, chassis_rect: Rect2, tint := Color.WHITE) -> void:
+	for slot: Dictionary in chassis.slots:
+		if not equipment_art.has(slot.id):
+			continue
+		var texture: Texture2D = equipment_art[slot.id]
+		var bounds := Rect2(chassis_rect.position + Vector2(slot.rect[0], slot.rect[1]) * chassis_rect.size / 512,
+			Vector2(slot.rect[2], slot.rect[3]) * chassis_rect.size / 512)
+		var color := tint
+		if target is Control:
+			for unit: Dictionary in units:
+				if unit.key == slot.id and unit.hp < unit.max_hp:
+					color *= target.get_theme_color("destroyed_color" if unit.hp <= 0 else "damaged_color", "SlotCanvas")
+					break
+		target.draw_texture_rect(texture, SlotCatalog.fitted_art_rect(texture, bounds, equipment_art_mounts.get(slot.id, [])), false, color)
 
 func sync_equipment_health() -> void:
 	for unit in units:
@@ -120,6 +145,19 @@ func weapon_cycle_rate() -> float:
 		if unit.hp > 0 and unit.part != null and unit.part.type == ShipPart.Type.AMMUNITION_MAGAZINE:
 			count += 1
 	return 1.0 + 0.2 * count
+
+func hangar_summary() -> Dictionary:
+	var stats := get_stats()
+	var result := {"integrity": hull_hp, "integrity_max": hull_max, "shields": stats.shields,
+		"dps": stats.dps, "cargo": 0, "passengers": 0}
+	if is_alive():
+		for unit: Dictionary in units:
+			if unit.hp > 0 and unit.part != null:
+				if unit.part.definition_id == "cargo_hold":
+					result.cargo += HangarTrade.CARGO_CAPACITY
+				if unit.part.definition_id == "passenger_cabin":
+					result.passengers += HangarTrade.PASSENGER_CAPACITY
+	return result
 
 func hit_cell(origin: Vector2, random: RandomNumberGenerator) -> Vector2i:
 	# Scatter across the silhouette. Empty hull remains a valid direct hull hit.

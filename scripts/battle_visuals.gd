@@ -18,6 +18,10 @@ const SMALL_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_s_animate
 const LARGE_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_l_animated.png")
 const THRUSTER_START_SECONDS := 0.1
 const THRUSTER_LOOP_FPS := 12.0
+const PROJECTILE_LIGHT_RADIUS := 36.0
+const PROJECTILE_LIGHT_ENERGY := 0.9
+const PLAYER_PROJECTILE_LIGHT := Vector3(1.0, 0.12, 0.06)
+const ENEMY_PROJECTILE_LIGHT := Vector3(0.55, 1.0, 0.25)
 
 var _part_patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 var simulation: BattleSimulation
@@ -29,6 +33,8 @@ var _owned_render_cache: Dictionary = {}
 var _visible_world_rect := Rect2()
 var _thruster_frames_by_type: Dictionary = {}
 var ability_preview: Dictionary = {}
+var _surface_material: ShaderMaterial
+var _rock_texture: Texture2D
 
 
 func world_transform() -> Transform2D:
@@ -42,13 +48,50 @@ func _set_ship_transform(position: Vector2, angle: float, ship_scale: float = 1.
 
 
 func _ready() -> void:
+	_surface_material = SurfaceArt.apply(self)
+	_rock_texture = SurfaceArt.texture("res://assets/environment/asteroids_small_d.png")
 	var random := RandomNumberGenerator.new()
-	random.seed = 4815
+	random.seed = preload("res://scripts/main_menu_starfield.gd").area_seed(GameState.run_seed,
+		GameState.destination_node_id if GameState.battle_pending else GameState.current_node_id)
 	for index in range(450):
 		stars.append(Vector2(random.randf_range(-1800.0, 1800.0),
 			random.randf_range(-1400.0, 1400.0)))
 	resized.connect(_on_resized)
 	queue_redraw()
+
+
+func _process(_delta: float) -> void:
+	if simulation == null:
+		return
+	var flashes := PackedVector4Array()
+	var transform := get_global_transform_with_canvas() * world_transform()
+	for explosion in simulation.explosions:
+		if flashes.size() == SurfaceArt.MAX_FLASHES:
+			break
+		if not simulation.point_visible(BattleSimulation.Faction.PLAYER, explosion.position):
+			continue
+		var point := transform * explosion.position
+		flashes.append(Vector4(point.x, point.y, 160.0 * transform.x.length(), explosion.lifetime / 0.6 * 2.0))
+	_surface_material.set_shader_parameter("flash_count", flashes.size())
+	flashes.resize(SurfaceArt.MAX_FLASHES)
+	_surface_material.set_shader_parameter("flash_lights", flashes)
+	var projectile_lights := PackedVector4Array()
+	var projectile_colors := PackedVector3Array()
+	var light_rect := Rect2(camera_position - size / (camera_zoom * 2.0), size / camera_zoom).grow(PROJECTILE_LIGHT_RADIUS)
+	for projectile in simulation.projectiles:
+		if projectile_lights.size() == SurfaceArt.MAX_PROJECTILE_LIGHTS:
+			break
+		var position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
+		if not light_rect.has_point(position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, position):
+			continue
+		var point := transform * position
+		projectile_lights.append(Vector4(point.x, point.y, PROJECTILE_LIGHT_RADIUS * transform.x.length(), PROJECTILE_LIGHT_ENERGY))
+		projectile_colors.append(PLAYER_PROJECTILE_LIGHT if projectile.is_player else ENEMY_PROJECTILE_LIGHT)
+	_surface_material.set_shader_parameter("projectile_light_count", projectile_lights.size())
+	projectile_lights.resize(SurfaceArt.MAX_PROJECTILE_LIGHTS)
+	projectile_colors.resize(SurfaceArt.MAX_PROJECTILE_LIGHTS)
+	_surface_material.set_shader_parameter("projectile_lights", projectile_lights)
+	_surface_material.set_shader_parameter("projectile_light_colors", projectile_colors)
 
 
 func _on_resized() -> void:
@@ -205,7 +248,6 @@ func _draw_manual_target() -> void:
 
 
 func _draw_other_entities() -> void:
-	var rock_texture: Texture2D = preload("res://assets/asteroids_s.png")
 	for entity in simulation.other_entities:
 		if not entity.is_alive() or (entity.faction != BattleSimulation.Faction.PLAYER and not simulation.team_can_see(BattleSimulation.Faction.PLAYER, entity) and simulation.visibility_enabled):
 			continue
@@ -216,7 +258,7 @@ func _draw_other_entities() -> void:
 		if entity.has_tag("asteroid"):
 			var sprite := int(entity.entity_id.hash() & 63)
 			var region := Rect2(Vector2(sprite % 8, sprite / 8) * 32, Vector2(32, 32))
-			draw_texture_rect_region(rock_texture, Rect2(position - Vector2.ONE * entity.radius, Vector2.ONE * entity.radius * 2), region)
+			draw_texture_rect_region(_rock_texture, Rect2(position - Vector2.ONE * entity.radius, Vector2.ONE * entity.radius * 2), region)
 			# Motion is visible only with legitimate sight; no mineral overlays.
 			if entity.velocity.length_squared() > 1:
 				draw_line(position, position + entity.velocity * 1.5, Color(0.7, 0.75, 0.8, 0.35), 1.0)
@@ -261,6 +303,7 @@ func _draw_alien_fleet() -> void:
 			draw_arc(render_position, 140, 0, TAU, 48, Color(0.4, 0.7, 0.85, 0.25), 1)
 		var texture_size := alien.alien.texture.get_size()
 		var extent := 48.0 if alien.alien.role_id == "warden" else (22.0 if alien.alien.role_id == "pylon" else 16.0)
+		extent *= alien.alien.art_scale()
 		var draw_size := texture_size * (extent / maxf(texture_size.x, texture_size.y))
 		var render_heading := lerp_angle(alien.previous_heading, alien.heading, interpolation_alpha)
 		_set_ship_transform(render_position, render_heading + PI * 0.5)
@@ -362,6 +405,7 @@ func _draw_hangar_ship(member: BattleSimulation.Combatant, render_position: Vect
 	_set_ship_transform(render_position, heading + PI / 2)
 	var extent := Vector2.ONE * 512 * HangarShip.ART_SCALE
 	draw_texture_rect(texture, Rect2(-extent * 0.5, extent), false, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
+	owned.draw_fitted_equipment(self, Rect2(-extent * 0.5, extent), Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
 	for unit in owned.units:
 		if unit.hp < unit.max_hp:
 			draw_circle(Vector2(unit.position).rotated(-PI / 2), 3, Color("e17666") if unit.hp <= 0 else Color("e8b65c"))

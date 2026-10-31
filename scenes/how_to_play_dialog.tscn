@@ -35,7 +35,7 @@ ADJACENCY
 Crew Quarters: +12% operating rate to three touching components. Identical bonuses do not stack.
 
 TRAVEL AND RESEARCH
-Open Map, inspect a reachable node, then choose Travel. Select a Research node, read its details, then Set Research Focus. Travel research: (labs + 0.5) x days. Each living lab produces 1 RP/day at every rank. Enemy strength depends on the route, not your fleet.
+Open Map, inspect a reachable node, then choose Travel. Select a Research node, read its details, then Set Research Focus. Travel research: total lab production x days. Each living lab produces RP/day equal to its rank; there is no fleet baseline. Enemy strength depends on the route, not your fleet.
 
 PASSENGERS AND TRADE
 Cabins board passengers on inhabited arrivals. Cargo holds load goods on arrival and sell them at another port. Both need room and operating equipment. Review loads and earnings in the Fleet summary.

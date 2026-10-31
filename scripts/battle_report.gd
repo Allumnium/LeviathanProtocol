@@ -273,9 +273,10 @@ func _create_summary_preview(summary: Dictionary) -> Control:
 	var alien: AlienShip = summary.alien
 	var texture := TextureRect.new()
 	var texture_size := alien.texture.get_size()
-	var preview_size := texture_size * (27.0 / maxf(texture_size.x, texture_size.y))
+	var preview_size := texture_size * (27.0 * alien.art_scale() / maxf(texture_size.x, texture_size.y))
 	texture.custom_minimum_size = preview_size
 	texture.texture = alien.texture
+	SurfaceArt.apply(texture)
 	texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	texture.mouse_filter = Control.MOUSE_FILTER_IGNORE

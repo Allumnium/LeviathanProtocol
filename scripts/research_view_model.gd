@@ -21,7 +21,7 @@ static func group_for(node: Dictionary) -> String:
 		return "mining"
 	return "shared"
 
-static func nodes(registry: Dictionary, owned: Array, flags: Dictionary, branches: Dictionary, rp: int) -> Array[Dictionary]:
+static func nodes(registry: Dictionary, owned: Array, flags: Dictionary, branches: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var catalog: Array[Dictionary] = []
 	catalog.assign(registry.research)
@@ -60,8 +60,6 @@ static func nodes(registry: Dictionary, owned: Array, flags: Dictionary, branche
 			status = "Prerequisites"
 		elif not requirements.missing_story_gates.is_empty():
 			status = "Story gate"
-		elif rp < int(node.cost_rp):
-			status = "Need RP"
 		elif not requirements.implemented:
 			status = "Unavailable"
 		result.append({"id": node.id, "name": node.display_name, "group": group_for(node), "path": node.path_id,

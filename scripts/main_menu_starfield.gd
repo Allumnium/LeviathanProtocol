@@ -1,5 +1,9 @@
 extends Control
 
+var stationary := false
+var area_key := ""
+var _area_stars: Array[TwinkleStar] = []
+
 const STAR_AREA_PER_STAR := 1500.0
 const MIN_STAR_COUNT := 72
 const MAX_STAR_COUNT := 220
@@ -54,15 +58,41 @@ var _steering_direction := Vector2.ZERO
 
 
 func _ready() -> void:
-	_random.randomize()
+	if stationary:
+		if area_key.is_empty():
+			set_area(GameState.run_seed, GameState.current_node_id)
+		_elapsed_time = Time.get_ticks_msec() / 1000.0
+	else:
+		_random.randomize()
 	resized.connect(_on_resized)
 	call_deferred("_generate_stars")
+
+
+static func area_seed(world_seed: int, node_id: int) -> int:
+	return ("space-v1:%s:%s" % [world_seed, node_id]).hash()
+
+
+func set_area(world_seed: int, node_id: int) -> void:
+	var key := "%s:%s" % [world_seed, node_id]
+	if stationary and area_key == key:
+		return
+	stationary = true
+	area_key = key
+	_random.seed = area_seed(world_seed, node_id)
+	_area_stars.clear()
+	_stars.clear()
+	_sync_star_count()
 
 
 func _process(delta: float) -> void:
 	if GameState.reduced_motion:
 		return
 	_elapsed_time += delta
+	if stationary:
+		for star in _stars:
+			star.click_flash_remaining = maxf(star.click_flash_remaining - delta, 0.0)
+		queue_redraw()
+		return
 	var pitch_input := 0.0
 	if Input.is_physical_key_pressed(KEY_W):
 		pitch_input += 1.0
@@ -255,6 +285,14 @@ func _sync_star_count() -> void:
 
 	var area := size.x * size.y
 	var star_count := clampi(roundi(area / STAR_AREA_PER_STAR), MIN_STAR_COUNT, MAX_STAR_COUNT)
+	if stationary:
+		# Generate the whole area once, independent of viewport size or resize order.
+		if _area_stars.is_empty():
+			for index in range(MAX_STAR_COUNT):
+				_area_stars.append(_create_star(true))
+		_stars.assign(_area_stars.slice(0, star_count))
+		queue_redraw()
+		return
 	var initialize_across_screen := _stars.is_empty()
 	while _stars.size() < star_count:
 		_stars.append(_create_star(initialize_across_screen))
@@ -285,6 +323,9 @@ func _reset_star_position(star: TwinkleStar, initialize_across_screen: bool) -> 
 	star.click_flash_remaining = 0.0
 	if initialize_across_screen:
 		star.depth = _random.randf_range(MIN_INITIAL_STAR_DEPTH, 1.0)
+		if stationary:
+			star.world_offset = (Vector2(_random.randf(), _random.randf()) - Vector2.ONE * 0.5) * star.depth
+			return
 		var initial_position := Vector2(_random.randf(), _random.randf()) * size
 		star.world_offset = (
 			(initial_position - size * 0.5)
@@ -300,6 +341,8 @@ func _reset_star_position(star: TwinkleStar, initialize_across_screen: bool) -> 
 
 
 func _get_star_position(star: TwinkleStar) -> Vector2:
+	if stationary:
+		return size * 0.5 + star.world_offset * size / star.depth
 	return size * 0.5 + star.world_offset * maxf(size.x, size.y) / star.depth
 
 

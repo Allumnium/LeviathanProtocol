@@ -1,6 +1,8 @@
 extends Control
 
-var selected_ship_id := 0
+const EquipmentFilters = preload("res://scripts/hangar_equipment_filters.gd")
+
+var selected_ship_id := -1
 var selected_slot := ""
 var roster: VBoxContainer
 var details: VBoxContainer
@@ -9,9 +11,26 @@ var header: Label
 var feedback: Label
 var canvas: Control
 var shop: Control
+var buy_open := false
+var buy_mode := "EQUIPMENT"
 var shop_rows: VBoxContainer
-var active_tab := "HANGAR"
+var active_tab := "FLEET"
+var formation_view: Control
+var formation_camera := Vector2.ZERO
+var formation_zoom := 1.0
+var formation_selection: Array[int] = []
+var fitting_views: Dictionary = {}
+var traveling := false
+var graph: Control
+var flagship_icon: Texture2D
 var refresh_queued := false
+var stock: Control
+var stock_preferences: Dictionary = {}
+var shop_filters: EquipmentFilters
+var stats_grid: GridContainer
+var slot_info: Label
+var roster_panel: PanelContainer
+var details_panel: PanelContainer
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
@@ -37,16 +56,23 @@ func _ready() -> void:
 	credit_icon.custom_minimum_size = Vector2(20, 20)
 	credit_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	credit_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	credit_icon.size_flags_vertical = SIZE_SHRINK_CENTER
 	top.add_child(credit_icon)
 	header = _label("")
 	header.size_flags_horizontal = SIZE_EXPAND_FILL
+	header.autowrap_mode = TextServer.AUTOWRAP_OFF
+	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(header)
+	flagship_icon = load("res://assets/flag.png")
 	top.add_child(_button("MENU", func() -> void: get_tree().change_scene_to_file("res://scenes/main_menu.tscn")))
 	var tabs := HBoxContainer.new()
 	column.add_child(tabs)
-	for title in ["HANGAR", "FORMATION", "RESEARCH", "MAP"]:
+	for title in ["FLEET", "SHIPS", "RESEARCH", "MAP"]:
 		var tab := _button(title, func() -> void:
+			if traveling:
+				return
 			active_tab = title
+			buy_open = false
 			_refresh())
 		tab.size_flags_horizontal = SIZE_EXPAND_FILL
 		tabs.add_child(tab)
@@ -54,18 +80,30 @@ func _ready() -> void:
 	body.size_flags_vertical = SIZE_EXPAND_FILL
 	column.add_child(body)
 	roster = _panel(body, 132)
+	roster_panel = roster.get_parent()
 	center = Control.new()
 	center.size_flags_horizontal = SIZE_EXPAND_FILL
 	center.size_flags_vertical = SIZE_EXPAND_FILL
 	center.clip_contents = true
 	body.add_child(center)
 	details = _panel(body, 156)
+	details_panel = details.get_parent()
+	resized.connect(_resize_panels)
+	_resize_panels()
 	feedback = _label("")
 	column.add_child(feedback)
 	GameState.fleet_changed.connect(_queue_refresh)
 	GameState.research_changed.connect(_queue_refresh)
 	GameState.credits_changed.connect(_queue_refresh)
 	_refresh()
+
+func _resize_panels() -> void:
+	if roster_panel != null:
+		roster_panel.custom_minimum_size.x = clampf(size.x * 0.16, 116, 220)
+	if details_panel != null:
+		details_panel.custom_minimum_size.x = clampf(size.x * 0.24, 180, 300)
+	if stats_grid != null and is_instance_valid(stats_grid):
+		stats_grid.columns = 3 if size.x < 1000 else 5
 
 func _panel(parent: Node, width: float) -> VBoxContainer:
 	var panel := PanelContainer.new()
@@ -103,13 +141,38 @@ func _queue_refresh() -> void:
 
 func _refresh() -> void:
 	refresh_queued = false
-	header.text = "%d     RP %s" % [GameState.credits, ScienceRules.format_rp(GameState.research_points)]
+	if traveling:
+		return
+	if is_instance_valid(canvas):
+		fitting_views[canvas.owned_id] = {"camera": canvas.camera, "zoom": canvas.zoom}
+	if is_instance_valid(formation_view):
+		formation_camera = formation_view.camera
+		formation_zoom = formation_view.zoom
+		if formation_view.selected_id == selected_ship_id:
+			formation_selection.assign(formation_view.selected_ids)
+	formation_view = null
+	header.text = str(GameState.credits)
 	_clear(roster)
 	_clear(details)
+	if is_instance_valid(shop) and shop.get_parent() == center:
+		shop = null
 	_clear(center)
 	canvas = null
-	if GameState.owned_ship(selected_ship_id) == null and not GameState.fleet.is_empty():
+	stock = null
+	stats_grid = null
+	slot_info = null
+	if selected_ship_id > 0 and GameState.owned_ship(selected_ship_id) == null:
+		selected_ship_id = 0
+	if active_tab == "SHIPS" and selected_ship_id <= 0:
+		for owned: HangarShip in GameState.fleet:
+			if owned.flagship:
+				selected_ship_id = owned.id
+				formation_selection.assign([owned.id])
+				selected_slot = ""
+				break
+	elif selected_ship_id == -1 and not GameState.fleet.is_empty():
 		selected_ship_id = GameState.fleet[0].id
+	formation_selection = formation_selection.filter(func(id: int) -> bool: return GameState.owned_ship(id) != null)
 	if GameState.completed or GameState.run_ended:
 		center.add_child(_label("RUN COMPLETE" if GameState.completed else "FLAGSHIP LOST"))
 		return
@@ -133,37 +196,86 @@ func _refresh() -> void:
 	ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
 	ship_scroll.add_child(ship_rows)
 	for owned: HangarShip in GameState.fleet:
-		var button := _button(("* " if owned.flagship else "") + owned.display_name, func() -> void:
+		var button := _button(owned.display_name, func() -> void:
 			selected_ship_id = owned.id
+			formation_selection.assign([owned.id])
 			selected_slot = ""
 			_refresh())
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.icon = flagship_icon if owned.flagship else null
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.name = "Ship%d" % owned.id
+		button.toggle_mode = true
+		button.button_pressed = owned.id == selected_ship_id
 		ship_rows.add_child(button)
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
-	roster.add_child(_button("BUY", _open_shop))
+	var buy := _button("BUY", _open_shop)
+	buy.name = "BuyToggle"
+	buy.toggle_mode = true
+	buy.button_pressed = buy_open
+	roster.add_child(buy)
 	(roster.get_child(roster.get_child_count() - 1) as Button).disabled = not GameState.is_shipyard_node(GameState.current_node_id)
 	if not GameState.is_shipyard_node(GameState.current_node_id):
 		roster.add_child(_label("Buy at shipyard"))
-	if active_tab == "FORMATION":
+	if active_tab == "FLEET":
 		var board: Control = load("res://scripts/hangar_formation.gd").new()
 		board.selected_id = selected_ship_id
+		board.selected_ids.assign(formation_selection)
+		board.camera = formation_camera
+		board.zoom = formation_zoom
+		formation_view = board
 		center.add_child(board)
 		board.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 		board.ship_selected.connect(func(id: int) -> void:
 			selected_ship_id = id
-			_refresh())
+			_queue_refresh())
+		board.salvage_requested.connect(_confirm_salvage)
 		board.equipment_requested.connect(func(id: int) -> void:
 			selected_ship_id = id
-			active_tab = "HANGAR"
+			active_tab = "SHIPS"
 			_refresh())
 	else:
 		var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 		if owned != null:
+			var stack := VBoxContainer.new()
+			center.add_child(stack)
+			stack.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 			canvas = load("res://scripts/hangar_canvas.gd").new()
-			center.add_child(canvas)
-			canvas.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+			var view: Dictionary = fitting_views.get(owned.id, {})
+			canvas.camera = view.get("camera", Vector2.ZERO)
+			canvas.zoom = view.get("zoom", 1.0)
+			canvas.size_flags_vertical = SIZE_EXPAND_FILL
+			stack.add_child(canvas)
 			canvas.selected_slot = selected_slot
 			canvas.set_owned(owned)
+			var bottom := Control.new()
+			bottom.name = "ShipOrPartDetails"
+			bottom.custom_minimum_size.y = 64
+			stack.add_child(bottom)
+			slot_info = _label("")
+			bottom.add_child(slot_info)
+			slot_info.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+			stats_grid = GridContainer.new()
+			stats_grid.columns = 3 if size.x < 1000 else 5
+			bottom.add_child(stats_grid)
+			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+			stock = load("res://scripts/hangar_stock.gd").new()
+			stock.preferences = stock_preferences.duplicate()
+			stock.size_flags_vertical = SIZE_EXPAND_FILL
+			details.add_child(stock)
+			stock.changed_preferences.connect(func(value: Dictionary) -> void:
+				stock_preferences = value
+				if buy_open and is_instance_valid(shop_filters):
+					shop_filters.set_preferences(value)
+					if buy_mode == "EQUIPMENT":
+						_shop_equipment())
+			stock.equipment_stored.connect(_result)
+			stock.equipment_sold.connect(_result)
+			var repair := _button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id))))
+			repair.disabled = not owned.needs_repair() or GameState.credits < owned.repair_cost()
+			roster.add_child(repair)
+			if not owned.flagship:
+				roster.add_child(_button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id)))
 			canvas.slot_selected.connect(func(key: String) -> void:
 				selected_slot = key
 				_show_details())
@@ -171,12 +283,47 @@ func _refresh() -> void:
 				selected_slot = key
 				_result(GameState.fit_equipment(selected_ship_id, key, uid)))
 	_show_details()
+	if buy_open:
+		_show_buy_panel()
 
 func _show_details() -> void:
-	_clear(details)
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 	if owned == null:
+		_clear(details)
+		details.add_child(_label("FLEET"))
+		var cost: int = GameState.fleet_repair_cost()
+		var repair := _button("REPAIR ALL %d cr" % cost, func() -> void: _result(GameState.repair_all_ships()))
+		repair.disabled = cost <= 0 or GameState.credits < cost
+		details.add_child(repair)
 		return
+	if active_tab == "SHIPS":
+		if stats_grid == null:
+			return
+		var slot: Dictionary = {}
+		for candidate: Dictionary in owned.chassis.slots:
+			if candidate.id == selected_slot and owned.mounts.has(selected_slot):
+				slot = candidate
+		if slot.is_empty():
+			selected_slot = ""
+			canvas.selected_slot = ""
+		stats_grid.visible = slot.is_empty()
+		slot_info.visible = not slot.is_empty()
+		slot_info.text = ""
+		if not slot.is_empty():
+			var instance: Dictionary = owned.mounts.get(selected_slot, {})
+			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
+			slot_info.text = "%s\nHP %.0f / %.0f | %s\n%s" % [item.name, instance.hp, item.hit_points, SlotCatalog.slot_label(slot), _part_effect(item)]
+			return
+		_clear(stats_grid)
+		var summary := owned.hangar_summary()
+		for value in ["Integrity\n%.0f / %.0f" % [summary.integrity, summary.integrity_max],
+			"Shields\n%.0f" % summary.shields, "DPS\n%.1f" % summary.dps,
+			"Cargo\n%d" % summary.cargo, "Passengers\n%d" % summary.passengers]:
+			var label := _label(value)
+			label.size_flags_horizontal = SIZE_EXPAND_FILL
+			stats_grid.add_child(label)
+		return
+	_clear(details)
 	details.add_child(_label(owned.display_name))
 	details.add_child(_label("Hull %.0f / %.0f" % [owned.hull_hp, owned.hull_max]))
 	var stats := owned.get_stats()
@@ -207,22 +354,49 @@ func _show_details() -> void:
 	details.add_child(_button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id)))))
 	var repair := details.get_child(details.get_child_count() - 1) as Button
 	repair.disabled = not owned.needs_repair() or GameState.credits < owned.repair_cost()
-	if not owned.flagship and active_tab != "FORMATION":
-		details.add_child(_button("SALVAGE", func() -> void: _result(GameState.salvage_hangar_ship(selected_ship_id))))
+	if not owned.flagship and active_tab != "FLEET":
+		details.add_child(_button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id)))
 	var spacer := Control.new()
 	spacer.size_flags_vertical = SIZE_EXPAND_FILL
 	details.add_child(spacer)
-	details.add_child(_button("STOCK", _open_stock))
+
+func _part_effect(item: Dictionary) -> String:
+	match item.id:
+		"research_lab": return "%d RP/day" % int(item.rank)
+		"cargo_hold": return "%d cargo" % HangarTrade.CARGO_CAPACITY
+		"passenger_cabin": return "%d passengers" % HangarTrade.PASSENGER_CAPACITY
+		"ammunition_magazine": return "+20% weapon cycling"
+		"tactical_computer": return "Salvo / 12s per computer"
+		"command_uplink": return "Auto mark: +20% / 5s"
+	if item.id in HangarCarriers.CAPACITIES:
+		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
+	var values: Dictionary = item.stats
+	var effects: PackedStringArray = []
+	if not values.weapons.is_empty():
+		var dps := 0.0
+		var reach := 0.0
+		for weapon: ShipWeaponStats in SlotCatalog.stats_for(item.id, int(item.rank)).weapons:
+			dps += weapon.get_dps()
+			reach = maxf(reach, weapon.range_units)
+		effects.append("DPS %.1f | Range %.0f" % [dps, reach])
+	if values.shields > 0:
+		effects.append("Shields %.0f" % values.shields)
+	if values.thrust > 0:
+		effects.append("Thrust %.0f" % values.thrust)
+	if values.integrity > 0:
+		effects.append("Integrity +%.0f" % values.integrity)
+	return " | ".join(effects)
 
 func _result(ok: bool) -> void:
 	feedback.text = "" if ok else (GameState.last_save_error if not GameState.last_save_error.is_empty() else "Unavailable")
 	if ok:
 		_queue_refresh()
-		if shop != null:
+		if shop != null and not buy_open:
 			shop.queue_free()
 			shop = null
 
 func _modal(title: String) -> VBoxContainer:
+	buy_open = false
 	if shop != null:
 		shop.queue_free()
 	shop = Control.new()
@@ -260,11 +434,38 @@ func _modal(title: String) -> VBoxContainer:
 	return column
 
 func _open_shop() -> void:
-	var column := _modal("BUY")
+	if not GameState.is_shipyard_node(GameState.current_node_id):
+		return
+	buy_open = not buy_open
+	_refresh()
+
+func _show_buy_panel() -> void:
+	var card := PanelContainer.new()
+	card.name = "BuyPanel"
+	card.set_meta("close_target", true)
+	card.theme_type_variation = &"CompactPanel"
+	card.z_index = 10
+	shop = card
+	center.add_child(card)
+	card.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var column := VBoxContainer.new()
+	card.add_child(column)
+	column.add_child(_label("BUY"))
+	var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
+	card.add_child(close)
+	close.set_anchors_preset(PRESET_TOP_RIGHT)
+	close.pressed.connect(func() -> void:
+		buy_open = false
+		_refresh())
 	var modes := HBoxContainer.new()
 	column.add_child(modes)
 	modes.add_child(_button("EQUIPMENT", func() -> void: _shop_equipment()))
 	modes.add_child(_button("SHIPS", func() -> void: _shop_ships()))
+	shop_filters = EquipmentFilters.new()
+	shop_filters.name = "ShopFilters"
+	shop_filters.set_preferences(stock_preferences)
+	column.add_child(shop_filters)
+	shop_filters.changed.connect(_shop_equipment_filters_changed)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -272,61 +473,76 @@ func _open_shop() -> void:
 	shop_rows = VBoxContainer.new()
 	shop_rows.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(shop_rows)
-	_shop_equipment()
+	if buy_mode == "SHIPS":
+		_shop_ships()
+	else:
+		_shop_equipment()
 
 func _shop_equipment() -> void:
+	buy_mode = "EQUIPMENT"
+	shop_filters.show()
 	_clear(shop_rows)
 	var grants: Dictionary = GameState.research_grants()
+	var candidates: Array[Dictionary] = []
 	for item in SlotCatalog.equipment():
 		if item.id in HangarResearch.DEFERRED_EQUIPMENT or item.id in HangarResearch.DEFERRED_PURCHASES:
 			continue
-		var button := _button("%s | %s %s | %d cr%s" % [item.name, item.type.capitalize(), item.size, item.price, "" if SlotCatalog.unlocked(item, grants) else " | Research"], func() -> void: _result(GameState.buy_equipment(item.id, int(item.rank))))
+		if not shop_filters.matches(item):
+			continue
+		candidates.append(item)
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.price) == int(b.price):
+			var a_name := str(a.name).to_lower()
+			var b_name := str(b.name).to_lower()
+			if a_name == b_name:
+				return str(a.id) < str(b.id) if a.id != b.id else int(a.rank) < int(b.rank)
+			return a_name < b_name
+		return int(a.price) < int(b.price))
+	for item: Dictionary in candidates:
+		var button := _button("%s\n%s %s | %d cr%s" % [item.name, item.type.capitalize(), item.size, item.price, "" if SlotCatalog.unlocked(item, grants) else " | Research"], func() -> void: _result(GameState.buy_equipment(item.id, int(item.rank))))
 		button.disabled = not SlotCatalog.unlocked(item, grants) or GameState.credits < int(item.price)
 		shop_rows.add_child(button)
+	if candidates.is_empty():
+		shop_rows.add_child(_label("No matches"))
+
+func _shop_equipment_filters_changed(value: Dictionary) -> void:
+	stock_preferences = value
+	if is_instance_valid(stock):
+		stock.preferences = value.duplicate(true)
+		stock.filters.set_preferences(value)
+		stock._render()
+	if buy_mode == "EQUIPMENT":
+		_shop_equipment()
 
 func _shop_ships() -> void:
+	buy_mode = "SHIPS"
+	shop_filters.hide()
 	_clear(shop_rows)
-	for chassis in SlotCatalog.chassis():
+	var available := SlotCatalog.chassis()
+	available.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if int(a.price) == int(b.price):
+			return str(a.name) < str(b.name)
+		return int(a.price) < int(b.price))
+	for chassis in available:
 		if int(chassis.command) > 0:
 			continue
 		var row := HBoxContainer.new()
 		shop_rows.add_child(row)
 		var image := TextureRect.new()
-		image.texture = load(chassis.art)
-		image.custom_minimum_size = Vector2(64, 64)
+		image.texture = SurfaceArt.texture(chassis.art)
+		SurfaceArt.apply(image)
+		image.custom_minimum_size = Vector2(40, 48)
 		image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(image)
-		var button := _button("%s | %d command | %d cr" % [chassis.name, chassis.command_cost, chassis.price], func() -> void: _result(GameState.buy_chassis(chassis.id)))
+		var button := _button("%s\n%d command | %d cr" % [chassis.name, chassis.command_cost, chassis.price], func() -> void: _result(GameState.buy_chassis(chassis.id)))
 		button.disabled = GameState.credits < int(chassis.price) or GameState.used_command() + int(chassis.command_cost) > GameState.command_limit()
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(button)
 
-func _open_stock() -> void:
-	var column := _modal("STOCK")
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
-	var rows := VBoxContainer.new()
-	rows.size_flags_horizontal = SIZE_EXPAND_FILL
-	scroll.add_child(rows)
-	for instance: Dictionary in GameState.equipment_inventory.values():
-		if not GameState.equipment_location(instance.uid).is_empty():
-			continue
-		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-		var row := HBoxContainer.new()
-		rows.add_child(row)
-		var label := _label("%s #%s | %.0f%%" % [item.name, instance.uid, 100 * instance.hp / item.hit_points])
-		label.size_flags_horizontal = SIZE_EXPAND_FILL
-		row.add_child(label)
-		row.add_child(_button("SELL %d cr" % floori(float(item.price) * 0.5 * instance.hp / item.hit_points), func() -> void: _result(GameState.sell_equipment(instance.uid))))
-		if instance.hp < item.hit_points:
-			row.add_child(_button("REPAIR %d cr" % ceili(item.hit_points - instance.hp), func() -> void: _result(GameState.repair_equipment(instance.uid))))
-
 func _show_map() -> void:
 	roster.add_child(_label("DESTINATION"))
-	var graph: Control = load("res://scripts/graph_view.gd").new()
+	graph = load("res://scripts/graph_view.gd").new()
 	center.add_child(graph)
 	graph.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	graph.set_current_node(GameState.current_node_id)
@@ -339,6 +555,8 @@ func _show_map() -> void:
 		details.add_child(_label(problem))
 
 func _select_destination(id: int) -> void:
+	if traveling:
+		return
 	GameState.set_planned_destination(id)
 	_clear(details)
 	var preview: Dictionary = GameState.node_preview(id)
@@ -347,10 +565,42 @@ func _select_destination(id: int) -> void:
 	var days: float = GameState.research_travel_time(GameState.current_node_id, id)
 	details.add_child(_label("%s RP on arrival" % ScienceRules.format_rp(ScienceRules.journey_rp(ScienceRules.snapshot(GameState.get_deployed_fleet()), days))))
 	details.add_child(_button("TRAVEL", func() -> void:
-		if GameState.travel_to(id):
-			if GameState.battle_pending:
-				get_tree().change_scene_to_file("res://scenes/auto_battle.tscn")
-			else:
-				_refresh()
+		_begin_travel(id)))
+
+func _begin_travel(id: int) -> void:
+	if traveling:
+		return
+	traveling = true
+	# Commit departure before animation; prevent UI rebuilds until arrival.
+	if not GameState.travel_to(id):
+		traveling = false
+		_result(false)
+		return
+	for button in details.find_children("*", "Button", true, false):
+		button.disabled = true
+	graph.start_travel(id)
+	await graph.travel_finished
+	traveling = false
+	if GameState.battle_pending:
+		get_tree().change_scene_to_file("res://scenes/auto_battle.tscn")
+	else:
+		_refresh()
+
+func _confirm_salvage(id: int) -> void:
+	var owned: HangarShip = GameState.owned_ship(id)
+	if owned == null or owned.flagship:
+		return
+	var column := _modal("SALVAGE " + owned.display_name + "?")
+	var card: PanelContainer = column.get_parent()
+	card.set_anchors_and_offsets_preset(PRESET_CENTER)
+	card.offset_left = -140
+	card.offset_right = 140
+	card.offset_top = -45
+	card.offset_bottom = 45
+	column.add_child(_button("SALVAGE", func() -> void:
+		if GameState.salvage_hangar_ship(id):
+			selected_ship_id = 0
+			formation_selection.clear()
+			_result(true)
 		else:
 			_result(false)))

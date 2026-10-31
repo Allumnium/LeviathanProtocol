@@ -137,3 +137,14 @@ res://scripts/hangar_carriers.gd
 res://tests/test_hangar_carriers.gd
 res://tests/test_hangar_playthrough.gd
 res://tests/test_hangar_mounts.gd
+res://scripts/hangar_equipment_transfer.gd
+res://scripts/hangar_stock.gd
+res://tests/test_hangar_drag.gd
+res://scripts/hangar_drag_button.gd
+res://tests/test_ui_polish.gd
+res://scripts/hangar_equipment_preview.gd
+res://tests/test_hangar.gd
+res://tests/test_hangar_research.gd
+res://tests/test_surface_art.gd
+res://scripts/surface_art.gd
+res://shaders/surface_lighting.gdshader

@@ -55,6 +55,7 @@
     },
     {
       "id": "cargo_hold",
+      "art": "res://assets/equipment/cargo_xl_d.png",
       "name": "Cargo Hold",
       "part_type": 42,
       "rank": 1,
@@ -286,6 +287,8 @@
     },
     {
       "id": "mini_turret",
+      "art": "res://assets/equipment/miniTurret_d.png",
+      "art_mount": [62, 65, 82],
       "name": "Mini Turret",
       "part_type": 5,
       "rank": 1,
@@ -555,7 +558,7 @@
     },
     {
       "id": "research_lab",
-      "name": "Research Lab I",
+      "name": "Research Lab 1",
       "part_type": 10,
       "rank": 1,
       "revision": 2,
@@ -574,7 +577,7 @@
     },
     {
       "id": "research_lab",
-      "name": "Research Lab II",
+      "name": "Research Lab 2",
       "part_type": 10,
       "rank": 2,
       "revision": 2,
@@ -593,7 +596,7 @@
     },
     {
       "id": "research_lab",
-      "name": "Research Lab III",
+      "name": "Research Lab 3",
       "part_type": 10,
       "rank": 3,
       "revision": 2,

@@ -4,7 +4,7 @@
     {
       "id": "flagship_basic",
       "name": "Flagship",
-      "art": "res://assets/flagship_basic.png",
+      "art": "res://assets/chassis/flagship_basic_d.png",
       "price": 1200,
       "integrity": 260,
       "mass": 65,
@@ -117,7 +117,7 @@
     {
       "id": "corsair",
       "name": "Corsair",
-      "art": "res://assets/corsair.png",
+      "art": "res://assets/chassis/corsair_d.png",
       "slots": [
         {
           "id": "fore",
@@ -186,7 +186,7 @@
     {
       "id": "fighter",
       "name": "Fighter",
-      "art": "res://assets/fighter.png",
+      "art": "res://assets/chassis/fighter_d.png",
       "slots": [
         {
           "id": "fore",
@@ -233,7 +233,7 @@
     {
       "id": "transport",
       "name": "Transport",
-      "art": "res://assets/transport.png",
+      "art": "res://assets/chassis/transport_d.png",
       "slots": [
         {
           "id": "hold",
@@ -302,7 +302,7 @@
     {
       "id": "frigate",
       "name": "Frigate",
-      "art": "res://assets/frigate.png",
+      "art": "res://assets/chassis/frigate_d.png",
       "slots": [
         {
           "id": "fore",
@@ -371,7 +371,7 @@
     {
       "id": "drone",
       "name": "Drone",
-      "art": "res://assets/drone.png",
+      "art": "res://assets/chassis/drone_d.png",
       "slots": [
         {
           "id": "fore",

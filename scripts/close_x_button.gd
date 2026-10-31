@@ -76,7 +76,8 @@ func _close_containing_modal() -> void:
 		if ancestor is Control:
 			var ancestor_name := str(ancestor.name).to_lower()
 			if (
-				"modal" in ancestor_name
+				ancestor.get_meta("close_target", false)
+				or "modal" in ancestor_name
 				or "dialog" in ancestor_name
 				or "overlay" in ancestor_name
 			):

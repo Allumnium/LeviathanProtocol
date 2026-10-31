@@ -4,7 +4,7 @@ Review date: October 30, 2026. Scope: required steps 50-54, with optional extras
 
 ## Research and guidance
 
-New runs use Laboratory II / III prices of 12 / 24 RP. A living deployed lab still produces exactly 1 RP/day at every rank, plus the fleet's 0.5 RP/day baseline. One lab can fund Lab II after eight travel days; Lab III remains gated by the Warden. Other research prices remain unchanged pending the broader Act II pacing review in step 61. No battle-time farming or rank production multiplier was added.
+New runs use Laboratory II / III prices of 12 / 24 RP. A living deployed lab produces RP/day equal to its rank, with no fleet baseline. Lab III remains gated by the Warden. Other research prices remain unchanged pending the broader Act II pacing review in step 61. No battle-time farming was added.
 
 Research pricing is versioned in run progress. Historical runs without the field keep their original 40 / 80 RP lab prices and ledger; a 35/40 partial project remains valid. Validation, allocation, compatibility purchases and the live tree use the same price rule. New costs apply to new runs, without silently refunding, discarding or completing existing projects.
 

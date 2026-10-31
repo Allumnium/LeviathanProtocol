@@ -4,6 +4,8 @@ Nine runs completed the currently implemented campaign route: three seeds with c
 
 All nine runs won 14 battles each (126 total), reaching all 24 arrivals. The suite passed 1,252 checks. Science policies purchased and operated upgraded labs; daily production finished at 4.5 RP/day versus 1.5 for the other policies.
 
+The recorded production values above are historical measurements from before the fleet baseline was removed; existing pending travel yields remain frozen as saved.
+
 | Seed | Policy | Ships | Ending credits | RP/day | Technologies completed | Combat seconds |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
 | 42 | Combat | 4 | 908 | 1.5 | 3 | 201.0 |
@@ -20,7 +22,7 @@ Ending credits reflect different fleet/equipment spending as well as trade incom
 
 ## Changes from the review
 
-- Lab I / II / III produce 1 / 2 / 3 RP per day, plus the fleet baseline of 0.5. Lab II fits Frigate civic L; Lab III fits flagship/Transport civic XL. All retained equipment has at least one matching authored mount. Source artwork and draft mount maps were preserved.
+- Lab I / II / III produce 1 / 2 / 3 RP per day respectively, with no fleet baseline. Lab II fits Frigate civic L; Lab III fits flagship/Transport civic XL. All retained equipment has at least one matching authored mount. Source artwork and draft mount maps were preserved.
 - Production labels show the lab mix; research and hangar details match rank rates. Stock, destroyed labs and destroyed hosts produce nothing.
 - Pending journey yields are already frozen numbers and remain unchanged across this rule update. Later journeys use the new rates. Tests cover midbattle lab destruction, Continue and duplicate settlement.
 - Gravitic Snare was a purchasable inactive ability. New purchases, focus and loot are deferred until the ability path is adapted. Existing research and owned instances remain readable/removable/sellable; fitted inactive equipment cannot deploy. No replacement slot bonus was invented.

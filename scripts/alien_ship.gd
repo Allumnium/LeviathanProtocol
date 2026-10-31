@@ -1,12 +1,16 @@
 class_name AlienShip
 extends RefCounted
 
-const CHRYSALIS_TEXTURE: Texture2D = preload("res://assets/drone_chrysalis.png")
+const CHRYSALIS_TEXTURE: Texture2D = preload("res://assets/aliens/drone_chrysalis_d.png")
 const FIGHTER_TEXTURE: Texture2D = preload("res://assets/drone_fighter.png")
-const SCOUT_TEXTURE: Texture2D = preload("res://assets/drone_scout.png")
-const SENTINEL_TEXTURE: Texture2D = preload("res://assets/drone_sentinel.png")
+const SCOUT_TEXTURE: Texture2D = preload("res://assets/aliens/drone_scout_d.png")
+const SENTINEL_TEXTURE: Texture2D = preload("res://assets/aliens/drone_sentinel_d.png")
 const PYLON_TEXTURE: Texture2D = preload("res://assets/shield.png")
-const SUPPORT_TEXTURE: Texture2D = preload("res://assets/drone_support.png")
+const SUPPORT_TEXTURE: Texture2D = preload("res://assets/aliens/drone_support_d.png")
+const LARGE_ART := {
+	"fighter": "res://assets/aliens/drone_large_wing_d.png",
+	"chrysalis": "res://assets/aliens/drone_large_sporeback_d.png",
+}
 
 var display_name: String
 var texture: Texture2D
@@ -44,7 +48,7 @@ func _init(
 
 	display_name = p_display_name
 	role_id = p_display_name.to_snake_case()
-	texture = p_texture
+	texture = SurfaceArt.texture(p_texture.resource_path) if p_texture.resource_path.ends_with("_d.png") else p_texture
 	base_stats = p_base_stats
 	stats = _scale_stats(difficulty_multiplier)
 
@@ -78,6 +82,7 @@ static func threat_variant(role: String, rank: int) -> AlienShip:
 			continue
 		definition.definition_id = "%s/tier_%d" % [role, rank]
 		definition.tier = rank
+		definition._apply_tier_art()
 		definition.threat_cost = ROLE_COSTS[role] * TIER_COST[rank]
 		definition.stats.integrity *= TIER_HULL[rank]
 		definition.stats.shields *= TIER_HULL[rank]
@@ -131,7 +136,17 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 	result.entity_id = entry.get("entity_id", "")
 	result.entity_kind = entry.get("kind", "ship")
 	result.wave_index = int(entry.get("wave", 0))
+	result._apply_tier_art()
 	return result
+
+
+func _apply_tier_art() -> void:
+	if tier > 0 and LARGE_ART.has(role_id):
+		texture = SurfaceArt.texture(LARGE_ART[role_id])
+
+
+func art_scale() -> float:
+	return 1.5 if tier > 0 and LARGE_ART.has(role_id) else 1.0
 
 
 static func snapshot_valid(entry: Variant) -> bool:

@@ -42,9 +42,11 @@ static func eligible(key: String, progress: Dictionary, include_deferred := fals
 	return row.known and row.implemented and not row.owned and row.missing_prerequisites.is_empty() and row.missing_story_gates.is_empty() and row.conflicts.is_empty() and not row.branch_conflict
 
 static func valid(progress: Dictionary) -> bool:
-	for key in ["research_ids", "story_flags", "branch_choices", "research_points", "research_focus", "research_progress", "research_pricing_version"]:
+	for key in ["research_ids", "story_flags", "branch_choices", "research_focus", "research_progress", "research_pricing_version"]:
 		if not progress.has(key):
 			return false
+	if progress.has("research_points") and (not HangarCheckpoint._number(progress.research_points) or progress.research_points < 0):
+		return false
 	if not progress.research_focus is String or not progress.research_progress is Dictionary or progress.research_pricing_version != 1:
 		return false
 	if not ResearchRules.selection_error(progress.research_ids, progress.story_flags, progress.branch_choices, catalog()).is_empty():

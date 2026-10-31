@@ -1,0 +1,140 @@
+[gd_scene format=3 uid="uid://fa1686n4u42e"]
+
+[ext_resource type="Script" path="res://scripts/build_tilemap_area.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://dlbus4g2mt7kw" path="res://assets/ui/build_grid.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://cfg1t7agkctln" path="res://assets/ui/icons/red_square.png" id="3"]
+[ext_resource type="Texture2D" uid="uid://bjy8aa0pe8rpg" path="res://assets/ui/icons/blue_square.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://dvv8lmwoxtuto" path="res://assets/ui/icons/green_square.png" id="5"]
+[ext_resource type="PackedScene" uid="uid://cjp5lrj52hk1" path="res://scenes/build_selector_button.tscn" id="6"]
+[ext_resource type="Script" path="res://scripts/build_viewport_starfield.gd" id="7_starfield"]
+[ext_resource type="Texture2D" uid="uid://bjci2rwh06c2m" path="res://assets/core.png" id="8_core"]
+[ext_resource type="PackedScene" path="res://scenes/load_design_dialog.tscn" id="9_load_dialog"]
+[ext_resource type="PackedScene" uid="uid://3thvt8lxm570" path="res://scenes/save_design_dialog.tscn" id="10_save_dialog"]
+
+[node name="BuildTilemapArea" type="Control" unique_id=1812238832]
+clip_contents = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+map_dimensions = Vector2i(20, 20)
+grid_texture = ExtResource("2")
+red_tile_texture = ExtResource("3")
+blue_tile_texture = ExtResource("4")
+green_tile_texture = ExtResource("5")
+core_tile_texture = ExtResource("8_core")
+
+[node name="BackgroundStars" type="Node2D" parent="." unique_id=413738672]
+script = ExtResource("7_starfield")
+
+[node name="PanRoot" type="Node2D" parent="." unique_id=1900735749]
+
+[node name="GridLayer" type="TileMapLayer" parent="PanRoot" unique_id=751107268]
+modulate = Color(1, 1, 1, 0.5)
+
+[node name="HullPolygon" type="Polygon2D" parent="PanRoot" unique_id=1322452640]
+color = Color(0.38, 0.38, 0.4, 1)
+
+[node name="PlacedLayer" type="TileMapLayer" parent="PanRoot" unique_id=1191179504]
+
+[node name="PartsLayer" type="Node2D" parent="PanRoot" unique_id=68509800]
+
+[node name="AnimationLayer" type="Node2D" parent="PanRoot" unique_id=279133784]
+
+[node name="MoveGhostLayer" type="TileMapLayer" parent="PanRoot" unique_id=830805225]
+modulate = Color(1, 1, 1, 0.5)
+
+[node name="PreviewLayer" type="TileMapLayer" parent="PanRoot" unique_id=1784972733]
+modulate = Color(1, 1, 1, 0.5)
+
+[node name="SelectorBackground" type="ColorRect" parent="." unique_id=553963283]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 0.17
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.12, 0.13, 0.15, 1)
+
+[node name="SelectorRow" type="GridContainer" parent="." unique_id=1850990706]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.01
+anchor_top = 0.06
+anchor_right = 0.14
+anchor_bottom = 0.94
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 6
+columns = 4
+
+[node name="OffenseLabel" type="Label" parent="SelectorRow" unique_id=709858831]
+layout_mode = 2
+text = "OFFENSE"
+horizontal_alignment = 1
+
+[node name="DefenseLabel" type="Label" parent="SelectorRow" unique_id=819314459]
+layout_mode = 2
+text = "DEFENSE"
+horizontal_alignment = 1
+
+[node name="TechLabel" type="Label" parent="SelectorRow" unique_id=1458055223]
+layout_mode = 2
+text = "TECH"
+horizontal_alignment = 1
+
+[node name="CivicLabel" type="Label" parent="SelectorRow" unique_id=115857666]
+layout_mode = 2
+text = "CIVIC"
+horizontal_alignment = 1
+
+[node name="RedBuildButton" parent="SelectorRow" unique_id=1139382080 instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="BlueBuildButton" parent="SelectorRow" unique_id=168622743 instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="GreenBuildButton" parent="SelectorRow" unique_id=1227693967 instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="CoreBuildButton" parent="SelectorRow" unique_id=769865067 instance=ExtResource("6")]
+layout_mode = 2
+
+[node name="DesignControls" type="VBoxContainer" parent="." unique_id=1337853369]
+layout_mode = 0
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -60.0
+offset_top = 8.0
+offset_bottom = 64.0
+grow_horizontal = 0
+theme_override_constants/separation = 4
+
+[node name="SaveDesignButton" type="Button" parent="DesignControls" unique_id=1963614943]
+custom_minimum_size = Vector2(60, 26)
+layout_mode = 2
+text = "SAVE"
+
+[node name="LoadDesignButton" type="Button" parent="DesignControls" unique_id=504827124]
+custom_minimum_size = Vector2(60, 26)
+layout_mode = 2
+text = "LOAD"
+
+[node name="HistoryControls" type="HBoxContainer" parent="." unique_id=750044337]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -20.0
+offset_right = 28.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 4
+
+[node name="LoadDesignDialog" parent="." unique_id=1612650171 instance=ExtResource("9_load_dialog")]
+
+[node name="SaveDesignDialog" parent="." unique_id=1944024658 instance=ExtResource("10_save_dialog")]

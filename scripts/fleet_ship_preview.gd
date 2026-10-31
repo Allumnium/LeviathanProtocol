@@ -7,6 +7,7 @@ var owned: FleetShip
 var patterns: Dictionary = {}
 
 func _ready() -> void:
+	SurfaceArt.apply(self)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	resized.connect(queue_redraw)
 
@@ -16,7 +17,9 @@ func _draw() -> void:
 	if owned.is_slot_ship():
 		var chassis: Dictionary = (owned as HangarShip).chassis
 		var side := minf(size.x, size.y)
-		draw_texture_rect((owned as HangarShip).art_texture, Rect2((size - Vector2.ONE * side) * 0.5, Vector2.ONE * side), false)
+		var rect := Rect2((size - Vector2.ONE * side) * 0.5, Vector2.ONE * side)
+		draw_texture_rect((owned as HangarShip).art_texture, rect, false)
+		(owned as HangarShip).draw_fitted_equipment(self, rect)
 		return
 	# Only historical DTO previews need the square recipe catalog.
 	if patterns.is_empty():

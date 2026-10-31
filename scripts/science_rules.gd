@@ -1,14 +1,11 @@
 class_name ScienceRules
 extends RefCounted
 
-# Planned journey time is fixed at departure; battle delays cannot farm research.
-const BASELINE_LABS := 0.5
-
 static func format_rp(value: float) -> String:
 	return str(int(value)) if value == floor(value) else str(value)
 
 static func production_rate(science: Dictionary) -> float:
-	var rate := BASELINE_LABS
+	var rate := 0.0
 	for lab: Dictionary in science.labs:
 		# Older grid-era snapshots retain their original one-RP-per-lab rate.
 		rate += float(lab.rank) if science.get("production_version", 1) == 2 else 1.0

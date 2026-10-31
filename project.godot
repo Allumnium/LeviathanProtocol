@@ -43,3 +43,10 @@ theme/custom="res://themes/ui_theme.tres"
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
+
+[shader_globals]
+
+cursor_light={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}

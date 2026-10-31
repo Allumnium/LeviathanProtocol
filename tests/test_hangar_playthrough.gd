@@ -156,7 +156,7 @@ func play(seed_value: int, trade: bool, science := false) -> void:
 	print("NATURAL SUMMARY ", JSON.stringify(summary))
 	check(state.completed, "Natural campaign reaches final victory")
 	if science:
-		check(state.current_research_ids.has("laboratory_iii") and summary.daily_rp >= 4.5, "Science fleet actually purchases and runs upgraded labs")
+		check(state.current_research_ids.has("laboratory_iii") and summary.daily_rp >= 4.0, "Science fleet actually purchases and runs upgraded labs")
 
 func run() -> void:
 	state = root.get_node("GameState")

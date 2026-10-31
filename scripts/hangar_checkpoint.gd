@@ -46,7 +46,9 @@ static func valid(value: Variant) -> bool:
 	if not encounter is Dictionary or (value.pending and not EncounterGenerator.valid(encounter)) or (not value.pending and not encounter.is_empty()):
 		return false
 	var progress: Dictionary = value.research
-	if not progress.get("research_ids") is Array or not progress.get("story_flags") is Dictionary or not progress.get("branch_choices") is Dictionary or not _number(progress.get("research_points")) or progress.research_points < 0:
+	if not progress.get("research_ids") is Array or not progress.get("story_flags") is Dictionary or not progress.get("branch_choices") is Dictionary:
+		return false
+	if progress.has("research_points") and (not _number(progress.research_points) or progress.research_points < 0):
 		return false
 	if not HangarResearch.valid(progress):
 		return false
