@@ -84,6 +84,20 @@ Invariants: proximity-only enemy strength; three general design families with pl
 | G | 55–61, excluding optional 57 | Intermediate doctrines and second boss |
 | H | 62–70 | Endpoints, full campaign and release validation |
 
+### Priority override: chassis images and equipment slots (October 31, 2026)
+
+The owner replaced square/hex construction and materials with chassis artwork and fixed slots. This supersedes the October 30 hex rework, its R1-R6 roadmap and recipe proposals. Historical completed work remains documented in docs/HEX_CHASSIS_REWORK.md. Do not continue hex geometry, material recipes, construction regions or material-economy development. Optional extras stay deferred.
+
+Every slot has a dropdown, type (Offense/Defense/Tech/Civic) and size (S/M/L/XL). Require exact size AND type matches; smaller equipment does not fit larger slots. Starter tech is available and research unlocks more. Keep minimal text, no hover tooltips, Starhull theme and no focus navigation. Preserve mandatory flagship/command-budget/no-reserve rules. New costs use credits rather than construction materials; remaining milestones must be adapted to these decisions before implementation. In particular, obsolete material/ore payouts, wildcard exchanges, recipe/adjacency upgrades and material inventory requirements are not requirements of the new model. Do not invent replacement mining/trade systems.
+
+- [x] S1: Integrate Corsair, Fighter, Transport, Frigate and Drone artwork in the main-menu Designer. Author editable draft slot maps, exact size/type equipment metadata, starter/research filtering, direct dropdown fitting, inline details and versioned atomic loadout saves. Preserve earlier archives without conversion. See docs/SLOT_DESIGNER.md.
+- [ ] S2: Migrate the physical fleet, construction/refits/repairs and credit costs to chassis/slot loadouts. Retain exactly one mandatory flagship, chassis command budget and no reserves; assign final chassis roles/tuning with the owner. No materials, recipes or individual material purchases.
+- [ ] S3: Connect slot equipment to physical battle, built-in hardware, component/chassis damage, repair and flagship defeat. Reuse orientation-free equipment behavior. Replace grid hit/adjacency assumptions with authored mounting positions and agreed effects; do not carry over hex regions/bonuses by assumption.
+- [ ] S4: Migrate campaign/research/travel production, losses, cargo/passengers and checkpoints as an explicit versioned transition. Preserve old saves/blueprints without silently guessing loadouts. Keep starting tech and research permissions authoritative at every construction/deployment boundary.
+- [ ] S5: Review five chassis' slot maps/types/sizes, starting roster and equipment availability with the owner. Verify native UI at 640x360/1280x720/1920x1080, combat, economy, persistence, replay and performance before resuming step 56. Reassess material/mining-era requirements in remaining steps under the slot/credit model.
+
+The active main-menu Designer is now image/slot based. The embedded campaign builder and campaign simulation/economy/checkpoint path remain legacy until S2-S4 are completed together. The archived hex combat proof is not the new campaign model.
+
 ## Numbered development steps
 
 1. [x] **Establish the baseline and asset inventory.**
@@ -389,7 +403,7 @@ Invariants: proximity-only enemy strength; three general design families with pl
     **Done when:** finite sorties, interception, magazine risk, synchronized fire and valid-space repositioning have working counters.
 
 58. [ ] **Finish intermediate economic/science content.**
-    Enable Luxury Suites, Analysis Array and support behavior while keeping endpoints gated. Full refinery preference belongs to optional step 34 and does not block this step.
+    Enable Luxury Suites, Analysis Array and support behavior through typed equipment slots while keeping endpoints gated. Use the credit/slot model; the former material-refinery preference requirement is superseded.
     **Done when:** luxury, RP and recovery use separate caps and reports explain each return.
 
 59. [ ] **Add Act II enemy combinations.**
@@ -398,19 +412,19 @@ Invariants: proximity-only enemy strength; three general design families with pl
 
 60. [ ] **Implement the Brood Architect.**
     Add two finite hangars, repair organ without resurrection, cluster telegraphs and body-plus-living-escorts victory.
-    **Done when:** destroyed hangars permanently stop their waves, no salvage loop exists and capstones/capacity 54 unlock once.
+    **Done when:** destroyed hangars permanently stop their waves, no salvage loop exists and capstones and agreed chassis/command progression unlock once; do not restore act-based deployment capacity.
 
 61. [ ] **Validate research pacing through Act II.**
-    Retune the worked RP ledger around planned travel days and (deployed labs + 0.5) RP/day, including quiet routes and focused partial projects; compare science/tourism/trade/mining detours at equal resource investment. Battle duration never increases research. Retune the old research costs and lab-rank rewards for 1 RP/day/lab plus the baseline; do not carry over the former 20-RP-per-battle pacing assumptions.
+    Retune the worked RP ledger around planned travel days and (deployed labs + 0.5) RP/day, including quiet routes and focused partial projects; compare science/tourism/trade detours at equal credit investment under the slot model. Battle duration never increases research. Retune the old research costs and lab-rank rewards for 1 RP/day/lab plus the baseline; do not carry over the former 20-RP-per-battle pacing assumptions.
     **Done when:** focused research reaches an endpoint before battle 13 without mandatory extra science ships, while extra labs cost combat opportunity. Review Gate G.
 
 62. [ ] **Implement eight combat endpoints.**
     Add Stellar Lance, Singularity, Aegis, Ark Restoration, Siege Mass Driver, Hive Carrier, Admiralty Nexus and Ghost Network.
     **Done when:** one capstone per hull, shared cooldowns, finite reserves and story gates hold; each endpoint is powerful with clear limits.
 
-63. [ ] **Implement four support/mining endpoints.**
-    Add Grand Promenade/Sanctuary, Industrial Foundry/Field Patch, Quantum Observatory/Forecast and Planetcracker.
-    **Done when:** they retain combat value without creating people, cargo, infinite repairs or ore; mining competes for general hull space and deployment capacity.
+63. [ ] **Complete support endpoints for the slot model.**
+    Add Grand Promenade/Sanctuary, Industrial Foundry/Field Patch and Quantum Observatory/Forecast where compatible with the credit/slot model. Defer the former Planetcracker/material-mining specification until the owner defines a role without materials.
+    **Done when:** support equipment fits exact type/size slots and retains combat value without creating people, cargo or infinite repairs. No construction materials, mining inventory or old deployment-capacity requirement.
 
 64. [ ] **Complete Act III encounters.**
     Teach sweeps, charging organs and finite hangars separately, then combine familiar roles. Optional hazards may be added later, at most two vetted previewed hazards per encounter; they are not needed to complete the act.
@@ -447,8 +461,8 @@ Invariants: proximity-only enemy strength; three general design families with pl
 
 These items preserve the broader design but do not block the first-act milestone or core full-campaign release. Original IDs are retained. Follow dependencies within this backlog: sensors extend step 36; extra abilities extend step 38; spectroscopy extends Scan/mining; hazardous travel follows its environment systems; cloak follows visibility/Scan. Activate an extra only when deliberately scheduled, and update grants, previews, saves and validation together.
 
-34. [ ] **OPTIONAL / EXTRA — Implement material handling and freight upgrades.**
-    Add Tractor pickup reach, Sorting Refinery preference/+15 points and Freight Engineering capacity 10→15. Required finite salvage limits and anti-farming checks remain on the main path in step 35.
+34. [ ] **OPTIONAL / EXTRA — Freight upgrades after the slot/credit migration.**
+    Material pickup/refinery requirements are superseded. Revisit only the existing cargo-goods Freight Engineering capacity upgrade after the slot/credit migration; do not activate optional upgrades now. Preserve finite reward and anti-farming guarantees.
     **Done when:** bonuses respect finite pools and capacity upgrades never refill existing holds. These upgrades are not required for the basic economy.
 
 37. [ ] **OPTIONAL / EXTRA — Add sensors and radar relays.**

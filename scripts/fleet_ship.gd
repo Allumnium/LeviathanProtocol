@@ -20,6 +20,12 @@ var center := Vector2.ZERO
 var cell_size := ShipStats.BATTLE_CELL_SIZE
 var visual_revision := 0
 
+func is_hex_ship() -> bool:
+	return false
+
+func is_flagship() -> bool:
+	return false
+
 func initialize(blueprint: Ship, ship_id: int, title: String) -> bool:
 	id = ship_id
 	display_name = title

@@ -2,6 +2,7 @@ class_name BattleVisuals
 extends Control
 
 const BUILD_CELL_SIZE := Ship.BUILD_CELL_SIZE
+const HEX_PALETTE: HexMaterialPalette = preload("res://themes/hex_material_palette.tres")
 const HULL_COLOR := Color(0.38, 0.38, 0.4, 1.0)
 const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.7)
 const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
@@ -83,6 +84,8 @@ func _draw() -> void:
 			var tile_texture := _get_tile_texture(drop.category)
 			if tile_texture != null:
 				var drop_size := Vector2.ONE * drop.size
+				if _uses_hex_materials():
+					drop_size.y *= float(HexMaterialPalette.TILE_SIZE.y) / HexMaterialPalette.TILE_SIZE.x
 				draw_texture_rect(
 					tile_texture,
 					Rect2(drop.position - drop_size * 0.5, drop_size),
@@ -416,7 +419,13 @@ func _get_visual_cells_for_part(
 	return []
 
 
+func _uses_hex_materials() -> bool:
+	return simulation != null and not simulation.players.is_empty() and simulation.players[0].owned_ship != null and simulation.players[0].owned_ship.is_hex_ship()
+
+
 func _get_tile_texture(category: int) -> Texture2D:
+	if _uses_hex_materials():
+		return HEX_PALETTE.material_texture(category)
 	match category:
 		ShipPart.Category.OFFENSE:
 			return RED_TILE_TEXTURE
@@ -433,6 +442,9 @@ func _get_tile_texture(category: int) -> Texture2D:
 
 func _draw_voxel_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
 	var owned := member.owned_ship
+	if owned is HexBattleShip:
+		_draw_hex_ship(member, render_position)
+		return
 	var render_cache := _get_owned_render_cache(owned)
 	var is_wreck := not member.is_alive()
 	var wreck_tint := Color(0.4, 0.44, 0.43, 0.75)
@@ -463,6 +475,37 @@ func _draw_voxel_ship(member: BattleSimulation.Combatant, render_position: Vecto
 		_draw_cached_part(member, unit_index, owned.units[unit_index], part_rects, ship_tint, is_shield_flashing, is_wreck, true)
 	if is_shield_flashing:
 		_draw_hull_outline(hull)
+	draw_set_transform_matrix(world_transform())
+
+
+func _draw_hex_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
+	var owned := member.owned_ship as HexBattleShip
+	var heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
+	var ship_view := world_transform() * Transform2D(heading, render_position)
+	draw_set_transform_matrix(ship_view)
+	var wreck := not member.is_alive()
+	for cell in owned.hull_cells:
+		var polygon := owned.cell_polygon(cell)
+		draw_colored_polygon(polygon, Color("242e38") if not wreck else Color("202426"))
+		var outline := polygon.duplicate()
+		outline.append(polygon[0])
+		draw_polyline(outline, Color("52616b"), 0.25, true)
+		if owned.state.design.tiles.has(cell) and owned.state.component_at(cell) >= 0:
+			var tile_size := Vector2(HexMaterialPalette.TILE_SIZE) * HexBattleShip.ART_SCALE
+			draw_texture_rect(HEX_PALETTE.material_texture(owned.state.design.tiles[cell]), Rect2(owned.local_cell_position(cell) - tile_size * 0.5, tile_size), false,
+				Color.WHITE if not wreck else Color(0.4, 0.44, 0.43, 0.75))
+	if member.shield_flash > 0:
+		for boundary in HexMaterialPalette.outlines(owned.hull_cells):
+			for index in range(boundary.size()):
+				boundary[index] = (boundary[index] - owned.center) * HexBattleShip.ART_SCALE
+			boundary.append(boundary[0])
+			draw_polyline(boundary, SHIELD_OUTLINE_COLOR, 0.6, true)
+	# Names stay upright in screen space while their true footprints follow the hull.
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+	var group_view := ship_view * Transform2D(0.0, Vector2.ONE * HexBattleShip.ART_SCALE, 0.0, -owned.center * HexBattleShip.ART_SCALE)
+	for unit in owned.units:
+		if unit.hp > 0 and not unit.equipment_id.is_empty():
+			HexEquipmentDrawing.draw_group(self, self, unit.cells, group_view, HexEquipmentDrawing.title(unit.equipment_id, unit.rank), 40.0)
 	draw_set_transform_matrix(world_transform())
 
 

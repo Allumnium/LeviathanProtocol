@@ -130,21 +130,8 @@ func _test_main_menu_setup_flow() -> void:
 	var standalone_designer: Variant = load("res://scenes/ship_designer.tscn").instantiate()
 	root.add_child(standalone_designer)
 	await process_frame
-	_check(
-		standalone_designer.build_tab_button != null
-			and standalone_designer.build_tab_button.text == "SHIP BUILDER"
-			and standalone_designer.archive_tab_button != null
-			and standalone_designer.archive_tab_button.text == "ARCHIVE",
-		"The standalone designer must provide Ship Builder and Archive workspace tabs."
-	)
-	standalone_designer.archive_tab_button.pressed.emit()
-	_check(
-		standalone_designer.panel_tabs.current_tab == 1
-			and standalone_designer.archive_details.visible
-			and standalone_designer.archive_progress.visible
-			and not standalone_designer.build_controls.visible,
-		"The standalone Archive tab must reuse the three-panel workspace arrangement."
-	)
+	_check(standalone_designer.canvas is SlotShipCanvas and standalone_designer.chassis_picker.item_count == 5,
+		"The standalone designer provides image-based chassis and equipment slots.")
 	root.remove_child(standalone_designer)
 	standalone_designer.free()
 

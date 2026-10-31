@@ -139,13 +139,18 @@ func _run() -> void:
 	state.ship.clear()
 	for x in range(3):
 		state.ship.set_tile_at(Vector2i(x, 0), ShipPart.Category.OFFENSE)
+	var legacy_before: Dictionary = state.ship.to_design_data()
 	var designer: Control = load("res://scenes/ship_designer.tscn").instantiate()
 	root.add_child(designer)
 	current_scene = designer
 	await process_frame
 	await process_frame
-	_check(designer.build_area.unrestricted_blueprints, "Standalone creative design explicitly allows implemented blueprint recipes.")
-	_check(not state.design_research_error(state.ship).is_empty() and not state.purchase_ship(state.ship), "Standalone assembly cannot authorize physical construction in the current run.")
+	_check(designer.canvas is SlotShipCanvas, "Standalone Designer uses chassis slots without materials.")
+	designer._switch_chassis(4)
+	_check(designer.design.equip("fore", "mini_turret", 1, state.research_grants()), "Starting tech can be equipped directly.")
+	_check(not designer.design.equip("fore", "laser", 1, state.research_grants()), "Slot fitting requires current research.")
+	_check(state.ship.to_design_data() == legacy_before and not state.is_equipment_available(ShipPart.Type.LASER), "Slot editing neither mutates legacy campaign ships nor grants research.")
+	_check(not Ship.new().load_design_data(designer.design.to_data()), "Slot blueprints cannot be silently used as legacy square designs.")
 	designer.queue_free()
 	current_scene = null
 	await process_frame

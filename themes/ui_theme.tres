@@ -493,6 +493,17 @@ corner_radius_bottom_left = 4
 [resource]
 default_font = ExtResource("8_ntpv8")
 default_font_size = 13
+SlotCanvas/colors/background_color = Color(0.176, 0.137, 0.188, 1)
+SlotDesigner/colors/background_color = Color(0.035, 0.055, 0.07, 1)
+SlotCanvas/colors/offense_color = Color(1, 0.6, 0.45, 1)
+SlotCanvas/colors/defense_color = Color(0.5, 0.75, 1, 1)
+SlotCanvas/colors/tech_color = Color(0.65, 0.92, 0.62, 1)
+SlotCanvas/colors/civic_color = Color(0.86, 0.7, 1, 1)
+HexEquipmentLabel/base_type = &"Label"
+HexEquipmentLabel/font_sizes/font_size = 13
+HexEquipmentLabel/colors/font_color = Color(1, 0.98, 0.88, 1)
+HexEquipmentLabel/colors/font_outline_color = Color(0.025, 0.035, 0.045, 1)
+HexEquipmentLabel/colors/group_outline_color = Color(0.95, 0.94, 0.77, 1)
 CompactPanel/base_type = &"PanelContainer"
 CompactPanel/styles/panel = ExtResource("8_popup_panel")
 CompactFrame/base_type = &"Panel"

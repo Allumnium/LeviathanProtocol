@@ -314,6 +314,10 @@ func load_design_data(serialized_design: Variant) -> bool:
 	if typeof(serialized_design) != TYPE_DICTIONARY:
 		push_error("Ship design data must be a dictionary.")
 		return false
+	# Versioned hex designs have a separate loader. Never treat their axial
+	# coordinates as legacy square tiles, even if a payload also supplies parts.
+	if serialized_design.has("topology") or serialized_design.get("version", 1) != 1:
+		return false
 
 	var serialized_tiles: Variant = serialized_design.get("tiles")
 	var serialized_parts: Variant = serialized_design.get("parts")

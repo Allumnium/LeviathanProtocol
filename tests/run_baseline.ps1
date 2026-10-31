@@ -12,6 +12,16 @@ try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     & $Godot --headless --path $projectRoot --import --log-file (Join-Path $runRoot 'import.log')
     if ($LASTEXITCODE -ne 0) { throw "Import failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_hex_chassis.gd --log-file (Join-Path $runRoot 'hex-chassis.log')
+    if ($LASTEXITCODE -ne 0) { throw "Hex chassis model suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_hex_builder.gd --log-file (Join-Path $runRoot 'hex-builder.log')
+    if ($LASTEXITCODE -ne 0) { throw "Hex builder prototype suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_hex_designer.gd --log-file (Join-Path $runRoot 'hex-designer.log')
+    if ($LASTEXITCODE -ne 0) { throw "Hex Designer integration suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_hex_battle.gd --log-file (Join-Path $runRoot 'hex-battle.log')
+    if ($LASTEXITCODE -ne 0) { throw "Hex battle integration suite failed: $LASTEXITCODE" }
+    & $Godot --headless --path $projectRoot --script res://tests/test_slot_designer.gd --log-file (Join-Path $runRoot 'slot-designer.log')
+    if ($LASTEXITCODE -ne 0) { throw "Slot Designer suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_definitions.gd --log-file (Join-Path $runRoot 'definitions.log')
     if ($LASTEXITCODE -ne 0) { throw "Definition suite failed: $LASTEXITCODE" }
     & $Godot --headless --path $projectRoot --script res://tests/test_research.gd --log-file (Join-Path $runRoot 'research.log')
