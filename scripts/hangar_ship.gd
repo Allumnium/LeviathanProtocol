@@ -133,7 +133,7 @@ func weapon_cycle_rate() -> float:
 	for unit: Dictionary in units:
 		if unit.part != null and unit.part.type == ShipPart.Type.AMMUNITION_MAGAZINE:
 			count += 1
-	return 1.0 + 0.2 * count
+	return 1.0 + float(chassis.get("weapon_cycle_bonus", 0.0)) + 0.2 * count
 
 func hangar_summary() -> Dictionary:
 	var stats := get_stats()
@@ -155,9 +155,10 @@ func damage_cell(_cell: Vector2i, amount: float) -> Dictionary:
 	var removed: Array[Vector2i] = []
 	if not is_alive() or not is_finite(amount) or amount <= 0:
 		return {"damage": 0.0, "removed": removed}
-	hull_hp -= amount
+	var damage := maxf(0, amount - float(chassis.get("flat_damage_reduction", 0.0)))
+	hull_hp -= damage
 	visual_revision += 1
-	return {"damage": amount, "removed": removed}
+	return {"damage": damage, "removed": removed}
 
 func needs_repair() -> bool:
 	return hull_hp < hull_max

@@ -9,6 +9,7 @@ const WRECK_MOTION_SECONDS := 4.0
 signal weapon_fired
 signal shield_hit
 signal ship_destroyed(is_player: bool)
+signal projectile_impacted(position: Vector2)
 
 enum Phase { COMBAT, VICTORY, DEFEAT, WITHDRAWN }
 enum Faction { PLAYER, ALIEN, NEUTRAL }
@@ -177,6 +178,7 @@ var collected_categories: Array[int] = []
 var victory_materials: Array[int] = []
 var phase := Phase.COMBAT
 var elapsed := 0.0
+var swarm_damage_dealt := 0.0
 var random := RandomNumberGenerator.new()
 var allied_drop_chance := 0.3
 var laser_upgrade_level := 0
@@ -233,6 +235,7 @@ func setup(
 	inactive_seconds = 0.0
 	phase = Phase.COMBAT
 	elapsed = 0.0
+	swarm_damage_dealt = 0.0
 	visibility_enabled = false
 	visibility.reset()
 	abilities.configure({})
@@ -735,6 +738,7 @@ func authoritative_snapshot() -> Dictionary:
 		salvage.append({"id": drop.entity_id, "category": drop.category, "collected": drop.collected,
 			"position": [drop.position.x, drop.position.y]})
 	var result := {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
+		"swarm_damage": swarm_damage_dealt,
 		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
 		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
 		"doctrines": doctrines.snapshot(),
@@ -1432,12 +1436,14 @@ func _update_projectiles(delta: float) -> void:
 		if obstruction != null:
 			_add_pending_damage(projectile.target, -projectile.damage)
 			_damage(obstruction, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
+			projectile_impacted.emit(projectile.position)
 			projectiles.remove_at(index)
 			continue
 		if projectile.position.distance_to(destination) <= (projectile.aim_radius if visibility_enabled else projectile.target.radius):
 			_add_pending_damage(projectile.target, -projectile.damage)
 			if not projectile.guidance_lost or projectile.position.distance_to(projectile.target.position) <= projectile.target.radius:
 				_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
+				projectile_impacted.emit(projectile.position)
 			projectiles.remove_at(index)
 
 
@@ -1631,6 +1637,8 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		_damage_this_step = true
 	target.damage_taken += actual
 	if source != null:
+		if source.faction == Faction.PLAYER and target.faction == Faction.ALIEN:
+			swarm_damage_dealt += actual
 		source.damage_dealt += actual
 		source.weapon_damage[weapon_name] = source.weapon_damage.get(weapon_name, 0.0) + actual
 		if not source.carrier_source_id.is_empty() and entities.has(source.carrier_source_id):

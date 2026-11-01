@@ -146,8 +146,20 @@ func run() -> void:
 	var fallback := SurfaceArt.texture("res://assets/shieldGenerator_s.png")
 	check(not fallback is CanvasTexture, "Unmapped art retains original texture")
 	projectile_light_checks()
+	projectile_impact_checks()
+	var shield_visual: Control = load("res://scripts/battle_visuals.gd").new()
+	var shield_art := SurfaceArt.texture("res://assets/chassis/flagship_basic_d.png")
+	var mask: Texture2D = shield_visual._shield_mask(shield_art)
+	check(mask == shield_visual._shield_mask(shield_art), "Shield silhouettes are cached per artwork texture")
+	var original := shield_art.get_image()
+	var masked := mask.get_image()
+	for point in [Vector2i(0, 0), Vector2i(256, 256)]:
+		check(is_equal_approx(original.get_pixelv(point).a, masked.get_pixelv(point).a)
+			and masked.get_pixelv(point).r == 1, "Shield silhouette preserves source transparency without dark artwork colors")
+	shield_visual.free()
 	if DisplayServer.get_name() != "headless":
 		await native_checks()
+		await bullet_glow_checks()
 	print("Surface art checks: %d; failures: %d" % [checks, failures])
 	call_deferred("quit", 1 if failures else 0)
 
@@ -155,6 +167,158 @@ func rendered(view: SubViewport) -> Image:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	return view.get_texture().get_image()
+
+func bullet_glow_checks() -> void:
+	var view := SubViewport.new()
+	view.size = Vector2i(128, 128)
+	view.transparent_bg = true
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(view)
+	var visual: Control = load("res://scripts/battle_visuals.gd").new()
+	visual.size = Vector2(128, 128)
+	visual.camera_zoom = 1.0
+	view.add_child(visual)
+	visual.stars.clear()
+	visual.set_process(false)
+	visual._surface_material.set_shader_parameter("projectile_light_count", 0)
+	var sim := LightSimulation.new()
+	sim.visibility_enabled = true
+	visual.simulation = sim
+	visual.queue_redraw()
+	var background := await rendered(view)
+	var shot := BattleSimulation.Projectile.new()
+	shot.position = Vector2(16, 0)
+	shot.previous_position = shot.position
+	shot.aim_position = Vector2(80, 0)
+	shot.is_player = true
+	shot.weapon_name = "Mini Turret"
+	sim.projectiles.append(shot)
+	for mini in [true, false]:
+		shot.weapon_name = "Mini Turret" if mini else "Test"
+		for player in [true, false]:
+			shot.is_player = player
+			visual.queue_redraw()
+			await rendered(view)
+			var image := await rendered(view)
+			var halo := image.get_pixel(85, 64)
+			check(halo.a > 0.2 and (halo.r > halo.g if player else halo.g > halo.r),
+				"Every projectile has an intense faction-colored halo beyond its core")
+			if not mini:
+				check(image.get_pixel(89, 64).is_equal_approx(background.get_pixel(89, 64)), "Bullet halo stops outside its small seven-unit radius")
+	shot.position = Vector2(-16, 0)
+	shot.previous_position = shot.position
+	visual.queue_redraw()
+	var hidden := await rendered(view)
+	check(hidden.get_pixel(48, 64) == background.get_pixel(48, 64), "Hidden bullet reveals neither core nor glow")
+	sim.projectiles.clear()
+	visual.add_projectile_impact(Vector2(16, 0))
+	sim.elapsed = 0.06
+	visual.queue_redraw()
+	await rendered(view)
+	var burst := await rendered(view)
+	var warm := 0
+	var white := 0
+	for y in range(55, 74):
+		for x in range(70, 90):
+			var pixel := burst.get_pixel(x, y)
+			if pixel.r > 0.3 and pixel.r > pixel.g * 1.2:
+				warm += 1
+			if pixel.r > 0.3 and pixel.g > 0.3 and pixel.b > 0.3:
+				white += 1
+	check(warm > 0 and white > 0, "Native impact burst renders warm sparks and a white hot center")
+	sim.elapsed = 0.23
+	visual.queue_redraw()
+	await rendered(view)
+	var expired := await rendered(view)
+	check(expired.get_pixel(80, 64) == background.get_pixel(80, 64), "Expired impact leaves no lingering explosion pixels")
+	visual._projectile_impacts.clear()
+	var ship := HangarShip.new()
+	check(ship.initialize_chassis("flagship_basic", 1, true), "Thrust visual fixture initializes")
+	var member := BattleSimulation.Combatant.new()
+	member.owned_ship = ship
+	member.stats = ship.get_stats()
+	member.faction = BattleSimulation.Faction.PLAYER
+	member.position = Vector2(48, 0)
+	member.previous_position = member.position
+	sim.players.append(member)
+	visual.queue_redraw()
+	await rendered(view)
+	var stationary := await rendered(view)
+	member.velocity = Vector2(40, 0)
+	visual.queue_redraw()
+	await rendered(view)
+	var moving := await rendered(view)
+	check(difference(stationary, moving) > 0.00001, "Moving player ship renders a visible thrust plume")
+	var rear_pixels := 0
+	var front_pixels := 0
+	for y in range(128):
+		for x in range(128):
+			if not moving.get_pixel(x, y).is_equal_approx(stationary.get_pixel(x, y)):
+				if x < 112:
+					rear_pixels += 1
+				else:
+					front_pixels += 1
+	check(rear_pixels > 0 and front_pixels == 0, "Exhaust particles appear only behind the player ship")
+	member.faction = BattleSimulation.Faction.ALIEN
+	visual.queue_redraw()
+	await rendered(view)
+	var alien := await rendered(view)
+	check(difference(stationary, alien) < 0.00001, "Alien faction receives no thrust particles")
+	member.faction = BattleSimulation.Faction.PLAYER
+	member.velocity = Vector2.ZERO
+	visual.queue_redraw()
+	await rendered(view)
+	var stopped := await rendered(view)
+	check(difference(stationary, stopped) < 0.00001, "Stopping movement removes thrust particles")
+	member.shield_flash = 0.2
+	visual.queue_redraw()
+	await rendered(view)
+	var shielded := await rendered(view)
+	check(difference(stopped, shielded) > 0.00001, "Shield hit visibly lights the ship silhouette")
+	member.shield_flash = 0
+	visual.queue_redraw()
+	await rendered(view)
+	var recovered := await rendered(view)
+	check(difference(stopped, recovered) < 0.00001, "Shield glow disappears when the hit flash ends")
+	view.queue_free()
+	await process_frame
+
+func projectile_impact_checks() -> void:
+	var visual: Control = load("res://scripts/battle_visuals.gd").new()
+	visual.size = Vector2(128, 128)
+	visual.camera_zoom = 1
+	visual.simulation = LightSimulation.new()
+	var sim: BattleSimulation = visual.simulation
+	var rng := sim.random.state
+	visual.add_projectile_impact(Vector2(-20, 0))
+	visual.add_projectile_impact(Vector2(1000, 0))
+	check(visual._projectile_impacts.is_empty(), "Hidden and offscreen collisions create no particles")
+	for index in range(120):
+		visual.add_projectile_impact(Vector2(20, 0))
+	check(visual._projectile_impacts.size() == 96 and sim.random.state == rng,
+		"Impact particles stay bounded without consuming combat randomness")
+	root.add_child(visual)
+	visual._process(0)
+	check(visual._projectile_impacts.size() == 96, "Paused simulation preserves impact particle ages")
+	sim.elapsed = 0.23
+	visual._process(0)
+	check(visual._projectile_impacts.is_empty(), "Impact particles expire within a quarter second of simulation time")
+	var target := BattleSimulation.Combatant.new()
+	target.integrity = 100
+	target.stats = ShipStats.new()
+	target.position = Vector2(20, 0)
+	target.radius = 5
+	var shot := BattleSimulation.Projectile.new()
+	shot.target = target
+	shot.position = Vector2(16, 0)
+	shot.damage = 10
+	shot.speed = 30
+	sim.projectiles.append(shot)
+	sim.projectile_impacted.connect(visual.add_projectile_impact)
+	sim._update_projectiles(1.0 / 30.0)
+	check(sim.projectiles.is_empty() and visual._projectile_impacts.size() == 1 and target.integrity == 90,
+		"Real projectile collision emits one cosmetic burst without changing damage")
+	visual.free()
 
 func projectile_light_checks() -> void:
 	var visual: Control = load("res://scripts/battle_visuals.gd").new()

@@ -33,7 +33,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="SetupModal" type="PanelContainer" parent="CenterContainer" unique_id=1767866080]
-custom_minimum_size = Vector2(400, 260)
+custom_minimum_size = Vector2(560, 300)
 layout_mode = 2
 theme_type_variation = &"CompactPanel"
 
@@ -41,18 +41,18 @@ theme_type_variation = &"CompactPanel"
 
 [node name="Contents" type="VBoxContainer" parent="CenterContainer/SetupModal" unique_id=1712381800]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 6
 
 [node name="Title" type="Label" parent="CenterContainer/SetupModal/Contents" unique_id=915569637]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
-text = "MISSION SETUP"
+text = "CHOOSE YOUR FLAGSHIP"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="SettingsMargin" type="MarginContainer" parent="CenterContainer/SetupModal/Contents" unique_id=377773542]
 layout_mode = 2
-theme_override_constants/margin_left = 20
+theme_override_constants/margin_left = 0
 
 [node name="SettingsRows" type="VBoxContainer" parent="CenterContainer/SetupModal/Contents/SettingsMargin" unique_id=322054223]
 layout_mode = 2
@@ -65,16 +65,16 @@ theme_override_constants/separation = 12
 [node name="DifficultyLabel" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow" unique_id=365604131]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Difficulty Level"
+text = "Difficulty"
 vertical_alignment = 1
 
 [node name="DifficultyButton" type="Button" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows/DifficultyRow" unique_id=1491329080]
-custom_minimum_size = Vector2(180, 40)
+custom_minimum_size = Vector2(120, 24)
 layout_mode = 2
 text = "NORMAL"
 
 [node name="DifficultyDetails" type="Label" parent="CenterContainer/SetupModal/Contents/SettingsMargin/SettingsRows" unique_id=1062794109]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 text = "Alien strength: 100%"
 horizontal_alignment = 1
@@ -92,6 +92,6 @@ theme_override_constants/separation = 12
 alignment = 1
 
 [node name="StartButton" type="Button" parent="CenterContainer/SetupModal/Contents/Buttons" unique_id=1079847964]
-custom_minimum_size = Vector2(140, 44)
+custom_minimum_size = Vector2(140, 26)
 layout_mode = 2
 text = "START RUN"

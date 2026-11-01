@@ -6,7 +6,7 @@ var settings_status: Label
 @onready var music_slider: HSlider = $Contents/ContentArea/MusicRow/MusicSlider
 @onready var ambience_slider: HSlider = $Contents/ContentArea/AmbienceRow/AmbienceSlider
 @onready var effects_slider: HSlider = $Contents/ContentArea/EffectsRow/EffectsSlider
-@onready var battle_auto_camera_button: CheckBox = $Contents/ContentArea/BattleAutoCameraRow/BattleAutoCameraButton
+@onready var battle_auto_camera_button: TextureButton = $Contents/ContentArea/BattleAutoCameraRow/BattleAutoCameraButton
 @onready var quit_to_menu_button: Button = $Contents/ContentArea/QuitToMenuButton
 @onready var quit_confirmation_overlay: Control = $QuitConfirmOverlay
 @onready var quit_confirmation_button: Button = (
@@ -18,6 +18,8 @@ var settings_status: Label
 
 
 func _ready() -> void:
+	battle_auto_camera_button.texture_normal = battle_auto_camera_button.get_theme_icon("off", "SettingsSwitch")
+	battle_auto_camera_button.texture_pressed = battle_auto_camera_button.get_theme_icon("on", "SettingsSwitch")
 	about_to_popup.connect(_refresh_context)
 	music_slider.value = AudioManager.get_bus_volume_percent(AudioManager.MUSIC_BUS)
 	ambience_slider.value = AudioManager.get_bus_volume_percent(AudioManager.AMBIENCE_BUS)

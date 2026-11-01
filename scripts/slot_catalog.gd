@@ -24,6 +24,25 @@ static func find_chassis(id: String) -> Dictionary:
 			return entry
 	return {}
 
+static func flagships() -> Array[Dictionary]:
+	return chassis().filter(func(entry: Dictionary) -> bool: return int(entry.command) > 0)
+
+static func chassis_bonuses(entry: Dictionary) -> String:
+	var lines: Array[String] = []
+	if entry.get("weapon_damage_multiplier", 1.0) != 1.0:
+		lines.append("%+.0f%% weapon damage" % ((entry.weapon_damage_multiplier - 1.0) * 100))
+	if entry.get("weapon_cycle_bonus", 0.0) > 0:
+		lines.append("+%.0f%% weapon fire rate" % (entry.weapon_cycle_bonus * 100))
+	if entry.get("flat_damage_reduction", 0.0) > 0:
+		lines.append("%.0f less hull damage per hit, after shields" % entry.flat_damage_reduction)
+	if entry.get("delivery_income_multiplier", 1.0) > 1:
+		lines.append("+%.0f%% cargo / passenger income" % ((entry.delivery_income_multiplier - 1) * 100))
+	if entry.get("research_rate_multiplier", 1.0) > 1:
+		lines.append("+%.0f%% installed-lab RP/day" % ((entry.research_rate_multiplier - 1) * 100))
+	if entry.get("dodge_chance", 0.0) > 0:
+		lines.append("%.0f%% weapon-hit dodge" % (entry.dodge_chance * 100))
+	return "\n".join(lines) if not lines.is_empty() else "No special bonuses"
+
 static func equipment(include_retired := false) -> Array[Dictionary]:
 	if _equipment.is_empty():
 		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(EQUIPMENT_PATH))
@@ -174,6 +193,14 @@ static func valid_chassis(data: Variant) -> bool:
 		if not _nonnegative(entry.get("weapon_damage_multiplier", 1.0)) or entry.get("weapon_damage_multiplier", 1.0) <= 0:
 			return false
 		if not _nonnegative(entry.get("dodge_chance", 0.0)) or entry.get("dodge_chance", 0.0) > 1:
+			return false
+		for field in ["weapon_cycle_bonus", "flat_damage_reduction"]:
+			if not _nonnegative(entry.get(field, 0.0)):
+				return false
+		for field in ["delivery_income_multiplier", "research_rate_multiplier"]:
+			if not _nonnegative(entry.get(field, 1.0)) or entry.get(field, 1.0) < 1:
+				return false
+		if entry.has("description") and not entry.description is String:
 			return false
 		if entry.has("builtin_shield") and entry.builtin_shield != "shield_generator":
 			return false

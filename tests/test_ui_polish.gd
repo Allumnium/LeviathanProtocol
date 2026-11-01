@@ -129,9 +129,9 @@ func run() -> void:
 	check(state.start_new_run(1, 151), "Start isolated UI fixture")
 	var settings: PopupPanel = load("res://scenes/settings_dialog.tscn").instantiate()
 	root.add_child(settings)
-	check(settings.battle_auto_camera_button is CheckBox
+	check(settings.battle_auto_camera_button is TextureButton
 		and settings.find_child("ReducedMotionButton", true, false) == null,
-		"Settings uses standard checkboxes and does not expose Reduced motion")
+		"Settings uses an artwork switch and does not expose Reduced motion")
 	for slider_type in ["HSlider", "VSlider"]:
 		check(ui_theme.get_stylebox("slider", slider_type).texture.resource_path == "res://assets/ui/Slider1_bg.png"
 			and ui_theme.get_stylebox("grabber_area", slider_type).texture.atlas.resource_path == "res://assets/ui/Slider1.png"
@@ -148,7 +148,7 @@ func run() -> void:
 	var camera_preference: bool = state.battle_auto_camera
 	settings.battle_auto_camera_button.button_pressed = not camera_preference
 	check(state.battle_auto_camera == not camera_preference,
-		"Settings checkboxes update and save boolean preferences")
+		"Settings switch updates and saves boolean preferences")
 	settings.battle_auto_camera_button.button_pressed = camera_preference
 	settings.popup_centered()
 	await settle()
@@ -218,9 +218,10 @@ func run() -> void:
 			check(absf(audio_slider.get_global_rect().get_center().y - row_label.get_global_rect().get_center().y) <= 1,
 				"Compact audio slider and row label align vertically")
 		await capture("settings-sliders-%d" % resolution.x)
-	check(settings.battle_auto_camera_button.get_theme_icon("checked").resource_path == "res://assets/ui/Checkbox_On.png",
-		"Settings checkboxes inherit the same theme art as shop filters")
-	await capture("settings-checkboxes")
+	check(settings.battle_auto_camera_button.texture_pressed == ui_theme.get_icon("on", "SettingsSwitch")
+		and settings.battle_auto_camera_button.texture_normal == ui_theme.get_icon("off", "SettingsSwitch"),
+		"Settings switch inherits the supplied on/off artwork from the shared theme")
+	await capture("settings-switch")
 	var settings_close: TextureButton = settings.get_node("CloseX")
 	check(settings_close.stretch_mode == TextureButton.STRETCH_KEEP_ASPECT_CENTERED,
 		"Close-button artwork preserves aspect in normal, hovered and pressed states")
@@ -538,7 +539,7 @@ func run() -> void:
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
 		and repair_label.icon_size == screen.details.get_child(1).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 2.0\nShield 40\nHull 540 / 540\n1 RP / day",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 960 / 960\n1 RP / day",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -554,8 +555,8 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 760 / 760\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		2.0 + fixture_summary.dps, 40 + fixture_summary.shields],
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1180 / 1180\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
+		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
@@ -568,13 +569,13 @@ func run() -> void:
 	summary_ship.hull_hp -= 15
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 745 / 760\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		2.0 + fixture_summary.dps, 40 + fixture_summary.shields],
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1165 / 1180\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
+		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 2.0\nShield 40\nHull 540 / 540\n1 RP / day",
+	check(fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 960 / 960\n1 RP / day",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()
@@ -690,7 +691,7 @@ func run() -> void:
 	current_scene = menu
 	await settle()
 	check(menu.space_background.modulate.a == 1, "Menu starts with its background image visible")
-	menu._on_start_run_requested(1)
+	menu._on_start_run_requested(1, "flagship_science")
 	await create_timer(0.5).timeout
 	check(menu.space_background.modulate.a > 0 and menu.space_background.modulate.a < 1,
 		"Background fades gradually during the star warp")
@@ -698,6 +699,7 @@ func run() -> void:
 	check(is_zero_approx(menu.space_background.modulate.a),
 		"Background is fully transparent after one second of warp")
 	await create_timer(3.1).timeout
-	check(current_scene != menu, "Warp still completes and enters the new run")
+	check(current_scene != menu and state.fleet[0].chassis_id == "flagship_science",
+		"Warp completes and enters the new run with the menu's selected flagship")
 	print("UI POLISH: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

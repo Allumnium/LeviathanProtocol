@@ -18,8 +18,6 @@ const CREDIT_ICON: Texture2D = preload("res://assets/credits.png")
 const MATERIAL_REVEAL_SOUND: AudioStream = preload("res://assets/audio/sfx/dialogue_type.mp3")
 const REWARD_REVEAL_DURATION := 3.0
 const DAMAGE_DEALT_COLOR := Color(0.92, 0.24, 0.2)
-const DAMAGE_DEFLECTED_COLOR := Color(0.3, 0.66, 1.0)
-const REPAIR_DAMAGE_COLOR := Color(1.0, 0.66, 0.16)
 
 var _reward_items: Array[Control] = []
 var _reward_reveal_elapsed := 0.0
@@ -36,15 +34,22 @@ func show_report(
 ) -> void:
 	add_to_group("modal_ui")
 	z_index = 40
+	texture_filter = Control.TEXTURE_FILTER_NEAREST
+	theme_type_variation = &"VictoryPanel" if outcome == "Victory" else &"CompactPanel"
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	offset_left = 40
-	offset_top = 24
-	offset_right = -40
-	offset_bottom = -24
+	offset_left = 16
+	offset_top = 16
+	offset_right = -16
+	offset_bottom = -16
 	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
 	add_child(column)
-	_add_title(column, outcome, credits_gained)
+	if outcome == "Victory":
+		_add_victory_banner(column)
+		_add_title(column, "", credits_gained)
+	else:
+		_add_title(column, outcome, credits_gained)
 	if not equipment_loot.is_empty():
 		var loot_label := ResourceText.create("Loot: " + equipment_loot)
 		column.add_child(loot_label)
@@ -66,41 +71,41 @@ func show_report(
 	var rows := VBoxContainer.new()
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(rows)
+	if GameState.completed:
+		var score := ResourceText.create(RunScore.description(GameState.hangar_snapshot()))
+		score.name = "RunScore"
+		rows.add_child(score)
 	var summaries := _summarize_by_slot(entries)
 	summaries.append_array(_summarize_aliens(entries))
 	for summary in summaries:
+		var card := PanelContainer.new()
+		card.theme_type_variation = &"ReportCard"
+		rows.add_child(card)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		rows.add_child(row)
+		card.add_child(row)
 		row.add_child(_create_summary_preview(summary))
 		var details := VBoxContainer.new()
 		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		details.add_theme_constant_override("separation", 2)
 		row.add_child(details)
-		var summary_line := HBoxContainer.new()
-		summary_line.add_theme_constant_override("separation", 4)
-		details.add_child(summary_line)
-		var name_label := ResourceText.create(summary.name)
-		summary_line.add_child(name_label)
+		var name_label := ResourceText.create(summary.name + (" · %d DESTROYED" % summary.destroyed if summary.destroyed > 0 else ""))
+		name_label.name = "ShipName"
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		details.add_child(name_label)
 		if summary.destroyed > 0:
-			var destroyed_label := Label.new()
-			destroyed_label.text = "· %d DESTROYED" % summary.destroyed
-			destroyed_label.add_theme_color_override("font_color", DAMAGE_DEALT_COLOR)
-			summary_line.add_child(destroyed_label)
-		details.add_child(StatDisplayRow.new(
-			"DAMAGE DEALT", summary.damage, "%.1f" % summary.damage,
-			9, true, null, DAMAGE_DEALT_COLOR, true
-		))
+			name_label.add_theme_color_override("default_color", DAMAGE_DEALT_COLOR)
+		var stats := GridContainer.new()
+		stats.columns = 2
+		stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stats.add_theme_constant_override("h_separation", 12)
+		details.add_child(stats)
+		_add_stat(stats, "Damage dealt", summary.damage)
 		if summary.deflected > 0.0:
-			details.add_child(StatDisplayRow.new(
-				"DAMAGE DEFLECTED", summary.deflected, str(roundi(summary.deflected)),
-				9, true, null, DAMAGE_DEFLECTED_COLOR, true
-			))
+			_add_stat(stats, "Damage deflected", summary.deflected)
 		if summary.repair_damage > 0.0:
-			details.add_child(StatDisplayRow.new(
-				"REPAIRS NEEDED", summary.repair_damage, str(roundi(summary.repair_damage)),
-				9, true, null, REPAIR_DAMAGE_COLOR, true
-			))
+			_add_stat(stats, "Repair", summary.repair_damage)
 	var button_center := CenterContainer.new()
 	column.add_child(button_center)
 	var accept_button := Button.new()
@@ -112,6 +117,41 @@ func show_report(
 	accept_button.pressed.connect(func() -> void: closed.emit())
 	button_center.add_child(accept_button)
 
+func _add_stat(parent: GridContainer, title: String, value: float) -> void:
+	var label := ResourceText.create(title)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.custom_minimum_size.y = 20
+	parent.add_child(label)
+	var amount := Label.new()
+	amount.text = str(roundi(value))
+	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	parent.add_child(amount)
+
+func _add_victory_banner(parent: VBoxContainer) -> void:
+	var banner := Control.new()
+	banner.name = "VictoryBanner"
+	banner.custom_minimum_size.y = 88
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(banner)
+	_banner_art(banner, preload("res://assets/ui/Victory_EmitLight.png"), Vector2(280, 88), 0, 0.18)
+	_banner_art(banner, preload("res://assets/ui/Victory_Light Line.png"), Vector2(420, 88), 0, 0.4)
+	_banner_art(banner, preload("res://assets/ui/Victory_Badge.png"), Vector2(216, 76), 0)
+	_banner_art(banner, preload("res://assets/ui/Victory2_Title.png"), Vector2(216, 36), 52)
+
+func _banner_art(parent: Control, texture: Texture2D, extent: Vector2, top: float, opacity := 1.0) -> void:
+	var art := TextureRect.new()
+	art.texture = texture
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.anchor_left = 0.5
+	art.anchor_right = 0.5
+	art.offset_left = -extent.x * 0.5
+	art.offset_right = extent.x * 0.5
+	art.offset_top = top
+	art.offset_bottom = top + extent.y
+	art.modulate.a = opacity
+	parent.add_child(art)
 
 func _process(delta: float) -> void:
 	if _next_reward_icon >= _reward_items.size():
@@ -145,11 +185,14 @@ func _reveal_next_reward(play_sound := true) -> void:
 
 
 func _add_title(parent: VBoxContainer, outcome: String, credits_gained: int) -> void:
+	if outcome.is_empty() and credits_gained <= 0:
+		return
 	var title_row := HBoxContainer.new()
 	title_row.add_theme_constant_override("separation", 4)
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	parent.add_child(title_row)
 	var title := Label.new()
-	title.text = outcome
+	title.text = outcome if not outcome.is_empty() else "Reward"
 	title_row.add_child(title)
 	if credits_gained <= 0:
 		return

@@ -217,8 +217,44 @@ func native_checks() -> void:
 	var settings: PopupPanel = battle.find_child("SettingsDialog", true, false)
 	check(gear != null and settings != null and gear.get_global_rect().end.x == battle.size.x - 8
 		and gear.position.y == 8, "Battle has the shared top-right Settings button")
-	check(not gear.get_global_rect().intersects(battle.withdraw_button.get_global_rect()),
-		"Battle Settings and Retreat buttons do not overlap")
+	check(not battle.find_children("*", "Button", true, false).any(func(button: Button) -> bool: return button.text.begins_with("RETREAT")),
+		"Battle does not offer a Retreat button")
+	battle.set_physics_process(false)
+	battle.set_process(false)
+	for speed in [2, 5, 1]:
+		if speed == 2:
+			battle.fast_forward_button.button_pressed = true
+		elif speed == 5:
+			battle.five_times_button.button_pressed = true
+		else:
+			battle.five_times_button.button_pressed = false
+		check(state.battle_speed == speed and battle.fast_forward_button.button_pressed == (speed == 2)
+			and battle.five_times_button.button_pressed == (speed == 5), "Speed toggles select exactly one speed and return to 1x")
+		battle._simulation_accumulator = 0.0
+		var ticks: int = battle.simulation.tick_index
+		battle._physics_process(1.0 / 30.0)
+		check(battle.simulation.tick_index - ticks == speed, "Selected speed advances exactly %d fixed ticks per normal tick" % speed)
+	battle.five_times_button.button_pressed = true
+	battle.pause_button.button_pressed = true
+	check(state.battle_speed == 1 and not battle.five_times_button.button_pressed
+		and not battle.fast_forward_button.button_pressed, "Pause clears both fast-speed toggles")
+	battle.five_times_button.button_pressed = true
+	check(not battle.pause_button.button_pressed and state.battle_speed == 5, "Selecting 5x unpauses")
+	var audio: Node = root.get_node("AudioManager")
+	check(audio.save_settings("user://speed-test.cfg"), "5x preference saves")
+	state.battle_speed = 1
+	audio.load_settings("user://speed-test.cfg")
+	check(state.battle_speed == 5, "5x preference roundtrips")
+	var old_settings := ConfigFile.new()
+	old_settings.set_value("battle", "fast_forward", true)
+	check(old_settings.save("user://speed-old-test.cfg") == OK, "Old speed setting fixture saves")
+	audio.load_settings("user://speed-old-test.cfg")
+	check(state.battle_speed == 2, "Old fast-forward preference loads as 2x")
+	battle.five_times_button.set_pressed_no_signal(false)
+	battle.fast_forward_button.set_pressed_no_signal(true)
+	battle.fast_forward_button.button_pressed = false
+	battle.set_physics_process(true)
+	battle.set_process(true)
 	var gear_motion := InputEventMouseMotion.new()
 	gear_motion.position = gear.get_global_rect().get_center()
 	gear_motion.global_position = gear_motion.position

@@ -18,6 +18,14 @@
 [ext_resource type="Texture2D" path="res://assets/ui/Slider1.png" id="19_slider_fill"]
 [ext_resource type="Texture2D" path="res://assets/ui/Slider1_bg.png" id="20_slider_bg"]
 [ext_resource type="Texture2D" path="res://assets/ui/processed/slider_handle.png" id="21_slider_handle"]
+[ext_resource type="Texture2D" path="res://assets/ui/Victory1_bg.png" id="22_victory"]
+[ext_resource type="Texture2D" path="res://assets/ui/VictoryContent_bg.png" id="23_report_card"]
+[ext_resource type="Texture2D" path="res://assets/ui/Popup_Warning.png" id="24_warning"]
+[ext_resource type="Texture2D" path="res://assets/ui/GameOver_bg.png" id="25_game_over"]
+[ext_resource type="Texture2D" path="res://assets/ui/Btn_Rectangle01Red_n.png" id="26_red_button"]
+[ext_resource type="Texture2D" path="res://assets/ui/Btn_Rectangle01Red_p.png" id="27_red_pressed"]
+[ext_resource type="Texture2D" path="res://assets/ui/Switch_Off.png" id="28_switch_off"]
+[ext_resource type="Texture2D" path="res://assets/ui/Switch_On.png" id="29_switch_on"]
 
 [sub_resource type="AtlasTexture" id="Atlas_slider_fill"]
 atlas = ExtResource("19_slider_fill")
@@ -682,7 +690,94 @@ texture_margin_right = 8.0
 texture_margin_bottom = 8.0
 modulate_color = Color(0.72, 0.78, 0.82, 1)
 
+[sub_resource type="StyleBoxTexture" id="Style_victory"]
+texture = ExtResource("22_victory")
+texture_margin_top = 24.0
+texture_margin_bottom = 24.0
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 12.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxTexture" id="Style_report_card"]
+texture = ExtResource("23_report_card")
+texture_margin_left = 12.0
+texture_margin_right = 12.0
+content_margin_left = 8.0
+content_margin_right = 8.0
+content_margin_top = 8.0
+content_margin_bottom = 8.0
+modulate_color = Color(0.015, 0.09, 0.12, 1)
+
+[sub_resource type="StyleBoxTexture" id="Style_warning"]
+texture = ExtResource("24_warning")
+texture_margin_left = 40.0
+texture_margin_right = 40.0
+texture_margin_top = 40.0
+texture_margin_bottom = 40.0
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 12.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxTexture" id="Style_game_over"]
+texture = ExtResource("25_game_over")
+texture_margin_left = 48.0
+texture_margin_right = 48.0
+texture_margin_top = 40.0
+texture_margin_bottom = 40.0
+content_margin_left = 12.0
+content_margin_right = 12.0
+content_margin_top = 12.0
+content_margin_bottom = 12.0
+
+[sub_resource type="AtlasTexture" id="Atlas_red_button"]
+atlas = ExtResource("26_red_button")
+region = Rect2(10, 8, 324, 108)
+
+[sub_resource type="AtlasTexture" id="Atlas_red_pressed"]
+atlas = ExtResource("27_red_pressed")
+region = Rect2(10, 8, 324, 108)
+
+[sub_resource type="StyleBoxTexture" id="Style_red_button"]
+texture = SubResource("Atlas_red_button")
+texture_margin_left = 24.0
+texture_margin_right = 24.0
+texture_margin_top = 12.0
+texture_margin_bottom = 12.0
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 8.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="Style_red_pressed"]
+texture = SubResource("Atlas_red_pressed")
+texture_margin_left = 24.0
+texture_margin_right = 24.0
+texture_margin_top = 12.0
+texture_margin_bottom = 12.0
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 8.0
+content_margin_bottom = 8.0
+
 [resource]
+VictoryPanel/base_type = &"PanelContainer"
+VictoryPanel/styles/panel = SubResource("Style_victory")
+ReportCard/base_type = &"PanelContainer"
+ReportCard/styles/panel = SubResource("Style_report_card")
+WarningPanel/base_type = &"PanelContainer"
+WarningPanel/styles/panel = SubResource("Style_warning")
+GameOverBanner/base_type = &"PanelContainer"
+GameOverBanner/styles/panel = SubResource("Style_game_over")
+DefeatButton/base_type = &"Button"
+DefeatButton/styles/normal = SubResource("Style_red_button")
+DefeatButton/styles/hover = SubResource("Style_red_button")
+DefeatButton/styles/pressed = SubResource("Style_red_pressed")
+DefeatButton/styles/focus = SubResource("StyleBoxEmpty_ku3ou")
+SettingsSwitch/base_type = &"TextureButton"
+SettingsSwitch/icons/off = ExtResource("28_switch_off")
+SettingsSwitch/icons/on = ExtResource("29_switch_on")
 MountCallout/base_type = &"Panel"
 MountCallout/styles/panel = SubResource("Style_mount_callout")
 ResearchProgress/base_type = &"ProgressBar"

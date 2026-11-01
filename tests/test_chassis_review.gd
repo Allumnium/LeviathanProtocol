@@ -31,7 +31,7 @@ func run() -> void:
 	var flagship: HangarShip = state.fleet[0]
 	check(flagship.hull_hp == 320 and flagship.get_stats().thrust == 22, "Flagship high hull and low thrust")
 	check(flagship.get_stats().shields == 40, "Flagship built-in level I shield")
-	check(state.equipment_inventory.size() == 3, "Only compatible starter equipment retained")
+	check(state.equipment_inventory.size() == 7, "Flagship and Fighters receive seven compatible starter equipment instances")
 	check(not flagship.mounts.has("inner_port"), "Incompatible starter armor removed without replacement")
 	var healthy: Dictionary = state.hangar_snapshot()
 	check(healthy.version == 2 and not healthy.ships[0].has("builtins"), "Schema2 has no builtin component health")
@@ -267,14 +267,14 @@ func _text(node: Node) -> String:
 func _test_stat_ranges() -> void:
 	var helper = load("res://scripts/ship_stat_bars.gd")
 	var ranges: Dictionary = helper.comparison_ranges()
-	check(SlotCatalog.chassis().size() == 6 and ranges.size() == 4, "Comparison covers all six base chassis including flagship and four stats")
+	check(SlotCatalog.chassis().size() == 9 and ranges.size() == 4, "Comparison covers all nine base chassis including four flagships and four stats")
 	var measured := {}
 	var movement_average := 0.0
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var ship := HangarShip.new()
 		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
 		var stats := ship.get_stats()
-		movement_average += (stats.top_speed + stats.acceleration + stats.turn_rate) / 6.0
+		movement_average += (stats.top_speed + stats.acceleration + stats.turn_rate) / SlotCatalog.chassis().size()
 	var score_average := 0.0
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var ship := HangarShip.new()
@@ -282,7 +282,7 @@ func _test_stat_ranges() -> void:
 		var stats := ship.get_stats()
 		var score := 50.0 * (stats.top_speed + stats.acceleration + stats.turn_rate) / movement_average
 		check(is_equal_approx(helper.maneuverability(stats), score), "Maneuverability normalizes against aggregated chassis-wide means")
-		score_average += helper.maneuverability(stats) / 6.0
+		score_average += helper.maneuverability(stats) / SlotCatalog.chassis().size()
 		var base := {"hull": ship.hull_hp, "maneuverability": score, "mass": stats.weight, "shields": stats.shields}
 		for key: String in base:
 			var value: float = base[key]

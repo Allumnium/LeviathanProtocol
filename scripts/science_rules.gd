@@ -8,7 +8,7 @@ static func production_rate(science: Dictionary) -> float:
 	var rate := 0.0
 	for lab: Dictionary in science.labs:
 		# Older grid-era snapshots retain their original one-RP-per-lab rate.
-		rate += float(lab.rank) if science.get("production_version", 1) == 2 else 1.0
+		rate += float(lab.rank) * float(lab.get("rate_multiplier", 1.0)) if science.get("production_version", 1) == 2 else 1.0
 	return rate
 
 static func journey_rp(science: Dictionary, travel_days: float) -> float:
@@ -65,6 +65,8 @@ static func snapshot(deployed: Array[FleetShip], legacy := false) -> Dictionary:
 			var rp := 20 * lab.rank + (5 * lab.rank if analysis else 0) + (5 * lab.rank if observatory else 0)
 			result.labs.append({"ship_id": owned.id, "unit_index": index, "rank": lab.rank,
 				"analysis": analysis, "observatory": observatory, "rp": rp})
+			if owned is HangarShip and owned.chassis.get("research_rate_multiplier", 1.0) != 1.0:
+				result.labs[-1]["rate_multiplier"] = owned.chassis.research_rate_multiplier
 			result.total_rp += rp
 	return result
 
@@ -84,6 +86,8 @@ static func valid(value: Variant, ship_ids: Array) -> bool:
 			or not SaveValidation.integer(lab.get("rank")) or not SaveValidation.integer(lab.get("rp")):
 			return false
 		var key := str(int(lab.ship_id)) if value.version == 1 else "%d/%d" % [int(lab.ship_id), int(lab.unit_index)]
+		if lab.has("rate_multiplier") and (not HangarCheckpoint._number(lab.rate_multiplier) or lab.rate_multiplier < 1):
+			return false
 		if int(lab.ship_id) not in ids or seen.has(key) or lab.unit_index < 0 or lab.rank < 1 or lab.rank > 3 \
 			or not lab.get("analysis") is bool or not lab.get("observatory") is bool:
 			return false

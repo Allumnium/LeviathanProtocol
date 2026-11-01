@@ -36,8 +36,8 @@ func run() -> void:
 	var data: Dictionary = state.hangar_snapshot()
 	data.credits = 5000
 	data.research.research_ids.append_array(["applied_energy", "civil_hospitality"])
-	check(state._commit_hangar(data) and state.buy_chassis("transport"), "Fund researched physical inventory and Transport")
-	ship_id = state.fleet[-1].id
+	check(state._commit_hangar(data), "Fund researched physical inventory for starter Transport")
+	ship_id = state.fleet[1].id
 	for id in ["double_laser", "laser", "shield_generator", "research_lab", "hull_plate", "cargo_hold", "passenger_cabin"]:
 		check(state.buy_equipment(id), "Purchase physical " + id)
 		items[id] = str(state.next_equipment_id - 1)

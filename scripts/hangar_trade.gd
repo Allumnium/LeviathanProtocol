@@ -26,7 +26,9 @@ static func arrive(data: Dictionary, node: Dictionary) -> void:
 			var contents: Dictionary = instance.get("load", {})
 			if contents.is_empty() or ship.hull_hp < 0:
 				continue
-			data.credits += int(contents.quantity) * int(contents.unit_value)
+			var chassis := SlotCatalog.find_chassis(ship.chassis)
+			RunScore.earn_credits(data, roundi(int(contents.quantity) * int(contents.unit_value)
+				* float(chassis.get("delivery_income_multiplier", 1.0))))
 			instance["load"] = {}
 
 static func settle_losses(data: Dictionary, lost_ships: Array[int]) -> void:

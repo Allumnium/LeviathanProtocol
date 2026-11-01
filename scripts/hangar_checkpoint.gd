@@ -6,6 +6,8 @@ static func valid(value: Variant) -> bool:
 		return false
 	if not _integer(value.get("credits"), -2147483647):
 		return false
+	if value.has("score") and not RunScore.valid(value.score):
+		return false
 	for key in ["next_ship_id", "next_equipment_id", "difficulty", "current"]:
 		if not _integer(value.get(key), 0):
 			return false

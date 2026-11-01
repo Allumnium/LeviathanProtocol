@@ -91,7 +91,7 @@ func run() -> void:
 	# Command budget is independent of credits and cannot be bypassed by direct calls.
 	state.credits = 10000
 	check(state.save_run_checkpoint(), "Fund command test")
-	for index in range(12):
+	for index in range(state.command_limit() - state.used_command()):
 		check(state.buy_chassis("drone"), "Buy within command budget")
 	check(state.used_command() == state.command_limit(), "Command budget filled")
 	check(not state.buy_chassis("drone"), "Command overflow rejected")

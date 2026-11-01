@@ -18,7 +18,7 @@ func run() -> void:
 	state.run_save_path = "user://hangar-test.json"
 	check(state.start_new_run(1, 74321), "New actual campaign")
 	check(state.hangar_snapshot().version == 2, "Whole-ship saves use schema 2")
-	check(state.fleet.size() == 1 and state.fleet[0].chassis_id == "flagship_basic", "Supplied flagship")
+	check(state.fleet.size() == 4 and state.fleet[0].chassis_id == "flagship_basic", "Supplied flagship with Transport and two Fighters")
 	check(HangarCheckpoint.valid(state.hangar_snapshot()), "Checkpoint valid")
 	check(state.fleet[0].mounts.size() == 3, "Starter physical equipment")
 	check(state.can_deploy(), "Armed deployment")

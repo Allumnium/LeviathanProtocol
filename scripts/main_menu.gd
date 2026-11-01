@@ -104,8 +104,11 @@ func _on_setup_back_requested() -> void:
 	settings_button.show()
 
 
-func _on_start_run_requested(difficulty: int) -> void:
-	if _is_starting_run or not GameState.start_new_run(difficulty):
+func _on_start_run_requested(difficulty: int, flagship_id: String) -> void:
+	if _is_starting_run:
+		return
+	if not GameState.start_new_run(difficulty, -1, true, flagship_id):
+		game_setup.show_start_error(GameState.last_save_error)
 		return
 
 	_is_starting_run = true

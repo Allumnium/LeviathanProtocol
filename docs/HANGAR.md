@@ -10,15 +10,85 @@ The actual campaign now uses the hangar. Start a new run from the main menu; Con
 - Equipment has a unique inventory ID, with no component integrity or condition. A mount references that instance; free transfers move it between ships or stock. Replacing an item returns the old item to stock. Only the ship's hull takes persistent damage.
 - Buy ships/equipment at inhabited shipyards. Research unlocks equipment purchases/fitting. Winning a battle also awards one deterministic, usable equipment instance. Loot is committed with the battle outcome and cannot be claimed twice.
 - Credits pay for purchases and whole-ship repairs. Stock equipment sells for half its catalog price; salvaging a non-flagship chassis requires confirmation and returns equipment to stock. The flagship cannot be salvaged or bought a second time. Fleet is the first tab; fitting is under Ships. See [the playtest UI changes](UI_PLAYTEST_POLISH.md) for group selection/movement, Repair All, space backgrounds, map flight and supplied module art.
-- The supplied `flagship_basic.png` is the required starting flagship. Draft command budget: 12. Standard chassis consume command points; all owned ships deploy. No reserves or deployment-capacity system.
+- New Run chooses Original, Civic, Research or Combat flagship in a themed artwork/stats carousel. Draft command budgets are 14 / 20 / 12 / 16 respectively. Each run starts with 700 credits, exactly one selected flagship, an empty Transport and two Fighters. The flagship receives two Mini Turrets and Lab I; Fighters receive two turrets each. Standard chassis consume command points; all owned ships deploy. No reserves or deployment-capacity system.
 
-The art-to-mount maps, prices, chassis hull/mass/thrust and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. The flagship has eight mounts and a fixed level I Shield Generator. Original artwork is unchanged. Engines are implicit; command-center mechanics are covered by hull. No built-in or fitted equipment has separate health or damage. All equipment stays active until hull drops strictly below zero; zero hull remains alive. Shields absorb damage first, then the entire remainder damages hull. Repairs restore surviving hull for the rounded-up missing hull amount in credits; destroyed ships cannot be repaired. The Fighter has +30% weapon damage and 20% per-weapon-hit dodge; direct/environmental/ability damage does not dodge. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants. Repair drones retain finite reserves but heal hull; Nanoforge/Renewal II are deferred because component rebuilding no longer applies.
+Flagship bonuses are chassis-local: Civic earns +20% cargo/passenger delivery income; Research produces +25% installed-lab RP/day, frozen at departure; Combat cycles weapons +15% faster, additive with magazines, and subtracts one damage from every hull hit after shields (minimum zero). Original has no special bonus. All four have a built-in Shield Generator I. Selection uses the existing saved chassis ID; Continue never creates starter copies. Failed New Run saves roll back the old run and surface an error inside the carousel.
+
+The art-to-mount maps, prices, chassis hull/mass/thrust and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. Original, Research and Combat have eight mounts; Civic has ten. Every flagship has a fixed level I Shield Generator. Original artwork is unchanged. Engines are implicit; command-center mechanics are covered by hull. No built-in or fitted equipment has separate health or damage. All equipment stays active until hull drops strictly below zero; zero hull remains alive. Shields absorb damage first, then the entire remainder damages hull. Repairs restore surviving hull for the rounded-up missing hull amount in credits; destroyed ships cannot be repaired. The Fighter has +30% weapon damage and 20% per-weapon-hit dodge; direct/environmental/ability damage does not dodge. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants. Repair drones retain finite reserves but heal hull; Nanoforge/Renewal II are deferred because component rebuilding no longer applies.
 
 Shop chassis/equipment and loose stock rows open read-only item details in the right panel. Click elsewhere to restore stock; the green plus is the sole shop purchase action. Details include actual stats, effects/rates, mount restrictions and built-in equipment. Stock filters persist while inspecting, and installed-equipment drags restore the full-panel unequip target. The starter removes incompatible old equipment; previous incompatible physical layouts are rejected, not converted or rewritten.
 
 Shop, Fleet and Ships use the supplied `Progress_Cp` / `Progress_Cp_Bg` comparison bars for hull, maneuverability, mass and shields. Maneuverability consolidates speed, acceleration and turn rate using their chassis-wide means as weights; average base maneuverability scores 50. Thrust/mass feed those mechanics without double counting. Each displayed stat uses all base chassis as its reference range, linearly mapping minimum to 10% fill and maximum to 100%; real outfitted/damaged values are clamped to that display range without changing state. Ship-description numbers are rounded integers; calculations retain full precision. Equipment has no HP/condition UI. Engine/command-center descriptions are omitted. See [MOUNT_RULES.md](MOUNT_RULES.md).
 
+## Battle outcomes and run score
+
+Battle controls offer Pause, 2x and 5x speed. Speed toggles are mutually exclusive;
+turning off either restores 1x. Pause clears fast speed, while choosing a speed
+unpauses. The selected speed persists in settings (older 2x preferences still
+load), and Settings pauses all speeds. Simulation continues to use fixed ticks;
+finishing-shot slow motion multiplies the chosen speed. Retreat is no longer
+offered in the battle UI; shared withdrawal/replay mechanics remain unchanged.
+
+Victory uses the supplied Victory background, badge, rays, light line and title,
+with compact integer-valued ship statistics in themed reward cards. Names have
+the full details-column width; damage is no longer an unbounded segment flow.
+Loot/rewards and surviving-hull repair quotes retain their settlement behavior.
+The result overlays a dark backdrop, while the shared top-right Settings remains
+available. Its auto-camera toggle uses Switch_Off/Switch_On with preserved aspect;
+volume settings remain sliders.
+
+Flagship destruction goes directly to an opaque-black, red warning Game Over
+popup using GameOver_bg and Title_GAMEOVER. Accept Defeat (or the shared X)
+returns to the main menu after the defeat checkpoint commits. A failed save
+keeps the settlement error/retry path instead of displaying a settled result.
+
+Only runs started after this update have a score. Existing physical version-2
+saves remain loadable and display an explicit score-unavailable message; past
+income/damage is not guessed. The optional validated `score` checkpoint object
+stores cumulative Swarm damage and earned credits alongside the rest of the
+atomic run state:
+
+- 100 points per completed research project, excluding Foundation.
+- 1 point per 10 player-fleet damage to Swarm enemies (including shields and
+  carrier sorties, counted once; no neutral-target or neutral-source damage).
+- 1 point per 10 gross credits earned from battles, cargo/passengers, quests,
+  equipment sales and chassis salvage. Starting credits are excluded. Spending
+  and casualty fees do not reduce earned credit totals.
+- 20,000 bonus points for defeating the final Leviathan. Final victory also
+  shows the score breakdown.
+
+Fractional damage is retained; damage/credit point subtotals round down.
+Settlement failures/retries, repeated calls, sales and arrivals cannot duplicate
+score income. Continue preserves the totals. The Game Over breakdown shows both
+the source totals/weights and their point contributions.
+
 ## Surface lighting
+
+Shield absorption flashes a fading, form-fitting blue silhouette glow on player
+chassis and alien ships, not a circular shield ring. Original artwork stays
+visible above the glow; cached white alpha masks preserve transparent cutouts
+and rotate/scale with the ship. Shared legacy hull rendering retains its existing
+form-fitting hull outline.
+
+Each visible projectile also has a tight 7-world-unit emissive-looking halo:
+layered red/green light and a bright warm center, drawn beneath its original
+bullet/tracer artwork. This covers Mini Turret sprites and all other projectile
+weapons, follows interpolated positions and camera zoom, and uses the same
+visibility culling as the bullet. Existing surface lights remain separate.
+
+Shots shed five tiny fading sparks. Bullet halo opacity is softened by 25% while
+retaining its small radius. Target and asteroid collisions create a
+0.22-second orange/red/white burst with fifteen outward sparks and a short bright
+core. Effects use simulation time, so battle speed and pause apply consistently.
+Impact storage is capped at 96, hidden/offscreen contacts are not retained, and
+expired effects are removed. Cosmetic variation never uses combat RNG and
+does not change damage, collision, saves or replay state.
+
+Moving, surviving player chassis emit twin tapered blue/white exhaust streams
+from the rear of their artwork (24 tiny fading particles per ship). Plume length
+responds to movement speed and rotates with the interpolated ship heading.
+Stationary ships, destroyed ships and aliens emit no thrust particles. Exhaust
+uses simulation time and visibility filtering, without combat RNG or saved state.
 
 The supplied map sets under `assets/chassis/`, `assets/equipment/`, `assets/environment/` and `assets/aliens/` use `_d` diffuse, `_n` normal, `_o` occlusion, `_p` height/parallax and `_s` specular. `_v` is a baked preview and is not used for live rendering. The flagship now uses `assets/chassis/flagship_basic_d.png`, the mapped version of the supplied starting flagship; chassis IDs, saves, geometry and mount anchors are unchanged.
 

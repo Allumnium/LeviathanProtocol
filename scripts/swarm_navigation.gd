@@ -49,7 +49,7 @@ static func arrive(data: Dictionary, graph: Dictionary) -> void:
 		var quest := event(graph, int(key))
 		if data.navigation.quests[key] == "active" and data.current == quest.target:
 			data.navigation.quests[key] = "complete"
-			data.credits += quest.reward
+			RunScore.earn_credits(data, int(quest.reward))
 			data.navigation.intensity = maxf(0, data.navigation.intensity - quest.reduction)
 
 static func encounter(base: Dictionary, intensity: float) -> Dictionary:

@@ -24,6 +24,7 @@ const MAX_SIMULATION_STEPS_PER_FRAME := 6
 @onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
 @onready var pause_button: Button = $BattleSpeedControls/PauseButton
 @onready var fast_forward_button: Button = $BattleSpeedControls/FastForwardButton
+@onready var five_times_button: Button = $BattleSpeedControls/FiveTimesButton
 @onready var destroy_neutral_targets: CheckBox = $DestroyNeutralTargets
 @onready var defeat_dialog: Control = $DefeatDialog
 @onready var defeat_accept_button: Button = $DefeatDialog/CenterContainer/Panel/Contents/ButtonCenter/AcceptButton
@@ -37,7 +38,6 @@ var _left_press_screen := Vector2.ZERO
 var _auto_camera_active := true
 var _camera_inactive_seconds := 0.0
 var _finished := false
-var withdraw_button: Button
 var _run_lost := false
 var _report_open := false
 var _battle_credit_reward := 0
@@ -114,6 +114,7 @@ func _ready() -> void:
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
 	AudioManager.connect_ui_button(pause_button, &"detail")
 	AudioManager.connect_ui_button(fast_forward_button, &"detail")
+	AudioManager.connect_ui_button(five_times_button, &"detail")
 	simulation.weapon_fired.connect(
 		AudioManager.play_sfx.bind(SHOOT_SOUND, 1.0, COMBAT_BLASTER_VOLUME_DB, 35)
 	)
@@ -121,26 +122,14 @@ func _ready() -> void:
 		AudioManager.play_sfx.bind(SHIELD_HIT_SOUND, 1.0, COMBAT_IMPACT_VOLUME_DB)
 	)
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
-	withdraw_button = Button.new()
-	withdraw_button.text = "RETREAT"
-	withdraw_button.theme_type_variation = &"FramedButton"
-	withdraw_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	withdraw_button.offset_left = -138
-	withdraw_button.offset_right = -46
-	withdraw_button.offset_top = 8
-	withdraw_button.offset_bottom = 32
-	withdraw_button.pressed.connect(func() -> void:
-		simulation.issue_command("withdraw")
-		withdraw_button.disabled = true)
-	add_child(withdraw_button)
-	withdraw_button.offset_left = -148
-	withdraw_button.offset_right = -46
-	AudioManager.connect_ui_button(withdraw_button, &"question")
+	simulation.projectile_impacted.connect(visuals.add_projectile_impact)
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
-	fast_forward_button.set_pressed_no_signal(GameState.battle_fast_forward)
+	fast_forward_button.set_pressed_no_signal(GameState.battle_speed == 2)
+	five_times_button.set_pressed_no_signal(GameState.battle_speed == 5)
 	pause_button.toggled.connect(_on_pause_toggled)
-	fast_forward_button.toggled.connect(_on_fast_forward_toggled)
+	fast_forward_button.toggled.connect(_on_speed_toggled.bind(2))
+	five_times_button.toggled.connect(_on_speed_toggled.bind(5))
 	AudioManager.connect_ui_button(defeat_accept_button)
 	AudioManager.connect_ui_button(defeat_close_button)
 	defeat_accept_button.pressed.connect(_return_to_main_menu)
@@ -172,11 +161,9 @@ func _physics_process(delta: float) -> void:
 		_cinematic_projectile = null
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
-	var speed_multiplier := (
-		FINISHING_SHOT_TIME_SCALE * (2.0 if fast_forward_button.button_pressed else 1.0)
-		if _cinematic_projectile != null
-		else (2.0 if fast_forward_button.button_pressed else 1.0)
-	)
+	var speed_multiplier := float(GameState.battle_speed)
+	if _cinematic_projectile != null:
+		speed_multiplier *= FINISHING_SHOT_TIME_SCALE
 	_advance_fixed_simulation(delta, speed_multiplier)
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
@@ -189,8 +176,6 @@ func _physics_process(delta: float) -> void:
 			_begin_result_delay(false)
 		BattleSimulation.Phase.WITHDRAWN:
 			_finish_battle(false)
-	if simulation.withdrawing and not _finished:
-		withdraw_button.text = "RETREAT %d" % ceili(simulation.retreat_remaining)
 	visuals.queue_redraw()
 	if objective_label != null:
 		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else simulation.encounter.label(simulation)
@@ -239,7 +224,8 @@ func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
 func _on_pause_toggled(is_paused: bool) -> void:
 	if is_paused:
 		fast_forward_button.set_pressed_no_signal(false)
-		GameState.battle_fast_forward = false
+		five_times_button.set_pressed_no_signal(false)
+		GameState.battle_speed = 1
 		AudioManager.save_settings()
 
 
@@ -253,10 +239,12 @@ func _on_destroy_neutral_targets_toggled(enabled: bool) -> void:
 	simulation.issue_command("neutral_cleanup", {"enabled": enabled})
 
 
-func _on_fast_forward_toggled(is_fast: bool) -> void:
-	GameState.battle_fast_forward = is_fast
+func _on_speed_toggled(enabled: bool, speed: int) -> void:
+	GameState.battle_speed = speed if enabled else 1
+	fast_forward_button.set_pressed_no_signal(GameState.battle_speed == 2)
+	five_times_button.set_pressed_no_signal(GameState.battle_speed == 5)
 	AudioManager.save_settings()
-	if is_fast:
+	if enabled:
 		pause_button.set_pressed_no_signal(false)
 
 
@@ -507,7 +495,6 @@ func _begin_result_delay(won: bool) -> void:
 	_cinematic_projectile = null
 	_dragging = false
 	battle_speed_controls.hide()
-	withdraw_button.hide()
 	destroy_neutral_targets.disabled = true
 
 
@@ -515,7 +502,6 @@ func _finish_battle(won: bool) -> void:
 	if ability_bar != null:
 		ability_bar.cancel_targeting()
 		ability_bar.hide()
-	withdraw_button.hide()
 	battle_speed_controls.hide()
 	var credits_before := GameState.credits
 	if not GameState.settle_battle(simulation):
@@ -530,7 +516,11 @@ func _finish_battle(won: bool) -> void:
 	repair_label.hide()
 	_battle_credit_reward = maxi(GameState.credits - credits_before, 0)
 	_run_lost = GameState.is_run_lost()
-	_show_report(won)
+	if _run_lost:
+		_report_open = true
+		defeat_dialog.show_game_over()
+	else:
+		_show_report(won)
 
 
 func _return_to_map() -> void:
@@ -548,13 +538,19 @@ func _return_to_main_menu() -> void:
 func _on_report_closed() -> void:
 	_report_open = false
 	if _run_lost:
-		defeat_dialog.show()
+		defeat_dialog.show_game_over()
 	else:
 		_return_to_map()
 
 
 func _show_report(won: bool) -> void:
 	_report_open = true
+	var backdrop := ColorRect.new()
+	backdrop.name = "ReportBackdrop"
+	backdrop.color = Color(0.003, 0.012, 0.018, 1)
+	backdrop.z_index = 39
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(backdrop)
 	var report := preload("res://scripts/battle_report.gd").new()
 	add_child(report)
 	report.show_report(

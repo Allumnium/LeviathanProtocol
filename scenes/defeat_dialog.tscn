@@ -1,11 +1,13 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Theme" path="res://themes/ui_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/close_x_button.tscn" id="3_close"]
+[ext_resource type="Script" path="res://scripts/defeat_dialog.gd" id="4_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/Title_GAMEOVER.png" id="5_title"]
 
 [node name="DefeatDialog" type="Control"]
 visible = false
-z_index = 30
+z_index = 50
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,6 +15,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("2_theme")
+script = ExtResource("4_script")
+texture_filter = 1
 
 [node name="Backdrop" type="ColorRect" parent="."]
 layout_mode = 1
@@ -21,7 +25,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.78)
+color = Color(0, 0, 0, 1)
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -33,27 +37,37 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(380, 200)
+custom_minimum_size = Vector2(400, 280)
 layout_mode = 2
+theme_type_variation = &"WarningPanel"
 
 [node name="CloseX" parent="CenterContainer/Panel" instance=ExtResource("3_close")]
 
 [node name="Contents" type="VBoxContainer" parent="CenterContainer/Panel"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="CenterContainer/Panel/Contents"]
+[node name="Banner" type="PanelContainer" parent="CenterContainer/Panel/Contents"]
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.93, 0.42, 0.42, 1)
-text = "FLEET LOST"
-horizontal_alignment = 1
+theme_type_variation = &"GameOverBanner"
+
+[node name="Title" type="TextureRect" parent="CenterContainer/Panel/Contents/Banner"]
+layout_mode = 2
+texture = ExtResource("5_title")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Message" type="Label" parent="CenterContainer/Panel/Contents"]
 layout_mode = 2
-size_flags_vertical = 3
-text = "Your fleet has been destroyed. This run has ended. Start a new run to continue."
+text = "Flagship destroyed. Your run has ended."
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Score" type="Label" parent="CenterContainer/Panel/Contents"]
+layout_mode = 2
+horizontal_alignment = 1
 autowrap_mode = 2
 
 [node name="ButtonCenter" type="CenterContainer" parent="CenterContainer/Panel/Contents"]
@@ -61,6 +75,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="AcceptButton" type="Button" parent="CenterContainer/Panel/Contents/ButtonCenter"]
-custom_minimum_size = Vector2(180, 44)
+custom_minimum_size = Vector2(180, 36)
 layout_mode = 2
-text = "RETURN TO MAIN MENU"
+theme_type_variation = &"DefeatButton"
+text = "ACCEPT DEFEAT"

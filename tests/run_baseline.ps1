@@ -7,7 +7,7 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 $runRoot = Join-Path $projectRoot ('.local/checks/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $runRoot | Out-Null
 $previousAppData = $env:APPDATA
-$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'swarm_navigation', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'hangar_drag', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay', 'chassis_review', 'whole_ship')
+$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'swarm_navigation', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'hangar_drag', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay', 'chassis_review', 'whole_ship', 'battle_outcomes', 'flagship_selection')
 try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     foreach ($suite in $suites) {
@@ -15,6 +15,18 @@ try {
         & $Godot --headless --path $projectRoot --script ('res://tests/test_' + $suite + '.gd') --log-file $log
         if ($LASTEXITCODE -ne 0) { throw "$suite failed: $LASTEXITCODE" }
         if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw "$suite emitted script errors" }
+    }
+    if ($Native) {
+        $log = Join-Path $runRoot 'native-flagship-selection.log'
+        & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_flagship_selection.gd --log-file $log
+        if ($LASTEXITCODE -ne 0) { throw "Native flagship selection failed: $LASTEXITCODE" }
+        if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native flagship selection emitted script errors' }
+    }
+    if ($Native) {
+        $log = Join-Path $runRoot 'native-battle-outcomes.log'
+        & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_battle_outcomes.gd --log-file $log
+        if ($LASTEXITCODE -ne 0) { throw "Native battle outcomes failed: $LASTEXITCODE" }
+        if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native battle outcomes emitted script errors' }
     }
     if ($Native) {
         $log = Join-Path $runRoot 'native-chassis-review.log'

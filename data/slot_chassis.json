@@ -4,6 +4,7 @@
     {
       "id": "flagship_basic",
       "name": "Flagship",
+      "description": "A balanced command ship with flexible small mounts and a built-in Shield Generator.",
       "art": "res://assets/chassis/flagship_basic_d.png",
       "price": 1200,
       "integrity": 320,
@@ -11,7 +12,7 @@
       "thrust": 22,
       "builtin_shield": "shield_generator",
       "radius": 43,
-      "command": 12,
+      "command": 14,
       "command_cost": 0,
       "slots": [
         {
@@ -102,6 +103,84 @@
             38
           ]
         }
+      ]
+    },
+    {
+      "id": "flagship_civic",
+      "name": "Civic Flagship",
+      "description": "An industrial command ship built for trade and a large escort fleet.",
+      "art": "res://assets/chassis/flagship_civic_d.png",
+      "price": 1200,
+      "integrity": 380,
+      "mass": 85,
+      "thrust": 20,
+      "builtin_shield": "shield_generator",
+      "delivery_income_multiplier": 1.2,
+      "radius": 45,
+      "command": 20,
+      "command_cost": 0,
+      "slots": [
+        {"id": "cargo", "size": "XL", "type": "civil", "rect": [220, 190, 72, 150]},
+        {"id": "outer_port", "size": "L", "type": "utility", "rect": [28, 154, 76, 76]},
+        {"id": "outer_starboard", "size": "L", "type": "utility", "rect": [408, 154, 76, 76]},
+        {"id": "upper_port", "size": "M", "type": "utility", "rect": [128, 180, 62, 62]},
+        {"id": "upper_starboard", "size": "M", "type": "utility", "rect": [322, 180, 62, 62]},
+        {"id": "spine", "size": "M", "type": "utility", "rect": [128, 262, 62, 62]},
+        {"id": "lower_starboard", "size": "M", "type": "utility", "rect": [322, 262, 62, 62]},
+        {"id": "port", "size": "S", "type": "combat", "rect": [136, 104, 44, 44]},
+        {"id": "starboard", "size": "S", "type": "combat", "rect": [332, 104, 44, 44]},
+        {"id": "fore", "size": "S", "type": "general", "rect": [234, 32, 44, 44]}
+      ]
+    },
+    {
+      "id": "flagship_science",
+      "name": "Research Flagship",
+      "description": "A mobile laboratory with room for advanced labs and fleet support.",
+      "art": "res://assets/chassis/flagship_science_d.png",
+      "price": 1200,
+      "integrity": 300,
+      "mass": 70,
+      "thrust": 25,
+      "builtin_shield": "shield_generator",
+      "research_rate_multiplier": 1.25,
+      "radius": 43,
+      "command": 12,
+      "command_cost": 0,
+      "slots": [
+        {"id": "central", "size": "XL", "type": "civil", "rect": [226, 258, 60, 84]},
+        {"id": "outer_port", "size": "L", "type": "utility", "rect": [56, 220, 76, 76]},
+        {"id": "outer_starboard", "size": "L", "type": "utility", "rect": [380, 220, 76, 76]},
+        {"id": "spine", "size": "M", "type": "general", "rect": [226, 140, 60, 60]},
+        {"id": "lower_port", "size": "M", "type": "utility", "rect": [132, 280, 60, 60]},
+        {"id": "lower_starboard", "size": "M", "type": "utility", "rect": [320, 280, 60, 60]},
+        {"id": "port", "size": "S", "type": "combat", "rect": [166, 226, 40, 40]},
+        {"id": "starboard", "size": "S", "type": "combat", "rect": [306, 226, 40, 40]}
+      ]
+    },
+    {
+      "id": "flagship_offense",
+      "name": "Combat Flagship",
+      "description": "A heavily protected gunship with faster weapon cycling and a strong escort budget.",
+      "art": "res://assets/chassis/flagship_offense_d.png",
+      "price": 1200,
+      "integrity": 340,
+      "mass": 70,
+      "thrust": 32,
+      "builtin_shield": "shield_generator",
+      "weapon_cycle_bonus": 0.15,
+      "flat_damage_reduction": 1,
+      "radius": 43,
+      "command": 16,
+      "command_cost": 0,
+      "slots": [
+        {"id": "fore", "size": "L", "type": "combat", "rect": [228, 116, 56, 56]},
+        {"id": "outer_port", "size": "M", "type": "combat", "rect": [76, 226, 48, 48]},
+        {"id": "outer_starboard", "size": "M", "type": "combat", "rect": [388, 226, 48, 48]},
+        {"id": "port", "size": "S", "type": "combat", "rect": [136, 136, 40, 40]},
+        {"id": "starboard", "size": "S", "type": "combat", "rect": [336, 136, 40, 40]},
+        {"id": "aft_port", "size": "S", "type": "general", "rect": [136, 372, 40, 40]},
+        {"id": "aft_starboard", "size": "S", "type": "general", "rect": [336, 372, 40, 40]},
+        {"id": "spine", "size": "M", "type": "general", "rect": [226, 294, 60, 64]}
       ]
     },
     {

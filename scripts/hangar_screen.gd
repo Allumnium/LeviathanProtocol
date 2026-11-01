@@ -315,12 +315,7 @@ func _render_inspection() -> void:
 		bars.set_ship(ship)
 		body.add_child(_resource_label("Command %d\nPrice %d cr" %
 			[chassis.command if chassis.command > 0 else chassis.command_cost, chassis.price]))
-		var bonuses: Array[String] = []
-		if chassis.get("weapon_damage_multiplier", 1.0) != 1.0:
-			bonuses.append("%+.0f%% weapon damage" % ((chassis.weapon_damage_multiplier - 1.0) * 100))
-		if chassis.get("dodge_chance", 0.0) > 0:
-			bonuses.append("%.0f%% weapon-hit dodge" % (chassis.dodge_chance * 100))
-		body.add_child(_label("Bonuses / penalties\n" + ("None" if bonuses.is_empty() else "\n".join(bonuses))))
+		body.add_child(_resource_label(SlotCatalog.chassis_bonuses(chassis)))
 		if chassis.has("builtin_shield"):
 			var shield := SlotCatalog.find_equipment(chassis.builtin_shield)
 			body.add_child(_resource_label("Built-in %s I\nShields %d | %d recharge/s after 4s" %

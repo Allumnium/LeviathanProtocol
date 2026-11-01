@@ -6,7 +6,10 @@ size match; smaller parts never fill larger mounts.
 
 | Chassis | Mounts |
 | --- | --- |
-| Flagship | Three front S Offense/Defense; central M any; four rear S Civic/Tech/Defense. |
+| Original Flagship | Three front S Offense/Defense; central M any; four rear S Civic/Tech/Defense. |
+| Civic Flagship | Central XL Civic/Tech; two outer L and four M Civic/Tech/Defense; two upper S Offense/Defense; forward S any. |
+| Research Flagship | Central XL Civic/Tech; two outer L and two lower M Civic/Tech/Defense; forward-center M any; two center-side S Offense/Defense. |
+| Combat Flagship | Forward L and two outer M Offense/Defense; two shoulder S Offense/Defense; two rear S any; lower-center M any. |
 | Corsair | Front L Offense/Defense; two side M Offense/Defense; rear S any. |
 | Fighter | Front S any; two side S Offense only. |
 | Transport | Central XL Civic/Tech; two side L Civic/Tech/Defense; front and rear S any. |
@@ -28,7 +31,10 @@ See [HANGAR_DRAG_DROP.md](HANGAR_DRAG_DROP.md).
 
 | Chassis | Base hull | Built-in thrust | Command cost |
 | --- | ---: | ---: | ---: |
-| Flagship | 320 | 22 | Supplies 12 |
+| Original Flagship | 320 | 22 | Supplies 14 |
+| Civic Flagship | 380 | 20 | Supplies 20 |
+| Research Flagship | 300 | 25 | Supplies 12 |
+| Combat Flagship | 340 | 32 | Supplies 16 |
 | Corsair | 180 | 50 | 4 |
 | Fighter | 100 | 38 | 2 |
 | Transport | 220 | 18 | 3 |
@@ -56,7 +62,25 @@ Repair drones heal surviving hull using their existing finite allowance.
 Nanoforge/Renewal II are deferred rather than inventing a replacement for
 component reconstruction.
 
-The starter retains its two compatible turrets (front sides) and central Lab I.
+New Run offers these four flagships in a themed carousel with artwork, stats,
+command budgets, bonuses, descriptions and mount summaries. Starting credits
+are 700. Every run starts with the selected flagship, an empty Transport and
+two Fighters. The flagship has two Mini Turrets and a Research Lab I; each
+Fighter has two Mini Turrets. These seven equipment instances are unique.
+If later catalog mount edits prevent a starter item from fitting, it remains
+in shared stock rather than being copied or lost. New flagship rectangles are
+drafts for owner adjustment in `data/slot_chassis.json`.
+
+Civic grants +20% cargo/passenger delivery income on its own installed equipment,
+rounded per delivery. Research grants +25% output from its own installed labs,
+frozen at departure with fractions retained. Combat grants +15% weapon cycling
+(additive with magazines) and one flat hull damage reduction per hit from all
+sources, after shields; the result is clamped to zero and cannot heal hull.
+Original has no special bonus. All four retain the built-in Shield Generator I.
+Exactly one selected flagship deploys; its loss ends the run. Choice persists
+through the existing chassis ID, without save conversion or extra starter ships
+on Continue.
+
 The incompatible old starter Armor Block is removed, with no replacement.
 At the owner's direction, incompatible previous physical layouts are not
 converted; physical checkpoint version 2 rejects previous versions without
@@ -75,8 +99,8 @@ Beginning an installed-equipment drag restores the full-panel unequip target.
 
 Hull, maneuverability, mass and shields use the supplied
 `Progress_Cp` / `Progress_Cp_Bg` textures in shop, Fleet and Ships details.
-For each stat, reference bounds are the minimum and maximum of all six base
-chassis, including the flagship and its built-in shield mass. Exact numeric
+For each stat, reference bounds are the minimum and maximum of all nine base
+chassis, including all four flagships and their built-in shield mass. Exact numeric
 values remain visible; bar fill is
 `10 + 90 * clamp((value - minimum) / (maximum - minimum), 0, 1)` percent.
 Outfitted/damaged ships use their real current values against those same bounds.
@@ -84,7 +108,7 @@ Equal reference bounds are a balancing error, not a silent divide-by-zero
 fallback; current chassis vary across every displayed stat.
 
 Maneuverability consolidates movement without changing physics. Let each
-movement factor's weight be its mean across all six base chassis divided by
+movement factor's weight be its mean across all nine base chassis divided by
 the sum of those means. Weight each actual/mean ratio and scale the result by
 50; equivalently, `50 * (speed + acceleration + turn_rate) /
 (mean_speed + mean_acceleration + mean_turn_rate)`. The average base chassis

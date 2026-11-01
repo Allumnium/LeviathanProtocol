@@ -37,7 +37,7 @@ var CONVERGENCE_NODE_IDS: Array[int] = []
 var FINAL_NODE_ID := 0
 var laser_upgrade_level := 0
 var battle_auto_camera := true
-var battle_fast_forward := false
+var battle_speed := 1
 var destroy_all_neutral_targets := false
 var run_save_path := "user://hangar_run.json"
 var last_save_error := ""
@@ -55,21 +55,25 @@ var last_equipment_loot := ""
 var battle_reserves: Dictionary = {}
 var navigation: Dictionary = {}
 var pending_encounter: Dictionary = {}
+var run_score: Dictionary = {}
 
 func _ready() -> void:
 	run_save_path = "user://hangar_run.json"
 	run_seed = 1
 
 
-func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, _use_campaign := true) -> bool:
-	if selected_difficulty not in [0, 1, 2] or seed_value < -1:
+func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, _use_campaign := true, flagship_id := "flagship_basic") -> bool:
+	var selected := SlotCatalog.find_chassis(flagship_id)
+	if selected_difficulty not in [0, 1, 2] or seed_value < -1 or selected.is_empty() or int(selected.command) <= 0:
+		push_error("Cannot start a run with invalid difficulty, seed or flagship.")
 		return false
-	var before := hangar_snapshot() if not run_id.is_empty() else {}
+	var before := hangar_snapshot()
 	var previous_generation := hangar_generation
 	run_seed = _new_run_seed() if seed_value == -1 else seed_value
 	difficulty = selected_difficulty as Difficulty
 	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
-	credits = 600
+	credits = 700
+	run_score = RunScore.initial()
 	current_research_ids = ["foundation"]
 	research_focus = ""
 	research_progress = {}
@@ -94,11 +98,15 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	last_battle_report.clear()
 	last_equipment_loot = ""
 	_build_campaign()
-	var lead := _add_chassis("flagship_basic", true)
-	_give_equipment(lead, "port", "mini_turret")
-	_give_equipment(lead, "starboard", "mini_turret")
-	# A starter lab makes the existing travel research loop immediately usable.
-	_give_equipment(lead, "spine", "research_lab")
+	var lead := _add_chassis(flagship_id, true)
+	_give_starter_equipment(lead, "mini_turret", "port")
+	_give_starter_equipment(lead, "mini_turret", "starboard")
+	_give_starter_equipment(lead, "research_lab", "spine")
+	_add_chassis("transport")
+	for index in range(2):
+		var fighter := _add_chassis("fighter")
+		_give_starter_equipment(fighter, "mini_turret", "port")
+		_give_starter_equipment(fighter, "mini_turret", "starboard")
 	hangar_generation = -1
 	if not save_run_checkpoint():
 		if not before.is_empty():
@@ -111,6 +119,21 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 		return false
 	_notify_hangar()
 	return true
+
+func _give_starter_equipment(owned: HangarShip, key: String, preferred: String) -> void:
+	var instance := _new_equipment(key)
+	var item := SlotCatalog.find_equipment(key)
+	for slot: Dictionary in owned.chassis.slots:
+		if slot.id == preferred and not owned.mounts.has(slot.id) and SlotCatalog.compatible(slot, item):
+			owned.mounts[slot.id] = instance
+			owned.rebuild_units()
+			return
+	# Catalog edits may remove compatible mounts; keep the real item in stock.
+	for slot: Dictionary in owned.chassis.slots:
+		if not owned.mounts.has(slot.id) and SlotCatalog.compatible(slot, item):
+			owned.mounts[slot.id] = instance
+			owned.rebuild_units()
+			return
 
 func _build_campaign() -> void:
 	campaign_active = true
@@ -162,6 +185,8 @@ func hangar_snapshot() -> Dictionary:
 		"research_pricing_version": 1, "story_flags": story_flags.duplicate(), "branch_choices": research_branch_choices.duplicate()}}
 	if not navigation.is_empty():
 		data.navigation = navigation.duplicate(true)
+	if not run_score.is_empty():
+		data.score = run_score.duplicate(true)
 	return data
 
 func _apply_hangar(data: Dictionary) -> void:
@@ -169,6 +194,7 @@ func _apply_hangar(data: Dictionary) -> void:
 	run_seed = int(data.seed)
 	difficulty = int(data.difficulty) as Difficulty
 	credits = int(data.credits)
+	run_score = data.get("score", {}).duplicate(true)
 	next_ship_id = int(data.next_ship_id)
 	next_equipment_id = int(data.next_equipment_id)
 	equipment_inventory = data.equipment.duplicate(true)
@@ -321,7 +347,7 @@ func sell_equipment(uid: String) -> bool:
 	var instance: Dictionary = equipment_inventory[uid]
 	var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 	var data := hangar_snapshot()
-	data.credits += floori(float(item.price) * 0.5)
+	RunScore.earn_credits(data, floori(float(item.price) * 0.5))
 	data.equipment.erase(uid)
 	return _commit_hangar(data)
 
@@ -345,7 +371,7 @@ func salvage_hangar_ship(ship_id: int) -> bool:
 	var data := hangar_snapshot()
 	HangarTrade.settle_losses(data, [ship_id])
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) != ship_id)
-	data.credits += floori(float(target.chassis.price) * 0.5 * maxf(0, target.hull_hp) / target.hull_max)
+	RunScore.earn_credits(data, floori(float(target.chassis.price) * 0.5 * maxf(0, target.hull_hp) / target.hull_max))
 	# Equipment is returned to stock, retaining its instance identity.
 	return _commit_hangar(data)
 
@@ -575,6 +601,8 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 		return false
 	var data := hangar_snapshot()
 	var lost: Array[int] = []
+	if data.has("score"):
+		data.score.swarm_damage += simulation.swarm_damage_dealt
 	data.battle_reserves[str(destination_node_id)] = simulation.doctrines.pool.duplicate(true)
 	for owned: HangarShip in fleet:
 		if not owned.is_alive():
@@ -589,7 +617,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
 	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
 	if won:
-		data.credits += int(get_frozen_encounter(destination_node_id).rewards.credits)
+		RunScore.earn_credits(data, int(get_frozen_encounter(destination_node_id).rewards.credits))
 		var loot := equipment_loot(destination_node_id)
 		if not loot.is_empty():
 			var uid := str(data.next_equipment_id)

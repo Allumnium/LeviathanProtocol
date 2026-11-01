@@ -84,9 +84,12 @@ func load_settings(file_path: String = SETTINGS_PATH) -> void:
 	GameState.battle_auto_camera = _validated_bool(
 		config.get_value("battle", "auto_camera", true), true
 	)
-	GameState.battle_fast_forward = _validated_bool(
-		config.get_value("battle", "fast_forward", false), false
-	)
+	var speed: Variant = config.get_value("battle", "speed",
+		2 if _validated_bool(config.get_value("battle", "fast_forward", false), false) else 1)
+	if not (speed is int or speed is float) or speed not in [1, 2, 5]:
+		push_error("Invalid saved battle speed; resetting to 1x.")
+		speed = 1
+	GameState.battle_speed = int(speed)
 
 
 func save_settings(file_path: String = SETTINGS_PATH) -> bool:
@@ -96,7 +99,7 @@ func save_settings(file_path: String = SETTINGS_PATH) -> bool:
 	config.set_value("audio", "ambience", get_bus_volume_percent(AMBIENCE_BUS))
 	config.set_value("audio", "effects", get_bus_volume_percent(SFX_BUS))
 	config.set_value("battle", "auto_camera", GameState.battle_auto_camera)
-	config.set_value("battle", "fast_forward", GameState.battle_fast_forward)
+	config.set_value("battle", "speed", GameState.battle_speed)
 	var save_error := config.save(file_path)
 	if save_error != OK:
 		push_error("Could not save settings: %s" % error_string(save_error))

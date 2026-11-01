@@ -12,7 +12,6 @@ const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
 const MINIGUN_BULLET_TEXTURE: Texture2D = preload("res://assets/bullet.png")
 const MINIGUN_BULLET_SCALE := 0.125
 const MINIGUN_BULLET_ROTATION_SPEED := TAU * 2.0
-const SHIELD_FLASH_TINT := Color(0.35, 0.7, 1.0, 1.0)
 const SHIELD_OUTLINE_COLOR := Color(0.45, 0.85, 1.0, 1.0)
 const SMALL_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_s_animated.png")
 const LARGE_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_l_animated.png")
@@ -22,6 +21,11 @@ const PROJECTILE_LIGHT_RADIUS := 36.0
 const PROJECTILE_LIGHT_ENERGY := 0.9
 const PLAYER_PROJECTILE_LIGHT := Vector3(1.0, 0.12, 0.06)
 const ENEMY_PROJECTILE_LIGHT := Vector3(0.55, 1.0, 0.25)
+const BULLET_GLOW_RADIUS := 7.0
+const IMPACT_SECONDS := 0.22
+const MAX_PROJECTILE_IMPACTS := 96
+const IMPACT_COLORS := [Color(1.0, 0.24, 0.06), Color(1.0, 0.58, 0.1), Color(1.0, 0.96, 0.85)]
+var _projectile_impacts: Array[Dictionary] = []
 
 var _part_patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 var simulation: BattleSimulation
@@ -35,6 +39,7 @@ var _thruster_frames_by_type: Dictionary = {}
 var ability_preview: Dictionary = {}
 var _surface_material: ShaderMaterial
 var _rock_texture: Texture2D
+var _shield_masks: Dictionary[Texture2D, Texture2D] = {}
 
 
 func world_transform() -> Transform2D:
@@ -63,6 +68,14 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if simulation == null:
 		return
+	for member in simulation.players:
+		if member.owned_ship is HangarShip:
+			_shield_mask(member.owned_ship.art_texture)
+	for member in simulation.aliens:
+		if member.alien != null:
+			_shield_mask(member.alien.texture)
+	_projectile_impacts = _projectile_impacts.filter(func(impact: Dictionary) -> bool:
+		return simulation.elapsed - impact.time < IMPACT_SECONDS)
 	var flashes := PackedVector4Array()
 	var transform := get_global_transform_with_canvas() * world_transform()
 	for explosion in simulation.explosions:
@@ -148,6 +161,10 @@ func _draw() -> void:
 		var projectile_position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
 		if not _visible_world_rect.has_point(projectile_position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, projectile_position):
 			continue
+		var aim := projectile.aim_position if simulation.visibility_enabled else projectile.target.position
+		var direction := (aim - projectile_position).normalized()
+		_draw_shot_particles(projectile_position, direction, projectile)
+		_draw_bullet_glow(projectile_position, projectile.is_player)
 		if projectile.is_player and projectile.weapon_name == "Mini Turret":
 			var initial_rotation := (
 				float(projectile.get_instance_id() % 16) / 16.0 * TAU
@@ -167,8 +184,6 @@ func _draw() -> void:
 			)
 			draw_set_transform_matrix(world_transform())
 			continue
-		var aim := projectile.aim_position if simulation.visibility_enabled else projectile.target.position
-		var direction := (aim - projectile_position).normalized()
 		var trail_color := Color(0.4, 1.0, 0.25, 0.7)
 		var projectile_color := Color(0.8, 1.0, 0.3)
 		if projectile.is_player:
@@ -177,6 +192,7 @@ func _draw() -> void:
 		draw_line(projectile_position - direction * 12.0, projectile_position,
 			trail_color, 2.0, true)
 		draw_circle(projectile_position, 2.5, projectile_color)
+	_draw_projectile_impacts()
 	for explosion in simulation.explosions:
 		if not _visible_world_rect.has_point(explosion.position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, explosion.position):
 			continue
@@ -199,6 +215,51 @@ func _draw() -> void:
 			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
+
+func add_projectile_impact(position: Vector2) -> void:
+	if simulation == null or not simulation.point_visible(BattleSimulation.Faction.PLAYER, position):
+		return
+	var visible := Rect2(camera_position - size / (camera_zoom * 2.0), size / camera_zoom).grow(16)
+	if not visible.has_point(position):
+		return
+	if _projectile_impacts.size() >= MAX_PROJECTILE_IMPACTS:
+		_projectile_impacts.pop_front()
+	_projectile_impacts.append({"position": position, "time": simulation.elapsed})
+	queue_redraw()
+
+func _draw_shot_particles(position: Vector2, direction: Vector2, projectile: BattleSimulation.Projectile) -> void:
+	var tint := Color(1.0, 0.45, 0.12) if projectile.is_player else Color(0.65, 1.0, 0.3)
+	var phase := float(projectile.get_instance_id() % 17) / 17.0
+	for index in range(5):
+		var age := fposmod(simulation.elapsed * 10.0 + phase + index / 5.0, 1.0)
+		var side := -1.0 if index % 2 == 0 else 1.0
+		var point := position - direction * (3.0 + age * 11.0) + direction.orthogonal() * side * age * 3.0
+		if not simulation.point_visible(BattleSimulation.Faction.PLAYER, point):
+			continue
+		draw_rect(Rect2(point - Vector2.ONE, Vector2.ONE * 2), Color(tint, (1.0 - age) * 0.85))
+
+func _draw_projectile_impacts() -> void:
+	for impact: Dictionary in _projectile_impacts:
+		var age: float = (simulation.elapsed - impact.time) / IMPACT_SECONDS
+		if age < 0 or age >= 1 or not _visible_world_rect.has_point(impact.position) \
+			or not simulation.point_visible(BattleSimulation.Faction.PLAYER, impact.position):
+			continue
+		draw_circle(impact.position, (1.0 - age) * 4.0, Color(1.0, 0.93, 0.75, 1.0 - age))
+		for index in range(15):
+			var direction := Vector2.from_angle(index * TAU / 15.0 + float(impact.time) * 2.0)
+			var point: Vector2 = impact.position + direction * age * (9.0 + index % 3 * 2.0)
+			if not simulation.point_visible(BattleSimulation.Faction.PLAYER, point):
+				continue
+			var extent := Vector2.ONE * (2.0 if age < 0.5 else 1.0)
+			draw_rect(Rect2(point - extent * 0.5, extent), Color(IMPACT_COLORS[index % 3], 1.0 - age))
+
+func _draw_bullet_glow(position: Vector2, is_player: bool) -> void:
+	var tint := Color(PLAYER_PROJECTILE_LIGHT.x, PLAYER_PROJECTILE_LIGHT.y, PLAYER_PROJECTILE_LIGHT.z) if is_player \
+		else Color(ENEMY_PROJECTILE_LIGHT.x, ENEMY_PROJECTILE_LIGHT.y, ENEMY_PROJECTILE_LIGHT.z)
+	for layer in range(4):
+		var radius := BULLET_GLOW_RADIUS - layer * 1.5
+		draw_circle(position, radius, Color(tint, 0.09 + layer * 0.09))
+	draw_circle(position, 1.5, Color(1.0, 0.95, 0.75, 0.8))
 
 func _draw_visibility() -> void:
 	if not simulation.visibility_enabled:
@@ -229,11 +290,36 @@ func _draw_player_ship(player_ship: BattleSimulation.Combatant) -> void:
 	if not _visible_world_rect.grow(player_ship.radius).has_point(render_position):
 		return
 	if player_ship.owned_ship != null:
+		_draw_thrust_particles(player_ship, render_position)
 		if player_ship.owned_ship.is_slot_ship():
 			_draw_hangar_ship(player_ship, render_position)
 			return
 		_draw_voxel_ship(player_ship, render_position)
 		return
+
+func _draw_thrust_particles(member: BattleSimulation.Combatant, position: Vector2) -> void:
+	if not member.is_player or not member.is_alive() or member.velocity.length_squared() <= 1 \
+		or not member.owned_ship is HangarShip:
+		return
+	var heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
+	var forward := Vector2.from_angle(heading)
+	var side := forward.orthogonal()
+	var extent := hangar_ship_rect(member.owned_ship).size
+	var rear := position - forward * extent.y * 0.45
+	var strength := clampf(member.velocity.length() / maxf(member.speed, 1), 0.15, 1.0)
+	var phase := float(member.owned_ship.id % 11) / 11.0
+	for nozzle: int in [-1, 1]:
+		var origin := rear + side * nozzle * extent.x * 0.12
+		for index in range(12):
+			var age := fposmod(simulation.elapsed * 8.0 + phase + index / 12.0, 1.0)
+			var spread := sin(index * 2.4) * age * 3.0
+			var point := origin - forward * age * (10.0 + strength * 14.0) + side * spread
+			if not simulation.point_visible(BattleSimulation.Faction.PLAYER, point):
+				continue
+			var tint := Color(0.35, 0.75, 1.0).lerp(Color(0.9, 0.98, 1.0), 1.0 - age)
+			var particle_size := 2.0 if age < 0.45 else 1.0
+			draw_rect(Rect2(point - Vector2.ONE * particle_size * 0.5, Vector2.ONE * particle_size),
+				Color(tint, (1.0 - age) * 0.85))
 
 func _draw_manual_target() -> void:
 	for member in simulation.players:
@@ -307,8 +393,10 @@ func _draw_alien_fleet() -> void:
 		var draw_size := texture_size * (extent / maxf(texture_size.x, texture_size.y))
 		var render_heading := lerp_angle(alien.previous_heading, alien.heading, interpolation_alpha)
 		_set_ship_transform(render_position, render_heading + PI * 0.5)
-		var color := SHIELD_FLASH_TINT if alien.shield_flash > 0.0 else Color.WHITE
-		draw_texture_rect(alien.alien.texture, Rect2(-draw_size * 0.5, draw_size), false, color)
+		var rect := Rect2(-draw_size * 0.5, draw_size)
+		if alien.shield_flash > 0:
+			_draw_shield_glow(alien.alien.texture, rect, alien.shield_flash)
+		draw_texture_rect(alien.alien.texture, rect, false)
 		if simulation.player != null and simulation._analysis_multiplier(simulation.player, alien) > 1.0:
 			draw_arc(Vector2.ZERO, alien.radius + 3, 0, TAU, 24, Color("88ddec"), 1.0)
 		if alien.alien.role_id in ["warden", "pylon"]:
@@ -408,10 +496,31 @@ func _draw_hangar_ship(member: BattleSimulation.Combatant, render_position: Vect
 	var heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
 	_set_ship_transform(render_position, heading + PI / 2)
 	var rect := hangar_ship_rect(owned)
+	if member.shield_flash > 0:
+		_draw_shield_glow(texture, rect, member.shield_flash)
 	draw_texture_rect(texture, rect, false, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
 	owned.draw_fitted_equipment(self, rect, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
-	if member.shield_flash > 0:
-		draw_arc(Vector2.ZERO, (member.radius + 3) * owned.fleet_view_scale(), 0, TAU, 32, SHIELD_OUTLINE_COLOR, 1.5)
+
+func _shield_mask(texture: Texture2D) -> Texture2D:
+	if _shield_masks.has(texture):
+		return _shield_masks[texture]
+	var image := texture.get_image()
+	image.convert(Image.FORMAT_RGBA8)
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			image.set_pixel(x, y, Color(1, 1, 1, image.get_pixel(x, y).a))
+	var mask := ImageTexture.create_from_image(image)
+	_shield_masks[texture] = mask
+	return mask
+
+func _draw_shield_glow(texture: Texture2D, rect: Rect2, remaining: float) -> void:
+	var mask := _shield_mask(texture)
+	var strength := clampf(remaining / 0.2, 0, 1)
+	for index in range(8):
+		var offset := Vector2.from_angle(index * TAU / 8.0) * 1.5
+		draw_texture_rect(mask, Rect2(rect.position + offset, rect.size), false,
+			Color(0.2, 0.65, 1.0, strength * 0.3))
+	draw_texture_rect(mask, rect, false, Color(0.3, 0.75, 1.0, strength * 0.25))
 
 func _draw_voxel_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
 	# Lazy compatibility rendering; actual owned ships use chassis artwork.

@@ -81,9 +81,14 @@ size_flags_horizontal = 3
 text = "Battle auto-camera"
 vertical_alignment = 1
 
-[node name="BattleAutoCameraButton" type="CheckBox" parent="Contents/ContentArea/BattleAutoCameraRow"]
-custom_minimum_size = Vector2(24, 24)
+[node name="BattleAutoCameraButton" type="TextureButton" parent="Contents/ContentArea/BattleAutoCameraRow"]
+custom_minimum_size = Vector2(54, 24)
 layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"SettingsSwitch"
+toggle_mode = true
+ignore_texture_size = true
+stretch_mode = 5
 
 [node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="4"]
 custom_minimum_size = Vector2(0, 26)
