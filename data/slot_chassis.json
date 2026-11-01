@@ -3,16 +3,18 @@
   "chassis": [
     {
       "id": "flagship_basic",
-      "name": "Flagship",
-      "description": "A balanced command ship with flexible outfitting options.",
+      "name": "Defensive Flagship",
+      "description": "A resilient command ship with reinforced shields and armor.",
       "art": "res://assets/chassis/flagship_basic_d.png",
       "price": 1200,
       "integrity": 320,
       "mass": 65,
       "thrust": 22,
       "builtin_shield": "shield_generator",
+      "builtin_shield_count": 2,
+      "flat_damage_reduction": 1,
       "radius": 43,
-      "command": 14,
+      "command": 16,
       "command_cost": 0,
       "slots": [
         {

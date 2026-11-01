@@ -75,7 +75,7 @@ func magazines() -> void:
 	var identities := ship.mounts.duplicate(true)
 	ship.damage_cell(Vector2i(second, 0), ship.hull_hp * 0.75)
 	check(ship.weapon_cycle_rate() == 1.4 and ship.mounts == identities, "Substantial magazine hit leaves both unique magazines and cycling operational")
-	ship.damage_cell(Vector2i(first, 0), ship.hull_hp)
+	ship.damage_cell(Vector2i(first, 0), ship.hull_hp + 1)
 	check(ship.is_alive() and ship.weapon_cycle_rate() == 1.4, "Zero-hull ship retains both magazine contributions")
 	var bay_ship := hull()
 	install(bay_ship, "flight_deck")
@@ -123,7 +123,7 @@ func computers() -> void:
 	sim.player.cooldowns[0] = 99
 	sim.doctrines._synchronize(sim, sim.player, 6)
 	check(sim.player.cooldowns[0] == 0 and CombatDoctrines.operational(sim.player, ShipPart.Type.TACTICAL_COMPUTER).size() == 2, "Hull damage leaves both computers synchronizing")
-	ship.damage_cell(Vector2i(-1, 0), ship.hull_hp + 0.01)
+	ship.damage_cell(Vector2i(-1, 0), ship.hull_hp + 1.01)
 	sim.player.cooldowns[0] = 99
 	sim.doctrines._synchronize(sim, sim.player, 60)
 	check(sim.player.cooldowns[0] == 99, "Destroyed computer host removes synchronization")
@@ -154,7 +154,7 @@ func marks() -> void:
 	sim.refresh_visibility()
 	sim.doctrines._mark(sim, sim.player, 1)
 	check(sim.doctrines.marks.is_empty(), "Uplink cannot reveal or mark a hidden enemy")
-	ship.damage_cell(Vector2i(uplink, 0), ship.hull_hp + 0.01)
+	ship.damage_cell(Vector2i(uplink, 0), ship.hull_hp + 1.01)
 	check(sim._analysis_multiplier(sim.player, target) == 1.0, "Destroyed host supplies neither command mark nor lab analysis")
 
 func railguns() -> void:
@@ -265,7 +265,7 @@ func hull_repairs() -> void:
 	var lost := setup(doomed)
 	doomed.damage_cell(Vector2i(source, 0), 10)
 	lost.doctrines._launch(lost, lost.player, 0.01)
-	doomed.damage_cell(Vector2i(source, 0), doomed.hull_hp + 1)
+	doomed.damage_cell(Vector2i(source, 0), doomed.hull_hp + 2)
 	var dead_hp := doomed.hull_hp
 	lost.doctrines._update_drones(lost, 0.01)
 	check(lost.doctrines.drones.is_empty() and doomed.hull_hp == dead_hp
@@ -284,7 +284,7 @@ func hull_repairs() -> void:
 	check(station_ship.hull_hp == station_hp + 20 and station_sim.repair_spent == 20, "Station retains finite twenty-point allowance")
 	SharedSupport.repair(station_sim, 60)
 	check(station_ship.hull_hp == station_hp + 20 and station_ship.mounts == station_identity, "Spent station cannot refill or mutate equipment")
-	station_ship.damage_cell(Vector2i(station, 0), station_ship.hull_hp + 1)
+	station_ship.damage_cell(Vector2i(station, 0), station_ship.hull_hp + 2)
 	var station_dead := station_ship.hull_hp
 	SharedSupport.repair(station_sim, 60)
 	check(station_ship.hull_hp == station_dead, "Station cannot resurrect a destroyed hull")

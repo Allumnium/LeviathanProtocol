@@ -6,7 +6,7 @@ size match; smaller parts never fill larger mounts.
 
 | Chassis | Mounts |
 | --- | --- |
-| Original Flagship | Three front S Offense/Defense; central M any; four rear S Civic/Tech/Defense. |
+| Defensive Flagship | Three front S Offense/Defense; central M any; four rear S Civic/Tech/Defense. |
 | Civic Flagship | Central XL Civic/Tech; two outer L and four M Civic/Tech/Defense; two upper S Offense/Defense; forward S any. |
 | Research Flagship | Central XL Civic/Tech; two outer L and two lower M Civic/Tech/Defense; forward-center M any; two center-side S Offense/Defense. |
 | Combat Flagship | Forward L and two outer M Offense/Defense; two shoulder S Offense/Defense; two rear S any; lower-center M any. |
@@ -31,7 +31,7 @@ See [HANGAR_DRAG_DROP.md](HANGAR_DRAG_DROP.md).
 
 | Chassis | Base hull | Built-in thrust | Command cost |
 | --- | ---: | ---: | ---: |
-| Original Flagship | 320 | 22 | Supplies 14 |
+| Defensive Flagship | 320 | 22 | Supplies 16 |
 | Civic Flagship | 380 | 20 | Supplies 20 |
 | Research Flagship | 300 | 25 | Supplies 12 |
 | Combat Flagship | 340 | 32 | Supplies 16 |
@@ -77,7 +77,10 @@ rounded per delivery. Research grants +25% output from its own installed labs,
 frozen at departure with fractions retained. Combat grants +15% weapon cycling
 (additive with magazines) and one flat hull damage reduction per hit from all
 sources, after shields; the result is clamped to zero and cannot heal hull.
-Original has no special bonus. All four retain the built-in Shield Generator I.
+Defensive (saved chassis ID `flagship_basic`) has two Shield Generator I
+equivalents: 40 shields, twice the shield mass/recharge, and the same one flat
+hull damage reduction after shields as Combat. Its budget is 16 Command Points.
+Other flagships retain one 20-shield generator. No free stock instances are created.
 Exactly one selected flagship deploys; its loss ends the run. Choice persists
 through the existing chassis ID, without save conversion or extra starter ships
 on Continue.

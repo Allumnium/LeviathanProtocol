@@ -30,15 +30,15 @@ func run() -> void:
 	for cell: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(-1, 0)]:
 		var hp := ship.hull_hp
 		var result := ship.damage_cell(cell, 50)
-		check(ship.hull_hp == hp - 50 and result.damage == 50 and result.removed.is_empty(), "Every hit damages full hull only, regardless of target")
+		check(ship.hull_hp == hp - 49 and result.damage == 49 and result.removed.is_empty(), "Every hit applies armored hull damage only, regardless of target")
 		check(ship.units == units and state.equipment_inventory == inventory, "Hull hits never mutate equipment or builtin operation")
 	check(ship.get_stats().dps == stats.dps and ship.get_stats().thrust == stats.thrust and ship.get_stats().shields == stats.shields,
 		"All weapons, engines and shields remain operational on severely damaged hull")
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 1, "Installed lab remains productive under hull damage")
-	check(ship.repair_cost() == 200, "Repair quote is exactly missing whole-ship hull")
+	check(ship.repair_cost() == 196, "Repair quote is exactly missing whole-ship hull")
 	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Whole-ship damage roundtrips")
 	ship = state.fleet[0]
-	check(ship.hull_hp == before.ships[0].hull_hp - 200
+	check(ship.hull_hp == before.ships[0].hull_hp - 196
 		and JSON.parse_string(JSON.stringify(state.equipment_inventory)) == JSON.parse_string(JSON.stringify(inventory)), "Reload retains hull only")
 	var damaged: Dictionary = state.hangar_snapshot()
 	var path: String = state.run_save_path
@@ -46,7 +46,7 @@ func run() -> void:
 	check(not state.repair_all_ships() and state.hangar_snapshot() == damaged, "Failed whole-fleet repair leaves health, ownership and credits unchanged")
 	state.run_save_path = path
 	check(state.repair_all_ships(), "Atomic whole-fleet hull repair succeeds")
-	check(state.credits == int(damaged.credits) - 200 and state.fleet[0].hull_hp == state.fleet[0].hull_max, "Repair restores whole hull for quoted credits")
+	check(state.credits == int(damaged.credits) - 196 and state.fleet[0].hull_hp == state.fleet[0].hull_max, "Repair restores whole hull for quoted credits")
 	var invalid: Dictionary = before.duplicate(true)
 	invalid.version = 1
 	check(not HangarCheckpoint.valid(invalid), "Previous physical version rejected")
@@ -79,10 +79,10 @@ func _test_combat() -> void:
 	sim.register_entity(target)
 	var rng := sim.random.state
 	sim._damage(target, 10, Vector2.ZERO, null, "Beam", false, true)
-	check(target.shields == 10 and ship.hull_hp == 320, "Shield absorbs damage before hull")
-	sim._damage(target, 20, Vector2.ZERO, null, "Beam", false, true)
+	check(target.shields == 30 and ship.hull_hp == 320, "Shield absorbs damage before hull")
+	sim._damage(target, 41, Vector2.ZERO, null, "Beam", false, true)
 	check(target.shields == 0 and ship.hull_hp == 310 and target.permanent_damage_taken == 10, "Only unabsorbed damage reaches hull and repair report")
-	check(target.stats.weapons.size() == 1 and target.stats.thrust == 22 and target.stats.shields == 20, "Damage never disables equipment or builtin systems")
+	check(target.stats.weapons.size() == 1 and target.stats.thrust == 22 and target.stats.shields == 40, "Damage never disables equipment or builtin systems")
 	check(sim.random.state == rng, "No per-component scatter RNG for hull damage")
 	sim.visibility_enabled = true
 	sim.refresh_visibility()
@@ -90,7 +90,7 @@ func _test_combat() -> void:
 	check(ship.repair_hull(1000) == 10 and ship.hull_hp == 320, "Hull repair clamps to max")
 	ship.hull_hp = 0
 	check(ship.is_alive() and ship.get_stats().weapons.size() == 1 and ship.get_stats().thrust > 0, "At zero hull ship and all equipment remain active")
-	sim._damage(target, 0.25, Vector2.ZERO, null, "Direct damage")
+	sim._damage(target, 1.25, Vector2.ZERO, null, "Direct damage")
 	check(not ship.is_alive(), "Hull strictly below zero destroys ship")
 	check(ship.repair_hull(10) == 0, "Combat hull repair cannot revive destroyed ship")
 	ship.repair()

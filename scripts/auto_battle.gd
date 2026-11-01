@@ -385,7 +385,7 @@ func _issue_target_at(point: Vector2) -> void:
 			or (simulation.visibility_enabled and not simulation.team_can_see(0, actor)):
 			continue
 		var distance: float = point.distance_to(actor.position)
-		if distance <= actor.radius + 4 and distance < nearest:
+		if BattleSimulation.Collision.contains(BattleSimulation.Collision.actor_polygons(actor), point) and distance < nearest:
 			selected = actor
 			nearest = distance
 	for member in simulation.players:

@@ -280,17 +280,6 @@ texture_margin_top = 8.0
 texture_margin_right = 8.0
 texture_margin_bottom = 8.0
 
-[sub_resource type="StyleBoxTexture" id="Style_mount_callout"]
-content_margin_left = 10.0
-content_margin_top = 4.0
-content_margin_right = 10.0
-content_margin_bottom = 4.0
-texture = SubResource("Atlas_panel")
-texture_margin_left = 8.0
-texture_margin_top = 8.0
-texture_margin_right = 8.0
-texture_margin_bottom = 8.0
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tactical_input"]
 content_margin_left = 8.0
 content_margin_top = 5.0
@@ -778,8 +767,6 @@ DefeatButton/styles/focus = SubResource("StyleBoxEmpty_ku3ou")
 SettingsSwitch/base_type = &"TextureButton"
 SettingsSwitch/icons/off = ExtResource("28_switch_off")
 SettingsSwitch/icons/on = ExtResource("29_switch_on")
-MountCallout/base_type = &"Panel"
-MountCallout/styles/panel = SubResource("Style_mount_callout")
 ResearchProgress/base_type = &"ProgressBar"
 ResearchProgress/styles/background = SubResource("Style_research_background")
 ResearchProgress/styles/fill = SubResource("Style_research_fill")
@@ -872,6 +859,13 @@ ShipStatText/font_sizes/normal_font_size = 10
 EquipmentResourceText/base_type = &"RichTextLabel"
 EquipmentResourceText/colors/default_color = Color(0.84, 0.88, 0.9, 1)
 EquipmentResourceText/font_sizes/normal_font_size = 12
+MountCalloutText/base_type = &"RichTextLabel"
+MountCalloutText/colors/default_color = Color(1, 1, 1, 1)
+MountCalloutText/font_sizes/normal_font_size = 10
+MountCalloutText/constants/shadow_outline_size = 2
+MountCalloutText/constants/shadow_offset_x = 0
+MountCalloutText/constants/shadow_offset_y = 0
+MountCalloutText/colors/font_shadow_color = Color(1, 1, 1, 0)
 LibraryRow/base_type = &"PanelContainer"
 LibraryRow/styles/panel = SubResource("StyleBoxTexture_258mn")
 LineEdit/styles/disabled = SubResource("StyleBoxFlat_tactical_input")

@@ -37,6 +37,7 @@ var CONVERGENCE_NODE_IDS: Array[int] = []
 var FINAL_NODE_ID := 0
 var laser_upgrade_level := 0
 var battle_auto_camera := true
+var tutorials_enabled := true
 var battle_speed := 1
 var destroy_all_neutral_targets := false
 var run_save_path := "user://hangar_run.json"
@@ -99,12 +100,15 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	last_equipment_loot = ""
 	_build_campaign()
 	var lead := _add_chassis(flagship_id, true)
+	lead.formation = Vector2.ZERO
 	_give_starter_equipment(lead, "mini_turret", "port")
 	_give_starter_equipment(lead, "mini_turret", "starboard")
 	_give_starter_equipment(lead, "research_lab", "spine")
-	_add_chassis("transport")
+	var transport := _add_chassis("transport")
+	transport.formation = Vector2(0, 1.1)
 	for index in range(2):
 		var fighter := _add_chassis("fighter")
+		fighter.formation = Vector2(-1.25 if index == 0 else 1.25, -1.25)
 		_give_starter_equipment(fighter, "mini_turret", "port")
 		_give_starter_equipment(fighter, "mini_turret", "starboard")
 	hangar_generation = -1

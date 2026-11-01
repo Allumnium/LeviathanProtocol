@@ -163,3 +163,5 @@ res://scripts/ship_stat_bars.gd
 res://tests/test_battle_outcomes.gd
 res://scripts/node_environment.gd
 res://tests/test_node_environment.gd
+res://tests/test_flagship_selection.gd
+res://tests/test_whole_ship.gd

@@ -234,6 +234,22 @@ func bullet_glow_checks() -> void:
 	visual._projectile_impacts.clear()
 	var ship := HangarShip.new()
 	check(ship.initialize_chassis("flagship_basic", 1, true), "Thrust visual fixture initializes")
+	var exhaust = preload("res://scripts/ship_exhaust.gd")
+	for chassis: Dictionary in SlotCatalog.chassis():
+		var candidate := HangarShip.new()
+		check(candidate.initialize_chassis(chassis.id, 1, int(chassis.command) > 0), "Exhaust chassis initializes")
+		var full_rect := Rect2(Vector2(10, 20), Vector2(512, 512))
+		var small_rect := Rect2(Vector2(10, 20), Vector2(128, 128))
+		var full_origins: PackedVector2Array = exhaust.origins(candidate, full_rect)
+		var small_origins: PackedVector2Array = exhaust.origins(candidate, small_rect)
+		check(not full_origins.is_empty(), "Every chassis has engine-specific exhaust anchors")
+		for index in range(full_origins.size()):
+			check((small_origins[index] - small_rect.position).is_equal_approx(
+				(full_origins[index] - full_rect.position) * 0.25),
+				"Escort exhaust anchor scales with the sprite, including transparent padding")
+		if chassis.id == "fighter":
+			check(full_origins == PackedVector2Array([Vector2(214, 500), Vector2(318, 500)]),
+				"Fighter exhaust originates at its two actual rear engine tips")
 	var member := BattleSimulation.Combatant.new()
 	member.owned_ship = ship
 	member.stats = ship.get_stats()
@@ -259,6 +275,18 @@ func bullet_glow_checks() -> void:
 				else:
 					front_pixels += 1
 	check(rear_pixels > 0 and front_pixels == 0, "Exhaust particles appear only behind the player ship")
+	var fighter := HangarShip.new()
+	check(fighter.initialize_chassis("fighter", 2), "Small-ship exhaust visual fixture initializes")
+	member.owned_ship = fighter
+	member.velocity = Vector2.ZERO
+	visual.queue_redraw()
+	var fighter_stopped := await rendered(view)
+	member.velocity = Vector2(40, 0)
+	visual.queue_redraw()
+	var fighter_moving := await rendered(view)
+	check(difference(fighter_stopped, fighter_moving) > 0.000001,
+		"Quarter-scale fighter still renders visible exhaust from its engines")
+	member.owned_ship = ship
 	member.faction = BattleSimulation.Faction.ALIEN
 	visual.queue_redraw()
 	await rendered(view)

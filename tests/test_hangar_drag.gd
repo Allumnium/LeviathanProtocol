@@ -73,8 +73,18 @@ func run() -> void:
 	var sprite_rect := SlotCatalog.fitted_art_rect(cargo_button.equipment_texture, hold_rect)
 	check(hold_rect.encloses(sprite_rect) and sprite_rect.get_center().is_equal_approx(hold_rect.get_center()), "Sprite stays centered inside the slot")
 	check(is_equal_approx(sprite_rect.size.x / sprite_rect.size.y, cargo_button.equipment_texture.get_size().x / cargo_button.equipment_texture.get_size().y), "Cargo sprite keeps its original proportions")
+	var cargo_glow: TextureRect = screen.canvas.slot_glows.hold
+	check(cargo_glow.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and cargo_glow.get_rect().is_equal_approx(sprite_rect),
+		"Equipment hover glow shares fitted sprite bounds without intercepting input")
+	motion(cargo_button.get_global_rect().get_center(), false)
+	await settle()
+	check(cargo_glow.visible and cargo_glow.material.get_shader_parameter("glow_color") == Color.WHITE,
+		"Hovering fitted equipment shows a white silhouette glow")
 	var label_start: Vector2 = screen.canvas.slot_callouts.hold.get_global_rect().get_center()
 	motion(label_start, false)
+	await settle()
+	check(not cargo_glow.visible, "Leaving fitted equipment hides its glow")
 	mouse_button(label_start, true)
 	await process_frame
 	motion(label_start + Vector2(20, 0), true)
@@ -99,6 +109,7 @@ func run() -> void:
 	check(not state.owned_ship(ship_id).equipment_art.has("hold") and state.equipment_location(items.cargo_hold).is_empty(), "Dragging fitted cargo art back to stock removes the installed sprite")
 	check(screen.stats_grid.visible and not screen.slot_info.visible, "Unequipping the selected part restores ship details")
 	await click(screen.canvas.slot_buttons.hold)
+	check(not screen.canvas.slot_glows.has("hold"), "Empty mounts have no equipment hover glow")
 	check(screen.selected_slot.is_empty() and screen.stats_grid.visible, "An empty mount has no part details and keeps ship statistics")
 	await fit_stock("cargo_hold", "hold")
 	check(state.buy_chassis("drone"), "Buy general M passenger host")
@@ -126,6 +137,15 @@ func run() -> void:
 	check(not state.owned_ship(ship_id).mounts.has("port") and state.owned_ship(ship_id).mounts.starboard.uid == items.double_laser, "Native drag moves installed equipment between slots")
 	await fit_stock("shield_generator", "port")
 	check(state.owned_ship(ship_id).hangar_summary().shields > 0, "Shields update after fitting")
+	motion(screen.canvas.slot_buttons.port.get_global_rect().get_center(), false)
+	await settle()
+	var fallback_label: ResourceText = screen.canvas.slot_callouts.port.get_node("EquipmentName")
+	check(fallback_label.get_theme_color("font_shadow_color") == Color.WHITE,
+		"Hovering equipment without artwork highlights its floating name")
+	motion(screen.canvas.slot_callouts.port.get_global_rect().get_center(), false)
+	await settle()
+	check(fallback_label.get_theme_color("font_shadow_color").a == 0,
+		"Leaving artwork-free equipment clears its name glow")
 	await drag(screen.canvas.slot_buttons.port.get_global_rect().get_center(), screen.stock.scroll.get_global_rect().get_center())
 	check(not state.owned_ship(ship_id).mounts.has("port") and state.equipment_location(items.shield_generator).is_empty(), "Native drag back into stock unequips the instance")
 	check(state.owned_ship(ship_id).hangar_summary().shields == 0, "Unequipping updates shields")

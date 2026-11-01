@@ -26,6 +26,7 @@ var shop: Control
 var buy_open := false
 var buy_mode := "EQUIPMENT"
 var shop_rows: VBoxContainer
+var shop_scroll: ScrollContainer
 var active_tab := "FLEET"
 var formation_view: Control
 var formation_camera := Vector2.ZERO
@@ -477,6 +478,11 @@ func _refresh() -> void:
 	refresh_queued = false
 	if traveling:
 		return
+	var buy_scroll_position := 0
+	if buy_open and is_instance_valid(shop) and shop.get_parent() == center \
+			and shop.get_meta("buy_mode", "") == buy_mode and is_instance_valid(shop_scroll):
+		buy_scroll_position = shop_scroll.scroll_vertical
+	shop_scroll = null
 	for tab: Button in tabs.get_children():
 		tab.set_pressed_no_signal(tab.text == active_tab)
 	research_button.set_pressed_no_signal(active_tab == "RESEARCH")
@@ -573,6 +579,8 @@ func _refresh() -> void:
 			button.add_theme_constant_override("icon_max_width", 9)
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.name = "Ship%d" % owned.id
+		button.clip_text = true
+		button.resized.connect(_fit_roster_name.bind(button))
 		button.toggle_mode = true
 		button.button_pressed = owned.id == selected_ship_id
 		if active_tab == "FLEET":
@@ -651,7 +659,7 @@ func _refresh() -> void:
 	if buy_open:
 		if stock == null:
 			_show_stock()
-		_show_buy_panel()
+		_show_buy_panel(buy_scroll_position)
 
 func _show_stock() -> void:
 	_clear(details)
@@ -849,9 +857,10 @@ func _open_shop(mode := "EQUIPMENT") -> void:
 	buy_mode = mode
 	_refresh()
 
-func _show_buy_panel() -> void:
+func _show_buy_panel(scroll_position := 0) -> void:
 	var card := PanelContainer.new()
 	card.name = "BuyPanel"
+	card.set_meta("buy_mode", buy_mode)
 	card.set_meta("close_target", true)
 	card.theme_type_variation = &"CompactPanel"
 	card.z_index = 10
@@ -885,6 +894,7 @@ func _show_buy_panel() -> void:
 		only_researched = enabled
 		_shop_equipment())
 	var scroll := ScrollContainer.new()
+	shop_scroll = scroll
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	column.add_child(scroll)
@@ -895,6 +905,7 @@ func _show_buy_panel() -> void:
 		_shop_ships()
 	else:
 		_shop_equipment()
+	scroll.set_deferred("scroll_vertical", scroll_position)
 
 func _shop_equipment() -> void:
 	buy_mode = "EQUIPMENT"
@@ -991,6 +1002,16 @@ func _shop_ships() -> void:
 				_inspect_chassis(chassis.id))
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(button)
+
+func _fit_roster_name(button: Button) -> void:
+	var font := button.get_theme_font("font")
+	var font_size := get_theme_font_size("font_size", "Button")
+	var padding := button.get_theme_stylebox("normal").get_minimum_size().x
+	var icon_width := 9 + button.get_theme_constant("h_separation") if button.icon != null else 0
+	var available := maxf(1, button.size.x - padding - icon_width)
+	while font_size > 1 and font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > available:
+		font_size -= 1
+	button.add_theme_font_size_override("font_size", font_size)
 
 func _show_map() -> void:
 	var scroll := ScrollContainer.new()

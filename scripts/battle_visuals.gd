@@ -2,6 +2,8 @@ class_name BattleVisuals
 extends Control
 
 const BUILD_CELL_SIZE := Ship.BUILD_CELL_SIZE
+const Collision = preload("res://scripts/sprite_collision.gd")
+const Exhaust = preload("res://scripts/ship_exhaust.gd")
 const HULL_COLOR := Color(0.38, 0.38, 0.4, 1.0)
 const HULL_OVERLAY_COLOR := Color(0.38, 0.38, 0.4, 0.7)
 const HULL_CUTOUT_COLOR := Color(0.035, 0.045, 0.055, 1.0)
@@ -9,9 +11,9 @@ const RED_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/red_square.pn
 const BLUE_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/blue_square.png")
 const GREEN_TILE_TEXTURE: Texture2D = preload("res://assets/ui/icons/green_square.png")
 const CORE_TILE_TEXTURE: Texture2D = preload("res://assets/core.png")
-const MINIGUN_BULLET_TEXTURE: Texture2D = preload("res://assets/bullet.png")
-const MINIGUN_BULLET_SCALE := 0.125
-const MINIGUN_BULLET_ROTATION_SPEED := TAU * 2.0
+const MINIGUN_BULLET_TEXTURE: Texture2D = Collision.BULLET_TEXTURE
+const MINIGUN_BULLET_SCALE := Collision.BULLET_SCALE
+const MINIGUN_BULLET_ROTATION_SPEED := Collision.BULLET_ROTATION_SPEED
 const SHIELD_OUTLINE_COLOR := Color(0.45, 0.85, 1.0, 1.0)
 const SMALL_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_s_animated.png")
 const LARGE_THRUSTER_SHEET: Texture2D = preload("res://assets/thruster_l_animated.png")
@@ -54,7 +56,7 @@ func _set_ship_transform(position: Vector2, angle: float, ship_scale: float = 1.
 
 func _ready() -> void:
 	_surface_material = SurfaceArt.apply(self)
-	_rock_texture = SurfaceArt.texture("res://assets/environment/asteroids_small_d.png")
+	_rock_texture = SurfaceArt.texture(Collision.ROCK_TEXTURE.resource_path)
 	var random := RandomNumberGenerator.new()
 	random.seed = preload("res://scripts/main_menu_starfield.gd").area_seed(GameState.run_seed,
 		GameState.destination_node_id if GameState.battle_pending else GameState.current_node_id)
@@ -166,12 +168,7 @@ func _draw() -> void:
 		_draw_shot_particles(projectile_position, direction, projectile)
 		_draw_bullet_glow(projectile_position, projectile.is_player)
 		if projectile.is_player and projectile.weapon_name == "Mini Turret":
-			var initial_rotation := (
-				float(projectile.get_instance_id() % 16) / 16.0 * TAU
-			)
-			var bullet_rotation := (
-				simulation.elapsed * MINIGUN_BULLET_ROTATION_SPEED + initial_rotation
-			)
+			var bullet_rotation := Collision.bullet_angle(projectile, simulation.elapsed)
 			draw_set_transform_matrix(
 				world_transform()
 				* Transform2D(bullet_rotation, Vector2.ONE, 0.0, projectile_position)
@@ -302,24 +299,13 @@ func _draw_thrust_particles(member: BattleSimulation.Combatant, position: Vector
 		or not member.owned_ship is HangarShip:
 		return
 	var heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
-	var forward := Vector2.from_angle(heading)
-	var side := forward.orthogonal()
-	var extent := hangar_ship_rect(member.owned_ship).size
-	var rear := position - forward * extent.y * 0.45
 	var strength := clampf(member.velocity.length() / maxf(member.speed, 1), 0.15, 1.0)
-	var phase := float(member.owned_ship.id % 11) / 11.0
-	for nozzle: int in [-1, 1]:
-		var origin := rear + side * nozzle * extent.x * 0.12
-		for index in range(12):
-			var age := fposmod(simulation.elapsed * 8.0 + phase + index / 12.0, 1.0)
-			var spread := sin(index * 2.4) * age * 3.0
-			var point := origin - forward * age * (10.0 + strength * 14.0) + side * spread
-			if not simulation.point_visible(BattleSimulation.Faction.PLAYER, point):
-				continue
-			var tint := Color(0.35, 0.75, 1.0).lerp(Color(0.9, 0.98, 1.0), 1.0 - age)
-			var particle_size := 2.0 if age < 0.45 else 1.0
-			draw_rect(Rect2(point - Vector2.ONE * particle_size * 0.5, Vector2.ONE * particle_size),
-				Color(tint, (1.0 - age) * 0.85))
+	var transform := Transform2D(heading + PI / 2, position)
+	_set_ship_transform(position, heading + PI / 2)
+	Exhaust.draw(self, member.owned_ship, hangar_ship_rect(member.owned_ship), simulation.elapsed, strength,
+		func(point: Vector2) -> bool:
+			return simulation.point_visible(BattleSimulation.Faction.PLAYER, transform * point))
+	draw_set_transform_matrix(world_transform())
 
 func _draw_manual_target() -> void:
 	for member in simulation.players:
@@ -342,8 +328,7 @@ func _draw_other_entities() -> void:
 			continue
 		_draw_command_mark(entity, position)
 		if entity.has_tag("asteroid"):
-			var sprite := int(entity.entity_id.hash() & 63)
-			var region := Rect2(Vector2(sprite % 8, sprite / 8) * 32, Vector2(32, 32))
+			var region := Rect2(Collision.rock_region(entity.entity_id))
 			draw_texture_rect_region(_rock_texture, Rect2(position - Vector2.ONE * entity.radius, Vector2.ONE * entity.radius * 2), region)
 			# Motion is visible only with legitimate sight; no mineral overlays.
 			if entity.velocity.length_squared() > 1:
@@ -387,10 +372,7 @@ func _draw_alien_fleet() -> void:
 		_draw_command_mark(alien, render_position)
 		if simulation.enemy_roles.role(alien) == "sentinel":
 			draw_arc(render_position, 140, 0, TAU, 48, Color(0.4, 0.7, 0.85, 0.25), 1)
-		var texture_size := alien.alien.texture.get_size()
-		var extent := 48.0 if alien.alien.role_id == "warden" else (22.0 if alien.alien.role_id == "pylon" else 16.0)
-		extent *= alien.alien.art_scale()
-		var draw_size := texture_size * (extent / maxf(texture_size.x, texture_size.y))
+		var draw_size := Collision.alien_size(alien.alien)
 		var render_heading := lerp_angle(alien.previous_heading, alien.heading, interpolation_alpha)
 		_set_ship_transform(render_position, render_heading + PI * 0.5)
 		var rect := Rect2(-draw_size * 0.5, draw_size)
@@ -487,8 +469,7 @@ func _get_tile_texture(category: int) -> Texture2D:
 
 
 func hangar_ship_rect(owned: HangarShip) -> Rect2:
-	var extent := Vector2.ONE * 512 * HangarShip.ART_SCALE * owned.fleet_view_scale()
-	return Rect2(-extent * 0.5, extent)
+	return Collision.hangar_rect(owned)
 
 func _draw_hangar_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
 	var owned := member.owned_ship as HangarShip

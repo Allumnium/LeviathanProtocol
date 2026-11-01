@@ -7,6 +7,7 @@ var settings_status: Label
 @onready var ambience_slider: HSlider = $Contents/ContentArea/AmbienceRow/AmbienceSlider
 @onready var effects_slider: HSlider = $Contents/ContentArea/EffectsRow/EffectsSlider
 @onready var battle_auto_camera_button: TextureButton = $Contents/ContentArea/BattleAutoCameraRow/BattleAutoCameraButton
+@onready var tutorials_button: TextureButton = $Contents/ContentArea/TutorialsRow/TutorialsButton
 @onready var quit_to_menu_button: Button = $Contents/ContentArea/QuitToMenuButton
 @onready var quit_confirmation_overlay: Control = $QuitConfirmOverlay
 @onready var quit_confirmation_button: Button = (
@@ -18,8 +19,10 @@ var settings_status: Label
 
 
 func _ready() -> void:
-	battle_auto_camera_button.texture_normal = battle_auto_camera_button.get_theme_icon("off", "SettingsSwitch")
-	battle_auto_camera_button.texture_pressed = battle_auto_camera_button.get_theme_icon("on", "SettingsSwitch")
+	for button: TextureButton in [battle_auto_camera_button, tutorials_button]:
+		button.texture_normal = button.get_theme_icon("off", "SettingsSwitch")
+		button.texture_pressed = button.get_theme_icon("on", "SettingsSwitch")
+	tutorials_button.set_pressed_no_signal(GameState.tutorials_enabled)
 	about_to_popup.connect(_refresh_context)
 	music_slider.value = AudioManager.get_bus_volume_percent(AudioManager.MUSIC_BUS)
 	ambience_slider.value = AudioManager.get_bus_volume_percent(AudioManager.AMBIENCE_BUS)
@@ -27,11 +30,12 @@ func _ready() -> void:
 	_update_battle_auto_camera_button()
 	for button: BaseButton in [
 		battle_auto_camera_button,
+		tutorials_button,
 		quit_to_menu_button,
 		quit_confirmation_button,
 		cancel_quit_button,
 	]:
-		AudioManager.connect_ui_button(button, &"detail" if button == battle_auto_camera_button else &"accept")
+		AudioManager.connect_ui_button(button, &"detail" if button in [battle_auto_camera_button, tutorials_button] else &"accept")
 	settings_status = Label.new()
 	settings_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	settings_status.add_theme_color_override("font_color", Color("ffd28a"))
@@ -47,6 +51,7 @@ func _ready() -> void:
 	ambience_slider.value_changed.connect(_on_ambience_volume_changed)
 	effects_slider.value_changed.connect(_on_effects_volume_changed)
 	battle_auto_camera_button.toggled.connect(_on_battle_auto_camera_toggled)
+	tutorials_button.toggled.connect(_on_tutorials_toggled)
 	quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	quit_confirmation_button.pressed.connect(_on_quit_confirmed)
 	cancel_quit_button.pressed.connect(_on_quit_cancelled)
@@ -76,6 +81,10 @@ func _on_battle_auto_camera_toggled(enabled: bool) -> void:
 func _update_battle_auto_camera_button() -> void:
 	battle_auto_camera_button.set_pressed_no_signal(GameState.battle_auto_camera)
 
+func _on_tutorials_toggled(enabled: bool) -> void:
+	GameState.tutorials_enabled = enabled
+	_save_preferences()
+
 
 func _on_quit_to_menu_pressed() -> void:
 	var warning: Label = $QuitConfirmOverlay/CenterContainer/ConfirmationPanel/Contents/WarningLabel
@@ -85,12 +94,13 @@ func _on_quit_to_menu_pressed() -> void:
 
 func _refresh_context() -> void:
 	_update_battle_auto_camera_button()
+	tutorials_button.set_pressed_no_signal(GameState.tutorials_enabled)
 	var scene := get_tree().current_scene
 	quit_to_menu_button.visible = scene != null and scene.scene_file_path != MAIN_MENU_SCENE_PATH
 	quit_confirmation_overlay.hide()
 	content_scale_factor = 1.0
 	content_scale_size = Vector2i.ZERO
-	min_size = Vector2i(304, 218 if quit_to_menu_button.visible else 186)
+	min_size = Vector2i(304, 250 if quit_to_menu_button.visible else 218)
 	size = min_size
 
 

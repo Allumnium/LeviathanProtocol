@@ -61,6 +61,9 @@ func rebuild_units() -> void:
 		shield.definition_id = item.id
 		shield.rank = 1
 		shield.stats = SlotCatalog.stats_for(item.id)
+		var count := int(chassis.get("builtin_shield_count", 1))
+		shield.stats.shields *= count
+		shield.stats.weight *= count
 		_append_mount("shield", Vector2(256, 320), shield)
 	for slot: Dictionary in chassis.slots:
 		if not mounts.has(slot.id):

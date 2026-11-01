@@ -204,6 +204,9 @@ static func valid_chassis(data: Variant) -> bool:
 			return false
 		if entry.has("builtin_shield") and entry.builtin_shield != "shield_generator":
 			return false
+		if entry.has("builtin_shield_count") and (not entry.has("builtin_shield") \
+			or not SaveValidation.integer(entry.builtin_shield_count) or entry.builtin_shield_count < 1):
+			return false
 		var slots := {}
 		for slot: Variant in entry.slots:
 			if not slot is Dictionary or not slot.get("id") is String or slots.has(slot.id) or slot.get("type") not in SLOT_TYPES or slot.get("size") not in SIZES or not slot.get("rect") is Array or slot.rect.size() != 4:

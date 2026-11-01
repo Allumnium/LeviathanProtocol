@@ -152,13 +152,36 @@ func run() -> void:
 	settings.battle_auto_camera_button.button_pressed = camera_preference
 	settings.popup_centered()
 	await settle()
-	check(settings.size == Vector2i(304, 186) and settings.content_scale_factor == 1.0
+	check(settings.size == Vector2i(304, 218) and settings.content_scale_factor == 1.0
 		and root.gui_embed_subwindows and settings.get_visible_rect().size == Vector2(settings.size),
 		"Settings uses a compact embedded modal at the same pixel scale as the main UI")
 	check(settings.music_slider.get_parent().get_child(0).get_theme_font("font") == ui_theme.default_font,
 		"Settings text inherits the same shared bitmap font")
 	var music_volume: float = settings.music_slider.value
 	var audio: Node = root.get_node("AudioManager")
+	var old_preferences := ConfigFile.new()
+	check(old_preferences.save("user://tutorial-default.cfg") == OK, "Create pre-tutorial settings fixture")
+	state.tutorials_enabled = false
+	audio.load_settings("user://tutorial-default.cfg")
+	check(state.tutorials_enabled, "Tutorials default to enabled when older settings omit the preference")
+	settings._refresh_context()
+	check(settings.tutorials_button.button_pressed
+		and settings.tutorials_button.texture_normal == ui_theme.get_icon("off", "SettingsSwitch")
+		and settings.tutorials_button.texture_pressed == ui_theme.get_icon("on", "SettingsSwitch"),
+		"Enable Tutorials uses the shared on/off artwork and reflects its default")
+	settings.tutorials_button.button_pressed = false
+	check(not state.tutorials_enabled, "Tutorial switch updates the session preference")
+	state.tutorials_enabled = true
+	audio.load_settings()
+	check(not state.tutorials_enabled, "Disabled tutorials persist after preferences reload")
+	settings.tutorials_button.button_pressed = true
+	state.tutorials_enabled = false
+	audio.load_settings()
+	check(state.tutorials_enabled, "Enabled tutorials persist after preferences reload")
+	settings._refresh_context()
+	await settle()
+	check(settings.get_node("Contents/ContentArea").get_global_rect().encloses(
+		settings.tutorials_button.get_global_rect()), "Tutorial switch fits inside settings content")
 	check(audio.save_settings("user://settings-no-motion.cfg"), "Save settings without removed motion preference")
 	var saved_settings := ConfigFile.new()
 	check(saved_settings.load("user://settings-no-motion.cfg") == OK
@@ -239,11 +262,14 @@ func run() -> void:
 	var data: Dictionary = state.hangar_snapshot()
 	data.credits = 5000
 	check(state._commit_hangar(data) and state.buy_chassis("transport"), "Buy escort")
+	check(state.move_ships({state.fleet.back().id: Vector2(2, 1)}),
+		"Purchased fixture escort stays outside the starter group selection")
 	screen = load("res://scenes/game_map.tscn").instantiate()
 	root.add_child(screen)
 	current_scene = screen
 	await settle()
 	check(screen.active_tab == "FLEET", "Fleet opens first")
+	check(screen.formation_view.exhaust_elapsed > 0, "Fleet view continuously animates preview thrust")
 	check(root.snap_2d_transforms_to_pixel and root.snap_2d_vertices_to_pixel,
 		"Active viewport snaps UI positions and vertices to pixels")
 	var credits_icon: TextureRect = screen.find_child("CreditsIcon", true, false)
@@ -539,7 +565,7 @@ func run() -> void:
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
 		and repair_label.icon_size == screen.details.get_child(1).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 7.2\nShield 20\nHull 960 / 960\n1 RP / day",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 960 / 960\n1 RP / day",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -556,7 +582,7 @@ func run() -> void:
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
 	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1180 / 1180\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		7.2 + fixture_summary.dps, 20 + fixture_summary.shields],
+		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
@@ -570,12 +596,12 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1165 / 1180\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		7.2 + fixture_summary.dps, 20 + fixture_summary.shields],
+		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 7.2\nShield 20\nHull 960 / 960\n1 RP / day",
+	check(fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 960 / 960\n1 RP / day",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()

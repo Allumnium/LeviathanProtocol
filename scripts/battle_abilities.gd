@@ -200,7 +200,7 @@ func visible_target(sim, faction: int, point: Vector2):
 		if target.faction == faction or target.faction == 2 or not target.is_alive() or not target.has_tag("combatant") or not sim.team_can_see(faction, target):
 			continue
 		var distance: float = target.position.distance_to(point)
-		if distance <= target.radius and distance < nearest:
+		if sim.Collision.contains(sim.Collision.actor_polygons(target), point) and distance < nearest:
 			chosen = target
 			nearest = distance
 	return chosen

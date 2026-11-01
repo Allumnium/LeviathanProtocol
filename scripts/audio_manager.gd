@@ -84,6 +84,11 @@ func load_settings(file_path: String = SETTINGS_PATH) -> void:
 	GameState.battle_auto_camera = _validated_bool(
 		config.get_value("battle", "auto_camera", true), true
 	)
+	var tutorials: Variant = config.get_value("tutorials", "enabled", true)
+	if not tutorials is bool:
+		push_error("Invalid saved tutorial preference; resetting to enabled.")
+		tutorials = true
+	GameState.tutorials_enabled = tutorials
 	var speed: Variant = config.get_value("battle", "speed",
 		2 if _validated_bool(config.get_value("battle", "fast_forward", false), false) else 1)
 	if not (speed is int or speed is float) or speed not in [1, 2, 5]:
@@ -99,6 +104,7 @@ func save_settings(file_path: String = SETTINGS_PATH) -> bool:
 	config.set_value("audio", "ambience", get_bus_volume_percent(AMBIENCE_BUS))
 	config.set_value("audio", "effects", get_bus_volume_percent(SFX_BUS))
 	config.set_value("battle", "auto_camera", GameState.battle_auto_camera)
+	config.set_value("tutorials", "enabled", GameState.tutorials_enabled)
 	config.set_value("battle", "speed", GameState.battle_speed)
 	var save_error := config.save(file_path)
 	if save_error != OK:

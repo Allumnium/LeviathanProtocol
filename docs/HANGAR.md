@@ -6,21 +6,48 @@ The actual campaign now uses the hangar. Start a new run from the main menu; Con
 
 ## Ownership and transactions
 
+New-run formation is a flat-topped triangle: flagship at `(0, 0)`, Fighters
+at `(-1.25, -1.25)` and `(1.25, -1.25)`, Transport behind at `(0, 1.1)`.
+This applies to all flagship choices before the initial atomic save.
+Continue and player formation edits retain their saved positions.
+
 - Each chassis has fixed mounts with exact S/M/L/XL size matching and the owner's explicit per-chassis category restrictions. General mounts accept any matching-size equipment. See [MOUNT_RULES.md](MOUNT_RULES.md).
 - Equipment has a unique inventory ID, with no component integrity or condition. A mount references that instance; free transfers move it between ships or stock. Replacing an item returns the old item to stock. Only the ship's hull takes persistent damage.
 - Buy ships/equipment at inhabited shipyards. Research unlocks equipment purchases/fitting. Winning a battle also awards one deterministic, usable equipment instance. Loot is committed with the battle outcome and cannot be claimed twice.
 - Credits pay for purchases and whole-ship repairs. Stock equipment sells for half its catalog price; salvaging a non-flagship chassis requires confirmation and returns equipment to stock. The flagship cannot be salvaged or bought a second time. Fleet is the first tab; fitting is under Ships. See [the playtest UI changes](UI_PLAYTEST_POLISH.md) for group selection/movement, Repair All, space backgrounds, map flight and supplied module art.
-- New Run chooses Original, Civic, Research or Combat flagship in a themed artwork/stats carousel. Draft command budgets are 14 / 20 / 12 / 16 respectively. Each run starts with 700 credits, exactly one selected flagship, an empty Transport and two Fighters. The flagship receives two Mini Turrets and Lab I; Fighters receive two turrets each. Standard chassis consume command points; all owned ships deploy. No reserves or deployment-capacity system.
+- New Run chooses Defensive, Civic, Research or Combat flagship in a themed artwork/stats carousel. Draft command budgets are 16 / 20 / 12 / 16 respectively. Each run starts with 700 credits, exactly one selected flagship, an empty Transport and two Fighters. The flagship receives two Mini Turrets and Lab I; Fighters receive two turrets each. Standard chassis consume command points; all owned ships deploy. No reserves or deployment-capacity system.
 
-Flagship bonuses are chassis-local: Civic earns +20% cargo/passenger delivery income; Research produces +25% installed-lab RP/day, frozen at departure; Combat cycles weapons +15% faster, additive with magazines, and subtracts one damage from every hull hit after shields (minimum zero). Original has no special bonus. All four have a built-in Shield Generator I. Selection uses the existing saved chassis ID; Continue never creates starter copies. Failed New Run saves roll back the old run and surface an error inside the carousel.
+Flagship bonuses are chassis-local: Civic earns +20% cargo/passenger delivery income; Research produces +25% installed-lab RP/day, frozen at departure; Combat cycles weapons +15% faster, additive with magazines, and subtracts one damage from every hull hit after shields (minimum zero). Defensive has 40 shields (two generator equivalents, including doubled mass/recharge) and the same one flat hull damage reduction as Combat. Other flagships have 20 shields. The existing `flagship_basic` ID and artwork are preserved for saves. Selection uses the existing saved chassis ID; Continue never creates starter copies. Failed New Run saves roll back the old run and surface an error inside the carousel.
 
-The art-to-mount maps, prices, chassis hull/mass/thrust and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. Original, Research and Combat have eight mounts; Civic has ten. Every flagship has a fixed level I Shield Generator. Original artwork is unchanged. Engines are implicit; command-center mechanics are covered by hull. No built-in or fitted equipment has separate health or damage. All equipment stays active until hull drops strictly below zero; zero hull remains alive. Shields absorb damage first, then the entire remainder damages hull. Repairs restore surviving hull for the rounded-up missing hull amount in credits; destroyed ships cannot be repaired. The Fighter has +30% weapon damage and 20% per-weapon-hit dodge; direct/environmental/ability damage does not dodge. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants. Repair drones retain finite reserves but heal hull; Nanoforge/Renewal II are deferred because component rebuilding no longer applies.
+The art-to-mount maps, prices, chassis hull/mass/thrust and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. Defensive, Research and Combat have eight mounts; Civic has ten. Defensive has two fixed level I shield equivalents; the others have one. Original artwork is unchanged. Engines are implicit; command-center mechanics are covered by hull. No built-in or fitted equipment has separate health or damage. All equipment stays active until hull drops strictly below zero; zero hull remains alive. Shields absorb damage first, then the entire remainder damages hull. Repairs restore surviving hull for the rounded-up missing hull amount in credits; destroyed ships cannot be repaired. The Fighter has +30% weapon damage and 20% per-weapon-hit dodge; direct/environmental/ability damage does not dodge. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants. Repair drones retain finite reserves but heal hull; Nanoforge/Renewal II are deferred because component rebuilding no longer applies.
 
-Shop chassis/equipment and loose stock rows open read-only item details in the right panel. Click elsewhere to restore stock; the green plus is the sole shop purchase action. Chassis descriptions show stats and bonuses, not mounting-point lists or built-in shield-generator prose. Shield Generator I supplies 20 shields, reflected in the ship's shield stat; this applies to installed generators and flagship shields. The selector labels command as Command Points. Equipment inspection retains size/category and effects/rates. Stock filters persist while inspecting, and installed-equipment drags restore the full-panel unequip target. The starter removes incompatible old equipment; previous incompatible physical layouts are rejected, not converted or rewritten.
+Shop chassis/equipment and loose stock rows open read-only item details in the right panel. Click elsewhere to restore stock; the green plus is the sole shop purchase action. Chassis descriptions show stats and bonuses, not mounting-point lists or built-in shield-generator prose. Shield Generator I supplies 20 shields, reflected in the ship's shield stat; this applies to installed generators, with two equivalents supplying Defensive's 40 shields. The selector labels command as Command Points. Equipment inspection retains size/category and effects/rates. Stock filters persist while inspecting, and installed-equipment drags restore the full-panel unequip target. The starter removes incompatible old equipment; previous incompatible physical layouts are rejected, not converted or rewritten.
 
 Shop, Fleet and Ships use the supplied `Progress_Cp` / `Progress_Cp_Bg` comparison bars for hull, maneuverability, mass and shields. Maneuverability consolidates speed, acceleration and turn rate using their chassis-wide means as weights; average base maneuverability scores 50. Thrust/mass feed those mechanics without double counting. Each displayed stat uses all base chassis as its reference range, linearly mapping minimum to 10% fill and maximum to 100%; real outfitted/damaged values are clamped to that display range without changing state. Ship-description numbers are rounded integers; calculations retain full precision. Equipment has no HP/condition UI. Engine/command-center descriptions are omitted. See [MOUNT_RULES.md](MOUNT_RULES.md).
 
+## Tutorial preference
+
+Settings includes an Enable Tutorials switch using the shared on/off artwork.
+It defaults to enabled for new and existing settings files and persists as a
+global preference, separate from run saves. Tutorial content is not yet added;
+future tutorial flows can check `GameState.tutorials_enabled`.
+
 ## Node environments and asteroids
+
+Physical combat collision uses cached alpha-derived sprite polygons rather than
+bounding boxes or damage radii. Player ships use chassis artwork only, at their
+actual flagship/escort scale and heading; installed equipment does not enlarge
+the collision shape. Alien variants use the size and rotation of their displayed
+artwork. Each asteroid uses its own 32 x 32 atlas-frame silhouette. Mini Turret
+bullets use their rotating bullet sprite; other shots use the visible projectile
+head, excluding cosmetic trails, glows and particles.
+
+Projectile polygons are swept across each movement step to catch fast shots and
+place impacts at first surface contact. Asteroid impact damage/separation and
+manual battle targeting also use the same silhouettes. Existing movement
+clearance, sensor/range and area-effect radii remain gameplay heuristics, not
+physical hit shapes. This does not add friendly fire or ship-to-ship ram damage.
+No collision geometry is written into saves or source artwork.
 
 Each node's conditions are generated independently from campaign seed and node
 ID: asteroid density (Clear/Sparse/Medium/Dense), solar intensity (50-150%,
@@ -113,10 +140,13 @@ Impact storage is capped at 96, hidden/offscreen contacts are not retained, and
 expired effects are removed. Cosmetic variation never uses combat RNG and
 does not change damage, collision, saves or replay state.
 
-Moving, surviving player chassis emit twin tapered blue/white exhaust streams
-from the rear of their artwork (24 tiny fading particles per ship). Plume length
-responds to movement speed and rotates with the interpolated ship heading.
-Stationary ships, destroyed ships and aliens emit no thrust particles. Exhaust
+Surviving player chassis emit tapered blue/white exhaust streams from
+chassis-specific engine anchors (12 tiny fading particles per nozzle). Origin,
+spread, particle size and plume length all follow the displayed sprite scale,
+including quarter-scale escorts. Battle exhaust responds to movement speed and
+rotates with the interpolated ship heading; stationary ships and aliens emit
+none in battle. Fleet and Ships views animate continuous preview thrust, including
+pan/zoom and equipment fitting. Destroyed ships never emit exhaust. Exhaust
 uses simulation time and visibility filtering, without combat RNG or saved state.
 
 The supplied map sets under `assets/chassis/`, `assets/equipment/`, `assets/environment/` and `assets/aliens/` use `_d` diffuse, `_n` normal, `_o` occlusion, `_p` height/parallax and `_s` specular. `_v` is a baked preview and is not used for live rendering. The flagship now uses `assets/chassis/flagship_basic_d.png`, the mapped version of the supplied starting flagship; chassis IDs, saves, geometry and mount anchors are unchanged.
@@ -153,7 +183,12 @@ Repair and shield (including plural shields) words also use the supplied text-si
 
 The Shield Generator equipment is the exception: its complete name remains text in stock, fitting, shop, research grants and previews. Shield stat/effect labels still use the icon. Its equipment ID is unchanged.
 
-Equipment shop rows are compact display-only cards. Only the 32 x 32 green plus on their right purchases equipment; unavailable items have no plus. Chassis purchase behavior is unchanged.
+Equipment shop rows are compact display-only cards. Only the 32 x 32 green plus on their right purchases equipment; unavailable items have no plus. Purchases refresh the open shop without changing its scroll position. Chassis purchase behavior is unchanged.
+
+Hovering installed equipment on the ship art shows a white silhouette glow aligned to its fitted sprite, including mount-anchor offsets. Empty mounts and display-only side labels do not show this glow. Equipment without artwork highlights its floating name instead. Sprite glows are hidden during equipment drags so compatible-target highlights remain clear.
+
+Floating equipment names align toward the ship: right-aligned on the left rail
+and left-aligned on the right rail, keeping each name next to its connector line.
 
 Inline icons use the surrounding font height and derive their width from the source texture aspect ratio, rather than forcing square dimensions. Header/shop/report icons, inline sale coins and close-button artwork likewise preserve their source proportions.
 
@@ -181,7 +216,7 @@ Operational Lab I / II / III produce 1 / 2 / 3 RP/day respectively; there is no 
 
 Fleet, Ships and Map tabs align left in the header and use `Btn_CharacterMenu_n`/`_p`, with lighter hover and distinct pressed states. These three tabs are 80 x 30 viewport units, preserving the cropped artwork's natural aspect ratio. Research is a wider tab immediately before credits, combining its compact 12-pixel icon, 10-pixel technology name (without a prefix), and half-width supplied `Progress_CharacterAttribute` bar showing actual fractional progress against the project's requirement. Clicking anywhere in that tab, including its icon, text or bar, opens Research. With no focus, it reads `Choose Research`, hides the bar and gently fades toward white and back once per second; selecting focus stops the pulse immediately. Long project names wrap within the Research button at narrow widths rather than clipping or narrowing the other tabs. Credits align right immediately before the Settings gear, which uses circular `Btn_RandomName_n`/`_p` artwork and opens Settings without leaving the run. The flagship roster flag is one-third its original size. Tab switches use the accept sound; roster and Fleet-art ship selection use the former tab-switch sound.
 
-All panels, including fitting callouts and shared modals, inherit the supplied nine-sliced `Panel_StoreItem` surface. The texture is imported at half size with eight-pixel slices, retaining small crisp chamfers that fit inside the close artwork rather than protruding behind it. Shared panel/modal close controls use `Btn_ClosePanel_n` with a lighter hover tint and `Btn_ClosePanel_p` when pressed. Atlas crops remove transparent artwork padding so the visible button sits one viewport pixel from the panel's top and right edges; source textures remain unchanged. Boolean settings and shop checkboxes inherit `Checkbox_Off`/`Checkbox_On` from the shared theme, imported at 16 pixels without changing source artwork. Fleet offers only Buy Chassis; Ships offers only Buy Equipment. Each roster button toggles its corresponding embedded center panel; changing tabs closes buying. No internal mode buttons remain. Equipment buying shows the current shared stock in the right panel; purchases and sales refresh it without closing the shop. Equipment buying defaults to Only show researched on the size-filter row; the toggle persists through purchases, filter changes and tab switches during the screen session. Shop prices use the credits icon, locked items use the science icon, and the green purchase plus is shown only when the row is purchasable.
+All panels and shared modals inherit the supplied nine-sliced `Panel_StoreItem` surface. Fitting callouts are frameless floating white text at the shared 10-pixel font size, with white connector lines to installed equipment. The texture is imported at half size with eight-pixel slices, retaining small crisp chamfers that fit inside the close artwork rather than protruding behind it. Shared panel/modal close controls use `Btn_ClosePanel_n` with a lighter hover tint and `Btn_ClosePanel_p` when pressed. Atlas crops remove transparent artwork padding so the visible button sits one viewport pixel from the panel's top and right edges; source textures remain unchanged. Boolean settings and shop checkboxes inherit `Checkbox_Off`/`Checkbox_On` from the shared theme, imported at 16 pixels without changing source artwork. Fleet offers only Buy Chassis; Ships offers only Buy Equipment. Each roster button toggles its corresponding embedded center panel; changing tabs closes buying. No internal mode buttons remain. Equipment buying shows the current shared stock in the right panel; purchases and sales refresh it without closing the shop. Equipment buying defaults to Only show researched on the size-filter row; the toggle persists through purchases, filter changes and tab switches during the screen session. Shop prices use the credits icon, locked items use the science icon, and the green purchase plus is shown only when the row is purchasable.
 
 Without a single Fleet ship selected, the detail panel retains Repair All and shows the surviving fleet's total mounted-weapon DPS, operational shields, current/max hull and operational lab RP/day. Cargo and passenger capacities appear only when positive; destroyed equipment and ships contribute no operational capacity or production.
 

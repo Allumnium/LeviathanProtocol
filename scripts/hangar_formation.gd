@@ -2,6 +2,8 @@ extends Control
 
 signal ship_selected(id: int)
 const GLOW = preload("res://shaders/ship_selection.gdshader")
+const Exhaust = preload("res://scripts/ship_exhaust.gd")
+var exhaust_elapsed := 0.0
 var selected_id := 0
 var selected_ids: Array[int] = []
 var dragging := false
@@ -129,9 +131,15 @@ func _gui_input(event: InputEvent) -> void:
 			box_end = event.position
 		queue_redraw()
 
+func _process(delta: float) -> void:
+	if is_visible_in_tree():
+		exhaust_elapsed += delta
+		queue_redraw()
+
 func _draw() -> void:
 	for owned: HangarShip in GameState.fleet:
 		var rect := ship_rect(owned)
+		Exhaust.draw(self, owned, rect, exhaust_elapsed)
 		draw_texture_rect(owned.art_texture, rect, false)
 		owned.draw_fitted_equipment(self, rect)
 		if glows.has(owned.id):

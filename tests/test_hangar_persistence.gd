@@ -73,7 +73,7 @@ func run() -> void:
 	state.run_save_path = real_path
 	lead = state.owned_ship(1)
 	var repair_credits: int = state.credits
-	check(lead.repair_cost() == 121 and state.repair_ship(lead) and state.credits == repair_credits - 121, "Alive hull repairs cost ceiling of missing integrity")
+	check(lead.repair_cost() == 120 and state.repair_ship(lead) and state.credits == repair_credits - 120, "Alive hull repairs cost ceiling of actual armored hull damage")
 	check(state.load_run_checkpoint() and state.owned_ship(1).hull_hp == state.owned_ship(1).hull_max
 		and state.owned_ship(1).mounts == identity, "Paid hull-only repair reloads without replacing equipment")
 	check(not state.has_method("repair_equipment"), "No separate equipment repair backend")

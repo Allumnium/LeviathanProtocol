@@ -30,7 +30,7 @@ func run() -> void:
 		check(actual == expected[id], "%s exact owner mount specification" % id)
 	var flagship: HangarShip = state.fleet[0]
 	check(flagship.hull_hp == 320 and flagship.get_stats().thrust == 22, "Flagship high hull and low thrust")
-	check(flagship.get_stats().shields == 20, "Flagship level I shields")
+	check(flagship.get_stats().shields == 40, "Defensive flagship doubled level I shields")
 	check(state.equipment_inventory.size() == 7, "Flagship and Fighters receive seven compatible starter equipment instances")
 	check(not flagship.mounts.has("inner_port"), "Incompatible starter armor removed without replacement")
 	var healthy: Dictionary = state.hangar_snapshot()
@@ -38,11 +38,11 @@ func run() -> void:
 	for instance: Dictionary in healthy.equipment.values():
 		check(not instance.has("hp"), "Schema2 equipment has no component health")
 	flagship.damage_cell(Vector2i(1, 0), 50)
-	check(flagship.get_stats().shields == 20 and flagship.hull_hp == 270, "Hits damage hull only and builtin shield remains operational")
-	check(flagship.repair_cost() == 50, "Repair quote counts hull damage only")
+	check(flagship.get_stats().shields == 40 and flagship.hull_hp == 271, "Armor reduces hull damage while shields remain operational")
+	check(flagship.repair_cost() == 49, "Repair quote counts actual hull damage only")
 	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Hull damage survives reload")
 	flagship = state.fleet[0]
-	check(flagship.hull_hp == 270 and flagship.get_stats().shields == 20, "Reload preserves hull damage and operational shield")
+	check(flagship.hull_hp == 271 and flagship.get_stats().shields == 40, "Reload preserves hull damage and operational shield")
 	var damaged: Dictionary = state.hangar_snapshot()
 	var generation: int = state.hangar_generation
 	state.hangar_generation += 1
@@ -50,7 +50,7 @@ func run() -> void:
 	check(state.hangar_snapshot() == damaged, "Failed repair changes no credits or hull")
 	state.hangar_generation = generation
 	check(state.repair_ship(state.fleet[0]), "Hull repairs through normal credits transaction")
-	check(state.fleet[0].hull_hp == 320 and state.fleet[0].get_stats().shields == 20 and state.credits == int(damaged.credits) - 50, "Repair restores only hull with exact quote")
+	check(state.fleet[0].hull_hp == 320 and state.fleet[0].get_stats().shields == 40 and state.credits == int(damaged.credits) - 49, "Repair restores only hull with exact quote")
 	var invalid: Dictionary = state.hangar_snapshot()
 	invalid.ships[0]["builtins"] = {"shield": 25}
 	check(not HangarCheckpoint.valid(invalid), "Schema2 rejects retired builtin health")
@@ -112,7 +112,7 @@ func run() -> void:
 	check(not scene.inspection.find_child("ShipStatBars", true, false).bars.has("shields")
 		and not _text(scene.inspection).contains("DPS"), "Unarmed unshielded chassis preview hides zero shield and DPS details")
 	scene._inspect_chassis("flagship_basic")
-	check(_text(scene.inspection).contains("Shields 20") and not _text(scene.inspection).contains("Built-in")
+	check(_text(scene.inspection).contains("Shields 40") and not _text(scene.inspection).contains("Built-in")
 		and not _text(scene.inspection).contains("Mounts") and not _text(scene.inspection).contains("HP"),
 		"Chassis descriptions show shield amount without builtin or mounting-point listings")
 	scene._inspect_chassis("fighter")
@@ -312,7 +312,7 @@ func _test_stat_ranges() -> void:
 	numeric_panel.queue_free()
 	var flagship := HangarShip.new()
 	flagship.initialize_chassis("flagship_basic", 0, true)
-	check(flagship.get_stats().weight == float(flagship.chassis.mass) + SlotCatalog.stats_for(flagship.chassis.builtin_shield).weight,
+	check(flagship.get_stats().weight == float(flagship.chassis.mass) + 2 * SlotCatalog.stats_for(flagship.chassis.builtin_shield).weight,
 		"Flagship base mass includes builtin shield, not just catalog chassis mass")
 	for key: String in ranges:
 		var limits: Vector2 = ranges[key]

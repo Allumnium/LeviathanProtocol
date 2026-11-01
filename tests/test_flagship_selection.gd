@@ -28,6 +28,9 @@ func run() -> void:
 		check(state.fleet.size() == 4 and state.fleet[0].chassis_id == chassis.id
 			and state.fleet[1].chassis_id == "transport" and state.fleet[2].chassis_id == "fighter"
 			and state.fleet[3].chassis_id == "fighter", "Starting fleet includes selected flagship, Transport and two Fighters")
+		check(state.fleet[0].formation == Vector2.ZERO and state.fleet[1].formation == Vector2(0, 1.1)
+			and state.fleet[2].formation == Vector2(-1.25, -1.25) and state.fleet[3].formation == Vector2(1.25, -1.25),
+			"Starter triangle centers flagship with level forward Fighter flanks and rear Transport")
 		check(state.command_limit() == int(chassis.command) and state.used_command() == 7, "Selected command budget covers all starter escorts")
 		budgets[int(chassis.command)] = true
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.flagship).size() == 1
@@ -35,9 +38,13 @@ func run() -> void:
 		check(state.equipment_inventory.size() == 7 and state.fleet[0].mounts.size() == 3
 			and state.fleet[1].mounts.is_empty() and state.fleet[2].mounts.size() == 2 and state.fleet[3].mounts.size() == 2,
 			"Seven unique starter instances equip flagship and Fighters; Transport is empty")
-		check(state.fleet[0].get_stats().shields == 20 and state.can_deploy(), "Selected flagship has 20 shields and armed deployment")
+		check(state.fleet[0].get_stats().shields == (40 if chassis.id == "flagship_basic" else 20)
+			and state.can_deploy(), "Defensive flagship has doubled shields; other flagships retain one generator")
 		check(HangarCheckpoint.valid(state.hangar_snapshot()) and state.save_run_checkpoint()
 			and state.load_run_checkpoint() and state.fleet[0].chassis_id == chassis.id, "Selected flagship roundtrips atomically")
+		check(state.fleet[1].formation.is_equal_approx(Vector2(0, 1.1))
+			and state.fleet[2].formation == Vector2(-1.25, -1.25) and state.fleet[3].formation == Vector2(1.25, -1.25),
+			"Continue retains starter triangle positions")
 		check(not state.buy_chassis(chassis.id), "Cannot buy a second flagship")
 		check(state.fleet[0].art_texture is CanvasTexture, "New flagship uses supplied mapped artwork")
 		var simulation := BattleSimulation.new()
@@ -49,8 +56,19 @@ func run() -> void:
 		simulation.advance(1.0 / 30.0)
 		check(simulation.phase == BattleSimulation.Phase.DEFEAT and simulation.living_player_count() == 3,
 			"Every flagship loss ends battle even with all three escorts alive")
-	check(budgets.size() == 4 and budgets.has(20) and budgets.has(16) and budgets.has(14) and budgets.has(12),
-		"All flagships have distinct command budgets; Civic highest")
+	check(budgets.size() == 3 and budgets.has(20) and budgets.has(16) and budgets.has(12)
+		and SlotCatalog.find_chassis("flagship_basic").command == 16,
+		"Defensive and Combat share 16 Command Points; Civic remains highest")
+	var defensive := HangarShip.new()
+	defensive.initialize_chassis("flagship_basic", 99, true)
+	var ordinary := HangarShip.new()
+	ordinary.initialize_chassis("flagship_science", 100, true)
+	check(defensive.get_stats().shield_recharge == ordinary.get_stats().shield_recharge * 2
+		and defensive.get_stats().weight - defensive.chassis.mass == 2 * (ordinary.get_stats().weight - ordinary.chassis.mass),
+		"Two shield equivalents include doubled recharge and shield mass without stock copies")
+	var invalid_catalog := {"version": 1, "chassis": SlotCatalog.chassis()}
+	invalid_catalog.chassis[0].builtin_shield_count = 0
+	check(not SlotCatalog.valid_chassis(invalid_catalog), "Invalid built-in shield count is rejected")
 	check(state.start_new_run(1, 351, true, "flagship_basic"), "Restore a living run for transaction rollback checks")
 	var before: Dictionary = state.hangar_snapshot()
 	check(not state.start_new_run(1, 351, true, "transport") and state.hangar_snapshot() == before,
@@ -123,7 +141,8 @@ func _test_bonuses() -> void:
 	var basic := HangarShip.new()
 	basic.initialize_chassis("flagship_basic", 99, true)
 	basic.damage_cell(Vector2i.ZERO, 5)
-	check(basic.hull_hp == basic.hull_max - 5, "Other chassis retain full hull damage")
+	check(basic.hull_hp == basic.hull_max - 4 and basic.chassis.name == "Defensive Flagship",
+		"Defensive flagship shares one flat hull damage reduction and its new name")
 	check(state.start_new_run(1, 351, true, "flagship_science"), "Research bonus fixture")
 	var snapshot := ScienceRules.snapshot(state.get_deployed_fleet())
 	check(ScienceRules.production_rate(snapshot) == 1.25 and ScienceRules.journey_rp(snapshot, 3) == 3.75,

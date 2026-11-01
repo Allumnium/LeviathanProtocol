@@ -35,6 +35,8 @@ func check_callouts(board: Control) -> void:
 		check(not placed.any(func(other: Rect2) -> bool: return rect.intersects(other)), "Side callouts never overlap")
 		placed.append(rect)
 		var label: ResourceText = card.get_node("EquipmentName")
+		check(label.horizontal_alignment == (HORIZONTAL_ALIGNMENT_RIGHT if card.get_meta("left_rail") else HORIZONTAL_ALIGNMENT_LEFT),
+			"Equipment names align toward their ship-side connector")
 		var instance: Dictionary = owned.mounts.get(id, {})
 		var slot: Dictionary = owned.chassis.slots.filter(func(value: Dictionary) -> bool: return value.id == id)[0]
 		var expected: String = "" if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name
@@ -49,14 +51,12 @@ func check_callouts(board: Control) -> void:
 		check(Rect2(Vector2.ZERO, card.size).encloses(label.get_rect()), "Equipment text stays within its card")
 		check(card.focus_mode == Control.FOCUS_NONE and card.tooltip_text.is_empty(), "Callout has no keyboard focus or tooltip")
 		check(not card is Button and not card.has_method("_get_drag_data"), "Side callout is display-only")
-		var style := card.get_theme_stylebox("panel") as StyleBoxTexture
-		check(style.texture == board.get_theme_stylebox("panel", "Panel").texture,
-			"Mount callout reuses the shared chamfered panel art")
-		check(style.get_minimum_size().x <= card.size.x and style.get_minimum_size().y <= card.size.y,
-			"Compact callout frame fits the actual card instead of drawing outside its bounds")
-		check(label.position.x >= style.content_margin_left
-			and label.get_rect().end.x <= card.size.x - style.content_margin_right,
-			"Full equipment name stays clear of both chamfered ends")
+		check(not card is Panel and not card is PanelContainer,
+			"Mount callout has no panel or frame")
+		check(label.get_theme_color("default_color") == Color.WHITE,
+			"Floating equipment names use opaque white text")
+		check(label.get_theme_font_size("normal_font_size") == 10,
+			"Floating equipment names use the smaller shared font size")
 
 func run() -> void:
 	root.size = Vector2i(1280, 720)
@@ -140,8 +140,15 @@ func run() -> void:
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
+		var named_row: Button = screen.roster.find_child("Ship1", true, false)
+		var name_width := named_row.get_theme_font("font").get_string_size(
+			named_row.text, HORIZONTAL_ALIGNMENT_LEFT, -1, named_row.get_theme_font_size("font_size")).x
+		check(name_width + named_row.get_theme_stylebox("normal").get_minimum_size().x
+			+ 9 + named_row.get_theme_constant("h_separation") <= named_row.size.x + 1,
+			"Full Defensive Flagship name fits roster without truncation or canvas expansion")
 		var buttons: Dictionary = screen.canvas.slot_buttons
 		check_callouts(screen.canvas)
+		check(screen.canvas.exhaust_elapsed > 0, "Ships view continuously animates preview thrust")
 		var placed: Array[Rect2] = []
 		for id in buttons:
 			var button: Button = buttons[id]
@@ -312,6 +319,11 @@ func run() -> void:
 		check(price >= previous_equipment_price, "Equipment buying is always ordered by ascending credits")
 		previous_equipment_price = price
 	var inventory_before: int = state.equipment_inventory.size()
+	await settle()
+	screen.shop_scroll.scroll_vertical = 120
+	await settle()
+	var purchase_scroll: int = screen.shop_scroll.scroll_vertical
+	check(purchase_scroll > 0, "Equipment purchase fixture has a scrolled shop")
 	for purchase: Button in screen.shop_rows.get_children():
 		if not purchase.disabled:
 			purchase.find_child("BuyIcon", true, false).pressed.emit()
@@ -319,6 +331,7 @@ func run() -> void:
 	await settle()
 	check(state.equipment_inventory.size() == inventory_before + 1 and screen.buy_open and screen.shop != null, "Purchase updates stock while center shop stays open")
 	check(screen.shop_filters.is_unfiltered() and screen.stock.filters.is_unfiltered(), "Purchase preserves checkbox selections")
+	check(screen.shop_scroll.scroll_vertical == purchase_scroll, "Equipment purchase preserves shop scroll position")
 	if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-equipment.png")

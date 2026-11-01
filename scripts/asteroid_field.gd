@@ -1,5 +1,6 @@
 class_name AsteroidField
 extends RefCounted
+const Collision = preload("res://scripts/sprite_collision.gd")
 
 # A field owns lineage and ore; combat actors are its temporary presentation.
 # Resolved parents remain records, never colliders or additional mineral budgets.
@@ -234,13 +235,22 @@ func _collisions(sim, rock, r: Dictionary) -> void:
 			break
 		if not ship.is_alive() or not ship.has_tag("combatant") or ship.has_tag("asteroid"):
 			continue
-		var offset: Vector2 = ship.position - rock.position
-		var radius: float = ship.radius + rock.radius
-		if offset.length_squared() > radius * radius:
+		var ship_shape := Collision.actor_polygons(ship)
+		var rock_shape := Collision.actor_polygons(rock)
+		if not Collision.overlaps(ship_shape, rock_shape):
 			continue
+		var offset: Vector2 = ship.position - rock.position
 		var normal := offset.normalized() if offset.length_squared() > 0.0001 else Vector2.RIGHT
 		# Separate even during cooldown; overlap cannot repeatedly grind a hull.
-		ship.position = rock.position + normal * (radius + 0.5)
+		var ship_edge := INF
+		var rock_edge := -INF
+		for polygon: PackedVector2Array in ship_shape:
+			for point in polygon:
+				ship_edge = minf(ship_edge, point.dot(normal))
+		for polygon: PackedVector2Array in rock_shape:
+			for point in polygon:
+				rock_edge = maxf(rock_edge, point.dot(normal))
+		ship.position += normal * (rock_edge - ship_edge + 0.5)
 		var key: String = rock.entity_id + "|" + ship.entity_id
 		if impacts.has(key):
 			continue
@@ -378,9 +388,8 @@ func intercept(sim, start: Vector2, finish: Vector2):
 		var rock = sim.entities.get(id)
 		if rock == null or not rock.is_alive():
 			continue
-		var point := Geometry2D.get_closest_point_to_segment(rock.position, start, finish)
-		var d := start.distance_squared_to(point)
-		if point.distance_squared_to(rock.position) <= rock.radius * rock.radius and d < distance:
+		var d := Collision.segment_contact(Collision.actor_polygons(rock), start, finish)
+		if d < distance:
 			nearest = rock
 			distance = d
 	return nearest

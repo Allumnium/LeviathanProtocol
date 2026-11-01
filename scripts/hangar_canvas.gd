@@ -2,11 +2,15 @@ extends Control
 
 const Transfer = preload("res://scripts/hangar_equipment_transfer.gd")
 const DragButton = preload("res://scripts/hangar_drag_button.gd")
+const GLOW = preload("res://shaders/ship_selection.gdshader")
+const Exhaust = preload("res://scripts/ship_exhaust.gd")
+var exhaust_elapsed := 0.0
 signal slot_selected(id: String)
 signal instance_selected(slot_id: String, uid: String)
 var selected_slot := ""
 var slot_buttons: Dictionary[String, Button] = {}
 var slot_callouts: Dictionary[String, Control] = {}
+var slot_glows: Dictionary[String, TextureRect] = {}
 var image_rect := Rect2()
 var owned_id := 0
 var _slots: Array = []
@@ -74,10 +78,11 @@ func set_owned(owned: HangarShip) -> void:
 	owned_id = owned.id
 	_slots = owned.chassis.slots
 	_texture = owned.art_texture
-	for child: Control in slot_buttons.values() + slot_callouts.values():
+	for child: Control in slot_buttons.values() + slot_callouts.values() + slot_glows.values():
 		child.queue_free()
 	slot_buttons.clear()
 	slot_callouts.clear()
+	slot_glows.clear()
 	for slot: Dictionary in _slots:
 		var button: Button = DragButton.new()
 		button.theme_type_variation = &"CompactButton"
@@ -100,8 +105,23 @@ func set_owned(owned: HangarShip) -> void:
 			queue_redraw())
 		add_child(button)
 		slot_buttons[slot.id] = button
-		var card := Panel.new()
-		card.theme_type_variation = &"MountCallout"
+		if button.equipment_texture != null:
+			var glow := TextureRect.new()
+			glow.name = "EquipmentGlow_" + slot.id
+			glow.texture = SurfaceArt.diffuse(button.equipment_texture)
+			glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			glow.mouse_filter = MOUSE_FILTER_IGNORE
+			glow.visible = false
+			var glow_material := ShaderMaterial.new()
+			glow_material.shader = GLOW
+			glow_material.set_shader_parameter("glow_color", get_theme_color("selection_color", "SlotCanvas"))
+			glow.material = glow_material
+			add_child(glow)
+			slot_glows[slot.id] = glow
+			button.mouse_entered.connect(func() -> void:
+				glow.visible = not get_viewport().gui_is_dragging())
+			button.mouse_exited.connect(func() -> void: glow.hide())
+		var card := Control.new()
 		card.name = "Callout_" + slot.id
 		card.focus_mode = FOCUS_NONE
 		card.mouse_filter = MOUSE_FILTER_STOP
@@ -110,12 +130,17 @@ func set_owned(owned: HangarShip) -> void:
 		add_child(card)
 		var label := ResourceText.new()
 		label.name = "EquipmentName"
-		label.theme_type_variation = &"EquipmentResourceText"
+		label.theme_type_variation = &"MountCalloutText"
 		label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		label.clip_contents = false
 		label.set_content("" if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name)
 		label.mouse_filter = MOUSE_FILTER_IGNORE
 		card.add_child(label)
+		if not instance.is_empty() and button.equipment_texture == null:
+			button.mouse_entered.connect(func() -> void:
+				label.add_theme_color_override("font_shadow_color", get_theme_color("selection_color", "SlotCanvas")))
+			button.mouse_exited.connect(func() -> void:
+				label.remove_theme_color_override("font_shadow_color"))
 		slot_callouts[slot.id] = card
 	_layout_slots()
 
@@ -152,6 +177,13 @@ func _update_view() -> void:
 		var rect := slot_rect(slot)
 		slot_buttons[slot.id].position = rect.position
 		slot_buttons[slot.id].size = rect.size
+		if slot_glows.has(slot.id):
+			var owned: HangarShip = GameState.owned_ship(owned_id)
+			var glow: TextureRect = slot_glows[slot.id]
+			var art_rect := SlotCatalog.fitted_art_rect(slot_buttons[slot.id].equipment_texture, rect,
+				owned.equipment_art_mounts.get(slot.id, []))
+			glow.position = art_rect.position
+			glow.size = art_rect.size
 	queue_redraw()
 
 func _rail_width(slots: Array[Dictionary]) -> float:
@@ -181,6 +213,7 @@ func _layout_rail(slots: Array[Dictionary], x: float, width: float) -> void:
 		var label: ResourceText = card.get_node("EquipmentName")
 		label.position = Vector2(10, 0)
 		label.size = Vector2(width - 20, height)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if x == 0 else HORIZONTAL_ALIGNMENT_LEFT
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		y += height + gap
 
@@ -190,6 +223,8 @@ func slot_rect(slot: Dictionary) -> Rect2:
 
 func _notification(what: int) -> void:
 	if what in [NOTIFICATION_DRAG_BEGIN, NOTIFICATION_DRAG_END]:
+		for id: String in slot_glows:
+			slot_glows[id].visible = what == NOTIFICATION_DRAG_END and slot_buttons[id].is_hovered()
 		queue_redraw()
 
 func _connector_points(card: Control, rect: Rect2) -> PackedVector2Array:
@@ -204,11 +239,18 @@ func _connector_points(card: Control, rect: Rect2) -> PackedVector2Array:
 		points.append(inverse * ((screen_transform * point).floor() + Vector2(0.5, 0.5)))
 	return points
 
+func _process(delta: float) -> void:
+	if is_visible_in_tree():
+		exhaust_elapsed += delta
+		queue_redraw()
+
 func _draw() -> void:
 	if _texture == null:
 		return
-	draw_texture_rect(_texture, image_rect, false)
 	var owned: HangarShip = GameState.owned_ship(owned_id)
+	if owned != null:
+		Exhaust.draw(self, owned, image_rect, exhaust_elapsed)
+	draw_texture_rect(_texture, image_rect, false)
 	if owned != null:
 		owned.draw_fitted_equipment(self, image_rect)
 	var data: Variant = get_viewport().gui_get_drag_data()

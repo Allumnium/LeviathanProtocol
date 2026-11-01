@@ -2,6 +2,7 @@ class_name BattleSimulation
 extends RefCounted
 
 const PROJECTILE_SPEED := 320.0
+const Collision = preload("res://scripts/sprite_collision.gd")
 const TARGET_REFRESH_INTERVAL := 0.2
 const SPATIAL_CELL_SIZE := 256.0
 const WRECK_MOTION_SECONDS := 4.0
@@ -127,6 +128,7 @@ class Projectile:
 	var aim_position := Vector2.ZERO
 	var aim_radius := 18.0
 	var guidance_lost := false
+	var rotation_phase := 0.0
 
 class Beam:
 	var source: Combatant
@@ -199,6 +201,7 @@ var event_log: Array[Dictionary] = []
 var _command_receipts: Dictionary = {}
 var _pending_commands: Array[Dictionary] = []
 var _next_command_id := 0
+var _next_projectile_id := 0
 
 
 func setup(
@@ -232,6 +235,7 @@ func setup(
 	_command_receipts.clear()
 	_pending_commands.clear()
 	_next_command_id = 0
+	_next_projectile_id = 0
 	retreat_remaining = 10.0
 	inactive_seconds = 0.0
 	phase = Phase.COMBAT
@@ -1291,6 +1295,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				_damage(hit_target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name, false, true)
 			else:
 				var projectile := Projectile.new()
+				projectile.rotation_phase = float(_next_projectile_id % 16) / 16.0 * TAU
+				_next_projectile_id += 1
 				projectile.source = ship
 				projectile.origin = weapon_origin
 				projectile.weapon_name = weapon.weapon_name
@@ -1425,6 +1431,10 @@ func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
 
 
 func _update_projectiles(delta: float) -> void:
+	var rock_shapes: Dictionary = {}
+	for actor: Combatant in other_entities:
+		if actor.has_tag("asteroid") and actor.is_alive():
+			rock_shapes[actor] = Collision.actor_polygons(actor)
 	for index in range(projectiles.size() - 1, -1, -1):
 		var projectile := projectiles[index]
 		if projectile.target == null:
@@ -1440,18 +1450,31 @@ func _update_projectiles(delta: float) -> void:
 		var destination := projectile.aim_position if visibility_enabled else projectile.target.position
 		var start := projectile.position
 		projectile.position = projectile.position.move_toward(destination, projectile.speed * delta)
-		var obstruction = asteroid_field.intercept(self, start, projectile.position)
-		if obstruction != null:
+		var finish := projectile.position
+		projectile.position = start
+		var shape := Collision.bullet_polygons(projectile, elapsed)
+		var contact := INF
+		var struck: Combatant
+		if projectile.target.is_alive():
+			contact = Collision.sweep(shape, finish - start, Collision.actor_polygons(projectile.target))
+			if contact < INF:
+				struck = projectile.target
+		for candidate: Combatant in rock_shapes:
+			if not candidate.is_alive():
+				continue
+			var fraction := Collision.sweep(shape, finish - start, rock_shapes[candidate])
+			if fraction < contact:
+				contact = fraction
+				struck = candidate
+		projectile.position = finish
+		if struck != null:
 			_add_pending_damage(projectile.target, -projectile.damage)
-			_damage(obstruction, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
+			projectile.position = start.lerp(finish, contact)
+			_damage(struck, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
 			projectile_impacted.emit(projectile.position)
 			projectiles.remove_at(index)
-			continue
-		if projectile.position.distance_to(destination) <= (projectile.aim_radius if visibility_enabled else projectile.target.radius):
+		elif projectile.position.is_equal_approx(destination):
 			_add_pending_damage(projectile.target, -projectile.damage)
-			if not projectile.guidance_lost or projectile.position.distance_to(projectile.target.position) <= projectile.target.radius:
-				_damage(projectile.target, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
-				projectile_impacted.emit(projectile.position)
 			projectiles.remove_at(index)
 
 
