@@ -1407,6 +1407,8 @@ func _apply_limited_reverse_thrust(
 
 
 func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
+	if ship.owned_ship is HangarShip:
+		return ship.position + (weapon.mount_offset * ship.owned_ship.fleet_view_scale()).rotated(ship.heading)
 	return ship.position + weapon.mount_offset.rotated(ship.heading)
 
 

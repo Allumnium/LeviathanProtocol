@@ -105,10 +105,10 @@ func set_owned(owned: HangarShip) -> void:
 		add_child(button)
 		slot_buttons[slot.id] = button
 		var card := Panel.new()
+		card.theme_type_variation = &"MountCallout"
 		card.name = "Callout_" + slot.id
 		card.focus_mode = FOCUS_NONE
 		card.mouse_filter = MOUSE_FILTER_STOP
-		card.add_theme_stylebox_override("panel", get_theme_stylebox("normal", "CompactButton"))
 		card.self_modulate = button.self_modulate
 		card.visible = not instance.is_empty()
 		add_child(card)
@@ -171,7 +171,7 @@ func _rail_width(slots: Array[Dictionary]) -> float:
 	# Reserve full-name space for this chassis so fitting never changes ship scale.
 	var label: Label = slot_callouts[slots[0].id].get_node("EquipmentName") if not slots.is_empty() else null
 	for name: String in names:
-		width = maxf(width, label.get_theme_font("font").get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size("font_size")).x + 10)
+		width = maxf(width, label.get_theme_font("font").get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size("font_size")).x + 20)
 	return ceilf(width)
 
 func _layout_rail(slots: Array[Dictionary], x: float, width: float) -> void:
@@ -185,8 +185,8 @@ func _layout_rail(slots: Array[Dictionary], x: float, width: float) -> void:
 		card.position = Vector2(x, y)
 		card.size = Vector2(width, height)
 		var label: Label = card.get_node("EquipmentName")
-		label.position = Vector2(5, 0)
-		label.size = Vector2(width - 10, height)
+		label.position = Vector2(10, 0)
+		label.size = Vector2(width - 20, height)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		y += height + gap
 

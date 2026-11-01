@@ -38,7 +38,6 @@ var FINAL_NODE_ID := 0
 var laser_upgrade_level := 0
 var battle_auto_camera := true
 var battle_fast_forward := false
-var reduced_motion := false
 var destroy_all_neutral_targets := false
 var run_save_path := "user://hangar_run.json"
 var last_save_error := ""

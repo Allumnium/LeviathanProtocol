@@ -474,7 +474,7 @@ func _on_ship_destroyed(is_player: bool) -> void:
 
 
 func _try_begin_finishing_shot() -> void:
-	if GameState.reduced_motion or (ability_bar != null and ability_bar.targeting):
+	if ability_bar != null and ability_bar.targeting:
 		return
 	var projectile := simulation.get_finishing_projectile(FINISHING_SHOT_WINDOW_SECONDS)
 	if projectile == null:

@@ -2,7 +2,6 @@ extends TextureButton
 
 const NORMAL_TINT := Color.WHITE
 const HOVER_TINT := Color(1.25, 1.25, 1.25, 1.0)
-const PRESSED_TINT := Color(0.48, 0.52, 0.58, 1.0)
 
 
 func _ready() -> void:
@@ -47,12 +46,12 @@ func _place_in_top_right() -> void:
 		parent_control.size if parent_control != null else Vector2(parent_window.size)
 	)
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
-	size = Vector2(24, 24)
-	position = Vector2(parent_size.x - size.x - 6.0, 6.0)
+	size = Vector2(48, 22)
+	position = Vector2(parent_size.x - size.x - 1.0, 1.0)
 
 
 func _on_mouse_entered() -> void:
-	self_modulate = HOVER_TINT
+	self_modulate = NORMAL_TINT if is_pressed() else HOVER_TINT
 
 
 func _on_mouse_exited() -> void:
@@ -60,7 +59,7 @@ func _on_mouse_exited() -> void:
 
 
 func _on_button_down() -> void:
-	self_modulate = PRESSED_TINT
+	self_modulate = NORMAL_TINT
 
 
 func _on_button_up() -> void:

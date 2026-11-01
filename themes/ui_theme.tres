@@ -8,6 +8,100 @@
 [ext_resource type="Texture2D" uid="uid://ceuy7glfq4gtg" path="res://assets/ui/panels/simple_panel.png" id="7_tab_panel"]
 [ext_resource type="FontFile" uid="uid://3oynvtt8h876" path="res://assets/fonts/starhull-fonts/Starhull/Starhull.fnt" id="8_ntpv8"]
 [ext_resource type="StyleBox" uid="uid://die25xal5tb2i" path="res://assets/ui/panels/compact_panel_nine_patch.tres" id="8_popup_panel"]
+[ext_resource type="Texture2D" path="res://assets/ui/Checkbox_On.png" id="12_checkbox_on"]
+[ext_resource type="Texture2D" path="res://assets/ui/Checkbox_Off.png" id="13_checkbox_off"]
+[ext_resource type="Texture2D" path="res://assets/ui/Btn_CharacterMenu_n.png" id="14_tab_normal"]
+[ext_resource type="Texture2D" path="res://assets/ui/Btn_CharacterMenu_p.png" id="15_tab_pressed"]
+[ext_resource type="Texture2D" path="res://assets/ui/Panel_StoreItem.png" id="16_panel"]
+[ext_resource type="Texture2D" path="res://assets/ui/Progress_CharacterAttribute.png" id="17_progress"]
+[ext_resource type="Texture2D" path="res://assets/ui/Progress_CharacterAttribute_bg.png" id="18_progress_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/Slider1.png" id="19_slider_fill"]
+[ext_resource type="Texture2D" path="res://assets/ui/Slider1_bg.png" id="20_slider_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/processed/slider_handle.png" id="21_slider_handle"]
+
+[sub_resource type="AtlasTexture" id="Atlas_slider_fill"]
+atlas = ExtResource("19_slider_fill")
+region = Rect2(4, 4, 394, 18)
+
+[sub_resource type="StyleBoxTexture" id="Style_slider_background"]
+texture = ExtResource("20_slider_bg")
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+texture_margin_left = 4.0
+texture_margin_right = 4.0
+
+[sub_resource type="StyleBoxTexture" id="Style_slider_fill"]
+texture = SubResource("Atlas_slider_fill")
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxTexture" id="Style_slider_fill_hover"]
+texture = SubResource("Atlas_slider_fill")
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+modulate_color = Color(1.25, 1.25, 1.25, 1)
+
+[sub_resource type="AtlasTexture" id="Atlas_panel"]
+atlas = ExtResource("16_panel")
+region = Rect2(5, 5, 290, 165)
+
+[sub_resource type="AtlasTexture" id="Atlas_progress"]
+atlas = ExtResource("17_progress")
+region = Rect2(9, 11, 637, 12)
+
+[sub_resource type="AtlasTexture" id="Atlas_progress_bg"]
+atlas = ExtResource("18_progress_bg")
+region = Rect2(9, 11, 637, 12)
+
+[sub_resource type="StyleBoxTexture" id="Style_research_fill"]
+texture = SubResource("Atlas_progress")
+modulate_color = Color(0.15, 0.85, 0.95, 1)
+
+[sub_resource type="StyleBoxTexture" id="Style_research_background"]
+texture = SubResource("Atlas_progress_bg")
+modulate_color = Color(0.1, 0.22, 0.27, 1)
+
+[sub_resource type="AtlasTexture" id="Atlas_tab_normal"]
+atlas = ExtResource("14_tab_normal")
+region = Rect2(16, 15, 353, 134)
+
+[sub_resource type="AtlasTexture" id="Atlas_tab_pressed"]
+atlas = ExtResource("15_tab_pressed")
+region = Rect2(16, 15, 353, 134)
+
+[sub_resource type="StyleBoxTexture" id="Style_tab_normal"]
+texture = SubResource("Atlas_tab_normal")
+content_margin_left = 6.0
+content_margin_right = 6.0
+content_margin_top = 7.0
+content_margin_bottom = 7.0
+axis_stretch_horizontal = 0
+axis_stretch_vertical = 0
+modulate_color = Color(0.65, 0.8, 0.85, 1)
+
+[sub_resource type="StyleBoxTexture" id="Style_tab_hover"]
+texture = SubResource("Atlas_tab_normal")
+content_margin_left = 6.0
+content_margin_right = 6.0
+content_margin_top = 7.0
+content_margin_bottom = 7.0
+modulate_color = Color(1.25, 1.25, 1.25, 1)
+
+[sub_resource type="StyleBoxTexture" id="Style_tab_pressed"]
+texture = SubResource("Atlas_tab_pressed")
+content_margin_left = 6.0
+content_margin_right = 6.0
+content_margin_top = 8.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxTexture" id="Style_tab_hover_pressed"]
+texture = SubResource("Atlas_tab_pressed")
+content_margin_left = 6.0
+content_margin_right = 6.0
+content_margin_top = 8.0
+content_margin_bottom = 6.0
+modulate_color = Color(1.25, 1.25, 1.25, 1)
+
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_6hnno"]
 content_margin_left = 3.0
 content_margin_top = 3.0
@@ -167,21 +261,27 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 modulate_color = Color(0.82, 0.9, 0.92, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxTexture_tactical_panel"]
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_tactical_panel"]
 content_margin_left = 16.0
 content_margin_top = 16.0
 content_margin_right = 16.0
 content_margin_bottom = 16.0
-bg_color = Color(0.008, 0.055, 0.075, 0.96)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.04, 0.4, 0.45, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+texture = SubResource("Atlas_panel")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="Style_mount_callout"]
+content_margin_left = 10.0
+content_margin_top = 4.0
+content_margin_right = 10.0
+content_margin_bottom = 4.0
+texture = SubResource("Atlas_panel")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tactical_input"]
 content_margin_left = 8.0
@@ -583,6 +683,18 @@ texture_margin_bottom = 8.0
 modulate_color = Color(0.72, 0.78, 0.82, 1)
 
 [resource]
+MountCallout/base_type = &"Panel"
+MountCallout/styles/panel = SubResource("Style_mount_callout")
+ResearchProgress/base_type = &"ProgressBar"
+ResearchProgress/styles/background = SubResource("Style_research_background")
+ResearchProgress/styles/fill = SubResource("Style_research_fill")
+HeaderResearch/base_type = &"Label"
+HeaderResearch/font_sizes/font_size = 10
+NavigationTab/base_type = &"Button"
+NavigationTab/styles/normal = SubResource("Style_tab_normal")
+NavigationTab/styles/hover = SubResource("Style_tab_hover")
+NavigationTab/styles/hover_pressed = SubResource("Style_tab_hover_pressed")
+NavigationTab/styles/pressed = SubResource("Style_tab_pressed")
 default_font = ExtResource("8_ntpv8")
 default_font_size = 13
 ArchiveButton/base_type = &"Button"
@@ -599,8 +711,10 @@ Button/styles/focus = SubResource("StyleBoxEmpty_ku3ou")
 Button/styles/hover = SubResource("StyleBoxFlat_tactical_hover")
 Button/styles/normal = SubResource("StyleBoxFlat_tactical_normal")
 Button/styles/pressed = SubResource("StyleBoxFlat_tactical_pressed")
-CheckBox/icons/checked = SubResource("ImageTexture_3exg8")
-CheckBox/icons/unchecked = SubResource("ImageTexture_0a3p0")
+CheckBox/icons/checked = ExtResource("12_checkbox_on")
+CheckBox/icons/unchecked = ExtResource("13_checkbox_off")
+CheckBox/icons/checked_disabled = ExtResource("12_checkbox_on")
+CheckBox/icons/unchecked_disabled = ExtResource("13_checkbox_off")
 CheckBox/styles/disabled = SubResource("StyleBoxEmpty_ku3ou")
 CheckBox/styles/focus = SubResource("StyleBoxEmpty_ku3ou")
 CheckBox/styles/hover = SubResource("StyleBoxEmpty_ku3ou")
@@ -643,6 +757,12 @@ GameTitle/base_type = &"Label"
 GameTitle/font_sizes/font_size = 28
 GameTitle/fonts/font = ExtResource("5_6hnno")
 HSlider/styles/focus = SubResource("StyleBoxEmpty_ku3ou")
+HSlider/icons/grabber = ExtResource("21_slider_handle")
+HSlider/icons/grabber_highlight = ExtResource("21_slider_handle")
+HSlider/icons/grabber_disabled = ExtResource("21_slider_handle")
+HSlider/styles/slider = SubResource("Style_slider_background")
+HSlider/styles/grabber_area = SubResource("Style_slider_fill")
+HSlider/styles/grabber_area_highlight = SubResource("Style_slider_fill_hover")
 IconButton/base_type = &"Button"
 IconButton/styles/disabled = SubResource("StyleBoxTexture_s1458")
 IconButton/styles/hover = SubResource("StyleBoxTexture_llgav")
@@ -716,4 +836,10 @@ TinyIconButton/styles/normal = SubResource("StyleBoxTexture_8wx8j")
 TinyIconButton/styles/pressed = SubResource("StyleBoxTexture_2tiv2")
 TooltipPanel/styles/panel = SubResource("StyleBoxTexture_tactical_panel")
 VSlider/styles/focus = SubResource("StyleBoxEmpty_ku3ou")
+VSlider/icons/grabber = ExtResource("21_slider_handle")
+VSlider/icons/grabber_highlight = ExtResource("21_slider_handle")
+VSlider/icons/grabber_disabled = ExtResource("21_slider_handle")
+VSlider/styles/slider = SubResource("Style_slider_background")
+VSlider/styles/grabber_area = SubResource("Style_slider_fill")
+VSlider/styles/grabber_area_highlight = SubResource("Style_slider_fill_hover")
 Window/styles/panel = SubResource("StyleBoxTexture_tactical_panel")

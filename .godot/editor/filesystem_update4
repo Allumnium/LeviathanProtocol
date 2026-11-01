@@ -148,3 +148,5 @@ res://tests/test_hangar_research.gd
 res://tests/test_surface_art.gd
 res://scripts/surface_art.gd
 res://shaders/surface_lighting.gdshader
+res://scenes/close_x_button.tscn
+res://scripts/hangar_equipment_filters.gd

@@ -2,6 +2,7 @@ extends Control
 
 const GAME_MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 const PLAY_TRANSITION_DURATION := 4.0
+const BACKGROUND_FADE_DURATION := 1.0
 const GAME_TITLE_TEXT := "Leviathan Protocol"
 const WARP_SFX: AudioStreamMP3 = preload("res://assets/audio/sfx/warp.mp3")
 
@@ -12,6 +13,7 @@ const WARP_SFX: AudioStreamMP3 = preload("res://assets/audio/sfx/warp.mp3")
 @onready var settings_dialog: PopupPanel = $SettingsDialog
 @onready var game_title: Label = $GameTitle
 @onready var starfield: Control = $Starfield
+@onready var space_background: TextureRect = $SpaceBackground
 @onready var white_fade: ColorRect = $WhiteFade
 @onready var game_setup = $GameSetup
 
@@ -108,9 +110,6 @@ func _on_start_run_requested(difficulty: int) -> void:
 
 	_is_starting_run = true
 	game_setup.hide()
-	if GameState.reduced_motion:
-		get_tree().change_scene_to_file(GAME_MAP_SCENE_PATH)
-		return
 	play_button.disabled = true
 	settings_button.disabled = true
 	quit_button.disabled = true
@@ -125,6 +124,7 @@ func _on_start_run_requested(difficulty: int) -> void:
 
 	var transition_tween := create_tween()
 	transition_tween.set_parallel()
+	transition_tween.tween_property(space_background, "modulate:a", 0.0, BACKGROUND_FADE_DURATION)
 	transition_tween.tween_property(
 		white_fade,
 		"color",
@@ -149,6 +149,7 @@ func _on_start_run_requested(difficulty: int) -> void:
 func _restore_menu_after_failed_transition() -> void:
 	var restore_tween := create_tween()
 	restore_tween.set_parallel()
+	restore_tween.tween_property(space_background, "modulate:a", 1.0, 0.5)
 	restore_tween.tween_property(
 		white_fade,
 		"color",

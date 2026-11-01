@@ -1,17 +1,28 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/close_x.png" id="1_close"]
+[ext_resource type="Texture2D" path="res://assets/ui/Btn_ClosePanel_n.png" id="1_close"]
+[ext_resource type="Texture2D" path="res://assets/ui/Btn_ClosePanel_p.png" id="3_pressed"]
 [ext_resource type="Script" path="res://scripts/close_x_button.gd" id="2_script"]
+
+[sub_resource type="AtlasTexture" id="Atlas_close"]
+atlas = ExtResource("1_close")
+region = Rect2(64, 50, 117, 53)
+
+[sub_resource type="AtlasTexture" id="Atlas_pressed"]
+atlas = ExtResource("3_pressed")
+region = Rect2(48, 48, 138, 57)
 
 [node name="CloseX" type="TextureButton"]
 z_index = 4096
 z_as_relative = false
-custom_minimum_size = Vector2(24, 24)
+custom_minimum_size = Vector2(48, 22)
 layout_mode = 1
 offset_right = 24.0
 offset_bottom = 24.0
 mouse_default_cursor_shape = 2
-texture_normal = ExtResource("1_close")
+texture_normal = SubResource("Atlas_close")
+texture_hover = SubResource("Atlas_close")
+texture_pressed = SubResource("Atlas_pressed")
 ignore_texture_size = true
-stretch_mode = 5
+stretch_mode = 0
 script = ExtResource("2_script")

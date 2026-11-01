@@ -14,17 +14,23 @@ var summary_host: VBoxContainer
 var focus_button: Button
 var feedback: Label
 var tree_canvas: Control
+var view_state: Dictionary = {}
 
 func _ready() -> void:
 	if registry.is_empty():
 		registry = GameDefinitions.snapshot()
 	tree_canvas = load("res://scripts/research_tree_canvas.gd").new()
+	if not view_state.is_empty():
+		selected_id = view_state.selected_id
+		tree_canvas.camera_position = view_state.camera_position
+		tree_canvas.camera_zoom = view_state.camera_zoom
+		tree_canvas.initial_view_fitted = true
 	add_child(tree_canvas)
 	tree_canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tree_canvas.node_selected.connect(_select)
 	GameState.research_changed.connect(refresh)
 	GameState.travel_plan_changed.connect(_refresh_production)
-	refresh(true)
+	refresh(view_state.is_empty())
 
 func bind_external_panels(groups: VBoxContainer, summary: VBoxContainer) -> void:
 	groups_host = groups

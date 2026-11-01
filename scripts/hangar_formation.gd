@@ -68,9 +68,13 @@ func point(owned: FleetShip) -> Vector2:
 func _world(position: Vector2) -> Vector2:
 	return (camera + (position - size * 0.5) / zoom) / 52
 
+func ship_rect(owned: HangarShip) -> Rect2:
+	var extent := Vector2.ONE * 52 * zoom * owned.fleet_view_scale()
+	return Rect2(point(owned) - extent * 0.5, extent)
+
 func _hit(position: Vector2) -> int:
 	for owned: HangarShip in GameState.fleet:
-		var rect := Rect2(point(owned) - Vector2.ONE * 26 * zoom, Vector2.ONE * 52 * zoom)
+		var rect := ship_rect(owned)
 		if rect.has_point(position):
 			var pixel := (position - rect.position) / rect.size * owned.art_texture.get_size()
 			if hit_images[owned.id].get_pixelv(Vector2i(pixel)).a > 0.1:
@@ -96,6 +100,7 @@ func _gui_input(event: InputEvent) -> void:
 		if event.pressed:
 			var hit := _hit(event.position)
 			if hit > 0:
+				AudioManager.play_ui_sfx(&"select_tab")
 				if hit not in selected_ids:
 					selected_ids.assign([hit])
 				selected_id = hit if selected_ids.size() == 1 else 0
@@ -144,7 +149,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	for owned: HangarShip in GameState.fleet:
-		var rect := Rect2(point(owned) - Vector2.ONE * 26 * zoom, Vector2.ONE * 52 * zoom)
+		var rect := ship_rect(owned)
 		draw_texture_rect(owned.art_texture, rect, false)
 		owned.draw_fitted_equipment(self, rect)
 		if glows.has(owned.id):
@@ -153,7 +158,7 @@ func _draw() -> void:
 			glow.size = rect.size
 			glow.visible = owned.id in selected_ids
 		if owned.id == selected_id:
-			actions.position = (point(owned) + Vector2(-actions.size.x / 2, 30 * zoom)).clamp(Vector2.ZERO, (size - actions.size).max(Vector2.ZERO))
+			actions.position = (point(owned) + Vector2(-actions.size.x / 2, rect.size.y * 0.5 + 4 * zoom)).clamp(Vector2.ZERO, (size - actions.size).max(Vector2.ZERO))
 	actions.visible = selected_ids.size() == 1 and not dragging and not box_selecting
 	if box_selecting:
 		var rect := Rect2(box_start, box_end - box_start).abs()

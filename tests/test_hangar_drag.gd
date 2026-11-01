@@ -291,10 +291,12 @@ func filter_checks() -> void:
 	screen.stock.filters.set_preferences({"categories": ["offense"], "sizes": ["S", "M"]})
 	screen.stock._change()
 	check(screen.stock.visible_uids.size() == 3, "Category filter includes selected small and medium weapons")
-	await click(screen.stock.filters.sizes.S)
-	check(screen.stock.visible_uids.size() == 2, "Size checkboxes combine with category")
-	await click(screen.stock.filters.sizes.S)
-	check(screen.stock.visible_uids.size() == 3, "Multiple size checkboxes can be selected together")
+	screen.stock.filters.size_range.set_range(1, 1, true)
+	await settle()
+	check(screen.stock.visible_uids.size() == 2, "Inclusive size range combines with category")
+	screen.stock.filters.size_range.set_range(0, 1, true)
+	await settle()
+	check(screen.stock.visible_uids.size() == 3, "Inclusive range includes both small and medium")
 	await click(screen.stock.filters.categories.defense)
 	check(screen.stock.visible_uids.size() == 4, "Multiple category checkboxes can be selected together")
 	screen.stock.filters.categories.offense.button_pressed = false
@@ -303,7 +305,8 @@ func filter_checks() -> void:
 	check(screen.stock.visible_uids.is_empty(), "No checked categories shows no matches")
 	screen.stock.filters.set_preferences({"sizes": []})
 	screen.stock._change()
-	check(screen.stock.visible_uids.is_empty(), "No checked sizes shows no matches")
+	check(screen.stock.filters.get_preferences().sizes == SlotCatalog.SIZES,
+		"Empty historical size preferences normalize to the full inclusive range")
 	screen.stock.filters.set_preferences({})
 	screen.stock._change()
 	var previous_price := -1

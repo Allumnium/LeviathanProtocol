@@ -398,19 +398,23 @@ func _get_tile_texture(category: int) -> Texture2D:
 			return null
 
 
+func hangar_ship_rect(owned: HangarShip) -> Rect2:
+	var extent := Vector2.ONE * 512 * HangarShip.ART_SCALE * owned.fleet_view_scale()
+	return Rect2(-extent * 0.5, extent)
+
 func _draw_hangar_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
 	var owned := member.owned_ship as HangarShip
 	var texture: Texture2D = owned.art_texture
 	var heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
 	_set_ship_transform(render_position, heading + PI / 2)
-	var extent := Vector2.ONE * 512 * HangarShip.ART_SCALE
-	draw_texture_rect(texture, Rect2(-extent * 0.5, extent), false, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
-	owned.draw_fitted_equipment(self, Rect2(-extent * 0.5, extent), Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
+	var rect := hangar_ship_rect(owned)
+	draw_texture_rect(texture, rect, false, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
+	owned.draw_fitted_equipment(self, rect, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
 	for unit in owned.units:
 		if unit.hp < unit.max_hp:
-			draw_circle(Vector2(unit.position).rotated(-PI / 2), 3, Color("e17666") if unit.hp <= 0 else Color("e8b65c"))
+			draw_circle(Vector2(unit.position).rotated(-PI / 2) * owned.fleet_view_scale(), 3 * owned.fleet_view_scale(), Color("e17666") if unit.hp <= 0 else Color("e8b65c"))
 	if member.shield_flash > 0:
-		draw_arc(Vector2.ZERO, member.radius + 3, 0, TAU, 32, SHIELD_OUTLINE_COLOR, 1.5)
+		draw_arc(Vector2.ZERO, (member.radius + 3) * owned.fleet_view_scale(), 0, TAU, 32, SHIELD_OUTLINE_COLOR, 1.5)
 
 func _draw_voxel_ship(member: BattleSimulation.Combatant, render_position: Vector2) -> void:
 	# Lazy compatibility rendering; actual owned ships use chassis artwork.

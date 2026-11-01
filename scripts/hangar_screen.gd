@@ -11,7 +11,12 @@ var roster: VBoxContainer
 var details: VBoxContainer
 var center: Control
 var header: Label
-var research_rate: Label
+var research_status: Label
+var research_progress: ProgressBar
+var research_button: Button
+var research_pulse: ShaderMaterial
+var research_pulse_time := 0.0
+var header_wallet: HBoxContainer
 var feedback: Label
 var canvas: Control
 var shop: Control
@@ -24,6 +29,8 @@ var formation_camera := Vector2.ZERO
 var formation_zoom := 1.0
 var formation_selection: Array[int] = []
 var fitting_views: Dictionary = {}
+var research_view: Dictionary = {}
+var research_panel: Control
 var traveling := false
 var graph: Control
 var flagship_icon: Texture2D
@@ -31,10 +38,14 @@ var refresh_queued := false
 var stock: Control
 var stock_preferences: Dictionary = {}
 var shop_filters: EquipmentFilters
+var only_researched := true
+var researched_filter: CheckBox
 var stats_grid: GridContainer
 var slot_info: Label
 var roster_panel: PanelContainer
 var details_panel: PanelContainer
+var settings_dialog: PopupPanel
+var tabs: HBoxContainer
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
@@ -55,6 +66,49 @@ func _ready() -> void:
 	margin.add_child(column)
 	var top := HBoxContainer.new()
 	column.add_child(top)
+	tabs = HBoxContainer.new()
+	tabs.name = "Tabs"
+	tabs.size_flags_vertical = SIZE_SHRINK_BEGIN
+	top.add_child(tabs)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
+	top.add_child(spacer)
+	research_button = _button_with_sound("", func() -> void:
+		if traveling:
+			return
+		active_tab = "RESEARCH"
+		buy_open = false
+		_refresh(), &"accept")
+	research_button.name = "ResearchTab"
+	research_button.theme_type_variation = &"NavigationTab"
+	research_button.toggle_mode = true
+	research_button.custom_minimum_size = Vector2(120, 30)
+	research_button.size_flags_vertical = SIZE_SHRINK_CENTER
+	research_pulse = ShaderMaterial.new()
+	research_pulse.shader = preload("res://shaders/ui_research_pulse.gdshader")
+	research_button.material = research_pulse
+	top.add_child(research_button)
+	var research_column := VBoxContainer.new()
+	research_column.name = "HeaderResearch"
+	research_column.size_flags_horizontal = SIZE_FILL
+	research_column.size_flags_vertical = SIZE_SHRINK_CENTER
+	research_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	research_column.add_theme_constant_override("separation", 2)
+	research_column.mouse_filter = MOUSE_FILTER_IGNORE
+	research_button.add_child(research_column)
+	research_column.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	research_column.offset_left = 10
+	research_column.offset_right = -10
+	research_column.offset_top = 3
+	research_column.offset_bottom = -3
+	var research_row := HBoxContainer.new()
+	research_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	research_row.mouse_filter = MOUSE_FILTER_IGNORE
+	research_column.add_child(research_row)
+	header_wallet = HBoxContainer.new()
+	header_wallet.alignment = BoxContainer.ALIGNMENT_END
+	header_wallet.size_flags_vertical = SIZE_SHRINK_BEGIN
+	top.add_child(header_wallet)
 	var credit_icon := TextureRect.new()
 	credit_icon.name = "CreditsIcon"
 	credit_icon.texture = CREDITS_ICON
@@ -62,35 +116,42 @@ func _ready() -> void:
 	credit_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	credit_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	credit_icon.size_flags_vertical = SIZE_SHRINK_CENTER
-	top.add_child(credit_icon)
+	header_wallet.add_child(credit_icon)
 	header = _label("")
 	header.size_flags_horizontal = SIZE_SHRINK_BEGIN
 	header.size_flags_vertical = SIZE_SHRINK_CENTER
 	header.autowrap_mode = TextServer.AUTOWRAP_OFF
 	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	top.add_child(header)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
-	top.add_child(spacer)
+	header_wallet.add_child(header)
 	var science_icon := TextureRect.new()
 	science_icon.name = "ScienceIcon"
 	science_icon.texture = SCIENCE_ICON
-	science_icon.custom_minimum_size = Vector2(20, 20)
+	science_icon.custom_minimum_size = Vector2(12, 12)
 	science_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	science_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	science_icon.size_flags_vertical = SIZE_SHRINK_CENTER
-	top.add_child(science_icon)
-	research_rate = _label("")
-	research_rate.name = "ResearchRate"
-	research_rate.size_flags_vertical = SIZE_SHRINK_CENTER
-	research_rate.autowrap_mode = TextServer.AUTOWRAP_OFF
-	research_rate.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	top.add_child(research_rate)
+	science_icon.mouse_filter = MOUSE_FILTER_IGNORE
+	research_row.add_child(science_icon)
+	research_status = _label("")
+	research_status.name = "ResearchStatus"
+	research_status.theme_type_variation = &"HeaderResearch"
+	research_status.size_flags_horizontal = SIZE_FILL
+	research_status.size_flags_vertical = SIZE_SHRINK_CENTER
+	research_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	research_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	research_status.mouse_filter = MOUSE_FILTER_IGNORE
+	research_row.add_child(research_status)
+	research_progress = ProgressBar.new()
+	research_progress.name = "ResearchProgress"
+	research_progress.theme_type_variation = &"ResearchProgress"
+	research_progress.custom_minimum_size.y = 8
+	research_progress.size_flags_horizontal = SIZE_SHRINK_CENTER
+	research_progress.show_percentage = false
+	research_progress.mouse_filter = MOUSE_FILTER_IGNORE
+	research_column.add_child(research_progress)
+	research_column.resized.connect(_resize_research_label)
 	flagship_icon = load("res://assets/flag.png")
-	top.add_child(_button("MENU", func() -> void: get_tree().change_scene_to_file("res://scenes/main_menu.tscn")))
-	var tabs := HBoxContainer.new()
-	column.add_child(tabs)
-	for title in ["FLEET", "SHIPS", "RESEARCH", "MAP"]:
+	for title in ["FLEET", "SHIPS", "MAP"]:
 		var tab := _button_with_sound(title, func() -> void:
 			if traveling:
 				return
@@ -98,11 +159,23 @@ func _ready() -> void:
 			for tab_button: Button in tabs.get_children():
 				tab_button.set_pressed_no_signal(tab_button.text == title)
 			buy_open = false
-			_refresh(), &"select_tab")
+			_refresh(), &"accept")
 		tab.size_flags_horizontal = SIZE_EXPAND_FILL
+		tab.theme_type_variation = &"NavigationTab"
+		tab.custom_minimum_size = Vector2(80, 30)
 		tab.toggle_mode = true
 		tab.button_pressed = active_tab == title
 		tabs.add_child(tab)
+	settings_dialog = load("res://scenes/settings_dialog.tscn").instantiate()
+	settings_dialog.hide()
+	add_child(settings_dialog)
+	var settings: TextureButton = load("res://scenes/circular_icon_button.tscn").instantiate()
+	settings.name = "SettingsButton"
+	settings.custom_minimum_size = Vector2(30, 30)
+	settings.size_flags_vertical = SIZE_SHRINK_CENTER
+	AudioManager.connect_ui_button(settings, &"detail")
+	settings.pressed.connect(func() -> void: settings_dialog.popup_centered())
+	header_wallet.add_child(settings)
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = SIZE_EXPAND_FILL
 	column.add_child(body)
@@ -125,12 +198,38 @@ func _ready() -> void:
 	_refresh()
 
 func _resize_panels() -> void:
+	if header_wallet != null:
+		_resize_research_label()
 	if roster_panel != null:
 		roster_panel.custom_minimum_size.x = clampf(size.x * 0.16, 116, 220)
 	if details_panel != null:
 		details_panel.custom_minimum_size.x = clampf(size.x * 0.24, 180, 300)
 	if stats_grid != null and is_instance_valid(stats_grid):
 		stats_grid.columns = 3 if size.x < 1000 else 5
+
+func _resize_research_label() -> void:
+	var text_width := research_status.get_theme_font("font").get_string_size(
+		research_status.text, HORIZONTAL_ALIGNMENT_LEFT, -1, research_status.get_theme_font_size("font_size")).x
+	var top := tabs.get_parent() as HBoxContainer
+	var available := size.x - 16 - tabs.get_combined_minimum_size().x - header_wallet.get_combined_minimum_size().x
+	available -= top.get_theme_constant("separation") * 3 + 36
+	research_status.custom_minimum_size.x = minf(text_width, maxf(1, available))
+	research_button.custom_minimum_size.x = maxf(120, research_status.custom_minimum_size.x + 36)
+	var text_height := research_status.get_theme_font("font").get_multiline_string_size(
+		research_status.text, HORIZONTAL_ALIGNMENT_CENTER, research_status.custom_minimum_size.x,
+		research_status.get_theme_font_size("font_size")).y
+	research_button.custom_minimum_size.y = maxf(30, ceilf(text_height) + (16 if research_progress.visible else 6))
+	research_progress.custom_minimum_size.x = floorf((research_status.custom_minimum_size.x + 16) * 0.5)
+
+func _process(delta: float) -> void:
+	if research_pulse == null:
+		return
+	if GameState.research_focus.is_empty():
+		research_pulse_time = fmod(research_pulse_time + delta, 1.0)
+		research_pulse.set_shader_parameter("white_mix", 0.08 * (1.0 - cos(TAU * research_pulse_time)) * 0.5)
+	else:
+		research_pulse_time = 0.0
+		research_pulse.set_shader_parameter("white_mix", 0.0)
 
 func _panel(parent: Node, width: float) -> VBoxContainer:
 	var panel := PanelContainer.new()
@@ -157,6 +256,7 @@ func _button_with_sound(title: String, action: Callable, sound: StringName) -> B
 
 func _add_buy_icon(button: Button) -> void:
 	var icon := TextureRect.new()
+	icon.name = "BuyIcon"
 	icon.texture = BUY_ICON
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -170,6 +270,60 @@ func _add_buy_icon(button: Button) -> void:
 	icon.offset_top = -8.0
 	icon.offset_bottom = 8.0
 	button.add_child(icon)
+
+func _shop_button(title: String, summary: String, price: int, unlocked: bool, available: bool, action: Callable) -> Button:
+	var button := _button_with_sound("", action, &"")
+	button.disabled = not available
+	button.custom_minimum_size.y = 52
+	button.set_meta("price", price)
+	var column := VBoxContainer.new()
+	column.mouse_filter = MOUSE_FILTER_IGNORE
+	button.add_child(column)
+	column.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	column.offset_left = 12
+	column.offset_top = 5
+	column.offset_right = -30
+	column.offset_bottom = -5
+	var name_label := _label(title)
+	name_label.name = "ItemName"
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.mouse_filter = MOUSE_FILTER_IGNORE
+	column.add_child(name_label)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.mouse_filter = MOUSE_FILTER_IGNORE
+	column.add_child(row)
+	var summary_label := _label(summary)
+	summary_label.name = "ItemSummary"
+	summary_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	summary_label.mouse_filter = MOUSE_FILTER_IGNORE
+	row.add_child(summary_label)
+	var credit_icon := _shop_icon(CREDITS_ICON, "PriceIcon")
+	row.add_child(credit_icon)
+	var price_label := _label(str(price))
+	price_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	price_label.mouse_filter = MOUSE_FILTER_IGNORE
+	row.add_child(price_label)
+	if not unlocked:
+		row.add_child(_shop_icon(SCIENCE_ICON, "ResearchRequiredIcon"))
+	if button.disabled:
+		column.modulate = get_theme_color("font_disabled_color", "Button")
+	if available:
+		_add_buy_icon(button)
+	column.minimum_size_changed.connect(func() -> void:
+		button.custom_minimum_size.y = maxf(52, column.get_combined_minimum_size().y + 10))
+	return button
+
+func _shop_icon(texture: Texture2D, node_name: String) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = node_name
+	icon.texture = texture
+	icon.custom_minimum_size = Vector2(14, 14)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.size_flags_vertical = SIZE_SHRINK_CENTER
+	icon.mouse_filter = MOUSE_FILTER_IGNORE
+	return icon
 
 func _label(title: String) -> Label:
 	var label := Label.new()
@@ -191,6 +345,9 @@ func _refresh() -> void:
 	refresh_queued = false
 	if traveling:
 		return
+	for tab: Button in tabs.get_children():
+		tab.set_pressed_no_signal(tab.text == active_tab)
+	research_button.set_pressed_no_signal(active_tab == "RESEARCH")
 	if is_instance_valid(canvas):
 		fitting_views[canvas.owned_id] = {"camera": canvas.camera, "zoom": canvas.zoom}
 	if is_instance_valid(formation_view):
@@ -198,10 +355,29 @@ func _refresh() -> void:
 		formation_zoom = formation_view.zoom
 		if formation_view.selected_id == selected_ship_id:
 			formation_selection.assign(formation_view.selected_ids)
+	if is_instance_valid(research_panel):
+		research_view = {"selected_id": research_panel.selected_id,
+			"camera_position": research_panel.tree_canvas.camera_position,
+			"camera_zoom": research_panel.tree_canvas.camera_zoom}
+	research_panel = null
 	formation_view = null
 	header.text = str(GameState.credits)
-	var science := ScienceRules.snapshot(GameState.get_deployed_fleet())
-	research_rate.text = "%s RP/day" % ScienceRules.format_rp(ScienceRules.production_rate(science))
+	var focus: String = GameState.research_focus
+	if focus.is_empty():
+		research_status.text = "Choose Research"
+		research_progress.value = 0
+		research_progress.hide()
+	else:
+		var technology := GameDefinitions.find("research", focus)
+		var required := ResearchFocusRules.cost(focus, GameState.run_progress_snapshot())
+		research_status.text = technology.display_name
+		research_progress.max_value = required
+		research_progress.value = float(GameState.research_progress.get(focus, 0))
+		research_progress.show()
+	if not focus.is_empty():
+		research_pulse_time = 0.0
+		research_pulse.set_shader_parameter("white_mix", 0.0)
+	_resize_research_label.call_deferred()
 	_clear(roster)
 	_clear(details)
 	if is_instance_valid(shop) and shop.get_parent() == center:
@@ -228,6 +404,8 @@ func _refresh() -> void:
 		return
 	if active_tab == "RESEARCH":
 		var research: Control = load("res://scripts/research_panel.gd").new()
+		research.view_state = research_view
+		research_panel = research
 		research.registry = HangarResearch.view_registry()
 		center.add_child(research)
 		research.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
@@ -246,25 +424,28 @@ func _refresh() -> void:
 	ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
 	ship_scroll.add_child(ship_rows)
 	for owned: HangarShip in GameState.fleet:
-		var button := _button(owned.display_name, func() -> void:
+		var button := _button_with_sound(owned.display_name, func() -> void:
 			selected_ship_id = owned.id
 			formation_selection.assign([owned.id])
 			selected_slot = ""
-			_refresh())
+			_refresh(), &"select_tab")
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.icon = flagship_icon if owned.flagship else null
+		if owned.flagship:
+			button.add_theme_constant_override("icon_max_width", 9)
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.name = "Ship%d" % owned.id
 		button.toggle_mode = true
 		button.button_pressed = owned.id == selected_ship_id
 		ship_rows.add_child(button)
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
-	var buy := _button_with_sound("BUY", _open_shop, &"animate_ui")
-	buy.name = "BuyToggle"
+	var mode := "SHIPS" if active_tab == "FLEET" else "EQUIPMENT"
+	var buy := _button_with_sound("Buy Chassis" if mode == "SHIPS" else "Buy Equipment", _open_shop.bind(mode), &"animate_ui")
+	buy.name = "BuyChassis" if mode == "SHIPS" else "BuyEquipment"
 	buy.toggle_mode = true
-	buy.button_pressed = buy_open
+	buy.button_pressed = buy_open and buy_mode == mode
+	buy.disabled = not GameState.is_shipyard_node(GameState.current_node_id)
 	roster.add_child(buy)
-	(roster.get_child(roster.get_child_count() - 1) as Button).disabled = not GameState.is_shipyard_node(GameState.current_node_id)
 	if not GameState.is_shipyard_node(GameState.current_node_id):
 		roster.add_child(_label("Buy at shipyard"))
 	if active_tab == "FLEET":
@@ -309,18 +490,7 @@ func _refresh() -> void:
 			stats_grid.columns = 3 if size.x < 1000 else 5
 			bottom.add_child(stats_grid)
 			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-			stock = load("res://scripts/hangar_stock.gd").new()
-			stock.preferences = stock_preferences.duplicate()
-			stock.size_flags_vertical = SIZE_EXPAND_FILL
-			details.add_child(stock)
-			stock.changed_preferences.connect(func(value: Dictionary) -> void:
-				stock_preferences = value
-				if buy_open and is_instance_valid(shop_filters):
-					shop_filters.set_preferences(value)
-					if buy_mode == "EQUIPMENT":
-						_shop_equipment())
-			stock.equipment_stored.connect(_result)
-			stock.equipment_sold.connect(_result)
+			_show_stock()
 			var repair := _button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id))))
 			repair.disabled = not owned.needs_repair() or GameState.credits < owned.repair_cost()
 			roster.add_child(repair)
@@ -337,9 +507,28 @@ func _refresh() -> void:
 				_result(ok))
 	_show_details()
 	if buy_open:
+		if buy_mode == "EQUIPMENT" and stock == null:
+			_show_stock()
 		_show_buy_panel()
 
+func _show_stock() -> void:
+	_clear(details)
+	stock = load("res://scripts/hangar_stock.gd").new()
+	stock.preferences = stock_preferences.duplicate()
+	stock.size_flags_vertical = SIZE_EXPAND_FILL
+	details.add_child(stock)
+	stock.changed_preferences.connect(func(value: Dictionary) -> void:
+		stock_preferences = value
+		if buy_open and is_instance_valid(shop_filters):
+			shop_filters.set_preferences(value)
+			if buy_mode == "EQUIPMENT":
+				_shop_equipment())
+	stock.equipment_stored.connect(_result)
+	stock.equipment_sold.connect(_result)
+
 func _show_details() -> void:
+	if buy_open and buy_mode == "EQUIPMENT" and active_tab == "FLEET":
+		return
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 	if owned == null:
 		_clear(details)
@@ -348,6 +537,26 @@ func _show_details() -> void:
 		var repair := _button("REPAIR ALL %d cr" % cost, func() -> void: _result(GameState.repair_all_ships()))
 		repair.disabled = cost <= 0 or GameState.credits < cost
 		details.add_child(repair)
+		var totals := {"dps": 0.0, "shields": 0.0, "integrity": 0.0, "integrity_max": 0.0,
+			"cargo": 0, "passengers": 0}
+		for ship: HangarShip in GameState.fleet:
+			if not ship.is_alive():
+				continue
+			var summary := ship.hangar_summary()
+			for key: String in totals:
+				totals[key] += summary[key]
+		var lines: Array[String] = [
+			"DPS %.1f" % totals.dps,
+			"Shield %.0f" % totals.shields,
+			"Hull %.0f / %.0f" % [totals.integrity, totals.integrity_max],
+			"%s RP / day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.fleet)))]
+		if totals.cargo > 0:
+			lines.append("Cargo capacity %d" % totals.cargo)
+		if totals.passengers > 0:
+			lines.append("Passenger capacity %d" % totals.passengers)
+		var fleet_stats := _label("\n".join(lines))
+		fleet_stats.name = "FleetTotals"
+		details.add_child(fleet_stats)
 		return
 	if active_tab == "SHIPS":
 		if stats_grid == null:
@@ -487,10 +696,11 @@ func _modal(title: String) -> VBoxContainer:
 		shop = null)
 	return column
 
-func _open_shop() -> void:
+func _open_shop(mode := "EQUIPMENT") -> void:
 	if not GameState.is_shipyard_node(GameState.current_node_id):
 		return
-	buy_open = not buy_open
+	buy_open = not buy_open or buy_mode != mode
+	buy_mode = mode
 	_refresh()
 
 func _show_buy_panel() -> void:
@@ -504,7 +714,10 @@ func _show_buy_panel() -> void:
 	card.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var column := VBoxContainer.new()
 	card.add_child(column)
-	column.add_child(_label("BUY"))
+	var heading := _label("Buy Chassis" if buy_mode == "SHIPS" else "Buy Equipment")
+	heading.name = "ShopHeading"
+	heading.custom_minimum_size.y = 22
+	column.add_child(heading)
 	var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
 	card.add_child(close)
 	close.set_anchors_preset(PRESET_TOP_RIGHT)
@@ -512,15 +725,19 @@ func _show_buy_panel() -> void:
 	close.pressed.connect(func() -> void:
 		buy_open = false
 		_refresh())
-	var modes := HBoxContainer.new()
-	column.add_child(modes)
-	modes.add_child(_button("EQUIPMENT", func() -> void: _shop_equipment()))
-	modes.add_child(_button("SHIPS", func() -> void: _shop_ships()))
 	shop_filters = EquipmentFilters.new()
 	shop_filters.name = "ShopFilters"
 	shop_filters.set_preferences(stock_preferences)
 	column.add_child(shop_filters)
 	shop_filters.changed.connect(_shop_equipment_filters_changed)
+	researched_filter = CheckBox.new()
+	researched_filter.name = "OnlyResearched"
+	researched_filter.text = "Only show researched"
+	researched_filter.button_pressed = only_researched
+	shop_filters.get_child(1).add_child(researched_filter)
+	researched_filter.toggled.connect(func(enabled: bool) -> void:
+		only_researched = enabled
+		_shop_equipment())
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -536,6 +753,7 @@ func _show_buy_panel() -> void:
 func _shop_equipment() -> void:
 	buy_mode = "EQUIPMENT"
 	shop_filters.show()
+	researched_filter.show()
 	_clear(shop_rows)
 	var grants: Dictionary = GameState.research_grants()
 	var candidates: Array[Dictionary] = []
@@ -543,6 +761,8 @@ func _shop_equipment() -> void:
 		if item.id in HangarResearch.DEFERRED_EQUIPMENT or item.id in HangarResearch.DEFERRED_PURCHASES:
 			continue
 		if not shop_filters.matches(item):
+			continue
+		if only_researched and not SlotCatalog.unlocked(item, grants):
 			continue
 		candidates.append(item)
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -554,17 +774,18 @@ func _shop_equipment() -> void:
 			return a_name < b_name
 		return int(a.price) < int(b.price))
 	for item: Dictionary in candidates:
-		var button := _button_with_sound(
-			"%s\n%s %s | %d cr%s" % [item.name, item.type.capitalize(), item.size, item.price, "" if SlotCatalog.unlocked(item, grants) else " | Research"],
+		var unlocked := SlotCatalog.unlocked(item, grants)
+		var button := _shop_button(
+			item.name, "%s %s" % [item.type.capitalize(), item.size], int(item.price),
+			unlocked, unlocked and GameState.credits >= int(item.price),
 			func() -> void:
 				var ok := GameState.buy_equipment(item.id, int(item.rank))
 				if ok:
 					AudioManager.play_ui_sfx(&"purchase")
-				_result(ok),
-			&""
+				_result(ok)
 		)
-		_add_buy_icon(button)
-		button.disabled = not SlotCatalog.unlocked(item, grants) or GameState.credits < int(item.price)
+		button.set_meta("equipment_id", item.id)
+		button.set_meta("rank", int(item.rank))
 		shop_rows.add_child(button)
 	if candidates.is_empty():
 		shop_rows.add_child(_label("No matches"))
@@ -581,6 +802,7 @@ func _shop_equipment_filters_changed(value: Dictionary) -> void:
 func _shop_ships() -> void:
 	buy_mode = "SHIPS"
 	shop_filters.hide()
+	researched_filter.hide()
 	_clear(shop_rows)
 	var available := SlotCatalog.chassis()
 	available.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -599,17 +821,15 @@ func _shop_ships() -> void:
 		image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(image)
-		var button := _button_with_sound(
-			"%s\n%d command | %d cr" % [chassis.name, chassis.command_cost, chassis.price],
+		var available_to_buy := GameState.credits >= int(chassis.price) and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
+		var button := _shop_button(
+			chassis.name, "%d command" % chassis.command_cost, int(chassis.price), true, available_to_buy,
 			func() -> void:
 				var ok := GameState.buy_chassis(chassis.id)
 				if ok:
 					AudioManager.play_ui_sfx(&"purchase")
-				_result(ok),
-			&""
+				_result(ok)
 		)
-		_add_buy_icon(button)
-		button.disabled = GameState.credits < int(chassis.price) or GameState.used_command() + int(chassis.command_cost) > GameState.command_limit()
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(button)
 

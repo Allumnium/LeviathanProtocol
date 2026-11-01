@@ -29,11 +29,42 @@ func check(ok: bool, message: String) -> void:
 
 func run() -> void:
 	var paths: Array[String] = []
+	var fleet_view: Control = load("res://scripts/hangar_formation.gd").new()
+	fleet_view.size = Vector2(640, 360)
+	fleet_view.zoom = 1.2
+	var battle_view: Control = load("res://scripts/battle_visuals.gd").new()
+	var simulation := BattleSimulation.new()
 	for chassis: Dictionary in SlotCatalog.chassis():
 		paths.append(chassis.art)
 		var ship := HangarShip.new()
 		check(ship.initialize_chassis(chassis.id, 1), "Mapped chassis initializes: " + chassis.id)
 		check(ship.art_texture is CanvasTexture, "Chassis uses surface maps: " + chassis.id)
+		var stats := ship.get_stats()
+		var fleet_rect: Rect2 = fleet_view.ship_rect(ship)
+		var battle_rect: Rect2 = battle_view.hangar_ship_rect(ship)
+		check(fleet_rect.size.is_equal_approx(Vector2.ONE * 52 * 1.2 * 0.25)
+			and battle_rect.size.is_equal_approx(Vector2.ONE * 512 * HangarShip.ART_SCALE * 0.25),
+			"Non-flagship is quarter width/height in Fleet and battle: " + chassis.id)
+		check(fleet_rect.get_center().is_equal_approx(fleet_view.point(ship))
+			and battle_rect.get_center().is_zero_approx(), "Scaled art remains centered: " + chassis.id)
+		var actor := BattleSimulation.Combatant.new()
+		actor.owned_ship = ship
+		actor.position = Vector2(100, 50)
+		actor.heading = PI / 2
+		var weapon := ShipWeaponStats.new("Scale fixture", 1.0, 1.0, 1)
+		weapon.mount_offset = Vector2(12, 8)
+		check(simulation._get_weapon_origin(actor, weapon).is_equal_approx(
+			actor.position + (weapon.mount_offset * 0.25).rotated(actor.heading)),
+			"Escort weapon launches follow scaled mounts: " + chassis.id)
+		ship.flagship = true
+		check(fleet_view.ship_rect(ship).size.is_equal_approx(fleet_rect.size * 4)
+			and battle_view.hangar_ship_rect(ship).size.is_equal_approx(battle_rect.size * 4),
+			"Flagship retains full Fleet and battle size: " + chassis.id)
+		check(is_equal_approx(ship.get_stats().collision_radius, stats.collision_radius)
+			and ship.get_stats().footprint_size == stats.footprint_size,
+			"View scale does not change combat geometry: " + chassis.id)
+	fleet_view.free()
+	battle_view.free()
 	for id in ["cargo_hold", "mini_turret"]:
 		var item := SlotCatalog.find_equipment(id)
 		check(not item.is_empty(), "Equipment fixture exists: " + id)

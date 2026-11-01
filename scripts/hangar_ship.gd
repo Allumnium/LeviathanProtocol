@@ -3,6 +3,7 @@ extends FleetShip
 
 # Mount handles bridge the existing combat API; they are not construction cells.
 const ART_SCALE := 0.18
+const ESCORT_VIEW_SCALE := 0.25
 var chassis_id := ""
 var flagship := false
 var hull_hp := 0.0
@@ -35,6 +36,9 @@ func is_slot_ship() -> bool:
 
 func is_flagship() -> bool:
 	return flagship
+
+func fleet_view_scale() -> float:
+	return 1.0 if flagship else ESCORT_VIEW_SCALE
 
 func rebuild_units(previous: Dictionary = {}) -> void:
 	equipment_art.clear()

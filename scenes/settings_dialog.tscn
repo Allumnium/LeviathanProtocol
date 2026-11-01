@@ -7,7 +7,7 @@
 
 [node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
 initial_position = 1
-size = Vector2i(500, 290)
+size = Vector2i(500, 244)
 exclusive = true
 content_scale_factor = 1.0
 script = ExtResource("2_script")
@@ -30,6 +30,7 @@ vertical_alignment = 1
 [node name="MusicSlider" type="HSlider" parent="Contents/ContentArea/MusicRow" index="1" unique_id=222398829]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
 value = 50.0
 
 [node name="AmbienceRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="1" unique_id=830423329]
@@ -47,6 +48,7 @@ vertical_alignment = 1
 [node name="AmbienceSlider" type="HSlider" parent="Contents/ContentArea/AmbienceRow" index="1" unique_id=2115774007]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
 value = 50.0
 
 [node name="EffectsRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="2" unique_id=709174921]
@@ -64,6 +66,7 @@ vertical_alignment = 1
 [node name="EffectsSlider" type="HSlider" parent="Contents/ContentArea/EffectsRow" index="1" unique_id=1484295371]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
 value = 50.0
 
 [node name="BattleAutoCameraRow" type="HBoxContainer" parent="Contents/ContentArea" index="3"]
@@ -78,10 +81,9 @@ size_flags_horizontal = 3
 text = "Battle auto-camera"
 vertical_alignment = 1
 
-[node name="BattleAutoCameraButton" type="Button" parent="Contents/ContentArea/BattleAutoCameraRow"]
-custom_minimum_size = Vector2(180, 40)
+[node name="BattleAutoCameraButton" type="CheckBox" parent="Contents/ContentArea/BattleAutoCameraRow"]
+custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
-text = "ON"
 
 [node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="4"]
 custom_minimum_size = Vector2(0, 36)

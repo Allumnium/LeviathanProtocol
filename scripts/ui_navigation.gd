@@ -8,8 +8,12 @@ func _ready() -> void:
  for action in [&"ui_focus_next", &"ui_focus_prev", &"ui_left", &"ui_right", &"ui_up", &"ui_down"]:
   InputMap.action_erase_events(action)
  get_tree().node_added.connect(_configure)
+ _configure(get_tree().root)
 
 func _configure(node: Node) -> void:
+ if node is Window:
+  node.snap_2d_transforms_to_pixel = true
+  node.snap_2d_vertices_to_pixel = true
  if node is BaseButton or node is Range:
   node.focus_mode = Control.FOCUS_NONE
  elif node is LineEdit or node is TextEdit:
