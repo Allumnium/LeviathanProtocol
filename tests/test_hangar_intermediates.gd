@@ -18,7 +18,7 @@ func install(ship: HangarShip, id: String) -> int:
 	var item := SlotCatalog.find_equipment(id)
 	var key := "fixture_%d" % ship.mounts.size()
 	ship.chassis.slots.append({"id": key, "type": item.type, "size": item.size, "rect": [80, 80, 32, 32]})
-	ship.mounts[key] = {"uid": str(ship.mounts.size() + 1), "equipment_id": id, "rank": 1, "hp": item.hit_points}
+	ship.mounts[key] = {"uid": str(ship.mounts.size() + 1), "equipment_id": id, "rank": 1}
 	ship.rebuild_units()
 	return ship.units.size() - 1
 
@@ -51,6 +51,8 @@ func run() -> void:
 	computers()
 	marks()
 	railguns()
+	hull_repairs()
+	fighter_mechanics()
 	transactions()
 	campaign_samples()
 	print("HANGAR INTERMEDIATES: %d checks, %d failures" % [checks, failures])
@@ -70,10 +72,11 @@ func magazines() -> void:
 		check(is_equal_approx(one.weapons[index].fire_interval_seconds, base.weapons[index].fire_interval_seconds / 1.2), "Magazine supports every host weapon")
 		check(is_equal_approx(two.weapons[index].fire_interval_seconds, base.weapons[index].fire_interval_seconds / 1.4), "Copies stack on every host weapon")
 		check(two.weapons[index].damage_per_shot == base.weapons[index].damage_per_shot, "Magazine does not multiply damage as well")
-	ship.units[second].hp = 0
-	check(ship.weapon_cycle_rate() == 1.2, "Losing one magazine removes only its contribution")
-	ship.units[first].hp = 0
-	check(ship.weapon_cycle_rate() == 1.0, "Destroyed magazines grant no benefit")
+	var identities := ship.mounts.duplicate(true)
+	ship.damage_cell(Vector2i(second, 0), ship.hull_hp * 0.75)
+	check(ship.weapon_cycle_rate() == 1.4 and ship.mounts == identities, "Substantial magazine hit leaves both unique magazines and cycling operational")
+	ship.damage_cell(Vector2i(first, 0), ship.hull_hp)
+	check(ship.is_alive() and ship.weapon_cycle_rate() == 1.4, "Zero-hull ship retains both magazine contributions")
 	var bay_ship := hull()
 	install(bay_ship, "flight_deck")
 	install(bay_ship, "ammunition_magazine")
@@ -115,11 +118,15 @@ func computers() -> void:
 	sim.player.cooldowns[0] = 99
 	sim.doctrines._synchronize(sim, sim.player, 6)
 	check(sim.player.cooldowns[0] == 99, "Synchronization never restarts an in-progress beam charge")
-	ship.units[first].hp = 0
-	ship.units[-1].hp = 0
+	ship.damage_cell(Vector2i(first, 0), ship.hull_hp * 0.75)
+	sim.doctrines.charges.clear()
+	sim.player.cooldowns[0] = 99
+	sim.doctrines._synchronize(sim, sim.player, 6)
+	check(sim.player.cooldowns[0] == 0 and CombatDoctrines.operational(sim.player, ShipPart.Type.TACTICAL_COMPUTER).size() == 2, "Hull damage leaves both computers synchronizing")
+	ship.damage_cell(Vector2i(-1, 0), ship.hull_hp + 0.01)
 	sim.player.cooldowns[0] = 99
 	sim.doctrines._synchronize(sim, sim.player, 60)
-	check(sim.player.cooldowns[0] == 99, "Computer source loss removes synchronization")
+	check(sim.player.cooldowns[0] == 99, "Destroyed computer host removes synchronization")
 
 func marks() -> void:
 	var ship := hull()
@@ -134,9 +141,8 @@ func marks() -> void:
 	sim.player.analysis_target_id = target.entity_id
 	check(sim._analysis_multiplier(sim.player, target) == 1.2, "Research analysis and command mark use strongest effect")
 	check(sim.doctrines.mark_multiplier(sim, target, sim.player) == 1.0, "Mark never buffs enemy attacks")
-	ship.units[uplink].hp = 0
-	check(sim._analysis_multiplier(sim.player, target) == 1.05, "Uplink destruction ends the mark immediately")
-	ship.units[uplink].hp = 25
+	ship.damage_cell(Vector2i(uplink, 0), ship.hull_hp * 0.75)
+	check(sim._analysis_multiplier(sim.player, target) == 1.2, "Hull damage does not interrupt automatic command mark")
 	sim.doctrines.marks.clear()
 	sim.doctrines.mark_timers.clear()
 	sim.aliens[0].position = Vector2(600, 0)
@@ -148,6 +154,8 @@ func marks() -> void:
 	sim.refresh_visibility()
 	sim.doctrines._mark(sim, sim.player, 1)
 	check(sim.doctrines.marks.is_empty(), "Uplink cannot reveal or mark a hidden enemy")
+	ship.damage_cell(Vector2i(uplink, 0), ship.hull_hp + 0.01)
+	check(sim._analysis_multiplier(sim.player, target) == 1.0, "Destroyed host supplies neither command mark nor lab analysis")
 
 func railguns() -> void:
 	var ship := hull()
@@ -188,11 +196,104 @@ func transactions() -> void:
 		var item := SlotCatalog.find_equipment(id)
 		check(SlotCatalog.chassis().any(func(chassis: Dictionary) -> bool: return chassis.slots.any(func(slot: Dictionary) -> bool: return SlotCatalog.compatible(slot, item))), "Each intermediate has a real exact-type/size mount")
 
+func fighter_mechanics() -> void:
+	var flagship := hull()
+	mount(flagship, "fore", "mini_turret", 1)
+	var fighter := HangarShip.new()
+	check(fighter.initialize_chassis("fighter", 2), "Initialize supplied fighter")
+	mount(fighter, "fore", "mini_turret", 2)
+	var base := SlotCatalog.stats_for("mini_turret").weapons[0].damage_per_shot
+	check(fighter.get_stats().weapons[0].damage_per_shot == base * 1.3
+		and fighter.chassis.dodge_chance == 0.2, "Fighter retains draft thirty-percent weapon damage and twenty-percent dodge")
+	var identities := fighter.mounts.duplicate(true)
+	fighter.damage_cell(Vector2i(1, 0), 75)
+	var sim := BattleSimulation.new()
+	var ships: Array[FleetShip] = [flagship, fighter]
+	var enemies: Array[RefCounted] = [enemy()]
+	check(sim.setup_owned(ships, enemies, 0, 0, 327, {"credits_only": true}), "Damaged fighter enters shared combat")
+	var target: BattleSimulation.Combatant = sim.players[1]
+	var expected := RandomNumberGenerator.new()
+	var dodges := 0
+	for seed_value in range(64):
+		sim.random.seed = seed_value
+		expected.seed = seed_value
+		var dodged := expected.randf() < 0.2
+		dodges += 1 if dodged else 0
+		var before := fighter.hull_hp
+		sim._damage(target, 0.1, sim.aliens[0].position, sim.aliens[0], "Fixture pulse", false, true)
+		check(is_equal_approx(fighter.hull_hp, before if dodged else before - 0.1), "Damaged fighter retains deterministic weapon-hit dodge chance")
+	check(dodges > 0 and dodges < 64 and fighter.mounts == identities
+		and fighter.get_stats().weapons[0].damage_per_shot == base * 1.3, "Dodge and damage bonuses operate without changing fitted instances")
+	var before := fighter.hull_hp
+	sim._damage(target, 1, sim.aliens[0].position, sim.aliens[0], "Fixture collision")
+	check(fighter.hull_hp == before - 1, "Fighter dodge does not evade bare-hull environmental damage")
+
+func hull_repairs() -> void:
+	var ship := hull()
+	install(ship, "mini_turret")
+	install(ship, "repair_drone_bay")
+	var identities := ship.mounts.duplicate(true)
+	var dps := ship.get_stats().dps
+	var sim := setup(ship)
+	sim._damage(sim.player, sim.player.shields + 100, sim.aliens[0].position, sim.aliens[0], "Fixture hit")
+	var damaged := ship.hull_hp
+	sim.doctrines._launch(sim, sim.player, 0.01)
+	check(sim.doctrines.drones.size() == 1 and sim.doctrines.drones[0].unit == -1
+		and sim.doctrines.pool.repair_spent == 4, "Repair drone targets hull and spends a finite four-point payload")
+	sim.doctrines._update_drones(sim, 0.01)
+	check(ship.hull_hp == damaged + 4 and sim.player.repaired_hp == 4, "Repair drone heals only hull and reports actual healing")
+	sim.doctrines._launch(sim, sim.player, 1)
+	check(sim.doctrines.drones.is_empty() and sim.doctrines.pool.repair_spent == 4, "Repair bay keeps its two-second launch cycle")
+	for index in range(4):
+		sim.doctrines._launch(sim, sim.player, 2)
+		sim.doctrines._update_drones(sim, 0.01)
+	check(ship.hull_hp == damaged + 20 and sim.doctrines.pool.repair_spent == 20, "Repair bay exhausts its twenty-point encounter allowance")
+	sim.doctrines._launch(sim, sim.player, 60)
+	check(sim.doctrines.drones.is_empty() and ship.hull_hp == damaged + 20, "Exhausted repair allowance cannot regenerate")
+	check(ship.mounts == identities and ship.get_stats().dps == dps
+		and ship.units.all(func(unit: Dictionary) -> bool: return unit.hp == 1 and unit.max_hp == 1), "Hull healing never mutates equipment identity or operational markers")
+	var retry := BattleSimulation.new()
+	var ships: Array[FleetShip] = [ship]
+	var enemies: Array[RefCounted] = [enemy()]
+	check(retry.setup_owned(ships, enemies, 0, 0, 327, {"credits_only": true,
+		"doctrine_pool": JSON.parse_string(JSON.stringify(sim.doctrines.pool))}), "Retry resumes finite hull-repair pool")
+	retry.doctrines._launch(retry, retry.player, 60)
+	check(retry.doctrines.drones.is_empty() and retry.doctrines.pool.repair_spent == 20, "Retry cannot refill repair drones")
+	var doomed := hull()
+	install(doomed, "mini_turret")
+	var source := install(doomed, "repair_drone_bay")
+	var lost := setup(doomed)
+	doomed.damage_cell(Vector2i(source, 0), 10)
+	lost.doctrines._launch(lost, lost.player, 0.01)
+	doomed.damage_cell(Vector2i(source, 0), doomed.hull_hp + 1)
+	var dead_hp := doomed.hull_hp
+	lost.doctrines._update_drones(lost, 0.01)
+	check(lost.doctrines.drones.is_empty() and doomed.hull_hp == dead_hp
+		and lost.doctrines.pool.repair_spent == 4, "Destroyed repair host ends delivery without refund or resurrection")
+	# Station remains a compatibility fixture, not a newly enabled purchase.
+	var station_ship := hull()
+	install(station_ship, "mini_turret")
+	var station := install(station_ship, "repair_station")
+	var station_sim := setup(station_ship)
+	var station_identity := station_ship.mounts.duplicate(true)
+	station_ship.damage_cell(Vector2i(station, 0), 50)
+	var station_hp := station_ship.hull_hp
+	SharedSupport.repair(station_sim, 2)
+	check(station_ship.hull_hp == station_hp + 4 and station_sim.repair_spent == 4, "Compatibility station heals hull at its existing two-point rate")
+	SharedSupport.repair(station_sim, 60)
+	check(station_ship.hull_hp == station_hp + 20 and station_sim.repair_spent == 20, "Station retains finite twenty-point allowance")
+	SharedSupport.repair(station_sim, 60)
+	check(station_ship.hull_hp == station_hp + 20 and station_ship.mounts == station_identity, "Spent station cannot refill or mutate equipment")
+	station_ship.damage_cell(Vector2i(station, 0), station_ship.hull_hp + 1)
+	var station_dead := station_ship.hull_hp
+	SharedSupport.repair(station_sim, 60)
+	check(station_ship.hull_hp == station_dead, "Station cannot resurrect a destroyed hull")
+
 func mount(ship: HangarShip, slot: String, id: String, uid: int) -> void:
 	var item := SlotCatalog.find_equipment(id)
 	var location: Dictionary = ship.chassis.slots.filter(func(row: Dictionary) -> bool: return row.id == slot)[0]
 	check(SlotCatalog.compatible(location, item), "Campaign sample uses a real matching mount")
-	ship.mounts[slot] = {"uid": str(uid), "equipment_id": id, "rank": 1, "hp": item.hit_points}
+	ship.mounts[slot] = {"uid": str(uid), "equipment_id": id, "rank": 1}
 	ship.rebuild_units()
 
 func campaign_samples() -> void:

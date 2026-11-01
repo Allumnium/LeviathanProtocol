@@ -33,10 +33,10 @@ func refresh(sim) -> void:
 	for member in sim._members:
 		if member.faction not in [0, 1] or not member.is_alive() or not member.has_tag("combatant"):
 			continue
-		if member.owned_ship != null:
+		if member.owned_ship != null and not member.owned_ship is HangarShip:
 			if member.owned_ship.core_index < 0 or member.owned_ship.units[member.owned_ship.core_index].hp <= 0:
 				continue
-		elif member.has_tag("craft") or member.has_tag("organ") or member.has_tag("summon") or member.has_tag("decoy"):
+		elif member.owned_ship == null and (member.has_tag("craft") or member.has_tag("organ") or member.has_tag("summon") or member.has_tag("decoy")):
 			continue
 		var origin := source_position(member)
 		sources[member.faction].append({"position": origin, "sight": SIGHT, "radar": RADAR})

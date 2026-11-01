@@ -235,6 +235,8 @@ func _relay(sim, source, delta: float) -> void:
 
 func _rebuild(sim, member) -> void:
 	var owned: FleetShip = member.owned_ship
+	if owned is HangarShip:
+		return
 	if pool.rebuilt.has(str(owned.id)) or pool.rebuilt.size() >= pool.rebuild_capacity or operational(member, ShipPart.Type.NANOFORGE).is_empty():
 		return
 	for index in range(owned.units.size()):
@@ -254,6 +256,12 @@ func _repair_target(sim, source):
 	var largest := 0.0
 	for member in sim.players:
 		if not member.is_alive() or member.owned_ship == null or source.position.distance_to(member.position) > 220:
+			continue
+		if member.owned_ship is HangarShip:
+			var damage: float = member.owned_ship.hull_max - member.owned_ship.hull_hp
+			if damage > largest:
+				largest = damage
+				chosen = {"member": member, "index": -1}
 			continue
 		for index in range(member.owned_ship.units.size()):
 			var unit: Dictionary = member.owned_ship.units[index]
@@ -316,13 +324,19 @@ func _update_drones(sim, delta: float) -> void:
 		drone.position = drone.position.move_toward(target.position, delta * 100)
 		if drone.position.distance_to(target.position) > target.radius:
 			continue
-		var unit: Dictionary = target.owned_ship.units[job.unit]
-		if unit.hp > 0:
-			var amount := minf(job.amount, unit.max_hp - unit.hp)
-			unit.hp += amount
+		if target.owned_ship is HangarShip:
+			var amount: float = target.owned_ship.repair_hull(job.amount)
 			target.repaired_hp += amount
 			sim._refresh_owned_stats(target)
-			sim._record_event("repair_delivery", {"target": target.entity_id, "unit": job.unit, "hp": amount})
+			sim._record_event("repair_delivery", {"target": target.entity_id, "hp": amount})
+		else:
+			var unit: Dictionary = target.owned_ship.units[job.unit]
+			if unit.hp > 0:
+				var amount := minf(job.amount, unit.max_hp - unit.hp)
+				unit.hp += amount
+				target.repaired_hp += amount
+				sim._refresh_owned_stats(target)
+				sim._record_event("repair_delivery", {"target": target.entity_id, "unit": job.unit, "hp": amount})
 		drone.integrity = 0
 		drones.remove_at(index)
 

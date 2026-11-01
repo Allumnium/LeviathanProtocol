@@ -1,6 +1,7 @@
 extends Control
 
 const EquipmentFilters = preload("res://scripts/hangar_equipment_filters.gd")
+const StatBars = preload("res://scripts/ship_stat_bars.gd")
 const CREDITS_ICON: Texture2D = preload("res://assets/credits.png")
 const SCIENCE_ICON: Texture2D = preload("res://assets/science.png")
 const BUY_ICON: Texture2D = preload("res://assets/ui/Btn_BuyCoins_n.png")
@@ -225,7 +226,7 @@ func _resize_panels() -> void:
 	if details_panel != null:
 		details_panel.custom_minimum_size.x = clampf(size.x * 0.24, 180, 300)
 	if stats_grid != null and is_instance_valid(stats_grid):
-		stats_grid.columns = 3 if size.x < 1000 else 5
+		stats_grid.columns = 2 if size.x < 1000 else 4
 
 func _resize_research_label() -> void:
 	var text_width := research_status.get_theme_font("font").get_string_size(
@@ -260,7 +261,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not inspected_item.is_empty():
 		var hovered := get_viewport().gui_get_hovered_control()
 		while hovered != null:
-			if hovered == inspection or hovered.has_meta("inspect_equipment") or hovered.has_meta("inspect_chassis") or hovered.has_meta("hangar_slot"):
+			if hovered == inspection or hovered.has_meta("inspect_equipment") or hovered.has_meta("inspect_chassis"):
 				return
 			hovered = hovered.get_parent_control()
 		_clear_inspection.call_deferred()
@@ -309,19 +310,21 @@ func _render_inspection() -> void:
 		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
 		var stats := ship.get_stats()
 		body.add_child(_resource_label(chassis.name))
-		body.add_child(_resource_label("Hull %.0f\nThrust %.0f\nMass %.0f\nSpeed %.1f\nAcceleration %.1f\nTurn %.2f\nShields %.0f\nCommand %d\nPrice %d cr" %
-			[chassis.integrity, stats.thrust, stats.weight, stats.top_speed, stats.acceleration, stats.turn_rate, stats.shields,
-			chassis.command if chassis.command > 0 else chassis.command_cost, chassis.price]))
+		var bars := StatBars.new()
+		body.add_child(bars)
+		bars.set_ship(ship)
+		body.add_child(_resource_label("Command %d\nPrice %d cr" %
+			[chassis.command if chassis.command > 0 else chassis.command_cost, chassis.price]))
 		var bonuses: Array[String] = []
 		if chassis.get("weapon_damage_multiplier", 1.0) != 1.0:
 			bonuses.append("%+.0f%% weapon damage" % ((chassis.weapon_damage_multiplier - 1.0) * 100))
 		if chassis.get("dodge_chance", 0.0) > 0:
 			bonuses.append("%.0f%% weapon-hit dodge" % (chassis.dodge_chance * 100))
 		body.add_child(_label("Bonuses / penalties\n" + ("None" if bonuses.is_empty() else "\n".join(bonuses))))
-		body.add_child(_label("Built-in Command Center: 30 HP\nBuilt-in Engine: 25 HP"))
 		if chassis.has("builtin_shield"):
-			body.add_child(_resource_label("Built-in Shield Generator I: %.0f HP\n%.0f shields | %.1f recharge/s\nafter 4s without damage" %
-				[HangarShip.builtin_health(chassis).shield, stats.shields, stats.shield_recharge * 0.04]))
+			var shield := SlotCatalog.find_equipment(chassis.builtin_shield)
+			body.add_child(_resource_label("Built-in %s I\nShields %d | %d recharge/s after 4s" %
+				[shield.name, roundi(shield.stats.shields), roundi(shield.stats.shields * 0.04)]))
 		body.add_child(_label("Mounts"))
 		for slot: Dictionary in chassis.slots:
 			body.add_child(_label("%s: %s" % [slot.id.replace("_", " ").capitalize(), SlotCatalog.slot_label(slot)]))
@@ -329,8 +332,8 @@ func _render_inspection() -> void:
 		var item := SlotCatalog.find_equipment(inspected_item.id, int(inspected_item.rank))
 		var instance: Dictionary = GameState.equipment_inventory.get(inspected_item.uid, {})
 		body.add_child(_resource_label(item.name))
-		body.add_child(_resource_label("%s %s\nHP %.0f / %.0f\nMass %.0f\nPrice %d cr\n%s" %
-			[item.size, item.type.capitalize(), instance.get("hp", item.hit_points), item.hit_points, item.stats.weight, item.price, _part_effect(item)]))
+		body.add_child(_resource_label("%s %s\nMass %.0f\nPrice %d cr\n%s" %
+			[item.size, item.type.capitalize(), item.stats.weight, item.price, _part_effect(item)]))
 		for weapon: ShipWeaponStats in SlotCatalog.stats_for(item.id, int(item.rank)).weapons:
 			body.add_child(_label("%s\n%.1f damage x %d | %.1fs cycle\nRange %.0f | Charge %.1fs" %
 				[weapon.weapon_name, weapon.damage_per_shot, weapon.projectiles_per_activation, weapon.fire_interval_seconds, weapon.range_units, weapon.charge_seconds]))
@@ -633,13 +636,13 @@ func _refresh() -> void:
 			canvas.set_owned(owned)
 			var bottom := Control.new()
 			bottom.name = "ShipOrPartDetails"
-			bottom.custom_minimum_size.y = 64
+			bottom.custom_minimum_size.y = 128
 			stack.add_child(bottom)
 			slot_info = _resource_label("")
 			bottom.add_child(slot_info)
 			slot_info.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-			stats_grid = GridContainer.new()
-			stats_grid.columns = 3 if size.x < 1000 else 5
+			stats_grid = StatBars.new()
+			stats_grid.columns = 2 if size.x < 1000 else 4
 			bottom.add_child(stats_grid)
 			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 			_show_stock()
@@ -729,22 +732,19 @@ func _show_details() -> void:
 		if not slot.is_empty():
 			var instance: Dictionary = owned.mounts.get(selected_slot, {})
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			slot_info.set_content("%s\nHP %.0f / %.0f | %s\n%s" % [item.name, instance.hp, item.hit_points, SlotCatalog.slot_label(slot), _part_effect(item)])
+			slot_info.set_content("%s\n%s %s\n%s" % [item.name, item.size, item.type.capitalize(), _part_effect(item)])
 			return
-		_clear(stats_grid)
-		var summary := owned.hangar_summary()
-		for value in ["Integrity\n%.0f / %.0f" % [summary.integrity, summary.integrity_max],
-			"Shields\n%.0f" % summary.shields, "DPS\n%.1f" % summary.dps,
-			"Cargo\n%d" % summary.cargo, "Passengers\n%d" % summary.passengers]:
-			var label := _resource_label(value)
-			label.size_flags_horizontal = SIZE_EXPAND_FILL
-			stats_grid.add_child(label)
+		stats_grid.set_ship(owned)
 		return
 	_clear(details)
 	details.add_child(_label(owned.display_name))
-	details.add_child(_label("Hull %.0f / %.0f" % [owned.hull_hp, owned.hull_max]))
-	var stats := owned.get_stats()
-	details.add_child(_resource_label("Shield %.0f\nDPS %.1f" % [stats.shields, stats.dps]))
+	var stat_scroll := ScrollContainer.new()
+	stat_scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	stat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	details.add_child(stat_scroll)
+	var bars := StatBars.new()
+	stat_scroll.add_child(bars)
+	bars.set_ship(owned)
 	if not selected_slot.is_empty():
 		for slot: Dictionary in owned.chassis.slots:
 			if slot.id == selected_slot:
@@ -752,7 +752,7 @@ func _show_details() -> void:
 		var instance: Dictionary = owned.mounts.get(selected_slot, {})
 		if not instance.is_empty():
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			details.add_child(_resource_label(item.name + " #%s\nHP %.0f / %.0f" % [instance.uid, instance.hp, item.hit_points]))
+			details.add_child(_resource_label("%s\n%s %s\n%s" % [item.name, item.size, item.type.capitalize(), _part_effect(item)]))
 			if item.id == "research_lab":
 				details.add_child(_resource_label("%d RP/day" % int(item.rank)))
 			if item.id in HangarCarriers.CAPACITIES:
@@ -785,10 +785,10 @@ func _part_effect(item: Dictionary) -> String:
 		"ammunition_magazine": return "+20% weapon cycling"
 		"tactical_computer": return "Salvo / 12s per computer"
 		"command_uplink": return "Auto mark: +20% / 5s"
-		"repair_station": return "Repair %.0f HP/s\n%.0f HP reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
-		"repair_drone_bay": return "Repair drones: 4 HP / 2s\n20 HP reserve per encounter"
+		"repair_station": return "Repair %.0f hull/s\n%.0f hull reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
+		"repair_drone_bay": return "Repair drones: 4 hull / 2s\n20 hull reserve per encounter"
 		"shield_relay": return "Share shields: 2/s\nRange 180"
-		"nanoforge": return "Rebuild one component at 25% HP\nOnce per encounter"
+		"nanoforge": return "Deferred"
 	if item.id in HangarCarriers.CAPACITIES:
 		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
 	var values: Dictionary = item.stats

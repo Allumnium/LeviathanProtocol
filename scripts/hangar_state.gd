@@ -132,7 +132,7 @@ func _new_equipment(key: String, rank := 1) -> Dictionary:
 		return {}
 	var uid := str(next_equipment_id)
 	next_equipment_id += 1
-	var instance := {"uid": uid, "equipment_id": key, "rank": rank, "hp": float(item.hit_points)}
+	var instance := {"uid": uid, "equipment_id": key, "rank": rank}
 	equipment_inventory[uid] = instance
 	return instance
 
@@ -145,13 +145,13 @@ func _give_equipment(owned: HangarShip, slot: String, key: String) -> void:
 	if mount.is_empty() or not SlotCatalog.compatible(mount, item):
 		return
 	owned.mounts[slot] = _new_equipment(key)
-	owned.rebuild_units(owned.health_by_mount())
+	owned.rebuild_units()
 
 func hangar_snapshot() -> Dictionary:
 	var ships: Array = []
 	for owned: HangarShip in fleet:
 		ships.append(owned.to_hangar_data())
-	var data := {"format": "physical_hangar", "version": 1, "run_id": run_id, "seed": str(run_seed),
+	var data := {"format": "physical_hangar", "version": 2, "run_id": run_id, "seed": str(run_seed),
 		"difficulty": difficulty, "credits": credits, "ships": ships, "equipment": equipment_inventory.duplicate(true),
 		"next_ship_id": next_ship_id, "next_equipment_id": next_equipment_id,
 		"current": current_node_id, "destination": destination_node_id, "planned": planned_destination_node_id,
@@ -179,7 +179,7 @@ func _apply_hangar(data: Dictionary) -> void:
 		owned.formation = Vector2(entry.formation[0], entry.formation[1])
 		for slot in entry.mounts:
 			owned.mounts[slot] = equipment_inventory[entry.mounts[slot]]
-		owned.rebuild_units(entry.builtins)
+		owned.rebuild_units()
 		owned.hull_hp = entry.hull_hp
 		fleet.append(owned)
 	current_node_id = int(data.current)
@@ -259,7 +259,7 @@ func buy_equipment(key: String, rank := 1) -> bool:
 		return false
 	var data := hangar_snapshot()
 	var uid := str(next_equipment_id)
-	data.equipment[uid] = {"uid": uid, "equipment_id": key, "rank": rank, "hp": float(item.hit_points)}
+	data.equipment[uid] = {"uid": uid, "equipment_id": key, "rank": rank}
 	data.next_equipment_id += 1
 	data.credits -= int(item.price)
 	return _commit_hangar(data)
@@ -315,26 +315,13 @@ func _fitted_integrity(entry: Dictionary, inventory: Dictionary) -> float:
 		total += SlotCatalog.stats_for(instance.equipment_id, int(instance.rank)).integrity
 	return total
 
-func repair_equipment(uid: String) -> bool:
-	if not _can_refit() or not equipment_inventory.has(uid) or not equipment_location(uid).is_empty():
-		return false
-	var instance: Dictionary = equipment_inventory[uid]
-	var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-	var price := ceili(float(item.hit_points) - float(instance.hp))
-	if price <= 0 or credits < price:
-		return false
-	var data := hangar_snapshot()
-	data.credits -= price
-	data.equipment[uid].hp = float(item.hit_points)
-	return _commit_hangar(data)
-
 func sell_equipment(uid: String) -> bool:
 	if not _can_refit() or not equipment_inventory.has(uid) or not equipment_location(uid).is_empty() or HangarTrade.has_load(equipment_inventory[uid]):
 		return false
 	var instance: Dictionary = equipment_inventory[uid]
 	var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 	var data := hangar_snapshot()
-	data.credits += floori(float(item.price) * 0.5 * float(instance.hp) / float(item.hit_points))
+	data.credits += floori(float(item.price) * 0.5)
 	data.equipment.erase(uid)
 	return _commit_hangar(data)
 
@@ -359,7 +346,7 @@ func salvage_hangar_ship(ship_id: int) -> bool:
 	HangarTrade.settle_losses(data, [ship_id])
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) != ship_id)
 	data.credits += floori(float(target.chassis.price) * 0.5 * maxf(0, target.hull_hp) / target.hull_max)
-	# Equipment is returned to stock, retaining its instance identity and damage.
+	# Equipment is returned to stock, retaining its instance identity.
 	return _commit_hangar(data)
 
 func owned_ship(ship_id: int) -> HangarShip:
@@ -606,7 +593,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 		var loot := equipment_loot(destination_node_id)
 		if not loot.is_empty():
 			var uid := str(data.next_equipment_id)
-			data.equipment[uid] = {"uid": uid, "equipment_id": loot.id, "rank": int(loot.rank), "hp": float(loot.hit_points)}
+			data.equipment[uid] = {"uid": uid, "equipment_id": loot.id, "rank": int(loot.rank)}
 			data.next_equipment_id += 1
 		data.current = destination_node_id
 		if not data.visited.has(destination_node_id):
@@ -629,7 +616,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	last_equipment_loot = equipment_loot(destination_node_id).get("name", "") if won else ""
 	for actor in simulation.players:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
-			"repair_damage": actor.permanent_damage_taken, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
+			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
 	_apply_hangar(data)
 	_notify_hangar()
 	return true

@@ -10,7 +10,7 @@ static func depart(data: Dictionary, source: Dictionary, target: Dictionary) -> 
 	for ship: Dictionary in data.ships:
 		for uid: String in ship.mounts.values():
 			var instance: Dictionary = data.equipment[uid]
-			if instance.hp <= 0 or not instance.get("load", {}).is_empty():
+			if ship.hull_hp < 0 or not instance.get("load", {}).is_empty():
 				continue
 			if instance.equipment_id == "passenger_cabin" and target.inhabited:
 				instance["load"] = {"kind": "passengers", "quantity": PASSENGER_CAPACITY, "unit_value": 8, "origin": int(source.id)}
@@ -24,7 +24,7 @@ static func arrive(data: Dictionary, node: Dictionary) -> void:
 		for uid: String in ship.mounts.values():
 			var instance: Dictionary = data.equipment[uid]
 			var contents: Dictionary = instance.get("load", {})
-			if contents.is_empty() or instance.hp <= 0:
+			if contents.is_empty() or ship.hull_hp < 0:
 				continue
 			data.credits += int(contents.quantity) * int(contents.unit_value)
 			instance["load"] = {}
@@ -33,7 +33,7 @@ static func settle_losses(data: Dictionary, lost_ships: Array[int]) -> void:
 	for ship: Dictionary in data.ships:
 		for uid: String in ship.mounts.values():
 			var instance: Dictionary = data.equipment[uid]
-			if instance.hp > 0 and int(ship.id) not in lost_ships:
+			if int(ship.id) not in lost_ships:
 				continue
 			var contents: Dictionary = instance.get("load", {})
 			if contents.get("kind") == "passengers":

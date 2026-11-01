@@ -65,7 +65,7 @@ func run() -> void:
 			"View scale does not change combat geometry: " + chassis.id)
 	fleet_view.free()
 	battle_view.free()
-	for id in ["cargo_hold", "mini_turret", "hull_plate", "armor_block"]:
+	for id in ["cargo_hold", "mini_turret", "hull_plate", "armor_block", "research_lab"]:
 		var item := SlotCatalog.find_equipment(id)
 		check(not item.is_empty(), "Equipment fixture exists: " + id)
 		if not item.is_empty():
@@ -80,6 +80,27 @@ func run() -> void:
 				var fitted := SlotCatalog.fitted_art_rect(plate, mount_bounds)
 				check(mount_bounds.encloses(fitted) and fitted.get_center().is_equal_approx(mount_bounds.get_center())
 					and is_equal_approx(fitted.size.aspect(), plate.get_size().aspect()), "Plate fits the mount without distortion: " + id)
+			if id == "research_lab":
+				var lab := SlotCatalog.equipment_texture(item)
+				check(lab is CanvasTexture and SurfaceArt.diffuse(lab).resource_path == "res://assets/equipment/research_lab_1_d.png",
+					"Research Lab I uses supplied mapped art")
+				check(lab == SlotCatalog.equipment_texture(item), "Research lab texture is cached outside drawing")
+				var bounds := Rect2(10, 20, 28, 56)
+				var original := SlotCatalog.fitted_art_rect(lab, bounds)
+				var fitted := SlotCatalog.fitted_art_rect(lab, bounds, item.art_mount)
+				check(fitted.size.is_equal_approx(original.size * 2) and fitted.get_center().is_equal_approx(bounds.get_center())
+					and is_equal_approx(fitted.size.aspect(), lab.get_size().aspect()), "Research lab renders at exactly twice its previous scale without shifting its anchor")
+				var ship := HangarShip.new()
+				check(ship.initialize_chassis("flagship_basic", 1), "Research lab art fixture initializes")
+				ship.mounts.spine = {"uid": "lab-art", "equipment_id": id, "rank": 1}
+				ship.rebuild_units()
+				check(ship.equipment_art.spine == lab, "Fitted lab shares catalog art with stock, drag and fleet rendering")
+				check(ship.equipment_art_mounts.spine == item.art_mount, "Fitted and dragged lab share the enlarged mount anchor")
+				var central: Dictionary = ship.chassis.slots.filter(func(slot: Dictionary) -> bool: return slot.id == "spine")[0]
+				check(Rect2(central.rect[0], central.rect[1], central.rect[2], central.rect[3]) == Rect2(242, 296, 28, 56),
+					"Flagship medium mount aligns with the lower central artwork bay")
+				check(not SlotCatalog.find_equipment(id, 2).has("art") and not SlotCatalog.find_equipment(id, 3).has("art"),
+					"Higher-rank labs retain text fallback until their artwork is supplied")
 	paths.append("res://assets/environment/asteroids_small_d.png")
 	for role: String in AlienShip.ROLE_COSTS:
 		for rank in range(3):
@@ -285,7 +306,7 @@ func native_checks() -> void:
 	flashed.save_png("res://.local/surface-art/flash.png")
 	lit_rock.save_png("res://.local/surface-art/asteroid.png")
 	canvas.atlas = false
-	for id in ["hull_plate", "armor_block"]:
+	for id in ["hull_plate", "armor_block", "research_lab"]:
 		canvas.art = SlotCatalog.equipment_texture(SlotCatalog.find_equipment(id))
 		canvas.queue_redraw()
 		var plate_material := SurfaceArt.apply(canvas)
@@ -293,7 +314,7 @@ func native_checks() -> void:
 		plate_material.set_shader_parameter("flash_count", 1)
 		plate_material.set_shader_parameter("flash_lights", flashes)
 		var plate_flash := await rendered(view)
-		check(difference(plate_lit, plate_flash) > 0.001, "Plate surface maps respond to local light: " + id)
+		check(difference(plate_lit, plate_flash) > 0.001, "Equipment surface maps respond to local light: " + id)
 		plate_lit.save_png("res://.local/surface-art/" + id + ".png")
 	for path: String in [
 		"res://assets/aliens/drone_chrysalis_d.png",

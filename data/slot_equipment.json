@@ -560,6 +560,8 @@
     {
       "id": "research_lab",
       "name": "Research Lab 1",
+      "art": "res://assets/equipment/research_lab_1_d.png",
+      "art_mount": [128, 128, 128],
       "part_type": 10,
       "rank": 1,
       "revision": 2,

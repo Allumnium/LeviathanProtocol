@@ -97,7 +97,7 @@ class Combatant:
 
 	func damage_deflected() -> float:
 		var result := shield_damage_taken
-		if owned_ship == null:
+		if owned_ship == null or owned_ship is HangarShip:
 			return result
 		for unit in owned_ship.units:
 			if unit.hp > 0.0:
@@ -704,7 +704,7 @@ func authoritative_snapshot() -> Dictionary:
 	var actors: Array = []
 	for member in _members:
 		var hp: Array = []
-		if member.owned_ship != null:
+		if member.owned_ship != null and not member.owned_ship is HangarShip:
 			for unit in member.owned_ship.units:
 				hp.append(unit.hp)
 		actors.append({"id": member.entity_id, "faction": member.faction, "tags": member.tags.duplicate(),
@@ -1611,7 +1611,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 			var result := owned.damage_cell(cell, remaining)
 			actual += result.damage
 			remaining -= result.damage
-			target.permanent_damage_taken += result.removed.size()
+			target.permanent_damage_taken += result.damage if owned is HangarShip else result.removed.size()
 			for removed_cell in result.removed:
 				if not credits_only and random.randf() < allied_drop_chance:
 					var drop := Drop.new()
@@ -1647,7 +1647,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if target.is_alive():
 		return
 	var component_hp: Array = []
-	if target.owned_ship != null:
+	if target.owned_ship != null and not target.owned_ship is HangarShip:
 		for unit in target.owned_ship.units:
 			component_hp.append(unit.hp)
 	_record_event("destruction", {"target": target.entity_id, "source": source.entity_id if source != null else "",

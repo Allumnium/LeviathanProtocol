@@ -14,12 +14,6 @@ var art_texture: Texture2D
 var equipment_art_mounts: Dictionary = {}
 var equipment_art: Dictionary[String, Texture2D] = {}
 
-static func builtin_health(chassis_data: Dictionary) -> Dictionary:
-	var result := {"core": 30.0, "engine": 25.0}
-	if chassis_data.has("builtin_shield"):
-		result.shield = float(SlotCatalog.find_equipment(chassis_data.builtin_shield).hit_points)
-	return result
-
 func initialize_chassis(chassis_key: String, ship_id: int, is_lead := false) -> bool:
 	chassis = SlotCatalog.find_chassis(chassis_key)
 	if chassis.is_empty():
@@ -33,7 +27,6 @@ func initialize_chassis(chassis_key: String, ship_id: int, is_lead := false) -> 
 	flagship = is_lead
 	hull_max = float(chassis.get("integrity", 100))
 	hull_hp = hull_max
-	core_index = 0
 	rebuild_units()
 	return true
 
@@ -46,7 +39,7 @@ func is_flagship() -> bool:
 func fleet_view_scale() -> float:
 	return 1.0 if flagship else ESCORT_VIEW_SCALE
 
-func rebuild_units(previous: Dictionary = {}) -> void:
+func rebuild_units() -> void:
 	equipment_art.clear()
 	equipment_art_mounts.clear()
 	var old_max := hull_max
@@ -57,14 +50,10 @@ func rebuild_units(previous: Dictionary = {}) -> void:
 	hull_hp += hull_max - old_max
 	units.clear()
 	cell_units.clear()
-	var core := ShipPart.new(0, 0, Vector2i.ZERO, [], ShipPartStats.new())
-	core.type = ShipPart.Type.COMMAND_CENTER
-	core.stats = ShipPartStats.new()
-	_append_mount("core", Vector2(256, 190), 30.0, core, previous.get("core", 30.0))
 	var engine := ShipPart.new(0, 0, Vector2i.ZERO, [], ShipPartStats.new())
 	engine.type = ShipPart.Type.THRUSTER
 	engine.stats = ShipPartStats.new(0, 0, 0, float(chassis.get("thrust", 25)))
-	_append_mount("engine", Vector2(256, 448), 25.0, engine, previous.get("engine", 25.0))
+	_append_mount("engine", Vector2(256, 448), engine)
 	if chassis.has("builtin_shield"):
 		var item := SlotCatalog.find_equipment(chassis.builtin_shield)
 		var shield := ShipPart.new(0, 0, Vector2i.ZERO, [], ShipPartStats.new())
@@ -72,7 +61,7 @@ func rebuild_units(previous: Dictionary = {}) -> void:
 		shield.definition_id = item.id
 		shield.rank = 1
 		shield.stats = SlotCatalog.stats_for(item.id)
-		_append_mount("shield", Vector2(256, 320), float(item.hit_points), shield, previous.get("shield", float(item.hit_points)))
+		_append_mount("shield", Vector2(256, 320), shield)
 	for slot: Dictionary in chassis.slots:
 		if not mounts.has(slot.id):
 			continue
@@ -87,21 +76,15 @@ func rebuild_units(previous: Dictionary = {}) -> void:
 		part.definition_id = item.id
 		part.rank = int(item.rank)
 		part.stats = SlotCatalog.stats_for(item.id, int(item.rank))
-		var max_hp := float(item.get("hit_points", 15))
-		_append_mount(slot.id, Vector2(slot.rect[0] + slot.rect[2] / 2.0, slot.rect[1] + slot.rect[3] / 2.0), max_hp, part, float(instance.hp))
+		_append_mount(slot.id, Vector2(slot.rect[0] + slot.rect[2] / 2.0, slot.rect[1] + slot.rect[3] / 2.0), part)
 	visual_revision += 1
 
-func _append_mount(key: String, source_position: Vector2, max_hp: float, part: ShipPart, hp: float) -> void:
+func _append_mount(key: String, source_position: Vector2, part: ShipPart) -> void:
 	var handle := Vector2i(units.size(), 0)
 	cell_units[handle] = units.size()
+	# Shared combat DTOs require an operational marker, not component integrity.
 	units.append({"key": key, "position": (source_position - Vector2(256, 256)).rotated(PI / 2) * ART_SCALE,
-		"cells": [handle], "part": part, "max_hp": max_hp, "hp": hp})
-
-func health_by_mount() -> Dictionary:
-	var result := {}
-	for unit in units:
-		result[unit.key] = unit.hp
-	return result
+		"cells": [handle], "part": part, "max_hp": 1.0, "hp": 1.0})
 
 func draw_fitted_equipment(target: CanvasItem, chassis_rect: Rect2, tint := Color.WHITE) -> void:
 	for slot: Dictionary in chassis.slots:
@@ -110,24 +93,13 @@ func draw_fitted_equipment(target: CanvasItem, chassis_rect: Rect2, tint := Colo
 		var texture: Texture2D = equipment_art[slot.id]
 		var bounds := Rect2(chassis_rect.position + Vector2(slot.rect[0], slot.rect[1]) * chassis_rect.size / 512,
 			Vector2(slot.rect[2], slot.rect[3]) * chassis_rect.size / 512)
-		var color := tint
-		if target is Control:
-			for unit: Dictionary in units:
-				if unit.key == slot.id and unit.hp < unit.max_hp:
-					color *= target.get_theme_color("destroyed_color" if unit.hp <= 0 else "damaged_color", "SlotCanvas")
-					break
-		target.draw_texture_rect(texture, SlotCatalog.fitted_art_rect(texture, bounds, equipment_art_mounts.get(slot.id, [])), false, color)
-
-func sync_equipment_health() -> void:
-	for unit in units:
-		if mounts.has(unit.key):
-			mounts[unit.key].hp = unit.hp
+		target.draw_texture_rect(texture, SlotCatalog.fitted_art_rect(texture, bounds, equipment_art_mounts.get(slot.id, [])), false, tint)
 
 func is_alive() -> bool:
-	return hull_hp >= 0 and not units.is_empty() and units[0].hp > 0
+	return not chassis.is_empty() and hull_hp >= 0
 
 func has_cell(cell: Vector2i) -> bool:
-	return cell_units.has(cell) and units[cell_units[cell]].hp > 0
+	return is_alive() and cell_units.has(cell)
 
 func local_cell_position(cell: Vector2i) -> Vector2:
 	return units[cell_units[cell]].position if cell_units.has(cell) else Vector2.ZERO
@@ -140,8 +112,6 @@ func get_stats(_laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 	result.footprint_size = Vector2.ONE * 512 * ART_SCALE
 	for index in range(units.size()):
 		var unit: Dictionary = units[index]
-		if unit.hp <= 0:
-			continue
 		var part: ShipPart = unit.part
 		result.weight += part.stats.weight
 		result.thrust += part.stats.thrust
@@ -161,7 +131,7 @@ func get_stats(_laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 func weapon_cycle_rate() -> float:
 	var count := 0
 	for unit: Dictionary in units:
-		if unit.hp > 0 and unit.part != null and unit.part.type == ShipPart.Type.AMMUNITION_MAGAZINE:
+		if unit.part != null and unit.part.type == ShipPart.Type.AMMUNITION_MAGAZINE:
 			count += 1
 	return 1.0 + 0.2 * count
 
@@ -171,73 +141,47 @@ func hangar_summary() -> Dictionary:
 		"dps": stats.dps, "cargo": 0, "passengers": 0}
 	if is_alive():
 		for unit: Dictionary in units:
-			if unit.hp > 0 and unit.part != null:
+			if unit.part != null:
 				if unit.part.definition_id == "cargo_hold":
 					result.cargo += HangarTrade.CARGO_CAPACITY
 				if unit.part.definition_id == "passenger_cabin":
 					result.passengers += HangarTrade.PASSENGER_CAPACITY
 	return result
 
-func hit_cell(origin: Vector2, random: RandomNumberGenerator) -> Vector2i:
-	# Scatter across the silhouette. Empty hull remains a valid direct hull hit.
-	var point := Vector2(random.randf_range(-30, 30), random.randf_range(-30, 30))
-	var best := -1
-	var distance := 13.0 * 13.0
-	for index in range(units.size()):
-		if units[index].hp <= 0:
-			continue
-		var d: float = point.distance_squared_to(units[index].position)
-		if d < distance:
-			distance = d
-			best = index
-	return Vector2i(best, 0)
+func hit_cell(_origin: Vector2, _random: RandomNumberGenerator) -> Vector2i:
+	return Vector2i(-1, 0)
 
-func damage_cell(cell: Vector2i, amount: float) -> Dictionary:
+func damage_cell(_cell: Vector2i, amount: float) -> Dictionary:
 	var removed: Array[Vector2i] = []
-	if not is_alive() or amount <= 0:
+	if not is_alive() or not is_finite(amount) or amount <= 0:
 		return {"damage": 0.0, "removed": removed}
-	var hull_damage := amount
-	var component_damage := 0.0
-	if has_cell(cell):
-		var unit: Dictionary = units[cell_units[cell]]
-		hull_damage = amount * 0.5
-		component_damage = minf(unit.hp, amount * 0.5)
-		unit.hp -= component_damage
-		if unit.hp <= 0:
-			removed.append(cell)
-			visual_revision += 1
-	hull_hp -= hull_damage
-	sync_equipment_health()
-	return {"damage": hull_damage + component_damage, "removed": removed}
+	hull_hp -= amount
+	visual_revision += 1
+	return {"damage": amount, "removed": removed}
 
 func needs_repair() -> bool:
-	return hull_hp < hull_max or units.any(func(unit: Dictionary) -> bool: return unit.hp < unit.max_hp)
+	return hull_hp < hull_max
 
 func repair_cost() -> int:
-	var amount := maxf(0, hull_max - hull_hp)
-	for unit in units:
-		amount += unit.max_hp - unit.hp
-	return ceili(amount)
+	return ceili(maxf(0, hull_max - hull_hp))
+
+func repair_hull(amount: float) -> float:
+	if not is_alive() or not is_finite(amount) or amount <= 0:
+		return 0.0
+	var healed := minf(amount, hull_max - hull_hp)
+	hull_hp += healed
+	return healed
 
 func repair() -> void:
 	if not is_alive():
 		return
 	hull_hp = hull_max
-	for unit in units:
-		unit.hp = unit.max_hp
-	sync_equipment_health()
 	visual_revision += 1
 
 func to_hangar_data() -> Dictionary:
-	sync_equipment_health()
 	var fitted := {}
 	for key in mounts:
 		fitted[key] = mounts[key].uid
-	var builtins := {}
-	var builtin_keys := builtin_health(chassis)
-	for unit: Dictionary in units:
-		if builtin_keys.has(unit.key):
-			builtins[unit.key] = unit.hp
 	return {"id": id, "chassis": chassis_id, "flagship": flagship, "hull_hp": hull_hp,
-		"builtins": builtins, "mounts": fitted,
+		"mounts": fitted,
 		"formation": [formation.x, formation.y]}

@@ -16,8 +16,7 @@ func check(ok: bool, message: String) -> void:
 func carrier(kind := "flight_deck", uid := "1") -> HangarShip:
 	var ship := HangarShip.new()
 	ship.initialize_chassis("flagship_basic" if kind == "flight_deck" else "corsair", 1, true)
-	var item := SlotCatalog.find_equipment(kind)
-	ship.mounts["spine" if kind == "flight_deck" else "fore"] = {"uid": uid, "equipment_id": kind, "rank": 1, "hp": item.hit_points}
+	ship.mounts["spine" if kind == "flight_deck" else "fore"] = {"uid": uid, "equipment_id": kind, "rank": 1}
 	ship.rebuild_units()
 	return ship
 
@@ -96,11 +95,19 @@ func run() -> void:
 	var fresh := simulation(carrier())
 	fresh.doctrines.advance(fresh, 0.1)
 	var orphan: BattleSimulation.Combatant = fresh.doctrines.carriers.sorties[0].actor
-	for unit: Dictionary in fresh.player.owned_ship.units:
-		if unit.key == "spine":
-			unit.hp = 0
+	var host: HangarShip = fresh.player.owned_ship
+	var bay: Dictionary = host.mounts.spine.duplicate(true)
+	var hull_before := host.hull_hp
+	fresh._damage(fresh.player, fresh.player.shields + hull_before * 0.75, fresh.aliens[0].position, fresh.aliens[0], "Fixture hit")
+	check(fresh.player.shields == 0 and is_equal_approx(host.hull_hp, hull_before * 0.25), "Combat hit consumes shields first then applies its full remainder to hull")
 	fresh._refresh_owned_stats(fresh.player)
-	check(not orphan.is_alive() and fresh.doctrines.carriers.sorties.is_empty(), "Bay destruction disables its active sorties")
+	check(orphan.is_alive() and host.mounts.spine == bay and fresh.doctrines.pool.carriers["1"].spent == 1, "Hull damage preserves bay identity, finite allowance and active sortie")
+	host.damage_cell(Vector2i(0, 0), host.hull_hp)
+	fresh._refresh_owned_stats(fresh.player)
+	check(orphan.is_alive() and HangarCarriers.has_bay(host), "Carrier and sortie remain operational at zero hull")
+	host.damage_cell(Vector2i(-1, 0), 0.01)
+	fresh._refresh_owned_stats(fresh.player)
+	check(not orphan.is_alive() and fresh.doctrines.carriers.sorties.is_empty(), "Host destruction ends active sorties without component damage")
 	var bomber := simulation(carrier("torpedo_bomber_bay"))
 	bomber.doctrines.advance(bomber, 0.1)
 	var strike: BattleSimulation.Combatant = bomber.doctrines.carriers.sorties[0].actor
@@ -133,7 +140,7 @@ func counter_checks(sim: BattleSimulation, bomber: BattleSimulation.Combatant) -
 	defender_ship.initialize_chassis("drone", 2)
 	var item := SlotCatalog.find_equipment("point_defense_turret")
 	var mount: String = defender_ship.chassis.slots[0].id
-	defender_ship.mounts[mount] = {"uid": "20", "equipment_id": item.id, "rank": 1, "hp": item.hit_points}
+	defender_ship.mounts[mount] = {"uid": "20", "equipment_id": item.id, "rank": 1}
 	defender_ship.rebuild_units()
 	var defender := sim._create_combatant(defender_ship.get_stats())
 	defender.owned_ship = defender_ship

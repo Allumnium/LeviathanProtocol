@@ -2,7 +2,7 @@ class_name HangarCheckpoint
 extends RefCounted
 
 static func valid(value: Variant) -> bool:
-	if not value is Dictionary or value.get("format") != "physical_hangar" or value.get("version") != 1:
+	if not value is Dictionary or value.get("format") != "physical_hangar" or value.get("version") != 2:
 		return false
 	if not _integer(value.get("credits"), -2147483647):
 		return false
@@ -73,10 +73,10 @@ static func valid(value: Variant) -> bool:
 	var equipment: Dictionary = value.equipment
 	for uid: Variant in equipment:
 		var instance: Variant = equipment[uid]
-		if not uid is String or not uid.is_valid_int() or str(int(uid)) != uid or int(uid) <= 0 or int(uid) >= value.next_equipment_id or not instance is Dictionary or instance.get("uid") != uid or not instance.get("equipment_id") is String or not _integer(instance.get("rank"), 1) or not _number(instance.get("hp")):
+		if not uid is String or not uid.is_valid_int() or str(int(uid)) != uid or int(uid) <= 0 or int(uid) >= value.next_equipment_id or not instance is Dictionary or instance.get("uid") != uid or not instance.get("equipment_id") is String or not _integer(instance.get("rank"), 1) or instance.has("hp"):
 			return false
 		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-		if item.is_empty() or item.get("retired", false) or instance.hp < 0 or instance.hp > float(item.hit_points):
+		if item.is_empty() or item.get("retired", false):
 			return false
 		if not HangarTrade.valid(instance):
 			return false
@@ -87,7 +87,7 @@ static func valid(value: Variant) -> bool:
 	var command := 0
 	var cost := 0
 	for entry: Variant in value.ships:
-		if not entry is Dictionary or not _integer(entry.get("id"), 1) or entry.id >= value.next_ship_id or ids.has(int(entry.id)) or not entry.get("chassis") is String or not entry.get("flagship") is bool or not _number(entry.get("hull_hp")) or not entry.get("mounts") is Dictionary or not entry.get("builtins") is Dictionary or not entry.get("formation") is Array or entry.formation.size() != 2:
+		if not entry is Dictionary or not _integer(entry.get("id"), 1) or entry.id >= value.next_ship_id or ids.has(int(entry.id)) or not entry.get("chassis") is String or not entry.get("flagship") is bool or not _number(entry.get("hull_hp")) or not entry.get("mounts") is Dictionary or entry.has("builtins") or not entry.get("formation") is Array or entry.formation.size() != 2:
 			return false
 		ids[int(entry.id)] = true
 		var chassis := SlotCatalog.find_chassis(entry.chassis)
@@ -102,14 +102,6 @@ static func valid(value: Variant) -> bool:
 			cost += int(chassis.command_cost)
 			if int(chassis.command) > 0:
 				return false
-		var builtin_health := HangarShip.builtin_health(chassis)
-		if entry.builtins.size() != builtin_health.size():
-			return false
-		for key: String in builtin_health:
-			if not _number(entry.builtins.get(key)) or entry.builtins[key] < 0 or entry.builtins[key] > builtin_health[key]:
-				return false
-		if not value.pending and entry.builtins.core <= 0:
-			return false
 		for coordinate: Variant in entry.formation:
 			if not _number(coordinate) or absf(coordinate) > 5:
 				return false
@@ -131,7 +123,7 @@ static func valid(value: Variant) -> bool:
 		if entry.hull_hp > max_hull:
 			return false
 	for uid: String in equipment:
-		if HangarTrade.has_load(equipment[uid]) and (not used.has(uid) or (not value.pending and equipment[uid].hp <= 0)):
+		if HangarTrade.has_load(equipment[uid]) and not used.has(uid):
 			return false
 	return (leads == 1 and cost <= command) if not value.ended else leads <= 1
 

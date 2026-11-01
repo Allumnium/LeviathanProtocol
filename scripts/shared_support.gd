@@ -57,6 +57,12 @@ static func repair(sim, delta: float) -> void:
 			var key := reserve_key(owned, index)
 			var remaining: float = sim.repair_reserves.get(key, 0.0)
 			var budget := minf(minf(remaining, maxf(0, sim.repair_capacity - sim.repair_spent)), REPAIR_RATE * float(rates.get(index, 1.0)) * delta)
+			if owned is HangarShip:
+				var amount: float = owned.repair_hull(budget)
+				healed += amount
+				sim.repair_spent += amount
+				sim.repair_reserves[key] = maxf(0, remaining - amount)
+				continue
 			var targets: Array[Dictionary] = []
 			for target in owned.units:
 				if target.hp <= 0 or target.hp >= target.max_hp or target.part == null or not AdjacencyRules.touches(source, target.part):

@@ -549,7 +549,7 @@ func run() -> void:
 		part.type = int(item.part_type)
 		part.rank = int(item.rank)
 		part.stats = SlotCatalog.stats_for(equipment, int(item.rank))
-		summary_ship._append_mount(equipment, Vector2.ZERO, 10, part, 10)
+		summary_ship._append_mount(equipment, Vector2.ZERO, part)
 	state.fleet.append(summary_ship)
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
@@ -565,14 +565,12 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	await settle()
 	await capture("fleet-totals")
-	for unit: Dictionary in summary_ship.units:
-		if unit.key != "core" and unit.key != "engine":
-			unit.hp = 0
 	summary_ship.hull_hp -= 15
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 2.0\nShield 40\nHull 745 / 760\n1 RP / day",
-		"Damaged hull contributes current/max health; disabled equipment contributes no capacity or production: " + fleet_totals.source_text)
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 745 / 760\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
+		2.0 + fixture_summary.dps, 40 + fixture_summary.shields],
+		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)

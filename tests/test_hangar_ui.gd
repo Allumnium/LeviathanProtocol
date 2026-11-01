@@ -37,9 +37,15 @@ func check_callouts(board: Control) -> void:
 		var label: ResourceText = card.get_node("EquipmentName")
 		var instance: Dictionary = owned.mounts.get(id, {})
 		var slot: Dictionary = owned.chassis.slots.filter(func(value: Dictionary) -> bool: return value.id == id)[0]
-		var expected: String = board._empty_label(slot) if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name
+		var expected: String = "" if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name
+		check(card.visible == not instance.is_empty(), "Empty mounts never show labels or connectors")
 		check(label.source_text == expected and not label.clip_contents, "Callout uses the complete equipment name")
-		check(label.get_line_count() == 1 and not card.has_node("MountName"), "Mount callouts have exactly one line, with no extra headings")
+		check((instance.is_empty() or label.get_line_count() == 1) and not card.has_node("MountName"), "Occupied mount callouts have exactly one line, with no extra headings")
+		check(board.get_theme_color("connector_color", "SlotCanvas") == Color.WHITE, "Every connector uses shared opaque white")
+		var transform: Transform2D = board.get_viewport().get_final_transform() * board.get_global_transform_with_canvas()
+		for point: Vector2 in board._connector_points(card, board.slot_rect(slot)):
+			var pixel := transform * point - Vector2(0.5, 0.5)
+			check(pixel.is_equal_approx(pixel.round()), "Connector vertices align to physical pixel centers")
 		check(Rect2(Vector2.ZERO, card.size).encloses(label.get_rect()), "Equipment text stays within its card")
 		check(card.focus_mode == Control.FOCUS_NONE and card.tooltip_text.is_empty(), "Callout has no keyboard focus or tooltip")
 		check(not card is Button and not card.has_method("_get_drag_data"), "Side callout is display-only")

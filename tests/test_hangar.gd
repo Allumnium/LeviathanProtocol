@@ -17,6 +17,7 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://hangar-test.json"
 	check(state.start_new_run(1, 74321), "New actual campaign")
+	check(state.hangar_snapshot().version == 2, "Whole-ship saves use schema 2")
 	check(state.fleet.size() == 1 and state.fleet[0].chassis_id == "flagship_basic", "Supplied flagship")
 	check(HangarCheckpoint.valid(state.hangar_snapshot()), "Checkpoint valid")
 	check(state.fleet[0].mounts.size() == 3, "Starter physical equipment")
@@ -48,17 +49,34 @@ func run() -> void:
 	var lead: HangarShip = state.owned_ship(1)
 	var hp := lead.hull_hp
 	var index: int = lead.units.find(lead.units.filter(func(unit: Dictionary) -> bool: return unit.key == "port")[0])
-	var component: float = lead.units[index].hp
-	lead.damage_cell(Vector2i(index, 0), 10)
-	check(lead.hull_hp == hp - 5 and lead.units[index].hp == component - 5, "Half equipment / half chassis damage")
-	check(lead.mounts[lead.units[index].key].hp == lead.units[index].hp, "Instance damage retained")
-	check(state.repair_ship(lead), "Credits-only repair")
+	var equipment := lead.mounts.duplicate(true)
+	var stats := lead.get_stats()
+	var amount := hp * 0.5 + 0.25
+	var damage := lead.damage_cell(Vector2i(index, 0), amount)
+	check(lead.hull_hp == hp - amount and damage.damage == amount and damage.removed.is_empty(), "Equipment hit applies full hull damage without removing mounts")
+	check(lead.mounts == equipment and lead.units.all(func(unit: Dictionary) -> bool: return unit.hp == 1 and unit.max_hp == 1), "Substantial damage preserves equipment identity and operational markers")
+	check(lead.get_stats().dps == stats.dps and lead.get_stats().thrust == stats.thrust and lead.get_stats().shields == stats.shields, "Damaged ship retains weapons, engine and shields")
+	check(lead.units[0].key == "engine" and not lead.units.any(func(unit: Dictionary) -> bool: return unit.key == "core"), "Combat bridge has engine at zero and no command-center component")
+	if lead.chassis.has("builtin_shield"):
+		check(lead.units[1].key == "shield" and lead.units[1].hp == 1, "Optional builtin shield follows engine with an operational marker")
+	check(not lead.to_hangar_data().has("builtins") and lead.mounts.values().all(func(instance: Dictionary) -> bool: return not instance.has("hp")), "Snapshots store hull health only")
+	var quote := ceili(amount)
+	check(lead.repair_cost() == quote, "Hull repair rounds fractional missing integrity up")
+	credits = state.credits
+	check(state.repair_ship(lead) and state.credits == credits - quote, "Credits-only hull repair charges quoted cost")
 	lead = state.owned_ship(1)
-	check(not lead.needs_repair(), "Hull and components repaired")
+	check(not lead.needs_repair() and lead.mounts == equipment, "Hull repair preserves fitted equipment")
+	var before_invalid := lead.hull_hp
+	for invalid in [-1.0, 0.0, INF, NAN]:
+		damage = lead.damage_cell(Vector2i(0, 0), invalid)
+		check(lead.hull_hp == before_invalid and damage.damage == 0 and damage.removed.is_empty(), "Invalid damage cannot mutate hull or equipment")
 	lead.hull_hp = 0
-	check(lead.is_alive(), "Hull survives zero")
-	lead.damage_cell(Vector2i(-1, 0), 0.01)
-	check(not lead.is_alive(), "Hull dies below zero")
+	check(lead.is_alive() and lead.get_stats().dps == stats.dps and lead.mounts == equipment, "Hull survives zero with all equipment operational")
+	damage = lead.damage_cell(Vector2i(-1, 0), 0.01)
+	check(not lead.is_alive() and damage.removed.is_empty(), "Hull dies strictly below zero without component removals")
+	var destroyed_hp := lead.hull_hp
+	lead.repair()
+	check(lead.hull_hp == destroyed_hp and lead.repair_hull(100) == 0 and not state.repair_ship(lead), "Destroyed chassis cannot be repaired")
 	state._apply_hangar(original)
 	check(state.save_run_checkpoint(), "Save restored test state")
 	var snapshot: Dictionary = state.hangar_snapshot()

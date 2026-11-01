@@ -17,11 +17,16 @@ Siege I/II, Carrier I/II and Command I/II are active research nodes with their e
 
 ## Combat and conservation
 
-Craft are targetable combat actors, not owned chassis or inventory rewards. Sorties expire after 25 seconds or when their payload is spent, the craft dies, or the host/bay is destroyed. Source loss prunes craft immediately during the damage/stat update. Point defense prioritizes hostile craft and intercepts bomber torpedoes; interceptors screen hostile missiles without destroying friendly ones. The global 64-live-combatant launch cap also applies. Failed/capped launches spend nothing.
+Craft are targetable combat actors, not owned chassis or inventory rewards. Sorties expire after 25 seconds or when their payload is spent, the craft dies, or the host is destroyed. Source loss prunes craft immediately during the damage/stat update. Point defense prioritizes hostile craft and intercepts bomber torpedoes; interceptors screen hostile missiles without destroying friendly ones. The global 64-live-combatant launch cap also applies. Failed/capped launches spend nothing.
 
 Replacement allowances follow equipment UIDs in the existing per-encounter doctrine pool. Spent sorties survive retreat settlement, atomic save/reload, repairs and transfers. A different encounter starts a fresh allowance. Older pools without carrier fields remain readable. Bad capacities, overspending, invalid identities and future/mismatched UIDs are rejected. Pending battle restarts replay the original departure battle, not a partially damaged enemy roster with a refreshed fleet.
 
-Host reports include damage dealt by its craft. Synchronization never overwrites a charging beam. Lost magazines remove their cycling contribution; lost computers stop synchronization; lost uplinks end their marks. The mark uses ordinary visibility/target-selection rules and does not expose hidden actors.
+Host reports include damage dealt by its craft. Synchronization never overwrites a charging beam. Mounted magazines, computers, uplinks and bays stay operational until host destruction; components have no independent damage/health. Destroying the host ends its support and sorties. The mark uses ordinary visibility/target-selection rules and does not expose hidden actors.
+
+Repair drones now heal surviving whole-ship hull with the same 4 HP payload,
+2s launch interval and 20 HP encounter reserve. They do not recreate lost cargo,
+passengers or destroyed hosts. Nanoforge/Renewal II are deferred because
+component reconstruction no longer applies; no replacement ability is invented.
 
 ## Verification and limits
 

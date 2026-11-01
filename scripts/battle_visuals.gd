@@ -410,9 +410,6 @@ func _draw_hangar_ship(member: BattleSimulation.Combatant, render_position: Vect
 	var rect := hangar_ship_rect(owned)
 	draw_texture_rect(texture, rect, false, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
 	owned.draw_fitted_equipment(self, rect, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))
-	for unit in owned.units:
-		if unit.hp < unit.max_hp:
-			draw_circle(Vector2(unit.position).rotated(-PI / 2) * owned.fleet_view_scale(), 3 * owned.fleet_view_scale(), Color("e17666") if unit.hp <= 0 else Color("e8b65c"))
 	if member.shield_flash > 0:
 		draw_arc(Vector2.ZERO, (member.radius + 3) * owned.fleet_view_scale(), 0, TAU, 32, SHIELD_OUTLINE_COLOR, 1.5)
 

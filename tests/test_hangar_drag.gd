@@ -85,7 +85,9 @@ func run() -> void:
 	check(state.owned_ship(ship_id).mounts.hold.uid == items.cargo_hold, "Dragging a side label cannot unequip its part")
 	var art_before: Rect2 = screen.canvas.image_rect
 	await click(screen.canvas.slot_buttons.hold)
-	check(screen.slot_info.visible and not screen.stats_grid.visible and screen.slot_info.get_parsed_text().contains("Cargo Hold") and screen.slot_info.get_parsed_text().contains("10 cargo"), "Art click shows only the selected part's health and effect")
+	check(screen.slot_info.visible and not screen.stats_grid.visible and screen.slot_info.get_parsed_text().contains("Cargo Hold")
+		and screen.slot_info.get_parsed_text().contains("10 cargo") and screen.slot_info.source_text.contains("XL Civic")
+		and not screen.slot_info.source_text.contains("HP"), "Art click shows only full part name, size/type and effect, never component health")
 	check(screen.canvas.image_rect == art_before, "Selecting a part never shifts the ship or mount geometry")
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
@@ -300,9 +302,9 @@ func sale_checks() -> void:
 	screen.feedback.text = ""
 	var instance: Dictionary = state.equipment_inventory[uid]
 	var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-	var expected: int = state.credits + floori(float(item.price) * 0.5 * float(instance.hp) / float(item.hit_points))
+	var expected: int = state.credits + floori(float(item.price) * 0.5)
 	await click(controls.sell)
-	check(not state.equipment_inventory.has(uid) and state.credits == expected, "Checkmark sells exactly that physical instance for its condition-adjusted value")
+	check(not state.equipment_inventory.has(uid) and state.credits == expected, "Checkmark sells exactly that physical instance for half catalog price")
 	check(not screen.stock.row_buttons.has(uid) and screen.stock.filters.get_preferences() == screen.stock_preferences, "Sale refresh removes the card and preserves filters")
 	check(not state.sell_equipment(uid) and state.credits == expected, "Sold item cannot pay twice")
 
@@ -343,11 +345,15 @@ func filter_checks() -> void:
 	var preferences: Dictionary = screen.stock.filters.get_preferences()
 	var order: Array = screen.stock.visible_uids.duplicate()
 	var data: Dictionary = state.hangar_snapshot()
-	data.equipment[items.second_laser].hp *= 0.5
-	check(state._commit_hangar(data), "Damage a stock instance")
+	data.ships[0].hull_hp -= 1
+	check(state._commit_hangar(data), "Damage hull while preserving stock instances")
 	await settle()
 	check(screen.stock.filters.get_preferences() == preferences, "Checkbox preferences survive state refresh")
-	check(screen.stock.visible_uids == order, "Persistent damage does not change catalog-price ordering")
+	check(screen.stock.visible_uids == order, "Persistent hull damage does not change catalog-price ordering")
+	for uid: String in screen.stock.visible_uids:
+		var item := SlotCatalog.find_equipment(state.equipment_inventory[uid].equipment_id, int(state.equipment_inventory[uid].rank))
+		check(screen.stock.sale_controls[uid].summary.text == "%s %s" % [item.size, item.type.capitalize()],
+			"Stock summary contains only size/type without HP or condition")
 
 func prepare_stock(key: String) -> Button:
 	var instance: Dictionary = state.equipment_inventory[items[key]]
@@ -379,10 +385,19 @@ func fit_stock(key: String, slot: String) -> void:
 	check(screen.selected_slot.is_empty() and screen.stats_grid.visible and not screen.slot_info.visible, "Empty-space click restores ship details")
 	var summary: Dictionary = state.owned_ship(ship_id).hangar_summary()
 	var rendered := text_under(screen.stats_grid)
-	for expected in ["Cargo\n%d" % summary.cargo, "Passengers\n%d" % summary.passengers,
-		"DPS\n%.1f" % summary.dps, "Shields\n%.0f" % summary.shields,
-		"Integrity\n%.0f / %.0f" % [summary.integrity, summary.integrity_max]]:
+	for expected in ["Hull %d / %d" % [roundi(summary.integrity), roundi(summary.integrity_max)]]:
 		check(rendered.contains(expected), "Visible stats refresh after a real mouse drop")
+	check(rendered.contains("DPS ") == (summary.dps > 0), "DPS details appear only for positive mounted DPS")
+	check(screen.stats_grid.bars.has("shields") == (summary.shields > 0), "Shield bar appears only with positive shield capacity")
+	if summary.dps > 0:
+		check(rendered.contains("DPS %d" % roundi(summary.dps)), "Positive DPS shows rounded mounted value")
+	if summary.shields > 0:
+		check(rendered.contains("Shields %d" % roundi(summary.shields)), "Positive shields show rounded capacity")
+	for capacity: String in ["cargo", "passengers"]:
+		var title := "Cargo" if capacity == "cargo" else "Passengers"
+		check(rendered.contains(title + "\n") == (summary[capacity] > 0), "Show %s only with operational capacity" % capacity)
+		if summary[capacity] > 0:
+			check(rendered.contains("%s\n%d" % [title, summary[capacity]]), "Positive %s capacity shows exact value" % capacity)
 
 func drag(start: Vector2, finish: Vector2) -> void:
 	var original_art: Rect2 = screen.canvas.image_rect
@@ -414,7 +429,7 @@ func drag(start: Vector2, finish: Vector2) -> void:
 		var mount_bounds: Rect2 = screen.canvas.get_global_transform() * screen.canvas.slot_rect(reference)
 		var expected_art := SlotCatalog.fitted_art_rect(floating.texture, mount_bounds, item.get("art_mount", []))
 		var actual_art: Rect2 = floating.get_global_transform() * floating.sprite_rect
-		check(actual_art.size.is_equal_approx(expected_art.size), "Floating sprite matches fitted ship scale, including mount anchors: %s/%s actual %s expected %s" % [item.id, reference.id, actual_art.size, expected_art.size])
+		check(actual_art.size.distance_to(expected_art.size) < 0.001, "Floating sprite matches fitted ship scale, including mount anchors")
 		check(floating.target_slot.is_empty(), "Floating scale check is outside all mount targets")
 	check(screen.stock.unequip_mode == installed, "Only installed-equipment drags replace stock with the unequip target")
 	if installed:
@@ -443,7 +458,7 @@ func drag(start: Vector2, finish: Vector2) -> void:
 	await settle()
 	if preview_size != Vector2.ZERO and state.owned_ship(ship_id).mounts.get(target_id, {}).get("uid") == data.uid:
 		var fitted_slot: Dictionary = screen.canvas._slots.filter(func(slot: Dictionary) -> bool: return slot.id == target_id)[0]
-		check(screen.canvas.slot_rect(fitted_slot).size.is_equal_approx(preview_size), "Fitted size stays equal to its preview after inventory refresh")
+		check(screen.canvas.slot_rect(fitted_slot).size.distance_to(preview_size) < 0.001, "Fitted size stays equal to its preview after inventory refresh")
 	check(not screen.stock.unequip_mode and screen.stock.filters.visible and screen.stock.scroll.visible and not screen.stock.unequip_hint.visible, "Stock content returns after completed or cancelled drags")
 	check_callouts(false)
 	check(screen.canvas.image_rect == original_art, "Hiding empty cards after release does not rescale the ship")
@@ -451,7 +466,7 @@ func drag(start: Vector2, finish: Vector2) -> void:
 func check_callouts(dragging: bool) -> void:
 	for id: String in screen.canvas.slot_callouts:
 		var occupied: bool = not screen.canvas.slot_buttons[id].equipment_uid.is_empty()
-		check(screen.canvas.slot_callouts[id].visible == (dragging or occupied), "Only occupied mount cards remain visible outside equipment drags")
+		check(screen.canvas.slot_callouts[id].visible == occupied, "Only occupied mount cards are visible, including during drags: %s" % dragging)
 
 func motion(position: Vector2, down: bool) -> void:
 	var event := InputEventMouseMotion.new()
@@ -487,12 +502,18 @@ func invalid_drop_checks() -> void:
 	check(state._commit_hangar(data), "Loaded equipment fixture")
 	await settle()
 	check(not Transfer.can_store(Transfer.payload(items.cargo_hold)), "Occupied hold cannot be warehoused")
-	var hp: Dictionary = state.hangar_snapshot()
-	hp.equipment[items.cargo_hold].hp = 0
-	hp.equipment[items.cargo_hold]["load"] = {}
-	check(state._commit_hangar(hp), "Destroyed hold fixture")
+	var hull: Dictionary = state.hangar_snapshot()
+	for ship: Dictionary in hull.ships:
+		if ship.id == ship_id:
+			ship.hull_hp -= 1
+	check(state._commit_hangar(hull), "Damaged hull fixture")
 	await settle()
-	check(state.owned_ship(ship_id).hangar_summary().cargo == 0, "Destroyed equipment adds no usable capacity")
+	check(state.owned_ship(ship_id).hangar_summary().cargo == 10 and HangarTrade.has_load(state.equipment_inventory[items.cargo_hold]),
+		"Damaged hull keeps fitted cargo capacity and occupied load operational")
+	check(not Transfer.can_store(Transfer.payload(items.cargo_hold)), "Hull damage never bypasses loaded-equipment restrictions")
+	hull = state.hangar_snapshot()
+	hull.equipment[items.cargo_hold]["load"] = {}
+	check(state._commit_hangar(hull), "Delivered hold fixture for failed-save rollback")
 	var blocked := FileAccess.open("user://blocked-save", FileAccess.WRITE)
 	blocked.store_string("not a directory")
 	blocked.close()
@@ -519,8 +540,22 @@ func layout_checks() -> void:
 		await settle()
 		check(screen.get_global_rect().encloses(screen.stock.get_global_rect()), "Stock remains on screen")
 		check(screen.get_global_rect().encloses(screen.stats_grid.get_global_rect()), "Ship stats remain on screen")
+		var bottom: Control = screen.stats_grid.get_parent()
+		var art_before: Rect2 = screen.canvas.image_rect
+		check(bottom.custom_minimum_size.y == 128 and bottom.get_rect().size.y == 128, "Ship/part detail area keeps fixed height at every resolution")
+		for key: String in screen.stats_grid.bars:
+			check(bottom.get_global_rect().encloses(screen.stats_grid.bars[key].get_global_rect()), "Every stat bar fits fixed bottom area")
+		await click(screen.canvas.slot_buttons.hold)
+		check(screen.canvas.image_rect == art_before and bottom.get_rect().size.y == 128
+			and not screen.stats_grid.visible and screen.slot_info.visible and not screen.slot_info.source_text.contains("HP"),
+			"Selected equipment replaces all bars without shifting fitting art or bottom geometry")
+		await click(screen.canvas.slot_buttons.fore)
+		check(screen.canvas.image_rect == art_before and screen.stats_grid.visible, "Empty mount restores bars without shifting fitting geometry")
 		check(not screen.stock.get_global_rect().intersects(screen.canvas.get_global_rect()), "Stock and ship have separate drag areas")
-		check(screen.stats_grid.get_child_count() == 5, "Cargo, passengers, DPS, integrity and shields are always shown")
+		var summary: Dictionary = state.owned_ship(ship_id).hangar_summary()
+		check(screen.stats_grid.bars.size() == 3 + int(summary.shields > 0)
+			and screen.stats_grid.get_child_count() == 3 + int(summary.shields > 0) + int(summary.dps > 0) + int(summary.cargo > 0) + int(summary.passengers > 0),
+			"Shields, DPS, cargo and passengers appear independently only with positive values")
 		for uid: String in screen.stock.sale_controls:
 			var controls: Dictionary = screen.stock.sale_controls[uid]
 			var card: Button = screen.stock.row_buttons[uid]

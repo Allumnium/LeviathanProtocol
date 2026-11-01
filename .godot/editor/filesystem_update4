@@ -158,3 +158,5 @@ res://scripts/equipment_action_button.gd
 res://tests/test_hangar_campaign.gd
 res://tests/test_hangar_intermediates.gd
 res://tests/test_hangar_persistence.gd
+res://tests/test_chassis_review.gd
+res://scripts/ship_stat_bars.gd

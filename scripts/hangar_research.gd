@@ -4,8 +4,8 @@ extends RefCounted
 # Active research excludes retired extraction and undefined slot bonuses.
 const DEFERRED_EQUIPMENT := ["crew_quarters", "focusing_lens", "reactive_bulkhead", "observation_deck", "repair_station"]
 const OMITTED_NODES := ["basic_extraction", "deep_extraction", "optics_i", "bastion_i"]
-const DEFERRED_PURCHASES := ["gravitic_snare"]
-const DEFERRED_RESEARCH := ["disruption_ii"]
+const DEFERRED_PURCHASES := ["gravitic_snare", "nanoforge"]
+const DEFERRED_RESEARCH := ["disruption_ii", "renewal_ii"]
 
 static func registry() -> Dictionary:
 	var result := GameDefinitions.snapshot()

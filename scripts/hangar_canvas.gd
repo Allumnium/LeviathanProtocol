@@ -92,10 +92,6 @@ func set_owned(owned: HangarShip) -> void:
 		var empty := StyleBoxEmpty.new()
 		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 			button.add_theme_stylebox_override(state, empty)
-		if not instance.is_empty():
-			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			if instance.hp < item.hit_points:
-				button.self_modulate = get_theme_color("destroyed_color" if instance.hp <= 0 else "damaged_color", "SlotCanvas")
 		button.accepts = func(data: Variant) -> bool: return Transfer.can_fit(owned_id, slot.id, data)
 		button.received = func(data: Dictionary) -> void: instance_selected.emit(slot.id, data.uid)
 		button.pressed.connect(func() -> void:
@@ -117,14 +113,11 @@ func set_owned(owned: HangarShip) -> void:
 		label.theme_type_variation = &"EquipmentResourceText"
 		label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		label.clip_contents = false
-		label.set_content(_empty_label(slot) if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name)
+		label.set_content("" if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name)
 		label.mouse_filter = MOUSE_FILTER_IGNORE
 		card.add_child(label)
 		slot_callouts[slot.id] = card
 	_layout_slots()
-
-func _empty_label(slot: Dictionary) -> String:
-	return "%s | Engine / Defense" % slot.size if slot.type == "engine" else SlotCatalog.slot_label(slot)
 
 func _layout_slots() -> void:
 	if _slots.is_empty():
@@ -166,7 +159,6 @@ func _rail_width(slots: Array[Dictionary]) -> float:
 	var names := {}
 	var catalog := SlotCatalog.equipment()
 	for slot: Dictionary in slots:
-		names[_empty_label(slot)] = true
 		for item: Dictionary in catalog:
 			if SlotCatalog.compatible(slot, item):
 				names[item.name] = true
@@ -200,6 +192,18 @@ func _notification(what: int) -> void:
 	if what in [NOTIFICATION_DRAG_BEGIN, NOTIFICATION_DRAG_END]:
 		queue_redraw()
 
+func _connector_points(card: Control, rect: Rect2) -> PackedVector2Array:
+	var left_side: bool = card.get_meta("left_rail")
+	var anchor := Vector2(card.get_rect().end.x if left_side else card.position.x, card.get_rect().get_center().y)
+	var mount_edge := Vector2(rect.position.x if left_side else rect.end.x, rect.get_center().y)
+	var bend := Vector2(anchor.x + 6 if left_side else anchor.x - 6, anchor.y)
+	var screen_transform := get_viewport().get_final_transform() * get_global_transform_with_canvas()
+	var inverse := screen_transform.affine_inverse()
+	var points := PackedVector2Array()
+	for point: Vector2 in [anchor, bend, mount_edge]:
+		points.append(inverse * ((screen_transform * point).floor() + Vector2(0.5, 0.5)))
+	return points
+
 func _draw() -> void:
 	if _texture == null:
 		return
@@ -218,14 +222,11 @@ func _draw() -> void:
 			draw_rect(rect.grow(3), Color(color, 0.18))
 			draw_rect(rect.grow(2), color, false, 2)
 		var card: Control = slot_callouts[slot.id]
-		card.visible = dragging or not slot_buttons[slot.id].equipment_uid.is_empty()
+		card.visible = not slot_buttons[slot.id].equipment_uid.is_empty()
 		if not card.visible:
 			continue
-		var left_side: bool = card.get_meta("left_rail")
-		var anchor := Vector2(card.get_rect().end.x if left_side else card.position.x, card.get_rect().get_center().y)
-		var mount_edge := Vector2(rect.position.x if left_side else rect.end.x, rect.get_center().y)
-		var bend := Vector2(anchor.x + 6 if left_side else anchor.x - 6, anchor.y)
-		draw_polyline(PackedVector2Array([anchor, bend, mount_edge]), Color(color, 0.65), 1, true)
+		# Negative width keeps the unfiltered line one screen pixel at every UI scale.
+		draw_polyline(_connector_points(card, rect), get_theme_color("connector_color", "SlotCanvas"), -1, false)
 
 func _slot_at(position: Vector2) -> String:
 	for slot: Dictionary in _slots:

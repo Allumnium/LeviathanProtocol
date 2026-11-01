@@ -42,8 +42,6 @@ func item_score(item: Dictionary, slot: Dictionary, trade: bool) -> float:
 			return 100 + stats.shields
 		if item.id == "repair_drone_bay":
 			return 60
-		if item.id == "nanoforge":
-			return 50
 		return stats.thrust
 	if item.id == "cargo_hold":
 		if science_build:

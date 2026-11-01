@@ -158,7 +158,7 @@ func _render() -> void:
 		second_line.mouse_filter = MOUSE_FILTER_PASS
 		content.add_child(second_line)
 		var summary := Label.new()
-		summary.text = "%s %s  %.0f%%" % [item.size, item.type.capitalize(), 100 * instance.hp / item.hit_points]
+		summary.text = "%s %s" % [item.size, item.type.capitalize()]
 		summary.size_flags_horizontal = SIZE_EXPAND_FILL
 		summary.clip_text = true
 		summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

@@ -53,13 +53,15 @@ func run() -> void:
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 4.0, "Stock labs do not produce research")
 	check(state.fit_equipment(frigate_id, "port", lab_ii), "Refit Lab II")
 	var lead: HangarShip = state.owned_ship(frigate_id)
-	for unit in lead.units:
-		if unit.key == "hold":
-			unit.hp = 0
-	lead.sync_equipment_health()
-	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 3.0, "Destroyed Lab III stops production")
-	check(state.repair_ship(lead), "Repair destroyed lab")
-	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0, "Repair restores ranked production")
+	var laboratories := lead.mounts.duplicate(true)
+	lead.damage_cell(Vector2i(lead.units.size() - 1, 0), lead.hull_hp * 0.75)
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0
+		and lead.mounts == laboratories, "Substantial hull damage does not interrupt or replace ranked labs")
+	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Damaged operational labs persist")
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0
+		and state.owned_ship(frigate_id).mounts == laboratories, "Reload preserves ranked lab identities and operation")
+	check(state.repair_ship(state.owned_ship(frigate_id)), "Repair lab host hull")
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0, "Hull repair does not change ranked production")
 	check(state.set_research_focus("applied_energy"), "Set focus before travel")
 	var target: int = state.get_reachable_nodes(0)[0]
 	var days: float = state.research_travel_time(0, target)
@@ -76,28 +78,28 @@ func run() -> void:
 	for tick in range(90):
 		sim.advance(1.0 / 30)
 	check(is_equal_approx(float(state.research_progress.get("applied_energy", 0)), before_progress), "Battle duration generates no research")
-	for owned: HangarShip in state.fleet:
-		for unit in owned.units:
-			if unit.part.type == ShipPart.Type.RESEARCH_LAB:
-				unit.hp = 0
-		owned.sync_equipment_health()
-	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 0.0, "Lost labs produce no research")
+	lead = state.owned_ship(frigate_id)
+	lead.damage_cell(Vector2i(0, 0), lead.hull_hp)
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0, "Zero-hull living lab host still produces all ranked research")
+	lead.damage_cell(Vector2i(-1, 0), 0.01)
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 1.0, "Only destroyed lab host stops production; flagship lab stays active")
 	sim.phase = BattleSimulation.Phase.VICTORY
 	check(state.settle_battle(sim), "Arrival settles research after battle losses")
+	check(not state.equipment_inventory.has(lab_ii) and not state.equipment_inventory.has(lab_iii)
+		and state.owned_ship(frigate_id) == null, "Settlement removes destroyed host and its unique labs")
 	if expected_progress >= research_cost:
 		check("applied_energy" in state.current_research_ids and state.research_focus.is_empty(), "Arrival completes focused research and discards excess output")
 	else:
 		check(is_equal_approx(float(state.research_progress.get("applied_energy", 0)), expected_progress), "Arrival adds frozen output directly to focused research")
 	check(not state.hangar_snapshot().research.has("research_points"), "New checkpoints do not store a research-point balance")
 	check(not state.settle_battle(sim), "Frozen research cannot settle twice")
-	# Old pending saves already store a numeric yield. Do not reinterpret it
-	# retroactively after a production rule change.
+	# Schema 2 pending saves store a numeric yield, not a recomputed rate.
 	check(state.start_new_run(1, 1357), "Historical yield fixture")
 	check(state.travel_to(state.get_reachable_nodes(0)[0]), "Historical yield departure")
 	var saved: Dictionary = state.hangar_snapshot()
 	saved.journey_rp = 1.5
 	saved.research["research_points"] = 6.5
-	check(state._commit_hangar(saved) and state.load_run_checkpoint() and state.journey_rp == 1.5, "Older pending yield checkpoints remain readable")
+	check(state._commit_hangar(saved) and state.load_run_checkpoint() and state.journey_rp == 1.5, "Schema 2 pending yields reload without reinterpretation")
 	check(not state.hangar_snapshot().research.has("research_points"), "Legacy unspent research points are discarded on load")
 	# An undefined old ability must not remain a purchasable, lootable stub.
 	check(state.start_new_run(1, 907), "Deferred purchase fixture")
@@ -122,7 +124,7 @@ func run() -> void:
 	fixture = state.hangar_snapshot()
 	var uid := str(fixture.next_equipment_id)
 	fixture.next_equipment_id += 1
-	fixture.equipment[uid] = {"uid": uid, "equipment_id": "gravitic_snare", "rank": 1, "hp": 40.0}
+	fixture.equipment[uid] = {"uid": uid, "equipment_id": "gravitic_snare", "rank": 1}
 	fixture.ships[-1].mounts["fore"] = uid
 	check(state._commit_hangar(fixture) and state.load_run_checkpoint(), "Legacy inactive item remains readable")
 	check(state.deployment_error() == "Unequip deferred equipment", "Inactive loadout cannot depart")
