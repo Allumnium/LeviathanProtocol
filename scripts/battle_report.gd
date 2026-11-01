@@ -46,8 +46,7 @@ func show_report(
 	add_child(column)
 	_add_title(column, outcome, credits_gained)
 	if not equipment_loot.is_empty():
-		var loot_label := Label.new()
-		loot_label.text = "Loot: " + equipment_loot
+		var loot_label := ResourceText.create("Loot: " + equipment_loot)
 		column.add_child(loot_label)
 	var deaths := 0
 	var fees := 0
@@ -55,9 +54,8 @@ func show_report(
 		deaths += int(entry.get("passenger_deaths", 0))
 		fees += int(entry.get("passenger_fees", 0))
 	if deaths > 0:
-		var casualties := Label.new()
+		var casualties := ResourceText.create("Passengers lost: %d | Fees: -%d cr | Balance: %d cr" % [deaths, fees, GameState.credits])
 		casualties.name = "PassengerCasualties"
-		casualties.text = "Passengers lost: %d | Fees: -%d cr | Balance: %d cr" % [deaths, fees, GameState.credits]
 		casualties.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		column.add_child(casualties)
 	_add_material_rewards(column, gained_materials)
@@ -82,8 +80,7 @@ func show_report(
 		var summary_line := HBoxContainer.new()
 		summary_line.add_theme_constant_override("separation", 4)
 		details.add_child(summary_line)
-		var name_label := Label.new()
-		name_label.text = summary.name
+		var name_label := ResourceText.create(summary.name)
 		summary_line.add_child(name_label)
 		if summary.destroyed > 0:
 			var destroyed_label := Label.new()

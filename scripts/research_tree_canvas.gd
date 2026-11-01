@@ -1,6 +1,7 @@
 extends Control
 
 signal node_selected(id: String)
+signal node_activated(id: String)
 
 const CARD_SIZE := Vector2(108, 66)
 var buttons: Dictionary = {}
@@ -99,6 +100,10 @@ func populate(rows: Array[Dictionary], registry: Dictionary, selected: String, f
 		button.size = CARD_SIZE
 		button.position = positions[row.id]
 		button.pressed.connect(func() -> void: node_selected.emit(row.id))
+		button.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.double_click:
+				node_activated.emit(row.id)
+				button.accept_event())
 		cards.add_child(button)
 		buttons[row.id] = button
 		var box := VBoxContainer.new()
@@ -124,8 +129,7 @@ func populate(rows: Array[Dictionary], registry: Dictionary, selected: String, f
 			marker.add_child(check)
 		elif float(progress.get(row.id, 0)) > 0:
 			marker.text = "%s / %d" % [ScienceRules.format_rp(float(progress[row.id])), int(row.cost)]
-		var title := Label.new()
-		title.text = row.name
+		var title := ResourceText.create(row.name)
 		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

@@ -189,6 +189,7 @@ func _update_fleet_preview_transform() -> void:
 
 func _draw() -> void:
 	draw_set_transform_matrix(world_transform())
+	var quest_targets: Array[int] = GameState.quest_targets()
 	for edge in GameState.GRAPH_EDGES:
 		if not GameState.node_visible(edge.x) or not GameState.node_visible(edge.y):
 			continue
@@ -197,18 +198,21 @@ func _draw() -> void:
 			edge_color = Color(0.25, 0.8, 0.55)
 		elif GameState.campaign_active and GameState.edge_preview(edge.x, edge.y).get("hazard", "none") != "none":
 			edge_color = Color(0.7, 0.5, 0.25)
-		if edge.x == current_node_id and edge.y == selected_node_id:
+		if (edge.x == current_node_id and edge.y == selected_node_id) or (not GameState.navigation.is_empty() and edge.y == current_node_id and edge.x == selected_node_id):
 			var pulse := 0.5 + 0.5 * sin(_elapsed_time * TAU * 0.5)
 			var brightness := lerpf(0.32, 0.9, pulse)
 			edge_color = Color(brightness, brightness, brightness)
-		_draw_arrow(edge.x, edge.y, edge_color)
+		if GameState.navigation.is_empty():
+			_draw_arrow(edge.x, edge.y, edge_color)
+		else:
+			draw_line(_node_center(edge.x), _node_center(edge.y), edge_color, 1.0 / camera_zoom, true)
 
 	for node_id in range(GameState.NODE_POSITIONS.size()):
 		if not GameState.node_visible(node_id):
 			continue
 		var center := _node_center(node_id)
 		if GameState.campaign_active:
-			_draw_campaign_node(node_id, center)
+			_draw_campaign_node(node_id, center, quest_targets.has(node_id))
 		elif GameState.CONVERGENCE_NODE_IDS.find(node_id) in [0, 1]:
 			_draw_space_station(node_id, center)
 		else:
@@ -334,9 +338,11 @@ func _node_center(node_id: int) -> Vector2:
 	return Vector2(WORLD_SIZE.x * normalized_position.x, WORLD_SIZE.y * normalized_position.y)
 
 
-func _draw_campaign_node(node_id: int, center: Vector2) -> void:
+func _draw_campaign_node(node_id: int, center: Vector2, quest_target := false) -> void:
 	var node := GameState.campaign_node(node_id)
 	var radius := 7.0 / camera_zoom
+	if quest_target:
+		draw_arc(center, radius * 1.8, 0, TAU, 24, Color(1, 0.85, 0.35), 2 / camera_zoom, true)
 	var color := Color(0.55, 0.7, 0.85)
 	if node.inhabited:
 		color = Color(0.35, 0.9, 0.7)

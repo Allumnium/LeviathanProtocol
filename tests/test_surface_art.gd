@@ -65,11 +65,21 @@ func run() -> void:
 			"View scale does not change combat geometry: " + chassis.id)
 	fleet_view.free()
 	battle_view.free()
-	for id in ["cargo_hold", "mini_turret"]:
+	for id in ["cargo_hold", "mini_turret", "hull_plate", "armor_block"]:
 		var item := SlotCatalog.find_equipment(id)
 		check(not item.is_empty(), "Equipment fixture exists: " + id)
 		if not item.is_empty():
 			paths.append(item.art)
+			if id in ["hull_plate", "armor_block"]:
+				var expected_path := "res://assets/equipment/plate_%s_d.png" % ("small" if id == "hull_plate" else "medium")
+				var plate := SlotCatalog.equipment_texture(item)
+				check(plate is CanvasTexture and SurfaceArt.diffuse(plate).resource_path == expected_path,
+					"Plate catalog uses supplied mapped art: " + id)
+				check(plate == SlotCatalog.equipment_texture(item), "Plate texture is cached outside drawing: " + id)
+				var mount_bounds := Rect2(10, 20, 31, 23)
+				var fitted := SlotCatalog.fitted_art_rect(plate, mount_bounds)
+				check(mount_bounds.encloses(fitted) and fitted.get_center().is_equal_approx(mount_bounds.get_center())
+					and is_equal_approx(fitted.size.aspect(), plate.get_size().aspect()), "Plate fits the mount without distortion: " + id)
 	paths.append("res://assets/environment/asteroids_small_d.png")
 	for role: String in AlienShip.ROLE_COSTS:
 		for rank in range(3):
@@ -198,6 +208,20 @@ func native_checks() -> void:
 	var material := SurfaceArt.apply(canvas)
 	view.add_child(canvas)
 	var lit := await rendered(view)
+	var original_shader := Shader.new()
+	original_shader.code = SurfaceArt.SHADER.code.replace("vec3(0.30, 0.33, 0.375)", "vec3(0.40, 0.44, 0.50)")
+	material.shader = original_shader
+	var brighter_ambient := await rendered(view)
+	material.shader = SurfaceArt.SHADER
+	check(difference(lit, brighter_ambient) > 0.001, "Reduced ambient visibly dims mapped artwork")
+	var darker_pixels := 0
+	for y in range(lit.get_height()):
+		for x in range(lit.get_width()):
+			var dim := lit.get_pixel(x, y)
+			var bright := brighter_ambient.get_pixel(x, y)
+			if dim.a > 0.5 and dim.get_luminance() < bright.get_luminance():
+				darker_pixels += 1
+	check(darker_pixels > 1000, "Ambient reduction dims opaque ship pixels, not just transparent edges")
 	RenderingServer.global_shader_parameter_set("cursor_light", Vector4(100.0 / 256, 100.0 / 256, 48.0 / 256, 0.75))
 	var cursor_lit := await rendered(view)
 	check(difference(lit, cursor_lit) > 0.0001, "Cursor light illuminates nearby mapped surfaces")
@@ -257,9 +281,20 @@ func native_checks() -> void:
 	check(difference(plain_rock, lit_rock) > 0.001, "Asteroid atlas regions receive mapped lighting")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://.local/surface-art"))
 	lit.save_png("res://.local/surface-art/chassis.png")
+	brighter_ambient.save_png("res://.local/surface-art/chassis-before-ambient.png")
 	flashed.save_png("res://.local/surface-art/flash.png")
 	lit_rock.save_png("res://.local/surface-art/asteroid.png")
 	canvas.atlas = false
+	for id in ["hull_plate", "armor_block"]:
+		canvas.art = SlotCatalog.equipment_texture(SlotCatalog.find_equipment(id))
+		canvas.queue_redraw()
+		var plate_material := SurfaceArt.apply(canvas)
+		var plate_lit := await rendered(view)
+		plate_material.set_shader_parameter("flash_count", 1)
+		plate_material.set_shader_parameter("flash_lights", flashes)
+		var plate_flash := await rendered(view)
+		check(difference(plate_lit, plate_flash) > 0.001, "Plate surface maps respond to local light: " + id)
+		plate_lit.save_png("res://.local/surface-art/" + id + ".png")
 	for path: String in [
 		"res://assets/aliens/drone_chrysalis_d.png",
 		"res://assets/aliens/drone_scout_d.png",

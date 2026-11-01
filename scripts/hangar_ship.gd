@@ -14,6 +14,12 @@ var art_texture: Texture2D
 var equipment_art_mounts: Dictionary = {}
 var equipment_art: Dictionary[String, Texture2D] = {}
 
+static func builtin_health(chassis_data: Dictionary) -> Dictionary:
+	var result := {"core": 30.0, "engine": 25.0}
+	if chassis_data.has("builtin_shield"):
+		result.shield = float(SlotCatalog.find_equipment(chassis_data.builtin_shield).hit_points)
+	return result
+
 func initialize_chassis(chassis_key: String, ship_id: int, is_lead := false) -> bool:
 	chassis = SlotCatalog.find_chassis(chassis_key)
 	if chassis.is_empty():
@@ -59,6 +65,14 @@ func rebuild_units(previous: Dictionary = {}) -> void:
 	engine.type = ShipPart.Type.THRUSTER
 	engine.stats = ShipPartStats.new(0, 0, 0, float(chassis.get("thrust", 25)))
 	_append_mount("engine", Vector2(256, 448), 25.0, engine, previous.get("engine", 25.0))
+	if chassis.has("builtin_shield"):
+		var item := SlotCatalog.find_equipment(chassis.builtin_shield)
+		var shield := ShipPart.new(0, 0, Vector2i.ZERO, [], ShipPartStats.new())
+		shield.type = ShipPart.Type.SHIELD
+		shield.definition_id = item.id
+		shield.rank = 1
+		shield.stats = SlotCatalog.stats_for(item.id)
+		_append_mount("shield", Vector2(256, 320), float(item.hit_points), shield, previous.get("shield", float(item.hit_points)))
 	for slot: Dictionary in chassis.slots:
 		if not mounts.has(slot.id):
 			continue
@@ -135,6 +149,7 @@ func get_stats(_laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 		result.shield_recharge += part.stats.shields * (1 + energy_efficiency)
 		for weapon in part.stats.weapons:
 			var copy := weapon.copy()
+			copy.damage_per_shot *= float(chassis.get("weapon_damage_multiplier", 1.0))
 			copy.fire_interval_seconds /= weapon_cycle_rate()
 			if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.BEAM_LANCE, ShipPart.Type.ION_EMITTER]:
 				copy.fire_interval_seconds /= 1 + energy_efficiency
@@ -218,6 +233,11 @@ func to_hangar_data() -> Dictionary:
 	var fitted := {}
 	for key in mounts:
 		fitted[key] = mounts[key].uid
+	var builtins := {}
+	var builtin_keys := builtin_health(chassis)
+	for unit: Dictionary in units:
+		if builtin_keys.has(unit.key):
+			builtins[unit.key] = unit.hp
 	return {"id": id, "chassis": chassis_id, "flagship": flagship, "hull_hp": hull_hp,
-		"builtins": {"core": units[0].hp, "engine": units[1].hp}, "mounts": fitted,
+		"builtins": builtins, "mounts": fitted,
 		"formation": [formation.x, formation.y]}

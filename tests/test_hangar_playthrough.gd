@@ -7,7 +7,16 @@ var failures := 0
 var checks := 0
 var summaries: Array[Dictionary] = []
 var science_build := false
-var loadout_preferences: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/playthrough_mount_preferences.json"))
+var loadout_preferences: Dictionary = {
+	"flagship_basic": {"fore": "offense", "port": "offense", "starboard": "offense", "spine": "civic",
+		"aft_port": "defense", "aft_starboard": "tech", "inner_port": "defense", "inner_starboard": "tech"},
+	"corsair": {"fore": "offense", "port": "offense", "starboard": "offense", "aft": "defense"},
+	"fighter": {"fore": "offense", "port": "offense", "starboard": "offense"},
+	"transport": {"hold": "civic", "port": "defense", "starboard": "tech", "fore": "offense", "aft": "tech"},
+	"frigate": {"fore": "offense", "fore_2": "offense", "fore_3": "offense", "fore_4": "offense",
+		"port": "offense", "starboard": "offense", "center": "civic", "aft": "defense"},
+	"drone": {"fore": "offense", "port": "offense", "starboard": "defense", "center": "civic"}
+}
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -53,6 +62,8 @@ func outfit(ship_id: int, trade: bool) -> void:
 		# what the game permits in a general-purpose mount.
 		slot = slot.duplicate(true)
 		slot["preference"] = loadout_preferences[original.chassis_id][slot.id]
+		if science_build and original.chassis_id == "transport" and slot.id in ["port", "starboard"]:
+			slot["preference"] = "civic"
 		var owned: HangarShip = state.owned_ship(ship_id)
 		var current: Dictionary = owned.mounts.get(slot.id, {})
 		var score := -1.0 if current.is_empty() else item_score(SlotCatalog.find_equipment(current.equipment_id, int(current.rank)), slot, trade)
@@ -93,13 +104,18 @@ func prepare(trade: bool) -> void:
 			outfit(id, trade)
 	var shopping := ["fighter", "transport", "corsair", "fighter"] if trade else ["fighter", "corsair", "fighter", "frigate"]
 	if science_build:
-		shopping = ["frigate", "fighter", "corsair"]
+		shopping = ["transport", "fighter", "corsair"]
 	for key in shopping:
 		if state.fleet.any(func(owned: FleetShip) -> bool: return (owned as HangarShip).chassis_id == key):
 			continue
 		var chassis := SlotCatalog.find_chassis(key)
+		var research_reserve := 0
+		if science_build and state.current_research_ids.has("laboratory_ii") \
+			and not state.equipment_inventory.values().any(func(item: Dictionary) -> bool:
+				return item.equipment_id == "research_lab" and int(item.rank) == 3):
+			research_reserve = int(SlotCatalog.find_equipment("research_lab", 3).price)
 		# Do not buy an empty hull with no money left for its initial guns.
-		if state.credits < int(chassis.price) + 160:
+		if state.credits < int(chassis.price) + 160 + research_reserve:
 			continue
 		if state.buy_chassis(key):
 			outfit(state.fleet[-1].id, trade)
@@ -122,10 +138,21 @@ func play(seed_value: int, trade: bool, science := false) -> void:
 	var fights := 0
 	var seconds := 0.0
 	var rows := 0
-	while not state.completed and not state.run_ended and rows < 24:
+	var peak_daily_rp := 0.0
+	var operated_lab_iii := false
+	while not state.completed and not state.run_ended and rows < 40:
 		focus(trade)
 		prepare(trade)
-		var routes: Array = state.get_reachable_nodes(state.current_node_id)
+		peak_daily_rp = maxf(peak_daily_rp, ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())))
+		operated_lab_iii = operated_lab_iii or ScienceRules.snapshot(state.get_deployed_fleet()).labs.any(
+			func(lab: Dictionary) -> bool: return int(lab.rank) == 3)
+		var current_row: int = state.campaign_node(state.current_node_id).row
+		var routes: Array = state.get_reachable_nodes(state.current_node_id).filter(func(id: int) -> bool:
+			return state.campaign_node(id).row > current_row)
+		var current: Dictionary = state.campaign_node(state.current_node_id)
+		if science and current.kind == "staging" and int(current.act) == 3 and state.research_focus == "laboratory_iii":
+			routes = state.get_reachable_nodes(state.current_node_id).filter(func(id: int) -> bool:
+				return state.campaign_node(id).row < current_row)
 		var target: int = routes[0]
 		for candidate: int in routes:
 			if state.campaign_node(candidate).get("elite", false):
@@ -156,7 +183,8 @@ func play(seed_value: int, trade: bool, science := false) -> void:
 	print("NATURAL SUMMARY ", JSON.stringify(summary))
 	check(state.completed, "Natural campaign reaches final victory")
 	if science:
-		check(state.current_research_ids.has("laboratory_iii") and summary.daily_rp >= 4.0, "Science fleet actually purchases and runs upgraded labs")
+		check(state.current_research_ids.has("laboratory_iii") and operated_lab_iii and peak_daily_rp >= 4.0,
+			"Science fleet purchases and operates Lab III alongside its existing labs")
 
 func run() -> void:
 	state = root.get_node("GameState")

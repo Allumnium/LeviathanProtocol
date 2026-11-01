@@ -53,6 +53,8 @@ var hangar_generation := -1
 var completed := false
 var last_equipment_loot := ""
 var battle_reserves: Dictionary = {}
+var navigation: Dictionary = {}
+var pending_encounter: Dictionary = {}
 
 func _ready() -> void:
 	run_save_path = "user://hangar_run.json"
@@ -87,13 +89,14 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	completed = false
 	journey_rp = 0
 	battle_reserves = {}
+	navigation = SwarmNavigation.initial()
+	pending_encounter = {}
 	last_battle_report.clear()
 	last_equipment_loot = ""
 	_build_campaign()
 	var lead := _add_chassis("flagship_basic", true)
-	_give_equipment(lead, "aft_port", "mini_turret")
-	_give_equipment(lead, "aft_starboard", "mini_turret")
-	_give_equipment(lead, "inner_port", "armor_block")
+	_give_equipment(lead, "port", "mini_turret")
+	_give_equipment(lead, "starboard", "mini_turret")
 	# A starter lab makes the existing travel research loop immediately usable.
 	_give_equipment(lead, "spine", "research_lab")
 	hangar_generation = -1
@@ -101,6 +104,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 		if not before.is_empty():
 			run_seed = int(before.seed)
 			difficulty = int(before.difficulty) as Difficulty
+			navigation = before.get("navigation", {}).duplicate(true)
 			_build_campaign()
 			_apply_hangar(before)
 		hangar_generation = previous_generation
@@ -110,7 +114,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 
 func _build_campaign() -> void:
 	campaign_active = true
-	campaign_dag = CampaignContent.populate(CampaignGraph.generate(run_seed), run_seed)
+	campaign_dag = CampaignContent.populate(CampaignGraph.generate(run_seed, 2 if not navigation.is_empty() else 1), run_seed)
 	_apply_campaign_geometry()
 	frozen_encounters = EncounterGenerator.freeze_campaign(run_seed, difficulty, campaign_dag)
 
@@ -147,7 +151,7 @@ func hangar_snapshot() -> Dictionary:
 	var ships: Array = []
 	for owned: HangarShip in fleet:
 		ships.append(owned.to_hangar_data())
-	return {"format": "physical_hangar", "version": 1, "run_id": run_id, "seed": str(run_seed),
+	var data := {"format": "physical_hangar", "version": 1, "run_id": run_id, "seed": str(run_seed),
 		"difficulty": difficulty, "credits": credits, "ships": ships, "equipment": equipment_inventory.duplicate(true),
 		"next_ship_id": next_ship_id, "next_equipment_id": next_equipment_id,
 		"current": current_node_id, "destination": destination_node_id, "planned": planned_destination_node_id,
@@ -156,6 +160,9 @@ func hangar_snapshot() -> Dictionary:
 		"battle_reserves": battle_reserves.duplicate(true), "research": {"research_ids": current_research_ids.duplicate(),
 		"research_focus": research_focus, "research_progress": research_progress.duplicate(),
 		"research_pricing_version": 1, "story_flags": story_flags.duplicate(), "branch_choices": research_branch_choices.duplicate()}}
+	if not navigation.is_empty():
+		data.navigation = navigation.duplicate(true)
+	return data
 
 func _apply_hangar(data: Dictionary) -> void:
 	run_id = data.run_id
@@ -184,6 +191,8 @@ func _apply_hangar(data: Dictionary) -> void:
 	completed = data.completed
 	journey_rp = data.journey_rp
 	battle_reserves = data.get("battle_reserves", {}).duplicate(true)
+	navigation = data.get("navigation", {}).duplicate(true)
+	pending_encounter = data.get("pending_encounter", {}).duplicate(true)
 	current_research_ids.assign(data.research.research_ids)
 	research_focus = data.research.research_focus
 	research_progress = data.research.research_progress.duplicate()
@@ -192,7 +201,7 @@ func _apply_hangar(data: Dictionary) -> void:
 	player_ship_count = fleet.size()
 	battle_aliens.clear()
 	if battle_pending:
-		if data.has("pending_encounter"):
+		if navigation.is_empty() and data.has("pending_encounter"):
 			frozen_encounters[str(destination_node_id)] = data.pending_encounter.duplicate(true)
 		battle_aliens = EncounterGenerator.initial_fleet(get_frozen_encounter(destination_node_id))
 
@@ -228,6 +237,7 @@ func load_run_checkpoint() -> bool:
 		return false
 	run_seed = int(saved.payload.seed)
 	difficulty = int(saved.payload.difficulty) as Difficulty
+	navigation = saved.payload.get("navigation", {}).duplicate(true)
 	_build_campaign()
 	_apply_hangar(saved.payload)
 	hangar_generation = int(saved.generation)
@@ -505,19 +515,53 @@ func travel_to(node_id: int) -> bool:
 		return false
 	var data := hangar_snapshot()
 	var yield_rp := ScienceRules.journey_rp(ScienceRules.snapshot(get_deployed_fleet()), research_travel_time(current_node_id, node_id))
+	if not navigation.is_empty():
+		var days := research_travel_time(current_node_id, node_id)
+		data.navigation.days += days
+		data.navigation.intensity += days
 	HangarTrade.depart(data, campaign_node(current_node_id), campaign_node(node_id))
 	data.planned = -1
-	if not get_frozen_encounter(node_id).is_empty():
+	var encounter := get_frozen_encounter(node_id)
+	if not navigation.is_empty():
+		encounter = {} if visited_nodes.has(node_id) else data.navigation.encounters.get(str(node_id),
+			SwarmNavigation.encounter(frozen_encounters.get(str(node_id), {}), data.navigation.intensity))
+	if not encounter.is_empty():
+		if not navigation.is_empty():
+			data.navigation.encounters[str(node_id)] = encounter.duplicate(true)
 		data.destination = node_id
 		data.pending = true
-		data.pending_encounter = get_frozen_encounter(node_id)
+		data.pending_encounter = encounter
 		data.journey_rp = yield_rp
 	else:
 		data.current = node_id
-		data.visited.append(node_id)
+		if not data.visited.has(node_id):
+			data.visited.append(node_id)
+		if not navigation.is_empty():
+			SwarmNavigation.arrive(data, campaign_dag)
 		HangarTrade.arrive(data, campaign_node(node_id))
 		_allocate_research(data.research, yield_rp)
 	return _commit_hangar(data)
+
+func resolve_map_event(choice: String) -> bool:
+	var event := SwarmNavigation.event(campaign_dag, current_node_id)
+	if navigation.is_empty() or not _can_refit() or event.is_empty() or navigation.events.has(str(current_node_id)) or choice not in ["relay", "disrupt"]:
+		last_save_error = "This encounter choice is no longer available."
+		return false
+	var data := hangar_snapshot()
+	var key := str(current_node_id)
+	data.navigation.events[key] = choice
+	if choice == "relay":
+		data.navigation.quests[key] = "active"
+	else:
+		data.navigation.intensity = maxf(0, data.navigation.intensity - event.disruption)
+	return _commit_hangar(data)
+
+func quest_targets() -> Array[int]:
+	var targets: Array[int] = []
+	for key: String in navigation.get("quests", {}):
+		if navigation.quests[key] == "active":
+			targets.append(SwarmNavigation.event(campaign_dag, int(key)).target)
+	return targets
 
 func set_destination(node_id: int) -> bool:
 	return travel_to(node_id)
@@ -565,7 +609,10 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 			data.equipment[uid] = {"uid": uid, "equipment_id": loot.id, "rank": int(loot.rank), "hp": float(loot.hit_points)}
 			data.next_equipment_id += 1
 		data.current = destination_node_id
-		data.visited.append(destination_node_id)
+		if not data.visited.has(destination_node_id):
+			data.visited.append(destination_node_id)
+		if not navigation.is_empty():
+			SwarmNavigation.arrive(data, campaign_dag)
 		var node := campaign_node(destination_node_id)
 		if node.kind == "boss":
 			data.research.story_flags[["boss_i_defeated", "boss_ii_defeated", "boss_iii_defeated"][int(node.act) - 1]] = true
@@ -638,13 +685,17 @@ func current_act() -> int:
 
 
 func node_visible(node_id: int) -> bool:
-	return not campaign_active or int(campaign_node(node_id).get("act", 4)) <= current_act()
+	var unlocked_act := 1
+	for act in range(1, 3):
+		if story_flags.get("boss_%s_defeated" % ["i", "ii"][act - 1], false):
+			unlocked_act = act + 1
+	return not campaign_active or int(campaign_node(node_id).get("act", 4)) <= (current_act() if navigation.is_empty() else unlocked_act)
 
 
 func edge_preview(source: int, target: int) -> Dictionary:
 	if campaign_active:
 		for route in campaign_dag.routes:
-			if int(route.from) == source and int(route.to) == target:
+			if (int(route.from) == source and int(route.to) == target) or (not navigation.is_empty() and int(route.to) == source and int(route.from) == target):
 				return route.duplicate(true)
 	return {}
 
@@ -663,13 +714,22 @@ func research_travel_time(from_id: int, to_id: int) -> float:
 
 func research_travel_distance(from_id: int, to_id: int) -> int:
 	if campaign_active:
-		return maxi(0, int(campaign_node(to_id).get("row", 0)) - int(campaign_node(from_id).get("row", 0)))
+		var distance := int(campaign_node(to_id).get("row", 0)) - int(campaign_node(from_id).get("row", 0))
+		return maxi(0, distance) if navigation.is_empty() else absi(distance)
 	if from_id < 0 or to_id < 0 or from_id >= NODE_COLUMNS.size() or to_id >= NODE_COLUMNS.size():
 		return 0
 	return maxi(0, NODE_COLUMNS[to_id] - NODE_COLUMNS[from_id])
 
 
 func get_frozen_encounter(node_id: int) -> Dictionary:
+	if not navigation.is_empty():
+		if battle_pending and node_id == destination_node_id:
+			return pending_encounter.duplicate(true)
+		if visited_nodes.has(node_id):
+			return {}
+		if navigation.encounters.has(str(node_id)):
+			return navigation.encounters[str(node_id)].duplicate(true)
+		return SwarmNavigation.encounter(frozen_encounters.get(str(node_id), {}), navigation.intensity)
 	return frozen_encounters.get(str(node_id), {}).duplicate(true)
 
 
@@ -705,8 +765,11 @@ func _node_contains_visible_modal(node: Node, scene_root: Node) -> bool:
 func get_reachable_nodes(from_node_id: int) -> Array[int]:
 	var reachable_nodes: Array[int] = []
 	for edge in GRAPH_EDGES:
-		if edge.x == from_node_id:
+		if edge.x == from_node_id and (navigation.is_empty() or node_visible(edge.y)):
 			reachable_nodes.append(edge.y)
+	for edge in GRAPH_EDGES:
+		if not navigation.is_empty() and edge.y == from_node_id and node_visible(edge.x):
+			reachable_nodes.append(edge.x)
 	return reachable_nodes
 
 

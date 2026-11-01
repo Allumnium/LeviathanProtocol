@@ -3,6 +3,7 @@
     {
       "id": "armor_block",
       "name": "Armor Block",
+      "art": "res://assets/equipment/plate_medium_d.png",
       "part_type": 0,
       "rank": 1,
       "revision": 1,
@@ -634,7 +635,7 @@
     },
     {
       "id": "shield_generator",
-      "name": "Shield",
+      "name": "Shield Generator",
       "part_type": 4,
       "rank": 1,
       "revision": 1,
@@ -646,7 +647,7 @@
         "weapons": [],
         "weight": 9
       },
-      "type": "tech",
+      "type": "defense",
       "retired": false,
       "price": 85,
       "hit_points": 25
@@ -665,7 +666,7 @@
         "weapons": [],
         "weight": 6
       },
-      "type": "tech",
+      "type": "defense",
       "retired": false,
       "price": 160,
       "hit_points": 40
@@ -673,6 +674,7 @@
     {
       "id": "hull_plate",
       "name": "Single Plate",
+      "art": "res://assets/equipment/plate_small_d.png",
       "part_type": 3,
       "rank": 1,
       "revision": 1,

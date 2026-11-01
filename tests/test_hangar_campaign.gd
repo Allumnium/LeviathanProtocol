@@ -20,8 +20,8 @@ func run() -> void:
 	for seed_value in range(6):
 		check(state.start_new_run(1, seed_value), "Start seeded campaign")
 		# A useful, affordable first shipyard purchase.
-		check(state.buy_equipment("shield_generator"), "Starter shield purchase")
-		check(state.fit_equipment(1, "inner_starboard", str(state.next_equipment_id - 1)), "Starter shield fit")
+		check(state.buy_equipment("hull_plate"), "Starter defensive purchase")
+		check(state.fit_equipment(1, "inner_starboard", str(state.next_equipment_id - 1)), "Starter defense fit")
 		var target: int = state.get_reachable_nodes(0)[0]
 		check(state.travel_to(target), "Seeded departure")
 		var sim := BattleSimulation.new()

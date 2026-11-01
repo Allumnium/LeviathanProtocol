@@ -86,7 +86,10 @@ func _refresh_context() -> void:
 	var scene := get_tree().current_scene
 	quit_to_menu_button.visible = scene != null and scene.scene_file_path != MAIN_MENU_SCENE_PATH
 	quit_confirmation_overlay.hide()
-	size.y = 280 if quit_to_menu_button.visible else 244
+	content_scale_factor = 1.0
+	content_scale_size = Vector2i.ZERO
+	min_size = Vector2i(304, 218 if quit_to_menu_button.visible else 186)
+	size = min_size
 
 
 func _save_preferences() -> void:

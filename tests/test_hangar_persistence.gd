@@ -25,7 +25,7 @@ func run() -> void:
 		var broken: Dictionary = valid.duplicate(true)
 		broken.research.erase(key)
 		check(not HangarCheckpoint.valid(broken), "Reject missing " + key)
-	for hp in [-1.0, 311.0, INF, NAN]:
+	for hp in [-1.0, 321.0, INF, NAN]:
 		var broken: Dictionary = valid.duplicate(true)
 		broken.ships[0].hull_hp = hp
 		check(not HangarCheckpoint.valid(broken), "Reject invalid hull HP")
@@ -64,15 +64,18 @@ func run() -> void:
 	var slowest := 0
 	for index in range(20):
 		var start := Time.get_ticks_msec()
-		check(state.fit_equipment(1, "aft_port", "1"), "Repeated equipment selection")
+		check(state.fit_equipment(1, "fore", "1"), "Repeated equipment selection")
 		slowest = maxi(slowest, Time.get_ticks_msec() - start)
 	check(slowest < 500, "Refits finish within 500ms")
 	# Trade runs on physical gear and commits along with travel, damage and credits.
 	check(state.start_new_run(1, 909), "Trade run")
+	state.credits = 1000
 	state.current_research_ids.append("civil_hospitality")
+	check(state.buy_chassis("transport"), "Buy physical cargo host")
+	var transport_id: int = state.fleet[-1].id
 	check(state.buy_equipment("cargo_hold"), "Buy working cargo hold")
 	var cargo_uid := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(1, "hold", cargo_uid), "Equip hold")
+	check(state.fit_equipment(transport_id, "hold", cargo_uid), "Equip hold")
 	check(state.buy_equipment("passenger_cabin"), "Buy working cabin")
 	var cabin_uid := str(state.next_equipment_id - 1)
 	check(state.fit_equipment(1, "spine", cabin_uid), "Equip cabin, returning lab to stock")
@@ -107,7 +110,7 @@ func run() -> void:
 	HangarTrade.settle_losses(data, [])
 	check(data.credits == paid - 80, "Casualties charged once")
 	check(state._commit_hangar(data), "Losses and fees commit together")
-	check(state.repair_ship(state.owned_ship(1)), "Reconstruct ruined equipment")
+	check(state.repair_ship(state.owned_ship(1)) and state.repair_ship(state.owned_ship(transport_id)), "Reconstruct ruined equipment")
 	check(not HangarTrade.has_load(state.equipment_inventory[cargo_uid]) and not HangarTrade.has_load(state.equipment_inventory[cabin_uid]), "Repair cannot restore lost loads")
 	# Losing the flagship ends battle despite armed escorts.
 	state.credits = 1000

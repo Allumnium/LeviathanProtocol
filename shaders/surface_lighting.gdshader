@@ -39,7 +39,7 @@ void fragment() {
 		vec4 specular_occlusion = texture(SPECULAR_SHININESS_TEXTURE, uv);
 		vec3 light_direction = normalize(vec3(-0.45, -0.55, 0.85));
 		float lambert = max(dot(normal, light_direction), 0.0);
-		vec3 illumination = vec3(0.40, 0.44, 0.50) + vec3(0.78, 0.75, 0.70) * lambert;
+		vec3 illumination = vec3(0.30, 0.33, 0.375) + vec3(0.78, 0.75, 0.70) * lambert;
 		vec3 halfway = normalize(light_direction + vec3(0.0, 0.0, 1.0));
 		vec3 shine = specular_occlusion.rgb * pow(max(dot(normal, halfway), 0.0), 24.0) * 0.28;
 		if (cursor_light.w > 0.0) {

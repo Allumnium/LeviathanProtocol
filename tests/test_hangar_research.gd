@@ -31,14 +31,14 @@ func run() -> void:
 	fixture.research.research_ids.append("laboratory_iii")
 	fixture.research.story_flags["boss_i_defeated"] = true
 	check(state._commit_hangar(fixture), "Late-game fixture validates")
-	check(state.buy_chassis("frigate"), "Buy chassis with L civic mount")
+	check(state.buy_chassis("transport"), "Buy chassis with L civic mount")
 	var frigate_id: int = state.fleet[-1].id
 	check(state.buy_equipment("research_lab", 2), "Buy Lab II")
 	var lab_ii := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(frigate_id, "center", lab_ii), "Fit exact L Lab II")
+	check(state.fit_equipment(frigate_id, "port", lab_ii), "Fit exact L Lab II")
 	check(state.buy_equipment("research_lab", 3), "Buy Lab III")
 	var lab_iii := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(1, "hold", lab_iii), "Fit exact XL Lab III")
+	check(state.fit_equipment(frigate_id, "hold", lab_iii), "Fit exact XL Lab III")
 	var science := ScienceRules.snapshot(state.get_deployed_fleet())
 	check(science.labs.size() == 3 and science.production_version == 2, "Physical snapshot identifies ranked production")
 	check(ScienceRules.production_rate(science) == 6.0, "Lab I + II + III = 6 RP/day")
@@ -49,10 +49,10 @@ func run() -> void:
 	check(ScienceRules.production_rate({"labs": [{"rank": 3}]}) == 1.0, "Historical snapshots retain their prior lab rate")
 	check(state.load_run_checkpoint(), "Ranked equipment survives reload")
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0, "Reload retains ranked production")
-	check(state.fit_equipment(frigate_id, "center", ""), "Unequip Lab II")
+	check(state.fit_equipment(frigate_id, "port", ""), "Unequip Lab II")
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 4.0, "Stock labs do not produce research")
-	check(state.fit_equipment(frigate_id, "center", lab_ii), "Refit Lab II")
-	var lead: HangarShip = state.owned_ship(1)
+	check(state.fit_equipment(frigate_id, "port", lab_ii), "Refit Lab II")
+	var lead: HangarShip = state.owned_ship(frigate_id)
 	for unit in lead.units:
 		if unit.key == "hold":
 			unit.hp = 0

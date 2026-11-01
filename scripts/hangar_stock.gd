@@ -7,6 +7,7 @@ const EquipmentFilters = preload("res://scripts/hangar_equipment_filters.gd")
 signal changed_preferences(value: Dictionary)
 signal equipment_stored(ok: bool)
 signal equipment_sold(ok: bool)
+signal equipment_selected(uid: String)
 var pending_sale := ""
 var sale_controls: Dictionary = {}
 var preferences: Dictionary = {}
@@ -118,6 +119,10 @@ func _render() -> void:
 		row.custom_minimum_size.y = 42
 		row.clip_contents = true
 		row.disabled = item.id in HangarResearch.DEFERRED_PURCHASES or not SlotCatalog.unlocked(item, grants)
+		row.set_meta("inspect_equipment", instance.uid)
+		row.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and not get_viewport().gui_is_dragging():
+				equipment_selected.emit(instance.uid))
 		rows.add_child(row)
 		row_buttons[instance.uid] = row
 		var content := VBoxContainer.new()
@@ -141,11 +146,10 @@ func _render() -> void:
 			thumbnail.mouse_filter = MOUSE_FILTER_IGNORE
 			row.add_child(thumbnail)
 			content.offset_left = 38
-		var name_label := Label.new()
-		name_label.text = item.name
-		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		name_label.max_lines_visible = 1
-		name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		var name_label := ResourceText.create(item.name)
+		name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		name_label.custom_minimum_size.y = name_label.get_theme_font_size("normal_font_size") + 2
+		name_label.clip_contents = true
 		name_label.mouse_filter = MOUSE_FILTER_IGNORE
 		content.add_child(name_label)
 		var second_line := HBoxContainer.new()

@@ -2,7 +2,7 @@ class_name SlotCatalog
 extends RefCounted
 
 const TYPES := ["offense", "defense", "tech", "civic"]
-const SLOT_TYPES := ["general", "engine", "offense", "defense", "tech", "civic"]
+const SLOT_TYPES := ["general", "engine", "offense", "defense", "tech", "civic", "combat", "utility", "civil"]
 const SIZES := ["S", "M", "L", "XL"]
 const EQUIPMENT_PATH := "res://data/slot_equipment.json"
 static var _chassis: Array[Dictionary] = []
@@ -66,6 +66,12 @@ static func compatible(slot: Dictionary, item: Dictionary) -> bool:
 	match slot.get("type"):
 		"general":
 			return item.get("type") in TYPES
+		"combat":
+			return item.get("type") in ["offense", "defense"]
+		"utility":
+			return item.get("type") in ["civic", "tech", "defense"]
+		"civil":
+			return item.get("type") in ["civic", "tech"]
 		"engine":
 			return item.get("type") == "defense" or int(item.get("part_type", -1)) in [ShipPart.Type.THRUSTER,
 				ShipPart.Type.LARGE_THRUSTER, ShipPart.Type.SHIELD, ShipPart.Type.SHIELD_RELAY]
@@ -78,6 +84,9 @@ static func slot_label(slot: Dictionary) -> String:
 		"general": return slot.size
 		"engine": return "%s | Thruster / Defense" % slot.size
 		"offense": return "%s | Weapons" % slot.size
+		"combat": return "%s | Offense / Defense" % slot.size
+		"utility": return "%s | Civic / Tech / Defense" % slot.size
+		"civil": return "%s | Civic / Tech" % slot.size
 		_: return "%s | %s" % [slot.size, str(slot.type).capitalize()]
 
 static func unlocked(item: Dictionary, grants: Dictionary) -> bool:
@@ -162,6 +171,12 @@ static func valid_chassis(data: Variant) -> bool:
 		for field in ["integrity", "mass", "thrust", "radius"]:
 			if not _nonnegative(entry.get(field)) or entry[field] <= 0:
 				return false
+		if not _nonnegative(entry.get("weapon_damage_multiplier", 1.0)) or entry.get("weapon_damage_multiplier", 1.0) <= 0:
+			return false
+		if not _nonnegative(entry.get("dodge_chance", 0.0)) or entry.get("dodge_chance", 0.0) > 1:
+			return false
+		if entry.has("builtin_shield") and entry.builtin_shield != "shield_generator":
+			return false
 		var slots := {}
 		for slot: Variant in entry.slots:
 			if not slot is Dictionary or not slot.get("id") is String or slots.has(slot.id) or slot.get("type") not in SLOT_TYPES or slot.get("size") not in SIZES or not slot.get("rect") is Array or slot.rect.size() != 4:

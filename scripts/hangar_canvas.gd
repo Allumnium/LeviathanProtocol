@@ -112,10 +112,12 @@ func set_owned(owned: HangarShip) -> void:
 		card.self_modulate = button.self_modulate
 		card.visible = not instance.is_empty()
 		add_child(card)
-		var label := Label.new()
+		var label := ResourceText.new()
 		label.name = "EquipmentName"
-		label.theme_type_variation = &"EquipmentLabel"
-		label.text = _empty_label(slot) if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name
+		label.theme_type_variation = &"EquipmentResourceText"
+		label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		label.clip_contents = false
+		label.set_content(_empty_label(slot) if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name)
 		label.mouse_filter = MOUSE_FILTER_IGNORE
 		card.add_child(label)
 		slot_callouts[slot.id] = card
@@ -169,9 +171,9 @@ func _rail_width(slots: Array[Dictionary]) -> float:
 			if SlotCatalog.compatible(slot, item):
 				names[item.name] = true
 	# Reserve full-name space for this chassis so fitting never changes ship scale.
-	var label: Label = slot_callouts[slots[0].id].get_node("EquipmentName") if not slots.is_empty() else null
+	var label: ResourceText = slot_callouts[slots[0].id].get_node("EquipmentName") if not slots.is_empty() else null
 	for name: String in names:
-		width = maxf(width, label.get_theme_font("font").get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size("font_size")).x + 20)
+		width = maxf(width, label.get_theme_font("normal_font").get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size("normal_font_size")).x + 20)
 	return ceilf(width)
 
 func _layout_rail(slots: Array[Dictionary], x: float, width: float) -> void:
@@ -184,7 +186,7 @@ func _layout_rail(slots: Array[Dictionary], x: float, width: float) -> void:
 		card.set_meta("left_rail", x == 0)
 		card.position = Vector2(x, y)
 		card.size = Vector2(width, height)
-		var label: Label = card.get_node("EquipmentName")
+		var label: ResourceText = card.get_node("EquipmentName")
 		label.position = Vector2(10, 0)
 		label.size = Vector2(width - 20, height)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

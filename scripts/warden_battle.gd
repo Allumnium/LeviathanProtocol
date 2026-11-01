@@ -23,6 +23,8 @@ static func valid_plan(plan: Dictionary) -> bool:
 	for key in ["cycle_seconds", "warning_seconds", "vulnerability_seconds", "lance_damage", "range", "half_width"]:
 		if not AlienShip._finite_number(value.get(key)):
 			return false
+	if not SaveValidation.bounded_number(value.get("damage_multiplier", 1.0)) or value.get("damage_multiplier", 1.0) < 1:
+		return false
 	if value.cycle_seconds != 12 or value.warning_seconds != 3 or value.vulnerability_seconds != 6 \
 		or value.lance_damage <= 0 or value.lance_damage > 30 or value.range != 520 or value.half_width != 22:
 		return false
@@ -64,6 +66,7 @@ func configure(sim, plan: Dictionary) -> bool:
 		return true
 	if not valid_plan(plan):
 		return false
+	rules.lance_damage *= rules.get("damage_multiplier", 1.0)
 	var body = sim.entities.get(rules.body_id)
 	if body == null:
 		return false
@@ -154,7 +157,7 @@ func advance(sim, delta: float) -> void:
 				continue
 			var closest := Geometry2D.get_closest_point_to_segment(member.position, origin, origin + direction * float(rules.range))
 			if member.position.distance_to(closest) <= member.radius + float(rules.half_width):
-				sim._damage(member, float(rules.lance_damage), origin, body, "Warden Lance")
+				sim._damage(member, float(rules.lance_damage), origin, body, "Warden Lance", false, true)
 				hit.append(member.entity_id)
 		sim._record_event("warden_lance", {"cycle": cycle, "hit": hit})
 

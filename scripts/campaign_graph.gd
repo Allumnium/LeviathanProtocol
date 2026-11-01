@@ -5,9 +5,49 @@ const VERSION := 1
 const COMBAT_ROWS := [[1, 3, 5, 8], [1, 2, 4, 5, 8], [1, 2, 4, 5, 8]]
 
 
-static func generate(seed_value: int) -> Dictionary:
+static func generate(seed_value: int, navigation_version := 1) -> Dictionary:
 	if seed_value < 0:
 		return {}
+	if navigation_version == 2:
+		var network := _build(seed_value, false)
+		network.navigation_version = 2
+		var layout := RandomNumberGenerator.new()
+		layout.seed = hash("%d/beacon-layout/v2" % seed_value)
+		for node: Dictionary in network.nodes:
+			if node.kind not in ["start", "staging", "boss"]:
+				node.position[0] += layout.randf_range(-0.009, 0.009)
+		network.edges = []
+		for row in range(24):
+			var left: Array = network.nodes.filter(func(node: Dictionary) -> bool: return node.row == row)
+			var right: Array = network.nodes.filter(func(node: Dictionary) -> bool: return node.row == row + 1)
+			var a := 0
+			var b := 0
+			network.edges.append([left[a].id, right[b].id])
+			while a < left.size() - 1 or b < right.size() - 1:
+				var next_a := float(a + 1) / maxf(1, left.size() - 1) if a < left.size() - 1 else INF
+				var next_b := float(b + 1) / maxf(1, right.size() - 1) if b < right.size() - 1 else INF
+				if next_a <= next_b:
+					a += 1
+				if next_b <= next_a:
+					b += 1
+				network.edges.append([left[a].id, right[b].id])
+			for source: Dictionary in left:
+				for target: Dictionary in right:
+					var crosses: bool = network.edges.any(func(edge: Array) -> bool:
+						return network.nodes[edge[0]].row == row \
+							and (network.nodes[edge[0]].lane - source.lane) * (network.nodes[edge[1]].lane - target.lane) < 0)
+					if not crosses:
+						_add_edge(network, source.id, target.id)
+		if errors(network).is_empty():
+			return network
+		for node: Dictionary in network.nodes:
+			node.position[0] = lerpf(0.035, 0.965, float(node.row) / 24.0)
+		network.fallback = true
+		var issues := errors(network)
+		if not issues.is_empty():
+			push_error("Could not generate beacon network: " + ", ".join(issues))
+			return {}
+		return network
 	var graph := _build(seed_value, false)
 	if errors(graph).is_empty():
 		return graph
@@ -156,7 +196,8 @@ static func errors(value: Variant) -> Array[String]:
 				return ["Node does not match its campaign row."]
 			if node.combat_index != (combat_index if combat else 0) or (node.elite and expected_kind != "combat"):
 				return ["Invalid combat cadence/elite placement."]
-			if absf(node.position[0] - lerpf(0.035, 0.965, float(row) / 24.0)) > 0.00001 or node.position[1] <= last_y:
+			var tolerance := 0.00901 if value.get("navigation_version", 1) == 2 else 0.00001
+			if absf(node.position[0] - lerpf(0.035, 0.965, float(row) / 24.0)) > tolerance or node.position[1] <= last_y:
 				return ["Invalid row/lane geometry."]
 			last_y = node.position[1]
 	for edge in value.edges:
@@ -172,6 +213,19 @@ static func errors(value: Variant) -> Array[String]:
 		return ["Invalid final boss."]
 	if not _same_ids(value.get("staging"), expected_staging) or not _same_ids(value.get("bosses"), expected_bosses):
 		return ["Invalid checkpoint identities."]
+	if value.get("navigation_version", 1) == 2:
+		for i in range(value.edges.size()):
+			var first: Array = value.edges[i]
+			for j in range(i + 1, value.edges.size()):
+				var second: Array = value.edges[j]
+				if first[0] in second or first[1] in second:
+					continue
+				var a := Vector2(nodes[first[0]].position[0], nodes[first[0]].position[1])
+				var b := Vector2(nodes[first[1]].position[0], nodes[first[1]].position[1])
+				var c := Vector2(nodes[second[0]].position[0], nodes[second[0]].position[1])
+				var d := Vector2(nodes[second[1]].position[0], nodes[second[1]].position[1])
+				if Geometry2D.segment_intersects_segment(a, b, c, d) != null:
+					return ["Intersecting beacon routes."]
 	for id in range(nodes.size()):
 		if id > 0 and incoming[id].is_empty():
 			issues.append("Unreachable node.")
@@ -183,7 +237,7 @@ static func errors(value: Variant) -> Array[String]:
 				issues.append("Consecutive elites.")
 			if not nodes[target].elite:
 				safe = true
-		if not outgoing[id].is_empty() and not safe:
+		if not outgoing[id].is_empty() and not safe and value.get("navigation_version", 1) == 1:
 			issues.append("Mandatory elite continuation.")
 	for act in range(1, 4):
 		var forks := 0
@@ -198,7 +252,7 @@ static func errors(value: Variant) -> Array[String]:
 				three_way = three_way or outgoing[id].size() == 3
 			if incoming[id].size() >= 2:
 				merges += 1
-		if forks < 2 or merges < 1 or not three_way:
+		if value.get("navigation_version", 1) == 1 and (forks < 2 or merges < 1 or not three_way):
 			issues.append("Act lacks required forks/merge/three-way choice.")
 	# Adjacent-row edges and nonzero degrees prove reachability in both directions:
 	# the unique row-zero start reaches all nodes, and every node reaches its boss.

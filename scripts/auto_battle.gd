@@ -50,7 +50,7 @@ var _pending_result_won := false
 var ability_bar: Control
 var _paused_before_aim := false
 var _simulation_accumulator := 0.0
-var repair_label: Label
+var repair_label: ResourceText
 var objective_label: Label
 var _settlement_error := false
 
@@ -101,8 +101,9 @@ func _ready() -> void:
 		call_deferred("_return_to_map")
 		return
 	simulation.set_destroy_all_neutral_targets(GameState.destroy_all_neutral_targets)
-	repair_label = Label.new()
+	repair_label = ResourceText.new()
 	repair_label.position = Vector2(8, 56)
+	repair_label.size = Vector2(550, 20)
 	add_child(repair_label)
 	objective_label = Label.new()
 	objective_label.position = Vector2(8, 38)
@@ -124,16 +125,16 @@ func _ready() -> void:
 	withdraw_button.text = "RETREAT"
 	withdraw_button.theme_type_variation = &"FramedButton"
 	withdraw_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	withdraw_button.offset_left = -100
-	withdraw_button.offset_right = -8
+	withdraw_button.offset_left = -138
+	withdraw_button.offset_right = -46
 	withdraw_button.offset_top = 8
 	withdraw_button.offset_bottom = 32
 	withdraw_button.pressed.connect(func() -> void:
 		simulation.issue_command("withdraw")
 		withdraw_button.disabled = true)
 	add_child(withdraw_button)
-	withdraw_button.offset_left = -110
-	withdraw_button.offset_right = -8
+	withdraw_button.offset_left = -148
+	withdraw_button.offset_right = -46
 	AudioManager.connect_ui_button(withdraw_button, &"question")
 	visuals.simulation = simulation
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
@@ -151,6 +152,8 @@ func _commit_asteroid_pickup(id: String, materials: Array, field: Dictionary) ->
 
 
 func _physics_process(delta: float) -> void:
+	if UiNavigation.settings_open():
+		return
 	if _finished:
 		return
 	if _result_delay_remaining >= 0.0:
@@ -202,14 +205,15 @@ func _physics_process(delta: float) -> void:
 					remaining += float(simulation.repair_reserves.get(SharedSupport.reserve_key(member.owned_ship, index), 0.0))
 		var drone_remaining := maxf(0, simulation.doctrines.pool.get("repair_capacity", 0) - simulation.doctrines.pool.get("repair_spent", 0))
 		var rebuilds: int = simulation.doctrines.pool.get("rebuild_capacity", 0) - simulation.doctrines.pool.get("rebuilt", []).size()
-		repair_label.text = "REPAIR: %.1f HP" % (minf(remaining, maxf(0, simulation.repair_capacity - simulation.repair_spent)) + drone_remaining)
+		var support_text := "REPAIR: %.1f HP" % (minf(remaining, maxf(0, simulation.repair_capacity - simulation.repair_spent)) + drone_remaining)
 		if simulation.doctrines.pool.get("rebuild_capacity", 0) > 0:
-			repair_label.text += " | REBUILD: %d" % rebuilds
+			support_text += " | REBUILD: %d" % rebuilds
 		if not simulation.doctrines.carriers.reserves.is_empty():
 			var available := simulation.doctrines.carriers.available(simulation)
 			var craft_text := "CRAFT: %d ready / %d active" % [available.x, available.y]
-			repair_label.text = repair_label.text + " | " + craft_text if repair_label.visible else craft_text
+			support_text = support_text + " | " + craft_text if repair_label.visible else craft_text
 			repair_label.show()
+		repair_label.set_content(support_text)
 
 
 func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
@@ -257,6 +261,8 @@ func _on_fast_forward_toggled(is_fast: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if UiNavigation.settings_open():
+		return
 	if _report_open or _result_delay_remaining >= 0.0:
 		return
 	if ability_bar != null and ability_bar.targeting:
@@ -306,6 +312,13 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if UiNavigation.settings_open():
+		return
+	var settings := get_node_or_null("SettingsButton") as Control
+	if event is InputEventMouseButton and settings != null and settings.get_global_rect().has_point(event.position):
+		_dragging = false
+		_left_pressed = false
+		return
 	if ability_bar != null and ability_bar.targeting:
 		if ability_bar.menu_open():
 			return

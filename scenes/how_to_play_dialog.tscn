@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bba03wcrloe4"]
 
 [ext_resource type="PackedScene" uid="uid://tpx12myxr54h" path="res://scenes/modal_dialog.tscn" id="1_modal"]
+[ext_resource type="Script" path="res://scripts/resource_text.gd" id="2_resource_text"]
 
 [node name="HowToPlayDialog" unique_id=521645721 instance=ExtResource("1_modal")]
 size = Vector2i(560, 320)
@@ -24,7 +25,8 @@ layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Body" type="Label" parent="Contents/ContentArea/HelpScroll" index="0" unique_id=1201166832]
+[node name="Body" type="RichTextLabel" parent="Contents/ContentArea/HelpScroll" index="0" unique_id=1201166832]
+script = ExtResource("2_resource_text")
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3

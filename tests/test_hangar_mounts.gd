@@ -14,22 +14,24 @@ func check(ok: bool, message: String) -> void:
 		push_error(message)
 
 func run() -> void:
-	var previous: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/playthrough_mount_preferences.json"))
 	for chassis: Dictionary in SlotCatalog.chassis():
 		for slot: Dictionary in chassis.slots:
 			for item: Dictionary in SlotCatalog.equipment(true):
-				if item.size == slot.size and previous[chassis.id][slot.id] == item.type:
-					check(SlotCatalog.compatible(slot, item), "Previously valid loadouts remain valid: " + chassis.id + "/" + slot.id + "/" + item.id)
+				var categories: Array = {"general": ["offense", "defense", "civic", "tech"],
+					"combat": ["offense", "defense"], "offense": ["offense"],
+					"utility": ["civic", "tech", "defense"], "civil": ["civic", "tech"]}[slot.type]
+				if item.size == slot.size:
+					check(SlotCatalog.compatible(slot, item) == (item.type in categories), "Owner-confirmed mount categories: " + chassis.id + "/" + slot.id + "/" + item.id)
 				if slot.type == "general" and item.size == slot.size:
 					check(SlotCatalog.compatible(slot, item), "General mounts accept every matching-size category")
 				if slot.size != item.size:
 					check(not SlotCatalog.compatible(slot, item), "Exact size remains mandatory on every chassis")
-		if chassis.id in ["corsair", "transport", "frigate", "drone"]:
+		if chassis.id in ["corsair", "transport", "frigate"]:
 			var aft: Dictionary = chassis.slots.filter(func(slot: Dictionary) -> bool: return slot.id == "aft")[0]
-			check(aft.type == "engine", "Rear engine housing has a positional restriction")
+			check(aft.type == ("utility" if chassis.id == "frigate" else "general"), "Rear mount uses confirmed category")
 			check(SlotCatalog.compatible(aft, SlotCatalog.find_equipment("thruster")), "Engine mount accepts an extra thruster")
 			check(SlotCatalog.compatible(aft, SlotCatalog.find_equipment("hull_plate")), "Engine mount accepts defensive plating")
-			check(not SlotCatalog.compatible(aft, SlotCatalog.find_equipment("mini_turret")), "Engine mount rejects a weapon")
+			check(SlotCatalog.compatible(aft, SlotCatalog.find_equipment("mini_turret")) == (chassis.id != "frigate"), "Rear weapon fitting follows chassis category")
 	check(SlotCatalog.compatible({"size": "M", "type": "engine"}, SlotCatalog.find_equipment("shield_generator")), "Defensive shields qualify even though the older equipment category was Tech")
 	check(not SlotCatalog.compatible({"size": "M", "type": "engine"}, SlotCatalog.find_equipment("ammunition_magazine")), "Engine restriction does not admit unrelated Tech equipment")
 	check(not SlotCatalog.compatible({"size": "M", "type": "offense"}, SlotCatalog.find_equipment("research_lab")), "Forward weapon mount rejects a same-size lab")
@@ -39,12 +41,14 @@ func run() -> void:
 	check(state.start_new_run(1, 42), "Start general-mount transaction fixture")
 	var fixture: Dictionary = state.hangar_snapshot()
 	fixture.credits = 5000
-	fixture.research.research_ids.append("applied_energy")
+	fixture.research.research_ids.append_array(["applied_energy", "laboratory_ii", "bastion_ii", "command_i", "command_ii"])
+	fixture.research.branch_choices["survival"] = "bastion"
+	fixture.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(fixture) and state.buy_chassis("transport"), "Buy actual Transport")
 	var transport_id: int = state.fleet[-1].id
 	var uids: Array[String] = []
-	for id in ["double_laser", "armor_block", "shield_generator", "research_lab"]:
-		check(state.buy_equipment(id), "Buy matching-size equipment: " + id)
+	for id in ["research_lab", "shield_relay", "tactical_computer"]:
+		check(state.buy_equipment(id, 2 if id == "research_lab" else 1), "Buy matching-size equipment: " + id)
 		var uid := str(state.next_equipment_id - 1)
 		uids.append(uid)
 		var credits: int = state.credits
@@ -61,23 +65,23 @@ func run() -> void:
 
 func stacking_checks(transport_id: int) -> void:
 	var data: Dictionary = state.hangar_snapshot()
-	data.research.research_ids.append_array(["guided_munitions", "siege_i", "command_i", "command_ii"])
+	data.research.research_ids.append_array(["guided_munitions", "siege_i"])
 	data.research.branch_choices["force_projection"] = "siege"
 	data.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(data), "Unlock existing stackable equipment fixture")
-	for side in ["port", "starboard"]:
-		check(state.buy_equipment("ammunition_magazine"), "Buy a distinct magazine instance")
-		check(state.fit_equipment(transport_id, side, str(state.next_equipment_id - 1)), "Either Transport side accepts a magazine")
-	check(state.owned_ship(transport_id).weapon_cycle_rate() == 1.4, "Two real Transport mounts give the requested stacking rate")
-	check(state.buy_chassis("frigate"), "Buy Frigate with two large general mounts")
-	var frigate_id: int = state.fleet[-1].id
-	for location in ["fore", "center"]:
+	check(state.buy_chassis("drone") and state.buy_equipment("ammunition_magazine"), "Buy a general M magazine host and instance")
+	var drone_id: int = state.fleet[-1].id
+	check(state.fit_equipment(drone_id, "center", str(state.next_equipment_id - 1)), "General Drone center accepts a magazine")
+	check(state.owned_ship(drone_id).weapon_cycle_rate() == 1.2, "Real general mount supplies ship-wide cycling")
+	for location in ["port", "starboard"]:
 		check(state.buy_equipment("tactical_computer"), "Buy a distinct computer instance")
-		check(state.fit_equipment(frigate_id, location, str(state.next_equipment_id - 1)), "Either large Frigate mount accepts a computer")
+		check(state.fit_equipment(transport_id, location, str(state.next_equipment_id - 1)), "Either large Transport utility mount accepts a computer")
 	var member := BattleSimulation.Combatant.new()
-	member.owned_ship = state.owned_ship(frigate_id)
+	member.owned_ship = state.owned_ship(transport_id)
 	check(CombatDoctrines.operational(member, ShipPart.Type.TACTICAL_COMPUTER).size() == 2, "Both physical computers contribute to synchronization")
-	check(state.load_run_checkpoint() and state.owned_ship(transport_id).weapon_cycle_rate() == 1.4, "Stacked general-mount loadouts survive reload")
+	check(state.load_run_checkpoint() and state.owned_ship(drone_id).weapon_cycle_rate() == 1.2, "General-mount cycling survives reload")
+	member.owned_ship = state.owned_ship(transport_id)
+	check(CombatDoctrines.operational(member, ShipPart.Type.TACTICAL_COMPUTER).size() == 2, "Stacked utility-mount loadouts survive reload")
 
 func settle() -> void:
 	await process_frame
@@ -107,7 +111,7 @@ func ui_checks(transport_id: int, uids: Array[String]) -> void:
 	var button: Button = screen.canvas.slot_buttons.port
 	button._drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uids[0]))
 	await settle()
-	check(state.owned_ship(transport_id).mounts.port.uid == uids[0], "Drop target fits a weapon in the former Defense mount")
+	check(state.owned_ship(transport_id).mounts.port.uid == uids[0], "Drop target fits civic equipment in the utility mount")
 	screen.selected_slot = "port"
 	screen._show_details()
 	check(not text_under(screen.details).contains("General |"), "General mount has no redundant category text")
@@ -119,7 +123,7 @@ func ui_checks(transport_id: int, uids: Array[String]) -> void:
 	await create_timer(0.5).timeout
 
 func text_under(node: Node) -> String:
-	var text: String = node.text if node is Label else ""
+	var text: String = node.source_text if node is ResourceText else (node.text if node is Label else "")
 	for child in node.get_children():
 		text += "\n" + text_under(child)
 	return text

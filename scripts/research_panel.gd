@@ -28,6 +28,7 @@ func _ready() -> void:
 	add_child(tree_canvas)
 	tree_canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tree_canvas.node_selected.connect(_select)
+	tree_canvas.node_activated.connect(_activate)
 	GameState.research_changed.connect(refresh)
 	GameState.travel_plan_changed.connect(_refresh_production)
 	refresh(view_state.is_empty())
@@ -43,10 +44,9 @@ func set_external_panels_visible(value: bool) -> void:
 	if summary_host != null:
 		summary_host.visible = value
 
-func _label(text: String) -> Label:
-	var label := Label.new()
+func _label(text: String) -> ResourceText:
+	var label := ResourceText.create(text)
 	label.size.x = 100
-	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return label
@@ -121,6 +121,11 @@ func _select(id: String) -> void:
 	tree_canvas.select(id)
 	_refresh_summary()
 
+func _activate(id: String) -> void:
+	_select(id)
+	if focus_button != null and not focus_button.disabled:
+		focus_requested.emit(id)
+
 func _refresh_summary() -> void:
 	if summary_host == null:
 		return
@@ -163,7 +168,7 @@ func _refresh_summary() -> void:
 		AudioManager.connect_ui_button(focus_button)
 		focus_button.pressed.connect(func() -> void: focus_requested.emit(selected_id))
 		summary_host.add_child(focus_button)
-	feedback = _label("")
+	feedback = Label.new()
 	feedback.hide()
 	summary_host.add_child(feedback)
 

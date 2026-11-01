@@ -19,7 +19,7 @@ func run() -> void:
 	check(state.start_new_run(1, 74321), "New actual campaign")
 	check(state.fleet.size() == 1 and state.fleet[0].chassis_id == "flagship_basic", "Supplied flagship")
 	check(HangarCheckpoint.valid(state.hangar_snapshot()), "Checkpoint valid")
-	check(state.fleet[0].mounts.size() == 4, "Starter physical equipment")
+	check(state.fleet[0].mounts.size() == 3, "Starter physical equipment")
 	check(state.can_deploy(), "Armed deployment")
 	check(state.is_shipyard_node(0), "Start shipyard")
 	var original: Dictionary = state.hangar_snapshot()
@@ -35,22 +35,23 @@ func run() -> void:
 	check(state.fit_equipment(ship_id, "fore", uid), "Fit stock item")
 	check(state.equipment_location(uid).ship_id == ship_id, "Ownership is unique")
 	credits = state.credits
-	check(state.fit_equipment(1, "aft_port", uid), "Transfer between ships")
+	check(state.fit_equipment(1, "fore", uid), "Transfer between ships")
 	check(state.credits == credits, "Free transfer")
 	check(state.owned_ship(ship_id).mounts.is_empty(), "Old mount emptied")
 	check(not state.fit_equipment(ship_id, "center", uid), "Wrong type/size rejected")
 	check(not state.sell_equipment(uid), "Equipped item cannot be sold")
-	check(state.fit_equipment(1, "aft_port", ""), "Unequip")
+	check(state.fit_equipment(1, "fore", ""), "Unequip")
 	check(state.sell_equipment(uid), "Sell stock")
 	check(not state.sell_equipment(uid), "Cannot sell twice")
 	check(not state.salvage_hangar_ship(1), "Cannot salvage mandatory flagship")
 	check(state.salvage_hangar_ship(ship_id), "Immediate chassis salvage")
 	var lead: HangarShip = state.owned_ship(1)
 	var hp := lead.hull_hp
-	var component: float = lead.units[2].hp
-	lead.damage_cell(Vector2i(2, 0), 10)
-	check(lead.hull_hp == hp - 5 and lead.units[2].hp == component - 5, "Half equipment / half chassis damage")
-	check(lead.mounts[lead.units[2].key].hp == lead.units[2].hp, "Instance damage retained")
+	var index: int = lead.units.find(lead.units.filter(func(unit: Dictionary) -> bool: return unit.key == "port")[0])
+	var component: float = lead.units[index].hp
+	lead.damage_cell(Vector2i(index, 0), 10)
+	check(lead.hull_hp == hp - 5 and lead.units[index].hp == component - 5, "Half equipment / half chassis damage")
+	check(lead.mounts[lead.units[index].key].hp == lead.units[index].hp, "Instance damage retained")
 	check(state.repair_ship(lead), "Credits-only repair")
 	lead = state.owned_ship(1)
 	check(not lead.needs_repair(), "Hull and components repaired")
@@ -64,7 +65,7 @@ func run() -> void:
 	check(state.load_run_checkpoint(), "Load checkpoint")
 	check(JSON.parse_string(JSON.stringify(state.hangar_snapshot())) == JSON.parse_string(JSON.stringify(snapshot)), "Roundtrip ship, gear, health and progress")
 	var bad: Dictionary = snapshot.duplicate(true)
-	bad.ships[0].mounts["aft_starboard"] = bad.ships[0].mounts.aft_port
+	bad.ships[0].mounts["fore"] = bad.ships[0].mounts.port
 	check(not HangarCheckpoint.valid(bad), "Duplicate physical item rejected")
 	bad = snapshot.duplicate(true)
 	bad.credits = 0.5

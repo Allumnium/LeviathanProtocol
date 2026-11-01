@@ -85,7 +85,7 @@ func run() -> void:
 	check(state.owned_ship(ship_id).mounts.hold.uid == items.cargo_hold, "Dragging a side label cannot unequip its part")
 	var art_before: Rect2 = screen.canvas.image_rect
 	await click(screen.canvas.slot_buttons.hold)
-	check(screen.slot_info.visible and not screen.stats_grid.visible and screen.slot_info.text.contains("Cargo Hold") and screen.slot_info.text.contains("10 cargo"), "Art click shows only the selected part's health and effect")
+	check(screen.slot_info.visible and not screen.stats_grid.visible and screen.slot_info.get_parsed_text().contains("Cargo Hold") and screen.slot_info.get_parsed_text().contains("10 cargo"), "Art click shows only the selected part's health and effect")
 	check(screen.canvas.image_rect == art_before, "Selecting a part never shifts the ship or mount geometry")
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
@@ -99,12 +99,27 @@ func run() -> void:
 	await click(screen.canvas.slot_buttons.hold)
 	check(screen.selected_slot.is_empty() and screen.stats_grid.visible, "An empty mount has no part details and keeps ship statistics")
 	await fit_stock("cargo_hold", "hold")
-	await fit_stock("passenger_cabin", "port")
+	check(state.buy_chassis("drone"), "Buy general M passenger host")
+	var transport_id := ship_id
+	var drone_id: int = state.fleet[-1].id
+	ship_id = drone_id
+	screen.selected_ship_id = drone_id
+	screen._queue_refresh()
+	await settle()
+	await fit_stock("passenger_cabin", "center")
 	check(state.owned_ship(ship_id).hangar_summary().passengers == 4, "Equipped cabin updates passenger capacity")
 	var inventory_count: int = state.equipment_inventory.size()
-	await fit_stock("double_laser", "port")
+	await fit_stock("double_laser", "center")
 	check(state.equipment_location(items.passenger_cabin).is_empty() and state.equipment_inventory.size() == inventory_count, "Replacement returns the old instance without creating copies")
 	check(state.owned_ship(ship_id).hangar_summary().passengers == 0 and state.owned_ship(ship_id).hangar_summary().dps > 0, "Replacement updates both capacities and DPS")
+	check(state.buy_chassis("corsair"), "Buy compatible M combat transfer host")
+	var corsair_id: int = state.fleet[-1].id
+	ship_id = corsair_id
+	screen.selected_ship_id = corsair_id
+	screen._queue_refresh()
+	await settle()
+	check(state.fit_equipment(corsair_id, "port", items.double_laser), "Transfer weapon to compatible combat host")
+	await settle()
 	await drag(screen.canvas.slot_buttons.port.get_global_rect().get_center(), screen.canvas.slot_buttons.starboard.get_global_rect().get_center())
 	check(not state.owned_ship(ship_id).mounts.has("port") and state.owned_ship(ship_id).mounts.starboard.uid == items.double_laser, "Native drag moves installed equipment between slots")
 	await fit_stock("shield_generator", "port")
@@ -112,6 +127,10 @@ func run() -> void:
 	await drag(screen.canvas.slot_buttons.port.get_global_rect().get_center(), screen.stock.scroll.get_global_rect().get_center())
 	check(not state.owned_ship(ship_id).mounts.has("port") and state.equipment_location(items.shield_generator).is_empty(), "Native drag back into stock unequips the instance")
 	check(state.owned_ship(ship_id).hangar_summary().shields == 0, "Unequipping updates shields")
+	ship_id = transport_id
+	screen.selected_ship_id = transport_id
+	screen._queue_refresh()
+	await settle()
 	var integrity: float = state.owned_ship(ship_id).hull_max
 	await fit_stock("hull_plate", "aft")
 	check(state.owned_ship(ship_id).hangar_summary().integrity_max > integrity, "Defensive equipment updates integrity")
@@ -123,7 +142,7 @@ func run() -> void:
 	await camera_checks()
 	await invalid_drop_checks()
 	await layout_checks()
-	check(state.load_run_checkpoint() and state.owned_ship(ship_id).mounts.starboard.uid == items.double_laser, "Drag transactions survive checkpoint reload")
+	check(state.load_run_checkpoint() and state.owned_ship(corsair_id).mounts.starboard.uid == items.double_laser, "Drag transactions survive checkpoint reload")
 	check(state.owned_ship(ship_id).equipment_art.has("hold"), "Fitted equipment art rebuilds on checkpoint reload")
 	await settle()
 	await sale_checks()
@@ -298,9 +317,9 @@ func filter_checks() -> void:
 	await settle()
 	check(screen.stock.visible_uids.size() == 3, "Inclusive range includes both small and medium")
 	await click(screen.stock.filters.categories.defense)
-	check(screen.stock.visible_uids.size() == 4, "Multiple category checkboxes can be selected together")
+	check(screen.stock.visible_uids.size() == 5, "Multiple category checkboxes can be selected together")
 	screen.stock.filters.categories.offense.button_pressed = false
-	check(screen.stock.visible_uids.size() == 1 and screen.stock.visible_uids[0] == items.hull_plate, "Unchecking one category preserves other choices")
+	check(screen.stock.visible_uids.size() == 2 and items.hull_plate in screen.stock.visible_uids and items.shield_generator in screen.stock.visible_uids, "Unchecking one category preserves other choices")
 	screen.stock.filters.categories.defense.button_pressed = false
 	check(screen.stock.visible_uids.is_empty(), "No checked categories shows no matches")
 	screen.stock.filters.set_preferences({"sizes": []})
@@ -349,7 +368,9 @@ func fit_stock(key: String, slot: String) -> void:
 	await drag(row.get_global_rect().get_center(), target.get_global_rect().get_center())
 	check(state.owned_ship(ship_id).mounts.get(slot, {}).get("uid") == items[key], "Native stock drag fits " + key)
 	check(state.credits == before and items[key] not in screen.stock.visible_uids, "Fitting is free and removes exactly the fitted stock row")
-	check(screen.slot_info.visible and not screen.stats_grid.visible and screen.slot_info.text.contains(SlotCatalog.find_equipment(state.equipment_inventory[items[key]].equipment_id).name), "Selecting fitted equipment replaces ship stats with part details")
+	check(screen.slot_info.visible and not screen.stats_grid.visible and screen.slot_info.source_text.contains(SlotCatalog.find_equipment(state.equipment_inventory[items[key]].equipment_id).name)
+		and not screen.slot_info.get_parsed_text().replace("Shield Generator", "").to_lower().contains("shield")
+		and not screen.slot_info.get_parsed_text().to_lower().contains("repair"), "Selecting fitted equipment replaces ship stats with icon-rendered part details")
 	var empty_space: Vector2 = screen.canvas.global_position + Vector2(screen.canvas.size.x * 0.5, 2)
 	motion(empty_space, false)
 	mouse_button(empty_space, true)
@@ -393,7 +414,7 @@ func drag(start: Vector2, finish: Vector2) -> void:
 		var mount_bounds: Rect2 = screen.canvas.get_global_transform() * screen.canvas.slot_rect(reference)
 		var expected_art := SlotCatalog.fitted_art_rect(floating.texture, mount_bounds, item.get("art_mount", []))
 		var actual_art: Rect2 = floating.get_global_transform() * floating.sprite_rect
-		check(actual_art.size.is_equal_approx(expected_art.size), "Floating sprite matches fitted ship scale, including mount anchors")
+		check(actual_art.size.is_equal_approx(expected_art.size), "Floating sprite matches fitted ship scale, including mount anchors: %s/%s actual %s expected %s" % [item.id, reference.id, actual_art.size, expected_art.size])
 		check(floating.target_slot.is_empty(), "Floating scale check is outside all mount targets")
 	check(screen.stock.unequip_mode == installed, "Only installed-equipment drags replace stock with the unequip target")
 	if installed:
@@ -478,7 +499,7 @@ func invalid_drop_checks() -> void:
 	var save_path: String = state.run_save_path
 	state.run_save_path = "user://blocked-save/run.json"
 	before = state.hangar_snapshot()
-	screen.canvas.slot_buttons.port._drop_data(Vector2.ZERO, Transfer.payload(items.second_laser))
+	screen.canvas.slot_buttons.hold._drop_data(Vector2.ZERO, Transfer.payload(items.cargo_hold))
 	check(state.hangar_snapshot() == before, "Failed-save drop rolls back the entire transaction")
 	state.run_save_path = save_path
 
@@ -510,7 +531,7 @@ func layout_checks() -> void:
 			root.get_texture().get_image().save_png("res://.local/drag-hangar/hangar-%dx%d.png" % [resolution.x, resolution.y])
 
 func text_under(node: Node) -> String:
-	var result: String = node.text if node is Label else ""
+	var result: String = node.source_text if node is ResourceText else (node.text if node is Label else "")
 	for child in node.get_children():
 		result += "\n" + text_under(child)
 	return result

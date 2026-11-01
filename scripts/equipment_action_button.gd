@@ -16,7 +16,8 @@ func _draw() -> void:
 	var center := size * 0.5
 	var color := get_theme_color("font_color", "Label")
 	if action == "sell":
-		draw_texture_rect(CREDIT_ICON, Rect2(center - Vector2.ONE * 7, Vector2.ONE * 14), false)
+		var icon_size := CREDIT_ICON.get_size() * (14.0 / maxf(CREDIT_ICON.get_width(), CREDIT_ICON.get_height()))
+		draw_texture_rect(CREDIT_ICON, Rect2(center - icon_size * 0.5, icon_size), false)
 	elif action == "confirm":
 		draw_polyline(PackedVector2Array([center + Vector2(-5, 0), center + Vector2(-1, 4), center + Vector2(5, -4)]), color, 2, true)
 	else:

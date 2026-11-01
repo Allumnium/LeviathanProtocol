@@ -43,7 +43,7 @@ func _place_in_top_right() -> void:
 	if parent_control == null and parent_window == null:
 		return
 	var parent_size := (
-		parent_control.size if parent_control != null else Vector2(parent_window.size)
+		parent_control.size if parent_control != null else parent_window.get_visible_rect().size
 	)
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	size = Vector2(48, 22)

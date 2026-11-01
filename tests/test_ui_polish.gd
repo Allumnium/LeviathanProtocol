@@ -19,12 +19,13 @@ func settle() -> void:
 	for i in range(4):
 		await process_frame
 
-func button(position: Vector2, pressed: bool) -> void:
+func button(position: Vector2, pressed: bool, double_click := false) -> void:
 	var event := InputEventMouseButton.new()
 	event.position = position
 	event.global_position = position
 	event.button_index = MOUSE_BUTTON_LEFT
 	event.pressed = pressed
+	event.double_click = double_click
 	root.push_input(event, true)
 
 func motion(position: Vector2, pressed := false) -> void:
@@ -61,6 +62,41 @@ func run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://.local/ui-polish"))
 	root.size = Vector2i(1280, 720)
 	var ui_theme: Theme = load("res://themes/ui_theme.tres")
+	var resource_sample := ResourceText.create("3 RP/day | 20 CR | -5 cr\nRepair | SHIELD | Shields\n[b]Literal text[/b]")
+	resource_sample.theme = ui_theme
+	resource_sample.size = Vector2(180, 90)
+	root.add_child(resource_sample)
+	await settle()
+	check(not resource_sample.get_parsed_text().contains("RP") and not resource_sample.get_parsed_text().contains("CR")
+		and not resource_sample.get_parsed_text().contains("cr") and resource_sample.get_parsed_text().contains("[b]Literal text[/b]"),
+		"Resource text replaces whole unit tokens, preserves numbers and never interprets names as markup")
+	check(not resource_sample.get_parsed_text().to_lower().contains("repair")
+		and not resource_sample.get_parsed_text().to_lower().contains("shield")
+		and ResourceText.REPAIR.resource_path == "res://assets/ui/icons/icon_repair.png"
+		and ResourceText.SHIELD.resource_path == "res://assets/ui/icons/icon_shield.png",
+		"Repair and singular/plural shield words render the supplied inline icons")
+	for font_size in [10, 13, 18]:
+		resource_sample.add_theme_font_size_override("normal_font_size", font_size)
+		await settle()
+		check(resource_sample.icon_size == font_size and resource_sample.texture_filter == Control.TEXTURE_FILTER_NEAREST,
+			"Inline resource images follow font size with nearest-neighbor filtering: %d" % font_size)
+		for entry: Array in [["RP", ResourceText.SCIENCE], ["CR", ResourceText.CREDITS], ["Repair", ResourceText.REPAIR], ["Shield", ResourceText.SHIELD]]:
+			resource_sample.set_content(entry[0])
+			await settle()
+			var texture: Texture2D = entry[1]
+			var expected_width: float = font_size * float(texture.get_width()) / texture.get_height()
+			check(absf(resource_sample.get_content_width() - expected_width) <= 1.0,
+				"Rendered inline %s preserves source aspect at text height %d" % [entry[0], font_size])
+	resource_sample.set_content("4 passengers")
+	check(resource_sample.get_parsed_text() == "4 passengers", "Changing content removes stale resource icons")
+	resource_sample.set_content("Shield Generator\nShields 40 | shield recharge")
+	check(resource_sample.get_parsed_text().begins_with("Shield Generator\n")
+		and not resource_sample.get_parsed_text().contains("Shields")
+		and not resource_sample.get_parsed_text().contains("shield recharge")
+		and not ResourceText.has_icons("Shield Generator")
+		and SlotCatalog.find_equipment("shield_generator").name == "Shield Generator",
+		"Shield Generator keeps its full equipment name while shield stats/effects use icons")
+	resource_sample.queue_free()
 	var button_style := ui_theme.get_stylebox("normal", "Button") as StyleBoxFlat
 	var hover_style := ui_theme.get_stylebox("hover", "TacticalButton") as StyleBoxFlat
 	var pressed_style := ui_theme.get_stylebox("pressed", "TacticalButton") as StyleBoxFlat
@@ -116,6 +152,11 @@ func run() -> void:
 	settings.battle_auto_camera_button.button_pressed = camera_preference
 	settings.popup_centered()
 	await settle()
+	check(settings.size == Vector2i(304, 186) and settings.content_scale_factor == 1.0
+		and root.gui_embed_subwindows and settings.get_visible_rect().size == Vector2(settings.size),
+		"Settings uses a compact embedded modal at the same pixel scale as the main UI")
+	check(settings.music_slider.get_parent().get_child(0).get_theme_font("font") == ui_theme.default_font,
+		"Settings text inherits the same shared bitmap font")
 	var music_volume: float = settings.music_slider.value
 	var audio: Node = root.get_node("AudioManager")
 	check(audio.save_settings("user://settings-no-motion.cfg"), "Save settings without removed motion preference")
@@ -181,6 +222,8 @@ func run() -> void:
 		"Settings checkboxes inherit the same theme art as shop filters")
 	await capture("settings-checkboxes")
 	var settings_close: TextureButton = settings.get_node("CloseX")
+	check(settings_close.stretch_mode == TextureButton.STRETCH_KEEP_ASPECT_CENTERED,
+		"Close-button artwork preserves aspect in normal, hovered and pressed states")
 	settings_close._on_mouse_entered()
 	await capture("settings-close-hover")
 	settings_close.toggle_mode = true
@@ -234,6 +277,13 @@ func run() -> void:
 		and screen.research_progress.visible and screen.research_progress.value == 1.5
 		and screen.research_progress.max_value == required and not screen.research_progress.show_percentage,
 		"Header shows technology name and actual fractional project progress in a bar")
+	check(screen.research_rate.text == "+1/day" and screen.research_progress.min_value == -1,
+		"Research progress has a UI-only negative minimum and adjacent daily production")
+	var progress_snapshot: Dictionary = state.hangar_snapshot()
+	screen.research_progress.value = 0
+	check(screen.research_progress.get_as_ratio() > 0 and state.hangar_snapshot() == progress_snapshot,
+		"Zero progress retains a thin visible fill without changing game state")
+	screen.research_progress.value = 1.5
 	check(is_zero_approx(screen.research_pulse.get_shader_parameter("white_mix")),
 		"Selecting a research focus stops the prompt pulse immediately")
 	var progress_fill := screen.research_progress.get_theme_stylebox("fill") as StyleBoxTexture
@@ -256,6 +306,10 @@ func run() -> void:
 		check(screen.research_button.get_global_rect().encloses(research_column.get_global_rect())
 			and research_column.get_global_rect().encloses(screen.research_progress.get_global_rect()),
 			"Research icon, text and progress fit inside the clickable tab")
+		check(screen.research_progress.global_position.x == research_column.global_position.x
+			and screen.research_rate.global_position.x >= screen.research_progress.get_global_rect().end.x
+			and research_column.get_global_rect().encloses(screen.research_rate.get_global_rect()),
+			"Progress is left aligned with the daily rate on its right inside the tab")
 		var first_tab: Button = screen.tabs.get_child(0)
 		for tab: Button in screen.tabs.get_children():
 			check(tab.size == first_tab.size and tab.size.x >= 80
@@ -282,9 +336,36 @@ func run() -> void:
 	screen._resize_research_label()
 	root.size = Vector2i(1280, 720)
 	await settle()
-	check(screen.research_button.size.y == 30, "Research button returns to compact height after a long name")
+	check(screen.research_button.size.y <= 34, "Research button returns to compact height after a long name")
 	check(screen.roster.find_child("BuyEquipment", true, false) == null
 		and screen.roster.find_child("BuyChassis", true, false) != null, "Fleet has only Buy Chassis")
+	screen.formation_view.camera = Vector2(25, -12)
+	screen.formation_view.zoom = 1.3
+	var roster_escort_id: int = state.fleet[1].id
+	var roster_button: Button = screen.roster.find_child("Ship%d" % roster_escort_id, true, false)
+	await drag(roster_button.get_global_rect().get_center(), roster_button.get_global_rect().get_center())
+	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id,
+		"Single-click Fleet roster selects the escort without opening the editor")
+	check(screen.formation_view.find_children("*", "Button", true, false).is_empty(),
+		"Selected formation ships have no floating Equip or Salvage buttons")
+	roster_button = screen.roster.find_child("Ship%d" % roster_escort_id, true, false)
+	var roster_point := roster_button.get_global_rect().get_center()
+	motion(roster_point)
+	button(roster_point, true, true)
+	await process_frame
+	button(roster_point, false)
+	await settle()
+	check(screen.active_tab == "SHIPS" and screen.selected_ship_id == roster_escort_id
+		and screen.canvas.owned_id == roster_escort_id and screen.selected_slot.is_empty(),
+		"Native Fleet roster double-click opens the matching ship editor")
+	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false).button_pressed,
+		"Editor roster marks the double-clicked ship")
+	screen.tabs.get_child(0).pressed.emit()
+	await settle()
+	check(screen.formation_view.camera == Vector2(25, -12) and is_equal_approx(screen.formation_view.zoom, 1.3),
+		"Returning from roster double-click preserves formation pan and zoom")
+	screen.roster.find_child("Ship%d" % state.fleet[0].id, true, false).pressed.emit()
+	await settle()
 	screen.tabs.get_child(1).pressed.emit()
 	await settle()
 	check(screen.roster.find_child("BuyChassis", true, false) == null, "Ships has only Buy Equipment")
@@ -326,7 +407,19 @@ func run() -> void:
 	var before_purchase: int = state.equipment_inventory.size()
 	for purchase: Button in screen.shop_rows.get_children():
 		if not purchase.disabled:
+			var row_center := purchase.get_global_rect().get_center()
+			await drag(row_center, row_center)
+			check(state.equipment_inventory.size() == before_purchase,
+				"Clicking the equipment shop row does not purchase")
 			purchase.pressed.emit()
+			check(state.equipment_inventory.size() == before_purchase,
+				"Equipment inspection row has no purchase callback")
+			check(not screen.inspected_item.is_empty() and screen.inspection != null and not screen.stock.visible,
+				"Equipment row opens inspection while retaining hidden stock")
+			var buy: TextureButton = purchase.find_child("BuyIcon", true, false)
+			check(buy != null and buy.size == Vector2(32, 32) and purchase.size.y < 52,
+				"Equipment has a double-size green buy button and compact row")
+			await drag(buy.get_global_rect().get_center(), buy.get_global_rect().get_center())
 			break
 	await settle()
 	check(screen.stock != null and screen.buy_open and state.equipment_inventory.size() == before_purchase + 1,
@@ -351,9 +444,33 @@ func run() -> void:
 	check(screen.research_panel.tree_canvas.camera_position == Vector2(320, 180)
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4,
 		"Selecting research preserves pan and zoom")
-	check(state.set_research_focus("laboratory_ii"), "Focus another research project")
+	var research_card: Button = research.card_buttons["laboratory_ii"]
+	research.tree_canvas.camera_position = research.tree_canvas.positions["laboratory_ii"] + research.tree_canvas.CARD_SIZE * 0.5
+	research.tree_canvas._update_camera()
+	var research_camera: Vector2 = research.tree_canvas.camera_position
 	await settle()
-	check(screen.research_panel.tree_canvas.camera_position == Vector2(320, 180)
+	var card_center := research_card.get_global_rect().get_center()
+	motion(card_center)
+	button(card_center, true, true)
+	button(card_center, false)
+	await settle()
+	check(state.research_focus == "laboratory_ii", "Native double-click sets the research focus")
+	var focus_snapshot: Dictionary = state.hangar_snapshot()
+	screen.research_panel._activate("laboratory_ii")
+	screen.research_panel._activate("laboratory_iii")
+	check(state.hangar_snapshot() == focus_snapshot, "Double-click cannot refocus the same technology or bypass prerequisites")
+	var focus_blocker := FileAccess.open("user://focus-save-blocked", FileAccess.WRITE)
+	focus_blocker.store_string("not a directory")
+	focus_blocker.close()
+	var focus_save_path: String = state.run_save_path
+	state.run_save_path = "user://focus-save-blocked/run.json"
+	screen.research_panel._activate("applied_energy")
+	await settle()
+	check(state.hangar_snapshot() == focus_snapshot and not screen.feedback.text.is_empty(),
+		"Failed double-click focus save rolls back state and displays the existing failure notification")
+	state.run_save_path = focus_save_path
+	screen.research_panel._select("laboratory_ii")
+	check(screen.research_panel.tree_canvas.camera_position == research_camera
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4
 		and screen.research_panel.selected_id == "laboratory_ii",
 		"Research focus refresh preserves camera and selection")
@@ -361,7 +478,7 @@ func run() -> void:
 	await settle()
 	screen.research_button.pressed.emit()
 	await settle()
-	check(screen.research_panel.tree_canvas.camera_position == Vector2(320, 180)
+	check(screen.research_panel.tree_canvas.camera_position == research_camera
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4,
 		"Returning to Research preserves the user's view")
 	await capture("research-view-preserved")
@@ -413,10 +530,16 @@ func run() -> void:
 	var empty: Vector2 = board.global_position + Vector2(20, 20)
 	await drag(empty, empty)
 	check(screen.selected_ship_id == 0 and screen.formation_view.selected_ids.is_empty(), "Empty-space click deselects")
-	check(screen.details.get_child(1).text.begins_with("REPAIR ALL"), "Empty selection offers repair all")
-	var fleet_totals: Label = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals != null and fleet_totals.text == "DPS 2.0\nShield 0\nHull 450 / 450\n1 RP / day",
-		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.text)
+	check(screen.details.get_child(1).get_meta("resource_text", "").begins_with("REPAIR ALL"), "Empty selection offers repair all")
+	var fleet_totals: ResourceText = screen.details.find_child("FleetTotals", true, false)
+	check(not fleet_totals.get_parsed_text().contains("RP") and fleet_totals.icon_size == ui_theme.default_font_size,
+		"Fleet science renders an inline icon at the surrounding font size")
+	var repair_label: ResourceText = screen.details.get_child(1).find_child("ResourceText", true, false)
+	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
+		and repair_label.icon_size == screen.details.get_child(1).get_theme_font_size("font_size"),
+		"Repair cost renders a text-sized credits icon instead of cr")
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 2.0\nShield 40\nHull 540 / 540\n1 RP / day",
+		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
 	for equipment: String in ["cargo_hold", "passenger_cabin", "research_lab", "shield_generator", "mini_turret"]:
@@ -431,9 +554,9 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
-	check(fleet_totals.text == "DPS %.1f\nShield %.0f\nHull 590 / 590\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		2.0 + fixture_summary.dps, fixture_summary.shields],
-		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.text)
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 760 / 760\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
+		2.0 + fixture_summary.dps, 40 + fixture_summary.shields],
+		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
 		await settle()
@@ -448,12 +571,12 @@ func run() -> void:
 	summary_ship.hull_hp -= 15
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.text == "DPS 2.0\nShield 0\nHull 575 / 590\n1 RP / day",
-		"Damaged hull contributes current/max health; disabled equipment contributes no capacity or production: " + fleet_totals.text)
+	check(fleet_totals.source_text == "DPS 2.0\nShield 40\nHull 745 / 760\n1 RP / day",
+		"Damaged hull contributes current/max health; disabled equipment contributes no capacity or production: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.text == "DPS 2.0\nShield 0\nHull 450 / 450\n1 RP / day",
+	check(fleet_totals.source_text == "DPS 2.0\nShield 40\nHull 540 / 540\n1 RP / day",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()

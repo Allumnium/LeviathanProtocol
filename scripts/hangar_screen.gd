@@ -12,6 +12,8 @@ var details: VBoxContainer
 var center: Control
 var header: Label
 var research_status: Label
+var research_rate: Label
+var research_progress_row: HBoxContainer
 var research_progress: ProgressBar
 var research_button: Button
 var research_pulse: ShaderMaterial
@@ -33,6 +35,8 @@ var research_view: Dictionary = {}
 var research_panel: Control
 var traveling := false
 var graph: Control
+var map_camera: Dictionary = {}
+var map_details: VBoxContainer
 var flagship_icon: Texture2D
 var refresh_queued := false
 var stock: Control
@@ -41,11 +45,13 @@ var shop_filters: EquipmentFilters
 var only_researched := true
 var researched_filter: CheckBox
 var stats_grid: GridContainer
-var slot_info: Label
+var slot_info: ResourceText
 var roster_panel: PanelContainer
 var details_panel: PanelContainer
 var settings_dialog: PopupPanel
 var tabs: HBoxContainer
+var inspection: ScrollContainer
+var inspected_item: Dictionary = {}
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
@@ -145,10 +151,24 @@ func _ready() -> void:
 	research_progress.name = "ResearchProgress"
 	research_progress.theme_type_variation = &"ResearchProgress"
 	research_progress.custom_minimum_size.y = 8
-	research_progress.size_flags_horizontal = SIZE_SHRINK_CENTER
+	research_progress.size_flags_horizontal = SIZE_SHRINK_BEGIN
+	research_progress.size_flags_vertical = SIZE_SHRINK_CENTER
+	research_progress.min_value = -1
 	research_progress.show_percentage = false
 	research_progress.mouse_filter = MOUSE_FILTER_IGNORE
-	research_column.add_child(research_progress)
+	research_progress_row = HBoxContainer.new()
+	research_progress_row.name = "ResearchProgressRow"
+	research_progress_row.mouse_filter = MOUSE_FILTER_IGNORE
+	research_progress_row.add_theme_constant_override("separation", 4)
+	research_column.add_child(research_progress_row)
+	research_progress_row.add_child(research_progress)
+	research_rate = _label("")
+	research_rate.name = "ResearchRate"
+	research_rate.theme_type_variation = &"HeaderResearch"
+	research_rate.autowrap_mode = TextServer.AUTOWRAP_OFF
+	research_rate.size_flags_vertical = SIZE_SHRINK_CENTER
+	research_rate.mouse_filter = MOUSE_FILTER_IGNORE
+	research_progress_row.add_child(research_rate)
 	research_column.resized.connect(_resize_research_label)
 	flagship_icon = load("res://assets/flag.png")
 	for title in ["FLEET", "SHIPS", "MAP"]:
@@ -218,8 +238,13 @@ func _resize_research_label() -> void:
 	var text_height := research_status.get_theme_font("font").get_multiline_string_size(
 		research_status.text, HORIZONTAL_ALIGNMENT_CENTER, research_status.custom_minimum_size.x,
 		research_status.get_theme_font_size("font_size")).y
-	research_button.custom_minimum_size.y = maxf(30, ceilf(text_height) + (16 if research_progress.visible else 6))
-	research_progress.custom_minimum_size.x = floorf((research_status.custom_minimum_size.x + 16) * 0.5)
+	var progress_height := maxf(8, research_rate.get_combined_minimum_size().y) if research_progress.visible else 0.0
+	research_button.custom_minimum_size.y = maxf(30, maxf(12, ceilf(text_height)) + progress_height + (8 if research_progress.visible else 6))
+	var rate_width := research_rate.get_theme_font("font").get_string_size(
+		research_rate.text, HORIZONTAL_ALIGNMENT_LEFT, -1, research_rate.get_theme_font_size("font_size")).x
+	research_progress.custom_minimum_size.x = maxf(8, minf(
+		floorf((research_status.custom_minimum_size.x + 16) * 0.5),
+		research_status.custom_minimum_size.x + 16 - rate_width - 4))
 
 func _process(delta: float) -> void:
 	if research_pulse == null:
@@ -230,6 +255,89 @@ func _process(delta: float) -> void:
 	else:
 		research_pulse_time = 0.0
 		research_pulse.set_shader_parameter("white_mix", 0.0)
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not inspected_item.is_empty():
+		var hovered := get_viewport().gui_get_hovered_control()
+		while hovered != null:
+			if hovered == inspection or hovered.has_meta("inspect_equipment") or hovered.has_meta("inspect_chassis") or hovered.has_meta("hangar_slot"):
+				return
+			hovered = hovered.get_parent_control()
+		_clear_inspection.call_deferred()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_BEGIN and not inspected_item.is_empty():
+		_clear_inspection()
+
+func _clear_inspection() -> void:
+	inspected_item.clear()
+	if is_instance_valid(inspection):
+		details.remove_child(inspection)
+		inspection.queue_free()
+	inspection = null
+	if is_instance_valid(stock):
+		stock.show()
+
+func _inspect_equipment(id: String, rank: int, uid := "") -> void:
+	AudioManager.play_ui_sfx(&"detail")
+	inspected_item = {"kind": "equipment", "id": id, "rank": rank, "uid": uid}
+	_render_inspection()
+
+func _inspect_chassis(id: String) -> void:
+	AudioManager.play_ui_sfx(&"detail")
+	inspected_item = {"kind": "chassis", "id": id}
+	_render_inspection()
+
+func _render_inspection() -> void:
+	if stock == null:
+		_show_stock()
+	if is_instance_valid(inspection):
+		details.remove_child(inspection)
+		inspection.queue_free()
+	stock.hide()
+	inspection = ScrollContainer.new()
+	inspection.name = "ItemDetails"
+	inspection.size_flags_vertical = SIZE_EXPAND_FILL
+	inspection.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	details.add_child(inspection)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = SIZE_EXPAND_FILL
+	inspection.add_child(body)
+	if inspected_item.kind == "chassis":
+		var chassis := SlotCatalog.find_chassis(inspected_item.id)
+		var ship := HangarShip.new()
+		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
+		var stats := ship.get_stats()
+		body.add_child(_resource_label(chassis.name))
+		body.add_child(_resource_label("Hull %.0f\nThrust %.0f\nMass %.0f\nSpeed %.1f\nAcceleration %.1f\nTurn %.2f\nShields %.0f\nCommand %d\nPrice %d cr" %
+			[chassis.integrity, stats.thrust, stats.weight, stats.top_speed, stats.acceleration, stats.turn_rate, stats.shields,
+			chassis.command if chassis.command > 0 else chassis.command_cost, chassis.price]))
+		var bonuses: Array[String] = []
+		if chassis.get("weapon_damage_multiplier", 1.0) != 1.0:
+			bonuses.append("%+.0f%% weapon damage" % ((chassis.weapon_damage_multiplier - 1.0) * 100))
+		if chassis.get("dodge_chance", 0.0) > 0:
+			bonuses.append("%.0f%% weapon-hit dodge" % (chassis.dodge_chance * 100))
+		body.add_child(_label("Bonuses / penalties\n" + ("None" if bonuses.is_empty() else "\n".join(bonuses))))
+		body.add_child(_label("Built-in Command Center: 30 HP\nBuilt-in Engine: 25 HP"))
+		if chassis.has("builtin_shield"):
+			body.add_child(_resource_label("Built-in Shield Generator I: %.0f HP\n%.0f shields | %.1f recharge/s\nafter 4s without damage" %
+				[HangarShip.builtin_health(chassis).shield, stats.shields, stats.shield_recharge * 0.04]))
+		body.add_child(_label("Mounts"))
+		for slot: Dictionary in chassis.slots:
+			body.add_child(_label("%s: %s" % [slot.id.replace("_", " ").capitalize(), SlotCatalog.slot_label(slot)]))
+	else:
+		var item := SlotCatalog.find_equipment(inspected_item.id, int(inspected_item.rank))
+		var instance: Dictionary = GameState.equipment_inventory.get(inspected_item.uid, {})
+		body.add_child(_resource_label(item.name))
+		body.add_child(_resource_label("%s %s\nHP %.0f / %.0f\nMass %.0f\nPrice %d cr\n%s" %
+			[item.size, item.type.capitalize(), instance.get("hp", item.hit_points), item.hit_points, item.stats.weight, item.price, _part_effect(item)]))
+		for weapon: ShipWeaponStats in SlotCatalog.stats_for(item.id, int(item.rank)).weapons:
+			body.add_child(_label("%s\n%.1f damage x %d | %.1fs cycle\nRange %.0f | Charge %.1fs" %
+				[weapon.weapon_name, weapon.damage_per_shot, weapon.projectiles_per_activation, weapon.fire_interval_seconds, weapon.range_units, weapon.charge_seconds]))
+		if not SlotCatalog.unlocked(item, GameState.research_grants()):
+			body.add_child(_label("Research required"))
+		if HangarTrade.has_load(instance):
+			body.add_child(_label("%s: %d\nDeliver before removing" % [str(instance.load.kind).capitalize(), instance.load.quantity]))
 
 func _panel(parent: Node, width: float) -> VBoxContainer:
 	var panel := PanelContainer.new()
@@ -245,13 +353,15 @@ func _button(title: String, action: Callable) -> Button:
 
 func _button_with_sound(title: String, action: Callable, sound: StringName) -> Button:
 	var button := Button.new()
-	button.text = title
+	button.text = "" if ResourceText.has_icons(title) else title
 	button.theme_type_variation = &"TacticalButton"
 	button.focus_mode = FOCUS_NONE
 	button.custom_minimum_size.y = 30
 	if not sound.is_empty():
 		AudioManager.connect_ui_button(button, sound)
 	button.pressed.connect(action)
+	if ResourceText.has_icons(title):
+		ResourceText.button_content(button, title)
 	return button
 
 func _add_buy_icon(button: Button) -> void:
@@ -271,20 +381,27 @@ func _add_buy_icon(button: Button) -> void:
 	icon.offset_bottom = 8.0
 	button.add_child(icon)
 
-func _shop_button(title: String, summary: String, price: int, unlocked: bool, available: bool, action: Callable) -> Button:
-	var button := _button_with_sound("", action, &"")
+func _shop_button(title: String, summary: String, price: int, unlocked: bool, available: bool, action: Callable, icon_only := false) -> Button:
+	var button := Button.new() if icon_only else _button_with_sound("", action, &"")
+	if icon_only:
+		button.theme_type_variation = &"TacticalButton"
+		button.focus_mode = FOCUS_NONE
+		button.mouse_filter = MOUSE_FILTER_STOP
 	button.disabled = not available
-	button.custom_minimum_size.y = 52
+	var minimum_height := 38 if icon_only else 52
+	button.custom_minimum_size.y = minimum_height
 	button.set_meta("price", price)
 	var column := VBoxContainer.new()
+	if icon_only:
+		column.add_theme_constant_override("separation", 0)
 	column.mouse_filter = MOUSE_FILTER_IGNORE
 	button.add_child(column)
 	column.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	column.offset_left = 12
-	column.offset_top = 5
-	column.offset_right = -30
-	column.offset_bottom = -5
-	var name_label := _label(title)
+	column.offset_top = 2 if icon_only else 5
+	column.offset_right = -44 if icon_only else -30
+	column.offset_bottom = -2 if icon_only else -5
+	var name_label := _resource_label(title)
 	name_label.name = "ItemName"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.mouse_filter = MOUSE_FILTER_IGNORE
@@ -309,9 +426,29 @@ func _shop_button(title: String, summary: String, price: int, unlocked: bool, av
 	if button.disabled:
 		column.modulate = get_theme_color("font_disabled_color", "Button")
 	if available:
-		_add_buy_icon(button)
+		if icon_only:
+			var buy := TextureButton.new()
+			buy.name = "BuyIcon"
+			buy.texture_normal = BUY_ICON
+			buy.ignore_texture_size = true
+			buy.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+			buy.focus_mode = FOCUS_NONE
+			buy.mouse_default_cursor_shape = CURSOR_POINTING_HAND
+			button.add_child(buy)
+			buy.set_anchors_preset(PRESET_CENTER_RIGHT)
+			buy.offset_left = -38
+			buy.offset_right = -6
+			buy.offset_top = -16
+			buy.offset_bottom = 16
+			buy.mouse_entered.connect(func() -> void: buy.self_modulate = Color(1.25, 1.25, 1.25))
+			buy.mouse_exited.connect(func() -> void: buy.self_modulate = Color.WHITE)
+			buy.button_down.connect(func() -> void: buy.self_modulate = Color(0.75, 0.75, 0.75))
+			buy.button_up.connect(func() -> void: buy.self_modulate = Color(1.25, 1.25, 1.25) if buy.is_hovered() else Color.WHITE)
+			buy.pressed.connect(action)
+		else:
+			_add_buy_icon(button)
 	column.minimum_size_changed.connect(func() -> void:
-		button.custom_minimum_size.y = maxf(52, column.get_combined_minimum_size().y + 10))
+		button.custom_minimum_size.y = maxf(minimum_height, column.get_combined_minimum_size().y + (4 if icon_only else 10)))
 	return button
 
 func _shop_icon(texture: Texture2D, node_name: String) -> TextureRect:
@@ -331,6 +468,9 @@ func _label(title: String) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label
 
+func _resource_label(title: String) -> ResourceText:
+	return ResourceText.create(title)
+
 func _clear(host: Node) -> void:
 	for child in host.get_children():
 		host.remove_child(child)
@@ -342,6 +482,8 @@ func _queue_refresh() -> void:
 		_refresh.call_deferred()
 
 func _refresh() -> void:
+	inspected_item.clear()
+	inspection = null
 	refresh_queued = false
 	if traveling:
 		return
@@ -359,6 +501,9 @@ func _refresh() -> void:
 		research_view = {"selected_id": research_panel.selected_id,
 			"camera_position": research_panel.tree_canvas.camera_position,
 			"camera_zoom": research_panel.tree_canvas.camera_zoom}
+	if is_instance_valid(graph) and graph.is_inside_tree():
+		map_camera = {"position": graph.camera_position, "zoom": graph.camera_zoom}
+	graph = null
 	research_panel = null
 	formation_view = null
 	header.text = str(GameState.credits)
@@ -367,6 +512,7 @@ func _refresh() -> void:
 		research_status.text = "Choose Research"
 		research_progress.value = 0
 		research_progress.hide()
+		research_progress_row.hide()
 	else:
 		var technology := GameDefinitions.find("research", focus)
 		var required := ResearchFocusRules.cost(focus, GameState.run_progress_snapshot())
@@ -374,6 +520,8 @@ func _refresh() -> void:
 		research_progress.max_value = required
 		research_progress.value = float(GameState.research_progress.get(focus, 0))
 		research_progress.show()
+		research_rate.text = "+%s/day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.get_deployed_fleet())))
+		research_progress_row.show()
 	if not focus.is_empty():
 		research_pulse_time = 0.0
 		research_pulse.set_shader_parameter("white_mix", 0.0)
@@ -437,6 +585,15 @@ func _refresh() -> void:
 		button.name = "Ship%d" % owned.id
 		button.toggle_mode = true
 		button.button_pressed = owned.id == selected_ship_id
+		if active_tab == "FLEET":
+			button.gui_input.connect(func(event: InputEvent) -> void:
+				if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.double_click:
+					selected_ship_id = owned.id
+					formation_selection.assign([owned.id])
+					selected_slot = ""
+					active_tab = "SHIPS"
+					_queue_refresh()
+					button.accept_event())
 		ship_rows.add_child(button)
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
 	var mode := "SHIPS" if active_tab == "FLEET" else "EQUIPMENT"
@@ -460,11 +617,6 @@ func _refresh() -> void:
 		board.ship_selected.connect(func(id: int) -> void:
 			selected_ship_id = id
 			_queue_refresh())
-		board.salvage_requested.connect(_confirm_salvage)
-		board.equipment_requested.connect(func(id: int) -> void:
-			selected_ship_id = id
-			active_tab = "SHIPS"
-			_refresh())
 	else:
 		var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 		if owned != null:
@@ -483,7 +635,7 @@ func _refresh() -> void:
 			bottom.name = "ShipOrPartDetails"
 			bottom.custom_minimum_size.y = 64
 			stack.add_child(bottom)
-			slot_info = _label("")
+			slot_info = _resource_label("")
 			bottom.add_child(slot_info)
 			slot_info.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 			stats_grid = GridContainer.new()
@@ -507,7 +659,7 @@ func _refresh() -> void:
 				_result(ok))
 	_show_details()
 	if buy_open:
-		if buy_mode == "EQUIPMENT" and stock == null:
+		if stock == null:
 			_show_stock()
 		_show_buy_panel()
 
@@ -525,9 +677,12 @@ func _show_stock() -> void:
 				_shop_equipment())
 	stock.equipment_stored.connect(_result)
 	stock.equipment_sold.connect(_result)
+	stock.equipment_selected.connect(func(uid: String) -> void:
+		var instance: Dictionary = GameState.equipment_inventory[uid]
+		_inspect_equipment(instance.equipment_id, int(instance.rank), uid))
 
 func _show_details() -> void:
-	if buy_open and buy_mode == "EQUIPMENT" and active_tab == "FLEET":
+	if (not inspected_item.is_empty() and active_tab != "SHIPS") or (buy_open and active_tab == "FLEET"):
 		return
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 	if owned == null:
@@ -554,7 +709,7 @@ func _show_details() -> void:
 			lines.append("Cargo capacity %d" % totals.cargo)
 		if totals.passengers > 0:
 			lines.append("Passenger capacity %d" % totals.passengers)
-		var fleet_stats := _label("\n".join(lines))
+		var fleet_stats := _resource_label("\n".join(lines))
 		fleet_stats.name = "FleetTotals"
 		details.add_child(fleet_stats)
 		return
@@ -570,18 +725,18 @@ func _show_details() -> void:
 			canvas.selected_slot = ""
 		stats_grid.visible = slot.is_empty()
 		slot_info.visible = not slot.is_empty()
-		slot_info.text = ""
+		slot_info.set_content("")
 		if not slot.is_empty():
 			var instance: Dictionary = owned.mounts.get(selected_slot, {})
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			slot_info.text = "%s\nHP %.0f / %.0f | %s\n%s" % [item.name, instance.hp, item.hit_points, SlotCatalog.slot_label(slot), _part_effect(item)]
+			slot_info.set_content("%s\nHP %.0f / %.0f | %s\n%s" % [item.name, instance.hp, item.hit_points, SlotCatalog.slot_label(slot), _part_effect(item)])
 			return
 		_clear(stats_grid)
 		var summary := owned.hangar_summary()
 		for value in ["Integrity\n%.0f / %.0f" % [summary.integrity, summary.integrity_max],
 			"Shields\n%.0f" % summary.shields, "DPS\n%.1f" % summary.dps,
 			"Cargo\n%d" % summary.cargo, "Passengers\n%d" % summary.passengers]:
-			var label := _label(value)
+			var label := _resource_label(value)
 			label.size_flags_horizontal = SIZE_EXPAND_FILL
 			stats_grid.add_child(label)
 		return
@@ -589,7 +744,7 @@ func _show_details() -> void:
 	details.add_child(_label(owned.display_name))
 	details.add_child(_label("Hull %.0f / %.0f" % [owned.hull_hp, owned.hull_max]))
 	var stats := owned.get_stats()
-	details.add_child(_label("Shield %.0f\nDPS %.1f" % [stats.shields, stats.dps]))
+	details.add_child(_resource_label("Shield %.0f\nDPS %.1f" % [stats.shields, stats.dps]))
 	if not selected_slot.is_empty():
 		for slot: Dictionary in owned.chassis.slots:
 			if slot.id == selected_slot:
@@ -597,9 +752,9 @@ func _show_details() -> void:
 		var instance: Dictionary = owned.mounts.get(selected_slot, {})
 		if not instance.is_empty():
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			details.add_child(_label(item.name + " #%s\nHP %.0f / %.0f" % [instance.uid, instance.hp, item.hit_points]))
+			details.add_child(_resource_label(item.name + " #%s\nHP %.0f / %.0f" % [instance.uid, instance.hp, item.hit_points]))
 			if item.id == "research_lab":
-				details.add_child(_label("%d RP/day" % int(item.rank)))
+				details.add_child(_resource_label("%d RP/day" % int(item.rank)))
 			if item.id in HangarCarriers.CAPACITIES:
 				details.add_child(_label("%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])))
 			if item.id == "ammunition_magazine":
@@ -630,6 +785,10 @@ func _part_effect(item: Dictionary) -> String:
 		"ammunition_magazine": return "+20% weapon cycling"
 		"tactical_computer": return "Salvo / 12s per computer"
 		"command_uplink": return "Auto mark: +20% / 5s"
+		"repair_station": return "Repair %.0f HP/s\n%.0f HP reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
+		"repair_drone_bay": return "Repair drones: 4 HP / 2s\n20 HP reserve per encounter"
+		"shield_relay": return "Share shields: 2/s\nRange 180"
+		"nanoforge": return "Rebuild one component at 25% HP\nOnce per encounter"
 	if item.id in HangarCarriers.CAPACITIES:
 		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
 	var values: Dictionary = item.stats
@@ -642,7 +801,7 @@ func _part_effect(item: Dictionary) -> String:
 			reach = maxf(reach, weapon.range_units)
 		effects.append("DPS %.1f | Range %.0f" % [dps, reach])
 	if values.shields > 0:
-		effects.append("Shields %.0f" % values.shields)
+		effects.append("Shields %.0f | %.1f recharge/s after 4s" % [values.shields, values.shields * 0.04])
 	if values.thrust > 0:
 		effects.append("Thrust %.0f" % values.thrust)
 	if values.integrity > 0:
@@ -782,10 +941,14 @@ func _shop_equipment() -> void:
 				var ok := GameState.buy_equipment(item.id, int(item.rank))
 				if ok:
 					AudioManager.play_ui_sfx(&"purchase")
-				_result(ok)
-		)
+				_result(ok),
+			true)
 		button.set_meta("equipment_id", item.id)
 		button.set_meta("rank", int(item.rank))
+		button.set_meta("inspect_equipment", item.id)
+		button.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				_inspect_equipment(item.id, int(item.rank)))
 		shop_rows.add_child(button)
 	if candidates.is_empty():
 		shop_rows.add_child(_label("No matches"))
@@ -828,38 +991,89 @@ func _shop_ships() -> void:
 				var ok := GameState.buy_chassis(chassis.id)
 				if ok:
 					AudioManager.play_ui_sfx(&"purchase")
-				_result(ok)
-		)
+				_result(ok),
+			true)
+		button.set_meta("inspect_chassis", chassis.id)
+		button.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				_inspect_chassis(chassis.id))
+		image.mouse_filter = MOUSE_FILTER_STOP
+		image.set_meta("inspect_chassis", chassis.id)
+		image.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				_inspect_chassis(chassis.id))
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(button)
 
 func _show_map() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	details.add_child(scroll)
+	map_details = VBoxContainer.new()
+	map_details.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(map_details)
+	if not GameState.navigation.is_empty():
+		var threat := _label("Swarm Intensity: %s" % ScienceRules.format_rp(GameState.navigation.intensity))
+		threat.name = "SwarmIntensity"
+		roster.add_child(threat)
 	roster.add_child(_label("DESTINATION"))
 	graph = load("res://scripts/graph_view.gd").new()
 	center.add_child(graph)
 	graph.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	graph.set_current_node(GameState.current_node_id)
+	if not map_camera.is_empty():
+		graph.camera_position = map_camera.position
+		graph.camera_zoom = map_camera.zoom
 	graph.destination_selected.connect(_select_destination)
 	for id: int in GameState.get_reachable_nodes(GameState.current_node_id):
 		var preview: Dictionary = GameState.node_preview(id)
 		roster.add_child(_button(preview.title, _select_destination.bind(id)))
 	var problem: String = GameState.deployment_error()
 	if not problem.is_empty():
-		details.add_child(_label(problem))
+		map_details.add_child(_label(problem))
+	_map_event_details()
+
+func _map_event_details() -> void:
+	if GameState.navigation.is_empty():
+		return
+	for source: String in GameState.navigation.quests:
+		var quest := SwarmNavigation.event(GameState.campaign_dag, int(source))
+		var target := GameState.campaign_node(quest.target)
+		if GameState.navigation.quests[source] == "complete" and GameState.current_node_id != quest.target:
+			continue
+		map_details.add_child(_resource_label(("Relay complete: +%d cr, -%d intensity" % [quest.reward, quest.reduction] if GameState.navigation.quests[source] == "complete"
+			else "Relay data -> " + target.name)))
+	var event := SwarmNavigation.event(GameState.campaign_dag, GameState.current_node_id)
+	if event.is_empty() or GameState.navigation.events.has(str(GameState.current_node_id)):
+		return
+	map_details.add_child(_label(event.title))
+	map_details.add_child(_label(event.text))
+	map_details.add_child(_resource_label("Relay: +%d cr\nSwarm -%d | Disrupt -%d" % [event.reward, event.reduction, event.disruption]))
+	map_details.add_child(_button("Relay data", func() -> void: _result(GameState.resolve_map_event("relay"))))
+	map_details.add_child(_button("Disrupt signal", func() -> void: _result(GameState.resolve_map_event("disrupt"))))
 
 func _select_destination(id: int) -> void:
 	if traveling:
 		return
 	AudioManager.play_ui_sfx(&"detail")
 	GameState.set_planned_destination(id)
-	_clear(details)
+	_clear(map_details)
 	var preview: Dictionary = GameState.node_preview(id)
-	details.add_child(_label(preview.title))
-	details.add_child(_label(preview.text))
+	map_details.add_child(_label(preview.title))
+	map_details.add_child(_resource_label(preview.text))
 	var days: float = GameState.research_travel_time(GameState.current_node_id, id)
-	details.add_child(_label("%s RP on arrival" % ScienceRules.format_rp(ScienceRules.journey_rp(ScienceRules.snapshot(GameState.get_deployed_fleet()), days))))
-	details.add_child(_button_with_sound("TRAVEL", func() -> void:
+	if not GameState.navigation.is_empty():
+		var intensity: float = GameState.navigation.intensity + days
+		var enemy_intensity: float = GameState.navigation.encounters.get(str(id), {}).get("swarm_intensity", intensity)
+		map_details.add_child(_label("Swarm: %s -> %s\nHostile strength +%.0f%%" % [
+			ScienceRules.format_rp(GameState.navigation.intensity), ScienceRules.format_rp(intensity), enemy_intensity * SwarmNavigation.STRENGTH_PER_POINT * 100]))
+		if GameState.visited_nodes.has(id):
+			map_details.add_child(_label("Visited: no encounter reward"))
+	map_details.add_child(_resource_label("%s RP on arrival" % ScienceRules.format_rp(ScienceRules.journey_rp(ScienceRules.snapshot(GameState.get_deployed_fleet()), days))))
+	map_details.add_child(_button_with_sound("TRAVEL", func() -> void:
 		_begin_travel(id), &""))
+	_map_event_details()
 
 func _begin_travel(id: int) -> void:
 	if traveling:

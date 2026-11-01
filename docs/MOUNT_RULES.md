@@ -1,38 +1,68 @@
-# Size-led chassis mounts
+# Chassis mounts
 
-Playtest direction: ordinary mounts accept equipment based primarily on the size shown in the artwork. Offense/Defense/Tech/Civic remain equipment categories. They do not restrict a general-purpose mount.
+The owner's explicit artwork-based specification below supersedes the earlier
+general-purpose side-mount draft. Equipment and mounts require an exact S/M/L/XL
+size match; smaller parts never fill larger mounts.
 
-- S, M, L and XL still require an exact size match.
-- General mounts accept any category of the matching size.
-- Clear forward weapon mounts accept matching-size Offense equipment.
-- Clear rear engine-housing mounts accept matching-size thrusters or defensive equipment. Shield generators/relays count as defense here even though their older equipment category is Tech. Unrelated Tech equipment does not qualify.
-- Research gates, physical ownership, damage, trade loads, free transfers and the command budget still apply.
+| Chassis | Mounts |
+| --- | --- |
+| Flagship | Three front S Offense/Defense; central M any; four rear S Civic/Tech/Defense. |
+| Corsair | Front L Offense/Defense; two side M Offense/Defense; rear S any. |
+| Fighter | Front S any; two side S Offense only. |
+| Transport | Central XL Civic/Tech; two side L Civic/Tech/Defense; front and rear S any. |
+| Frigate | Four adjacent front S any; two side S Offense/Defense; central M any; rear S Civic/Tech/Defense. |
+| Drone | Three S any; central M any. |
 
-## Artwork review
+Catalog mount roles: `general` accepts every category; `offense` accepts Offense;
+`combat` accepts Offense/Defense; `civil` accepts Civic/Tech; `utility` accepts
+Civic/Tech/Defense. Shield Generator and Shield Relay are Defense equipment.
+Symmetrical sides always use identical rules. Source artwork is unchanged.
 
-| Chassis | General mounts | Position-specific exceptions |
-| --- | --- | --- |
-| Flagship | All nine mounts, including paired sides and utility bays | None: the marked platforms are not clearly dedicated engine nozzles or a fixed forward gun. |
-| Corsair | Both wings and center | Forward L Offense; rear S Thruster/Defense. |
-| Fighter | Both wings | Forward M Offense. |
-| Transport | Both M sides and XL hold | Forward S Offense; rear S Thruster/Defense. |
-| Frigate | Forward/center L bays and both S sides | Rear S Thruster/Defense. The long forward recess is a general bay, not clearly a dedicated gun. |
-| Drone | Sensor-position S, both S sides and center M | Forward S Offense; rear S Thruster/Defense. |
+`SlotCatalog.compatible` shares these rules across fitting, save validation,
+eligible loot and drag previews. Research, unique ownership, damaged equipment,
+loaded-item restrictions, free transfers and command costs remain unchanged.
+Side callouts are still display-only; fit and select directly on the artwork.
+See [HANGAR_DRAG_DROP.md](HANGAR_DRAG_DROP.md).
 
-This gives 25 general mounts and eight positional restrictions across the six supplied chassis. Source artwork, mount coordinates, sizes and IDs are unchanged. Symmetrical side mounts have identical fitting rules. In particular, either Transport side accepts M weapons, armor, shields, labs or other researched M equipment.
+## Draft chassis tuning
 
-Current fitting interaction: use the visible stock list and drag equipment onto these mounts; see [HANGAR_DRAG_DROP.md](HANGAR_DRAG_DROP.md). Earlier dropdown captures/check counts below record the compatibility pass before that interaction change.
+| Chassis | Base hull | Built-in thrust | Command cost |
+| --- | ---: | ---: | ---: |
+| Flagship | 320 | 22 | Supplies 12 |
+| Corsair | 180 | 50 | 4 |
+| Fighter | 100 | 38 | 2 |
+| Transport | 220 | 18 | 3 |
+| Frigate | 180 | 40 | 4 |
+| Drone | 55 | 24 | 1 |
 
-## Shared rules and UI
+Fighter weapons deal +30% damage, reflected in mounted DPS. Each incoming weapon
+hit, including beams/projectiles, has a seeded 20% dodge chance before shields.
+Direct, environmental and ability damage do not dodge. Warden Lance is a weapon.
+Zero-dodge chassis do not consume extra dodge RNG. Dodges are combat-log events.
 
-`SlotCatalog.compatible` is the common rule for actual fitting, checkpoint validation, eligible loot and the active drag/drop targets. The catalog validates mount roles separately from equipment categories. General mounts use a neutral shared-theme color and show only their size in details; restrictions say Weapons or Thruster/Defense. No tooltip or new dialog is added.
+All chassis retain the 30 HP command center and 25 HP built-in engine. The
+flagship additionally owns a fixed level I Shield Generator: 25 HP, 40 shields,
+1.6 shield recharge/s after four seconds without damage. Its health participates
+in the ordinary damage, repair quote, atomic repair and save paths. It is not a
+stock instance and cannot be removed, sold or copied.
 
-The new maps broaden previously allowed equipment. Every old category-and-size pairing is tested against the new rule, including archived/retired item metadata. Existing physical saves and prototype loadouts need no conversion or rewriting. Old gameplay/editor screens remain retired.
+The starter retains its two compatible turrets (front sides) and central Lab I.
+The incompatible old starter Armor Block is removed, with no replacement.
+At the owner's direction, incompatible previous physical layouts are not
+converted; strict checkpoint validation rejects them without rewriting saves.
 
-## Validation
+## Inspection and validation
 
-`test_hangar_mounts.gd` checks matching sizes/categories across all chassis, exact-size rejection, old-loadout compatibility, engine and forward restrictions, physical Transport purchases/transfers/reload, and both native side drop targets at 640x360, 1280x720 and 1920x1080. It also fits two purchased magazines in a Transport and two purchased computers in a Frigate to exercise real stacking loadouts. Native capture: `.local/mounts/transport.png`.
+Click equipment/chassis shop rows or loose stock rows to inspect them in the
+right panel; blank/outside clicks restore stock. Only the green plus buys.
+Equipment details include size/category, HP, mass, effects and weapon rates.
+Chassis details show base hull, thrust, mass, derived movement, shields, command,
+price, bonuses/penalties, built-ins and every mount's size/category restriction.
+Inspection preserves stock filters and does not change ownership or loadouts.
+Beginning an installed-equipment drag restores the full-panel unequip target.
 
-Recorded result: 1,332 mount checks pass natively. All twelve baseline suites pass, including nine full-route runs (126 natural battles), archive readers and 313 native general-UI checks. Shared resource references and whitespace checks pass. Existing Godot Windows certificate-store/renderer shutdown diagnostics remain unchanged.
-
-The existing combat/trade/science playthrough policies retain their explicit build preferences in `tests/fixtures/playthrough_mount_preferences.json`. These are test-player choices, not gameplay restrictions. They keep the regression comparison useful while broader balancing remains deferred to the vertical-slice tuning pass.
+`test_hangar_mounts.gd` covers shared compatibility and physical fitting.
+`test_chassis_review.gd` verifies the exact mount specification, draft stats,
+built-in shield health/save/repair rollback, seeded weapon-only dodge and real
+inspection/deselection inputs. Run the current isolated baseline with
+`tests/run_baseline.ps1 -Native`.

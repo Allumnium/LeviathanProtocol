@@ -6,17 +6,21 @@ The actual campaign now uses the hangar. Start a new run from the main menu; Con
 
 ## Ownership and transactions
 
-- Each chassis has fixed mounts with exact S/M/L/XL size matching. Most accept any same-size equipment; restrict only clearly forward weapon or rear engine/defense mounts. See [MOUNT_RULES.md](MOUNT_RULES.md).
+- Each chassis has fixed mounts with exact S/M/L/XL size matching and the owner's explicit per-chassis category restrictions. General mounts accept any matching-size equipment. See [MOUNT_RULES.md](MOUNT_RULES.md).
 - Equipment has a unique inventory ID and persistent HP. A mount references that instance; free transfers move it between ships or stock. Replacing an item returns the old item to stock.
 - Buy ships/equipment at inhabited shipyards. Research unlocks equipment purchases/fitting. Winning a battle also awards one deterministic, usable equipment instance. Loot is committed with the battle outcome and cannot be claimed twice.
 - Credits pay for purchases and repairs. Stock equipment can be sold; salvaging a non-flagship chassis requires confirmation and returns damaged equipment to stock. The flagship cannot be salvaged or bought a second time. Fleet is the first tab; fitting is under Ships. See [the playtest UI changes](UI_PLAYTEST_POLISH.md) for group selection/movement, Repair All, space backgrounds, map flight and supplied module art.
 - The supplied `flagship_basic.png` is the required starting flagship. Draft command budget: 12. Standard chassis consume command points; all owned ships deploy. No reserves or deployment-capacity system.
 
-The initial art-to-mount maps, prices, chassis health/mass/thrust, equipment HP and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. The flagship currently has nine mounts. Original artwork is unchanged. Built-in command centers/engines have separate health. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants.
+The art-to-mount maps, prices, chassis health/mass/thrust, equipment HP and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. The flagship has eight mounts and a fixed level I Shield Generator. Original artwork is unchanged. Built-in command centers/engines/shield generators have separate persistent health and credit repair costs. The Fighter has +30% weapon damage and 20% per-weapon-hit dodge; direct/environmental/ability damage does not dodge. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants.
+
+Shop chassis/equipment and loose stock rows open read-only item details in the right panel. Click elsewhere to restore stock; the green plus is the sole shop purchase action. Details include actual stats, effects/rates, mount restrictions and built-in equipment. Stock filters persist while inspecting, and installed-equipment drags restore the full-panel unequip target. The starter removes incompatible old equipment; previous incompatible physical layouts are rejected, not converted or rewritten.
 
 ## Surface lighting
 
 The supplied map sets under `assets/chassis/`, `assets/equipment/`, `assets/environment/` and `assets/aliens/` use `_d` diffuse, `_n` normal, `_o` occlusion, `_p` height/parallax and `_s` specular. `_v` is a baked preview and is not used for live rendering. The flagship now uses `assets/chassis/flagship_basic_d.png`, the mapped version of the supplied starting flagship; chassis IDs, saves, geometry and mount anchors are unchanged.
+
+Single Plate (S) uses `assets/equipment/plate_small_d.png`; Armor Block (M) uses `assets/equipment/plate_medium_d.png`. Both use the supplied normal, height, specular and occlusion maps through the shared cached renderer in stock, fitting/drag previews, Fleet and battle. Mount fitting preserves their proportions; catalog IDs, stats, costs, health and saves are unchanged.
 
 Alien Chrysalis, Scout, Sentinel and Support use their supplied maps in battle and report previews; the Warden shares mapped Sentinel art and the pylon keeps its original art. The base Fighter retains its original unmapped sprite; its incomplete/deleted map set is excluded. Existing higher-tier Fighters (tiers 1/2) use Large Wing, and higher-tier Chrysalis use Large Sporeback, drawn at 1.5 times the base visual extent. This is an appearance change only: roles, names, threat costs, collision radii, combat statistics and encounter/save schemas remain unchanged. Reloading a saved encounter selects the same variant from its existing role/tier.
 
@@ -30,7 +34,39 @@ Visible bullet/projectile shots also cast small local lights (36 world-unit radi
 
 The cursor casts a soft neutral light over mapped artwork across all screens, with a 48-viewport-unit radius independent of battle zoom. `UiNavigation` updates one shared shader global using normalized viewport coordinates, preserving alignment under window stretch/resizing. The light turns off outside the viewport, when the window loses focus, or while the cursor is hidden/captured. It does not brighten text, backgrounds or unmapped artwork and consumes no projectile/explosion light slots. Native surface checks cover localized cursor illumination, movement, disabling and unchanged unmapped artwork (203 checks total).
 
+The mapped-art ambient contribution is now 25% dimmer. Directional, specular, cursor, projectile and explosion light strengths are unchanged, letting those sources stand out without dimming UI or modifying source artwork.
+
+### Research and resource text
+
+Single-click research cards to inspect them; double-click to Set Focus using the same prerequisite, completed/current-focus and run-state checks as the button. Focus saves remain atomic, failures use the existing notification, and either interaction preserves research pan/zoom.
+
+The Research tab's progress bar is left aligned with current fleet production (`+X/day`) on its right. Its visual minimum is -1 so a zero-progress project shows a thin strip; actual progress, costs and saved research remain unchanged.
+
+Visible RP/CR unit abbreviations render as inline science/credits icons at the surrounding font size, with nearest-neighbor filtering. This covers research production/details, fleet totals, selected lab effects, map arrival/reward previews, repair costs and passenger casualty fees/balances. Resource-bearing text uses the shared theme and literal text rendering, so technology names are never interpreted as markup. Repair buttons retain hover, pressed and disabled styling.
+
+Repair and shield (including plural shields) words also use the supplied text-sized icons throughout stats, research effects, equipment/shop names, mount callouts, drag previews and battle support/report text. Stored catalog names and save data remain literal and unchanged.
+
+The Shield Generator equipment is the exception: its complete name remains text in stock, fitting, shop, research grants and previews. Shield stat/effect labels still use the icon. Its equipment ID is unchanged.
+
+Equipment shop rows are compact display-only cards. Only the 32 x 32 green plus on their right purchases equipment; unavailable items have no plus. Chassis purchase behavior is unchanged.
+
+Inline icons use the surrounding font height and derive their width from the source texture aspect ratio, rather than forcing square dimensions. Header/shop/report icons, inline sale coins and close-button artwork likewise preserve their source proportions.
+
+Settings uses an embedded 304 x 186 modal (304 x 218 when Quit to menu is available), sharing the main viewport's bitmap-text pixel scale rather than a separate native window's smaller text. Audio rows and the centered Quit to menu button are compact. Every active scene has a top-right gear; battle settings pauses simulation, result-delay progression and camera updates until closed, while retaining the player's existing pause/speed mode.
+
 ## Combat, travel and trade
+
+### Beacon routes and Swarm Intensity
+
+New runs retain all three acts but use a bidirectional, noncrossing beacon network with irregular beacon positions. Only connected, unlocked destinations can be reached; backtracking does not relock sectors already opened by boss victories. Route connections are plain lines rather than directional arrows. Existing physical checkpoints without navigation data continue using their original forward-only graph, encounters and tuning; no save conversion is guessed.
+
+Swarm Intensity starts at zero and rises by one point per travel day, including backtracking and repeat departures. Time spent in menus or battles does not add pressure. The map shows current intensity and the next journey's increase. Initial tuning adds 0.5% enemy hull, shields and weapon damage per intensity point, including the Warden's existing lance and the final Leviathan encounter; no new phases or enemies are introduced. Enemy composition, rewards, telegraphs and research rules remain unchanged. First departure to a hostile beacon freezes its strength; retries and Continue retain that snapshot while further travel still raises pressure for unentered encounters. Cleared beacons do not spawn the same encounter or pay its rewards again. Operational cargo/passenger travel remains available on revisits.
+
+Each act has a small broken-relay encounter with inline choices in the existing map detail panel. Relay its data to the marked beacon for 60 credits and a four-point intensity reduction, or disrupt the signal immediately for a three-point reduction. Choices and quest rewards settle once through the same atomic transaction as ownership, credits and travel. Active destinations have a gold ring; completed quest feedback appears at its destination. Quest data is not a physical equipment load. The pressure rate, strength multiplier and quest rewards are drafts for route playtesting and V4 tuning.
+
+`test_swarm_navigation.gd` verifies deterministic noncrossing geometry across 128 seeds, bidirectional travel, pressure, frozen retries/Continue, one-time encounters/quests, rollback, malformed-data rejection and native event layouts at the three supported resolutions. Natural playthrough policies explicitly choose forward progress now that backward routes exist. Science policies reserve the actual Lab III purchase price before buying optional hulls and take bounded research detours before the final approach when necessary, trading increased Swarm Intensity for Lab III completion and a real purchase/refit opportunity; checks require an operational Lab III alongside existing labs at a combined four RP/day or more.
+
+Validation: all 16 baseline suites pass, including nine natural combat/trade/science campaigns reaching final victory (126 battles). Final native checks pass for swarm navigation, 2,106 hangar UI assertions and 157 polish assertions. At 640 x 360, the single encounter's Travel and both event choices fit inside the existing panel; scrolling is available only for longer accumulated quest content.
 
 Chassis images appear in hangar, formation, map preview, battle and reports. Equipment weapon mounts use the authored image positions. Shields absorb damage first. Unshielded component hits split damage equally between component and chassis; bare hull hits damage the chassis. Chassis survives at exactly zero and dies below zero; losing its command center also destroys it. Flagship destruction ends the run even when escorts remain. Repairs restore surviving ships and their installed hardware, without resurrecting destroyed ships.
 

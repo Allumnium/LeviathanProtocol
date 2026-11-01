@@ -1,6 +1,7 @@
 ﻿extends Node
 
 const MODALS := ["GameSetup", "GraphModal", "CampaignDialog", "ResearchDetails", "VictoryDialog", "DefeatDialog", "QuitConfirmOverlay", "DeleteConfirmOverlay"]
+var settings_scene: WeakRef
 
 func _ready() -> void:
  # Disable Godot's default focus/menu navigation, including native PopupMenu.
@@ -24,6 +25,10 @@ func _configure(node: Node) -> void:
   node.popup_hide.connect(_popup_hidden.bind(node))
 
 func _process(_delta: float) -> void:
+ var scene := get_tree().current_scene
+ if scene != null and (settings_scene == null or settings_scene.get_ref() != scene):
+  settings_scene = weakref(scene)
+  _ensure_settings(scene)
  var viewport := get_viewport()
  var bounds := viewport.get_visible_rect()
  var mouse := viewport.get_mouse_position()
@@ -31,14 +36,43 @@ func _process(_delta: float) -> void:
  var uv := (mouse - bounds.position) / bounds.size
  RenderingServer.global_shader_parameter_set("cursor_light", Vector4(uv.x, uv.y, 48.0 / bounds.size.x, 0.75 if enabled else 0.0))
 
+func _ensure_settings(scene: Node) -> void:
+ if not scene is Control or scene.find_child("SettingsButton", true, false) != null:
+  return
+ var dialog: PopupPanel = load("res://scenes/settings_dialog.tscn").instantiate()
+ dialog.name = "SettingsDialog"
+ dialog.hide()
+ scene.add_child(dialog)
+ var button: TextureButton = load("res://scenes/circular_icon_button.tscn").instantiate()
+ button.name = "SettingsButton"
+ button.custom_minimum_size = Vector2(30, 30)
+ button.z_index = 100
+ scene.add_child(button)
+ button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+ button.offset_left = -38
+ button.offset_right = -8
+ button.offset_top = 8
+ button.offset_bottom = 38
+ AudioManager.connect_ui_button(button, &"detail")
+ button.pressed.connect(func() -> void: dialog.popup_centered())
+
+func settings_open() -> bool:
+ var scene := get_tree().current_scene
+ if scene == null:
+  return false
+ var dialog := scene.find_child("SettingsDialog", true, false) as PopupPanel
+ return dialog != null and (dialog.visible or dialog.get_meta("reopening", false))
+
 func _popup_hidden(popup: Popup) -> void:
  if popup.get_meta("restore_after_nested_cancel", false):
   popup.remove_meta("restore_after_nested_cancel")
+  popup.set_meta("reopening", true)
   _reopen.call_deferred(weakref(popup))
 
 func _reopen(reference: WeakRef) -> void:
  var popup: Popup = reference.get_ref()
  if is_instance_valid(popup) and popup.is_inside_tree():
+  popup.remove_meta("reopening")
   popup.popup_centered()
   if popup.has_method("close_library"):
    popup.search.grab_focus()

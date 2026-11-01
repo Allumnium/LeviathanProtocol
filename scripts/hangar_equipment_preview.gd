@@ -7,17 +7,18 @@ var data: Dictionary
 var target_slot := ""
 var bounds := Rect2(-Vector2(24, 36), Vector2(48, 72))
 var sprite_rect := Rect2()
-var title: Label
+var title: ResourceText
 
 func _ready() -> void:
 	SurfaceArt.apply(self)
 	add_to_group("equipment_drag_preview")
 	mouse_filter = MOUSE_FILTER_IGNORE
 	texture_filter = TEXTURE_FILTER_NEAREST
-	title = Label.new()
-	title.text = item.name
+	title = ResourceText.create(item.name)
+	title.autowrap_mode = TextServer.AUTOWRAP_OFF
 	title.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(title)
+	title.size = title.get_theme_font("normal_font").get_string_size(item.name, HORIZONTAL_ALIGNMENT_LEFT, -1, title.get_theme_font_size("normal_font_size"))
 	_process(0)
 
 func _process(_delta: float) -> void:

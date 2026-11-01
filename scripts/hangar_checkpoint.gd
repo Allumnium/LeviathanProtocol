@@ -19,7 +19,12 @@ static func valid(value: Variant) -> bool:
 			return false
 	if not _number(value.get("journey_rp")) or value.journey_rp < 0 or not value.get("equipment") is Dictionary or not value.get("ships") is Array or not value.get("visited") is Array or not value.get("research") is Dictionary:
 		return false
-	var graph := CampaignGraph.generate(int(value.seed))
+	var navigation: Variant = value.get("navigation", {})
+	if not navigation is Dictionary:
+		return false
+	var graph := CampaignGraph.generate(int(value.seed), 1 if navigation.is_empty() else 2)
+	if not navigation.is_empty() and not SwarmNavigation.valid(navigation, graph):
+		return false
 	var reserves: Variant = value.get("battle_reserves", {})
 	if not reserves is Dictionary:
 		return false
@@ -40,11 +45,24 @@ static func valid(value: Variant) -> bool:
 		seen_nodes[int(node)] = true
 	if not seen_nodes.has(int(value.current)) or value.pending != (value.destination >= 0) or (not value.pending and value.journey_rp != 0):
 		return false
-	if value.pending and not graph.edges.any(func(edge: Array) -> bool: return int(edge[0]) == int(value.current) and int(edge[1]) == int(value.destination)):
+	if value.pending and not graph.edges.any(func(edge: Array) -> bool:
+		return (int(edge[0]) == int(value.current) and int(edge[1]) == int(value.destination)) \
+			or (not navigation.is_empty() and int(edge[1]) == int(value.current) and int(edge[0]) == int(value.destination))):
 		return false
 	var encounter: Variant = value.get("pending_encounter", {})
 	if not encounter is Dictionary or (value.pending and not EncounterGenerator.valid(encounter)) or (not value.pending and not encounter.is_empty()):
 		return false
+	if not navigation.is_empty() and value.pending and (seen_nodes.has(int(value.destination)) \
+		or not navigation.encounters.has(str(int(value.destination))) \
+		or not SaveValidation.same(encounter, navigation.encounters[str(int(value.destination))]) or encounter.get("node_id") != value.destination):
+		return false
+	if not navigation.is_empty():
+		for key: String in navigation.events:
+			if not seen_nodes.has(int(key)):
+				return false
+		for key: String in navigation.quests:
+			if navigation.quests[key] == "complete" and not seen_nodes.has(SwarmNavigation.event(graph, int(key)).target):
+				return false
 	var progress: Dictionary = value.research
 	if not progress.get("research_ids") is Array or not progress.get("story_flags") is Dictionary or not progress.get("branch_choices") is Dictionary:
 		return false
@@ -84,8 +102,11 @@ static func valid(value: Variant) -> bool:
 			cost += int(chassis.command_cost)
 			if int(chassis.command) > 0:
 				return false
-		for key in ["core", "engine"]:
-			if not _number(entry.builtins.get(key)) or entry.builtins[key] < 0 or entry.builtins[key] > (30 if key == "core" else 25):
+		var builtin_health := HangarShip.builtin_health(chassis)
+		if entry.builtins.size() != builtin_health.size():
+			return false
+		for key: String in builtin_health:
+			if not _number(entry.builtins.get(key)) or entry.builtins[key] < 0 or entry.builtins[key] > builtin_health[key]:
 				return false
 		if not value.pending and entry.builtins.core <= 0:
 			return false

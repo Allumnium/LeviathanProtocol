@@ -17,7 +17,7 @@ func carrier(kind := "flight_deck", uid := "1") -> HangarShip:
 	var ship := HangarShip.new()
 	ship.initialize_chassis("flagship_basic" if kind == "flight_deck" else "corsair", 1, true)
 	var item := SlotCatalog.find_equipment(kind)
-	ship.mounts["port" if kind == "flight_deck" else "fore"] = {"uid": uid, "equipment_id": kind, "rank": 1, "hp": item.hit_points}
+	ship.mounts["spine" if kind == "flight_deck" else "fore"] = {"uid": uid, "equipment_id": kind, "rank": 1, "hp": item.hit_points}
 	ship.rebuild_units()
 	return ship
 
@@ -52,7 +52,7 @@ func run() -> void:
 	check(state.buy_equipment("flight_deck"), "Shipyard sells physical researched Flight Deck")
 	var deck_uid := str(state.next_equipment_id - 1)
 	check(not state.fit_equipment(1, "fore", deck_uid), "Wrong type/size does not accept a deck")
-	check(state.fit_equipment(1, "port", deck_uid), "Exact M offense accepts owned deck")
+	check(state.fit_equipment(1, "spine", deck_uid), "Exact M general mount accepts owned deck")
 	check(state.buy_chassis("corsair") and state.buy_equipment("torpedo_bomber_bay"), "Buy bomber host and researched bay")
 	var bomber_uid := str(state.next_equipment_id - 1)
 	var corsair: HangarShip = state.fleet[-1]
@@ -87,8 +87,8 @@ func run() -> void:
 	restored.doctrines.advance(restored, 60)
 	check(restored.doctrines.carriers.sorties.is_empty(), "Retry does not refill a spent bay")
 	var moved := carrier()
-	moved.mounts["starboard"] = moved.mounts["port"]
-	moved.mounts.erase("port")
+	moved.initialize_chassis("corsair", 1, true)
+	moved.mounts["starboard"] = carrier().mounts["spine"]
 	moved.rebuild_units()
 	var transferred := simulation(moved, sim.doctrines.pool)
 	transferred.doctrines.advance(transferred, 60)
@@ -96,7 +96,9 @@ func run() -> void:
 	var fresh := simulation(carrier())
 	fresh.doctrines.advance(fresh, 0.1)
 	var orphan: BattleSimulation.Combatant = fresh.doctrines.carriers.sorties[0].actor
-	fresh.player.owned_ship.units[2].hp = 0
+	for unit: Dictionary in fresh.player.owned_ship.units:
+		if unit.key == "spine":
+			unit.hp = 0
 	fresh._refresh_owned_stats(fresh.player)
 	check(not orphan.is_alive() and fresh.doctrines.carriers.sorties.is_empty(), "Bay destruction disables its active sorties")
 	var bomber := simulation(carrier("torpedo_bomber_bay"))
@@ -189,7 +191,7 @@ func native_checks() -> void:
 	await process_frame
 	await process_frame
 	screen.selected_ship_id = 1
-	screen.selected_slot = "port"
+	screen.selected_slot = "spine"
 	screen._show_details()
 	check(text_under(screen.center).contains("6 craft / 2 active"), "Selected bay explains its finite allowance inline")
 	screen.queue_free()
@@ -203,11 +205,56 @@ func native_checks() -> void:
 	root.add_child(battle)
 	current_scene = battle
 	await process_frame
+	await process_frame
+	var gear: TextureButton = battle.find_child("SettingsButton", true, false)
+	var settings: PopupPanel = battle.find_child("SettingsDialog", true, false)
+	check(gear != null and settings != null and gear.get_global_rect().end.x == battle.size.x - 8
+		and gear.position.y == 8, "Battle has the shared top-right Settings button")
+	check(not gear.get_global_rect().intersects(battle.withdraw_button.get_global_rect()),
+		"Battle Settings and Retreat buttons do not overlap")
+	var gear_motion := InputEventMouseMotion.new()
+	gear_motion.position = gear.get_global_rect().get_center()
+	gear_motion.global_position = gear_motion.position
+	root.push_input(gear_motion, true)
+	await process_frame
+	for pressed in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.position = gear_motion.position
+		click.global_position = click.position
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		root.push_input(click, true)
+		await process_frame
+	await process_frame
+	check(settings.visible and settings.quit_to_menu_button.visible, "Battle Settings opens with Quit to menu")
+	check(settings.quit_to_menu_button.size.x < settings.get_visible_rect().size.x * 0.7
+		and settings.size == Vector2i(304, 218), "Battle Settings and Quit to menu are compact: %s, button %s, viewport %s" % [settings.size, settings.quit_to_menu_button.size, settings.get_visible_rect().size])
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://.local/carriers/settings.png")
+	var before_ticks: float = battle.simulation.elapsed
+	var was_paused: bool = battle.pause_button.button_pressed
+	await create_timer(0.2).timeout
+	check(battle.simulation.elapsed == before_ticks and battle.pause_button.button_pressed == was_paused,
+		"Settings pauses battle ticks without changing the player's pause mode")
+	settings.get_node("CloseX").pressed.emit()
+	await create_timer(0.1).timeout
+	check(not settings.visible and battle.simulation.elapsed > before_ticks,
+		"Closing Settings resumes an unpaused battle")
+	battle.pause_button.set_pressed_no_signal(true)
+	gear.pressed.emit()
+	await process_frame
+	settings.hide()
+	before_ticks = battle.simulation.elapsed
+	await create_timer(0.1).timeout
+	check(battle.pause_button.button_pressed and battle.simulation.elapsed == before_ticks,
+		"Closing Settings preserves a manually paused battle")
+	battle.pause_button.set_pressed_no_signal(false)
 	for tick in range(30):
 		battle.simulation.advance(1.0 / 30)
 	await process_frame
 	check(battle.simulation.doctrines.carriers.available(battle.simulation).y > 0, "Actual battle launches physical inventory craft")
-	check(battle.repair_label.text.contains("CRAFT:"), "Battle shows remaining/active craft without another window")
+	check(battle.repair_label.get_parsed_text().contains("CRAFT:"), "Battle shows remaining/active craft without another window")
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/carriers/battle.png")
@@ -217,7 +264,7 @@ func native_checks() -> void:
 	await create_timer(0.5).timeout
 
 func text_under(node: Node) -> String:
-	var result: String = node.text if node is Label else ""
+	var result: String = node.source_text if node is ResourceText else (node.text if node is Label else "")
 	for child in node.get_children():
 		result += "\n" + text_under(child)
 	return result

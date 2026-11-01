@@ -7,7 +7,7 @@
 
 [node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
 initial_position = 1
-size = Vector2i(500, 244)
+size = Vector2i(304, 186)
 exclusive = true
 content_scale_factor = 1.0
 script = ExtResource("2_script")
@@ -16,12 +16,12 @@ script = ExtResource("2_script")
 text = "Settings"
 
 [node name="MusicRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="0" unique_id=1817432263]
-custom_minimum_size = Vector2(0, 32)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="MusicLabel" type="Label" parent="Contents/ContentArea/MusicRow" index="0" unique_id=1063485514]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 text = "Music"
 vertical_alignment = 1
@@ -34,12 +34,12 @@ size_flags_vertical = 4
 value = 50.0
 
 [node name="AmbienceRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="1" unique_id=830423329]
-custom_minimum_size = Vector2(0, 32)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="AmbienceLabel" type="Label" parent="Contents/ContentArea/AmbienceRow" index="0" unique_id=843397593]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 text = "Ambience"
 vertical_alignment = 1
@@ -52,12 +52,12 @@ size_flags_vertical = 4
 value = 50.0
 
 [node name="EffectsRow" type="HBoxContainer" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="2" unique_id=709174921]
-custom_minimum_size = Vector2(0, 32)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="EffectsLabel" type="Label" parent="Contents/ContentArea/EffectsRow" index="0" unique_id=896158980]
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(76, 0)
 layout_mode = 2
 text = "Effects"
 vertical_alignment = 1
@@ -70,7 +70,7 @@ size_flags_vertical = 4
 value = 50.0
 
 [node name="BattleAutoCameraRow" type="HBoxContainer" parent="Contents/ContentArea" index="3"]
-custom_minimum_size = Vector2(0, 32)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
@@ -82,13 +82,13 @@ text = "Battle auto-camera"
 vertical_alignment = 1
 
 [node name="BattleAutoCameraButton" type="CheckBox" parent="Contents/ContentArea/BattleAutoCameraRow"]
-custom_minimum_size = Vector2(32, 32)
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 
 [node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="4"]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 text = "QUIT TO MENU"
 
 [node name="QuitConfirmOverlay" type="Control" parent="."]
@@ -119,7 +119,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="ConfirmationPanel" type="PanelContainer" parent="QuitConfirmOverlay/CenterContainer"]
-custom_minimum_size = Vector2(320, 144)
+custom_minimum_size = Vector2(280, 144)
 layout_mode = 2
 theme_type_variation = &"CompactPanel"
 

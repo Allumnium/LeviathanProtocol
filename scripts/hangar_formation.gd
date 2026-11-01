@@ -1,8 +1,6 @@
 extends Control
 
 signal ship_selected(id: int)
-signal equipment_requested(id: int)
-signal salvage_requested(id: int)
 const GLOW = preload("res://shaders/ship_selection.gdshader")
 var selected_id := 0
 var selected_ids: Array[int] = []
@@ -15,7 +13,6 @@ var drag_delta := Vector2.ZERO
 var box_selecting := false
 var box_start := Vector2.ZERO
 var box_end := Vector2.ZERO
-var actions: HBoxContainer
 var glows: Dictionary = {}
 var starfield: Control
 var hit_images: Dictionary = {}
@@ -44,22 +41,7 @@ func _ready() -> void:
 		glow.material = material
 		add_child(glow)
 		glows[owned.id] = glow
-	actions = HBoxContainer.new()
-	add_child(actions)
-	if selected_ids.size() == 1:
-		_action("EQUIP", func() -> void: equipment_requested.emit(selected_id))
-		var owned: HangarShip = GameState.owned_ship(selected_id)
-		if owned != null and not owned.flagship:
-			_action("SALVAGE", func() -> void: salvage_requested.emit(selected_id))
 	resized.connect(queue_redraw)
-
-func _action(title: String, callback: Callable) -> void:
-	var button := Button.new()
-	button.text = title
-	button.theme_type_variation = &"CompactButton"
-	button.focus_mode = FOCUS_NONE
-	button.pressed.connect(callback)
-	actions.add_child(button)
 
 func point(owned: FleetShip) -> Vector2:
 	var position := owned.formation + (drag_delta if dragging and owned.id in selected_ids else Vector2.ZERO)
@@ -157,9 +139,6 @@ func _draw() -> void:
 			glow.position = rect.position
 			glow.size = rect.size
 			glow.visible = owned.id in selected_ids
-		if owned.id == selected_id:
-			actions.position = (point(owned) + Vector2(-actions.size.x / 2, rect.size.y * 0.5 + 4 * zoom)).clamp(Vector2.ZERO, (size - actions.size).max(Vector2.ZERO))
-	actions.visible = selected_ids.size() == 1 and not dragging and not box_selecting
 	if box_selecting:
 		var rect := Rect2(box_start, box_end - box_start).abs()
 		draw_rect(rect, Color(1, 1, 1, 0.08))

@@ -204,24 +204,27 @@ func campaign_samples() -> void:
 	for doctrine in ["siege", "carrier", "command"]:
 		for index in range(2):
 			var flagship := hull()
-			mount(flagship, "port", "double_laser", 1)
-			mount(flagship, "starboard", "double_laser", 2)
-			mount(flagship, "aft_port", "point_defense_turret", 3)
-			mount(flagship, "aft_starboard", "mini_turret", 4)
-			mount(flagship, "inner_port", "armor_block", 5)
-			mount(flagship, "fore", "tactical_computer", 6)
-			mount(flagship, "inner_starboard", "ammunition_magazine" if doctrine == "siege" else "command_uplink", 7)
+			mount(flagship, "port", "laser", 1)
+			mount(flagship, "starboard", "laser", 2)
+			mount(flagship, "fore", "point_defense_turret", 3)
+			mount(flagship, "aft_starboard", "thruster", 4)
+			mount(flagship, "inner_port", "hull_plate", 5)
+			mount(flagship, "aft_port", "hull_plate", 6)
+			mount(flagship, "spine", "ammunition_magazine" if doctrine == "siege" else "command_uplink", 7)
 			var escort := HangarShip.new()
 			escort.initialize_chassis("corsair", 2)
 			mount(escort, "fore", "railgun" if doctrine == "siege" else ("torpedo_bomber_bay" if doctrine == "carrier" else "beam_lance"), 8)
 			mount(escort, "port", "flight_deck" if doctrine == "carrier" else "double_laser", 9)
 			mount(escort, "starboard", "double_laser", 10)
-			mount(escort, "center", "ammunition_magazine" if doctrine != "command" else "command_uplink", 11)
+			var support := HangarShip.new()
+			support.initialize_chassis("transport", 3)
+			mount(support, "port", "tactical_computer", 11)
+			mount(support, "starboard", "tactical_computer", 12)
 			var encounter: Dictionary = state.get_frozen_encounter(int(nodes[index].id))
 			var enemies: Array[RefCounted] = []
 			for entry: Dictionary in encounter.roster:
 				enemies.append(AlienShip.from_snapshot(entry))
-			var ships: Array[FleetShip] = [flagship, escort]
+			var ships: Array[FleetShip] = [flagship, escort, support]
 			var sim := BattleSimulation.new()
 			check(sim.setup_owned(ships, enemies, 0, 0, int(encounter.seed), {"credits_only": true,
 				"enemy_roles": true, "encounter_plan": encounter if encounter.has("arena_layout") else {}}), "Act II doctrine setup")

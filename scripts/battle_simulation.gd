@@ -1276,7 +1276,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				beam.target = hit_target
 				beam.aim_position = hit_target.position
 				beams.append(beam)
-				_damage(hit_target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name)
+				_damage(hit_target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name, false, true)
 			else:
 				var projectile := Projectile.new()
 				projectile.source = ship
@@ -1576,9 +1576,14 @@ func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
 	return 1.0
 
 
-func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false) -> void:
+func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false, weapon_hit := false) -> void:
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
+	if target.owned_ship is HangarShip and (weapon_hit or projectile_hit):
+		var chance: float = target.owned_ship.chassis.get("dodge_chance", 0.0)
+		if chance > 0.0 and random.randf() < chance:
+			_record_event("dodge", {"source": "" if source == null else source.entity_id, "target": target.entity_id, "weapon": weapon_name})
+			return
 	damage *= _analysis_multiplier(source, target)
 	# Railgun penetrates Sentinel hull cover; shields and boss protection still work.
 	if weapon_name != "Railgun" or target.shields > 0:

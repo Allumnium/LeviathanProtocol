@@ -141,7 +141,7 @@ func advance(sim, delta: float) -> void:
 		beam.aim_position = charge.aim
 		sim.beams.append(beam)
 		for shot in range(charge.weapon.projectiles_per_activation):
-			sim._damage(hit, charge.weapon.damage_per_shot, charge.origin, source, charge.weapon.weapon_name)
+			sim._damage(hit, charge.weapon.damage_per_shot, charge.origin, source, charge.weapon.weapon_name, false, true)
 		sim._record_event("beam_impact", {"source": source.entity_id, "target": hit.entity_id})
 	_update_drones(sim, delta)
 	for member in sim.players:

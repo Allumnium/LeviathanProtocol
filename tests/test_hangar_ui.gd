@@ -19,7 +19,7 @@ func settle() -> void:
 	await process_frame
 
 func labels_under(node: Node) -> String:
-	var result: String = node.text if node is Label else ""
+	var result: String = node.source_text if node is ResourceText else (node.text if node is Label else "")
 	for child in node.get_children():
 		result += "\n" + labels_under(child)
 	return result
@@ -34,11 +34,11 @@ func check_callouts(board: Control) -> void:
 		check(not rect.intersects(board.image_rect), "Side text never covers ship or slot art")
 		check(not placed.any(func(other: Rect2) -> bool: return rect.intersects(other)), "Side callouts never overlap")
 		placed.append(rect)
-		var label: Label = card.get_node("EquipmentName")
+		var label: ResourceText = card.get_node("EquipmentName")
 		var instance: Dictionary = owned.mounts.get(id, {})
 		var slot: Dictionary = owned.chassis.slots.filter(func(value: Dictionary) -> bool: return value.id == id)[0]
 		var expected: String = board._empty_label(slot) if instance.is_empty() else SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank)).name
-		check(label.text == expected and not label.clip_text, "Callout uses the complete equipment name")
+		check(label.source_text == expected and not label.clip_contents, "Callout uses the complete equipment name")
 		check(label.get_line_count() == 1 and not card.has_node("MountName"), "Mount callouts have exactly one line, with no extra headings")
 		check(Rect2(Vector2.ZERO, card.size).encloses(label.get_rect()), "Equipment text stays within its card")
 		check(card.focus_mode == Control.FOCUS_NONE and card.tooltip_text.is_empty(), "Callout has no keyboard focus or tooltip")
@@ -154,11 +154,11 @@ func run() -> void:
 	check(state.buy_equipment("mini_turret"), "Buy gear through actual state")
 	await settle()
 	var uid := str(state.next_equipment_id - 1)
-	var button: Button = screen.canvas.slot_buttons.aft_port
+	var button: Button = screen.canvas.slot_buttons.port
 	check(uid in screen.stock.visible_uids, "New purchase appears in stock")
 	button._drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uid))
 	await settle()
-	check(state.owned_ship(1).mounts.aft_port.uid == uid, "Drop target equips physical item")
+	check(state.owned_ship(1).mounts.port.uid == uid, "Drop target equips physical item")
 	check(state.equipment_location("1").is_empty(), "Replaced physical item returns to stock")
 	state.credits = 5000
 	check(state.save_run_checkpoint(), "Fund chassis layout fixtures")
@@ -308,7 +308,7 @@ func run() -> void:
 	var inventory_before: int = state.equipment_inventory.size()
 	for purchase: Button in screen.shop_rows.get_children():
 		if not purchase.disabled:
-			purchase.pressed.emit()
+			purchase.find_child("BuyIcon", true, false).pressed.emit()
 			break
 	await settle()
 	check(state.equipment_inventory.size() == inventory_before + 1 and screen.buy_open and screen.shop != null, "Purchase updates stock while center shop stays open")
@@ -342,10 +342,10 @@ func run() -> void:
 	science_fixture.research.research_ids.append("laboratory_iii")
 	science_fixture.research.story_flags["boss_i_defeated"] = true
 	check(state._commit_hangar(science_fixture), "Late-game research UI fixture")
-	check(state.buy_chassis("frigate"), "Science chassis UI fixture")
+	check(state.buy_chassis("transport"), "Science chassis UI fixture")
 	var science_ship: int = state.fleet[-1].id
-	check(state.buy_equipment("research_lab", 2) and state.fit_equipment(science_ship, "center", str(state.next_equipment_id - 1)), "Lab II UI fixture")
-	check(state.buy_equipment("research_lab", 3) and state.fit_equipment(1, "hold", str(state.next_equipment_id - 1)), "Lab III UI fixture")
+	check(state.buy_equipment("research_lab", 2) and state.fit_equipment(science_ship, "port", str(state.next_equipment_id - 1)), "Lab II UI fixture")
+	check(state.buy_equipment("research_lab", 3) and state.fit_equipment(science_ship, "hold", str(state.next_equipment_id - 1)), "Lab III UI fixture")
 	await settle()
 	screen.selected_ship_id = 1
 	for title in ["RESEARCH", "FLEET", "MAP", "SHIPS"]:
