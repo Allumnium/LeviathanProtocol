@@ -327,15 +327,19 @@ func campaign_samples() -> void:
 				enemies.append(AlienShip.from_snapshot(entry))
 			var ships: Array[FleetShip] = [flagship, escort, support]
 			var sim := BattleSimulation.new()
-			check(sim.setup_owned(ships, enemies, 0, 0, int(encounter.seed), {"credits_only": true,
-				"enemy_roles": true, "encounter_plan": encounter if encounter.has("arena_layout") else {}}), "Act II doctrine setup")
+			var context := {"credits_only": true,
+				"enemy_roles": true, "encounter_plan": encounter if encounter.has("arena_layout") else {}}
+			for key in ["asteroids", "environment"]:
+				if encounter.has(key):
+					context[key] = encounter[key].duplicate(true)
+			check(sim.setup_owned(ships, enemies, 0, 0, int(encounter.seed), context), "Act II doctrine setup")
 			check(sim.set_objective_targets(EncounterGenerator.objective_ids(encounter)), "Use actual campaign objective identities")
 			for tick in range(3600):
 				sim.advance(1.0 / 30)
 				if sim.phase != BattleSimulation.Phase.COMBAT:
 					break
 			check(sim.phase != BattleSimulation.Phase.COMBAT, "Act II doctrine combat reaches a bounded natural outcome")
-			check(sim.player.damage_dealt > 0, "Intermediate loadout contributes actual combat damage")
+			check(sim.players[1].damage_dealt > 0, "Intermediate-equipped escort contributes actual combat damage")
 			check(CombatDoctrines.valid_pool(sim.doctrines.pool), "Natural combat conserves valid finite reserves")
 			results.append({"doctrine": doctrine, "node": nodes[index].id, "phase": sim.phase,
 				"seconds": sim.elapsed, "damage": sim.player.damage_dealt + sim.players[1].damage_dealt})

@@ -523,6 +523,20 @@ func node_preview(node_id: int) -> Dictionary:
 	var encounter := get_frozen_encounter(node_id)
 	return {"title": node.get("name", "Destination"), "text": "%s | %.0f days" % [str(node.get("type", "")).capitalize(), research_travel_time(current_node_id, node_id)] + (" | %d cr" % int(encounter.rewards.credits) if not encounter.is_empty() else "")}
 
+func node_environment(node_id: int) -> Dictionary:
+	var node := campaign_node(node_id)
+	if node.is_empty():
+		push_error("Cannot inspect conditions for an unknown map node.")
+		return {}
+	var conditions: Dictionary = node.environment.duplicate(true)
+	var frozen: Dictionary = navigation.get("encounters", {}).get(str(node_id), get_frozen_encounter(node_id))
+	if frozen.has("environment"):
+		return frozen.environment.duplicate(true)
+	if not frozen.is_empty():
+		# Older saved encounters retain their original field instead of rerolling.
+		conditions.asteroid_density = 2 if frozen.has("asteroids") else 0
+	return conditions
+
 func travel_to(node_id: int) -> bool:
 	if not _can_refit() or not can_deploy() or not get_reachable_nodes(current_node_id).has(node_id):
 		return false
@@ -582,7 +596,11 @@ func set_destination(node_id: int) -> bool:
 func battle_support_context() -> Dictionary:
 	var encounter := get_frozen_encounter(destination_node_id)
 	# No material drops, extraction, inventory-consuming abilities or grid bonuses.
-	return {"credits_only": true, "energy_efficiency": energy_efficiency(), "enemy_roles": encounter.get("enemy_roles", false), "doctrine_pool": battle_reserves.get(str(destination_node_id), {}), "encounter_plan": encounter if encounter.has("arena_layout") else {}}
+	var context := {"credits_only": true, "energy_efficiency": energy_efficiency(), "enemy_roles": encounter.get("enemy_roles", false), "doctrine_pool": battle_reserves.get(str(destination_node_id), {}), "encounter_plan": encounter if encounter.has("arena_layout") else {}}
+	for key in ["asteroids", "environment"]:
+		if encounter.has(key):
+			context[key] = encounter[key].duplicate(true)
+	return context
 
 func battle_material_rewards() -> Array[int]:
 	return []

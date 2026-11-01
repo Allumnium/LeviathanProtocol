@@ -539,7 +539,7 @@ func run() -> void:
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
 		and repair_label.icon_size == screen.details.get_child(1).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 960 / 960\n1 RP / day",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 7.2\nShield 20\nHull 960 / 960\n1 RP / day",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -556,7 +556,7 @@ func run() -> void:
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
 	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1180 / 1180\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
+		7.2 + fixture_summary.dps, 20 + fixture_summary.shields],
 		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
@@ -570,12 +570,12 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1165 / 1180\n2 RP / day\nCargo capacity 10\nPassenger capacity 4" % [
-		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
+		7.2 + fixture_summary.dps, 20 + fixture_summary.shields],
 		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 960 / 960\n1 RP / day",
+	check(fleet_totals.source_text == "DPS 7.2\nShield 20\nHull 960 / 960\n1 RP / day",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()

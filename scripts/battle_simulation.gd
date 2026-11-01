@@ -153,6 +153,7 @@ var visibility_enabled := false
 var visibility = preload("res://scripts/battle_visibility.gd").new()
 var abilities = preload("res://scripts/battle_abilities.gd").new()
 var asteroid_field = preload("res://scripts/asteroid_field.gd").new()
+var environment: Dictionary = {}
 var mining_enabled := false
 var credits_only := false
 var mining_materials: Array[int] = []
@@ -240,6 +241,7 @@ func setup(
 	visibility.reset()
 	abilities.configure({})
 	asteroid_field = preload("res://scripts/asteroid_field.gd").new()
+	environment = {}
 	mining_enabled = false
 	mining_materials.clear()
 	encounter.configure(self, {})
@@ -316,6 +318,9 @@ func _rebuild_member_cache() -> void:
 
 
 func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1, shared_context: Dictionary = {}) -> bool:
+	if shared_context.has("environment") and not NodeEnvironment.valid(shared_context.environment):
+		push_error("Cannot configure battle with invalid node conditions.")
+		return false
 	if not abilities.configure(shared_context):
 		return false
 	if not shared_context.get("visibility_enabled", false) is bool:
@@ -348,6 +353,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		return false
 	energy_efficiency = requested_energy
 	credits_only = shared_context.get("credits_only", false)
+	environment = shared_context.get("environment", {}).duplicate(true)
 	repair_reserves = shared_context.get("repair_reserves", {}).duplicate(true)
 	var pool: Dictionary = shared_context.get("repair_pool", {"capacity": 0, "spent": 0.0})
 	repair_capacity = int(pool.capacity)
@@ -764,6 +770,8 @@ func authoritative_snapshot() -> Dictionary:
 		result["asteroids"] = asteroid_field.snapshot()
 		result["ore_retry"] = asteroid_field.retry_remaining
 		result["ore_rejections"] = asteroid_field.replayed_rejections.duplicate()
+	if not environment.is_empty():
+		result["environment"] = environment.duplicate(true)
 	if not encounter.plan.is_empty():
 		result["encounter"] = encounter.snapshot()
 	if enemy_roles.enabled:

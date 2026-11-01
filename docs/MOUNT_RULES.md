@@ -48,7 +48,7 @@ Zero-dodge chassis do not consume extra dodge RNG. Dodges are combat-log events.
 
 Engines are implicit and command is covered by overall ship integrity; neither
 has separate damage or descriptive UI. The flagship additionally owns a fixed
-level I Shield Generator: 40 shields, 1.6 shield recharge/s after four seconds
+level I Shield Generator: 20 shields, 0.8 shield recharge/s after four seconds
 without damage. It is not a stock instance and cannot be removed, sold or copied.
 
 Hull is the only persistent health pool. Shields absorb hits first; all
@@ -63,7 +63,8 @@ Nanoforge/Renewal II are deferred rather than inventing a replacement for
 component reconstruction.
 
 New Run offers these four flagships in a themed carousel with artwork, stats,
-command budgets, bonuses, descriptions and mount summaries. Starting credits
+Command Points, bonuses and short descriptions, without mount listings or
+built-in shield prose (shield amount is shown in stats). Starting credits
 are 700. Every run starts with the selected flagship, an empty Transport and
 two Fighters. The flagship has two Mini Turrets and a Research Lab I; each
 Fighter has two Mini Turrets. These seven equipment instances are unique.
@@ -93,7 +94,9 @@ Click equipment/chassis shop rows or loose stock rows to inspect them in the
 right panel; blank/outside clicks restore stock. Only the green plus buys.
 Equipment details include size/category, mass, effects and weapon rates.
 Chassis details show base hull, thrust, mass, derived movement, shields, command,
-price, bonuses/penalties, built-ins and every mount's size/category restriction.
+price and bonuses/penalties. Shield amount is included in the stat bars;
+descriptions omit mounting-point listings and built-in shield-generator prose.
+Equipment inspection still shows the equipment's size/category and effects.
 Inspection preserves stock filters and does not change ownership or loadouts.
 Beginning an installed-equipment drag restores the full-panel unequip target.
 

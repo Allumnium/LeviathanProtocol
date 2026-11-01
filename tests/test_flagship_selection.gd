@@ -35,7 +35,7 @@ func run() -> void:
 		check(state.equipment_inventory.size() == 7 and state.fleet[0].mounts.size() == 3
 			and state.fleet[1].mounts.is_empty() and state.fleet[2].mounts.size() == 2 and state.fleet[3].mounts.size() == 2,
 			"Seven unique starter instances equip flagship and Fighters; Transport is empty")
-		check(state.fleet[0].get_stats().shields == 40 and state.can_deploy(), "Selected flagship has built-in shield and armed deployment")
+		check(state.fleet[0].get_stats().shields == 20 and state.can_deploy(), "Selected flagship has 20 shields and armed deployment")
 		check(HangarCheckpoint.valid(state.hangar_snapshot()) and state.save_run_checkpoint()
 			and state.load_run_checkpoint() and state.fleet[0].chassis_id == chassis.id, "Selected flagship roundtrips atomically")
 		check(not state.buy_chassis(chassis.id), "Cannot buy a second flagship")
@@ -172,8 +172,13 @@ func _test_carousel() -> void:
 			await settle()
 			var chassis: Dictionary = setup.flagship_choices[index]
 			check(setup.flagship_preview.owned.chassis_id == chassis.id
-				and setup.flagship_command.text == "Command %d" % chassis.command,
+				and setup.flagship_command.text == "Command Points %d" % chassis.command,
 				"Carousel refreshes correct preview, command and stats")
+			check(not setup.flagship_bonuses.source_text.contains("Built-in")
+				and not setup.flagship_description.source_text.to_lower().contains("shield generator")
+				and setup.find_child("FlagshipDetails", true, false).find_children("*", "ResourceText", true, false).all(
+					func(text: ResourceText) -> bool: return not text.source_text.contains("Mounts:")),
+				"Selector shows shields through stats without built-in or mount listings")
 			check(root.get_visible_rect().encloses(setup.setup_modal.get_global_rect())
 				and root.get_visible_rect().encloses(setup.start_button.get_global_rect()), "Selection modal and Start fit supported viewport")
 			if DisplayServer.get_name() != "headless":

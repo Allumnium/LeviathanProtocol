@@ -4,7 +4,7 @@
     {
       "id": "flagship_basic",
       "name": "Flagship",
-      "description": "A balanced command ship with flexible small mounts and a built-in Shield Generator.",
+      "description": "A balanced command ship with flexible outfitting options.",
       "art": "res://assets/chassis/flagship_basic_d.png",
       "price": 1200,
       "integrity": 320,

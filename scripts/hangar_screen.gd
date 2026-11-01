@@ -308,7 +308,6 @@ func _render_inspection() -> void:
 		var chassis := SlotCatalog.find_chassis(inspected_item.id)
 		var ship := HangarShip.new()
 		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
-		var stats := ship.get_stats()
 		body.add_child(_resource_label(chassis.name))
 		var bars := StatBars.new()
 		body.add_child(bars)
@@ -316,13 +315,6 @@ func _render_inspection() -> void:
 		body.add_child(_resource_label("Command %d\nPrice %d cr" %
 			[chassis.command if chassis.command > 0 else chassis.command_cost, chassis.price]))
 		body.add_child(_resource_label(SlotCatalog.chassis_bonuses(chassis)))
-		if chassis.has("builtin_shield"):
-			var shield := SlotCatalog.find_equipment(chassis.builtin_shield)
-			body.add_child(_resource_label("Built-in %s I\nShields %d | %d recharge/s after 4s" %
-				[shield.name, roundi(shield.stats.shields), roundi(shield.stats.shields * 0.04)]))
-		body.add_child(_label("Mounts"))
-		for slot: Dictionary in chassis.slots:
-			body.add_child(_label("%s: %s" % [slot.id.replace("_", " ").capitalize(), SlotCatalog.slot_label(slot)]))
 	else:
 		var item := SlotCatalog.find_equipment(inspected_item.id, int(inspected_item.rank))
 		var instance: Dictionary = GameState.equipment_inventory.get(inspected_item.uid, {})
@@ -1028,6 +1020,7 @@ func _show_map() -> void:
 	if not problem.is_empty():
 		map_details.add_child(_label(problem))
 	_map_event_details()
+	map_details.add_child(_label(NodeEnvironment.description(GameState.node_environment(GameState.current_node_id))))
 
 func _map_event_details() -> void:
 	if GameState.navigation.is_empty():
@@ -1069,6 +1062,9 @@ func _select_destination(id: int) -> void:
 	map_details.add_child(_button_with_sound("TRAVEL", func() -> void:
 		_begin_travel(id), &""))
 	_map_event_details()
+	var conditions := _label(NodeEnvironment.description(GameState.node_environment(id)))
+	conditions.name = "NodeConditions"
+	map_details.add_child(conditions)
 
 func _begin_travel(id: int) -> void:
 	if traveling:

@@ -29,11 +29,16 @@ static func threat(global_row: int, difficulty: int, encounter_type := "standard
 	return 100.0 * pow(5.0, proximity) * DIFFICULTY[difficulty] * MULTIPLIERS[encounter_type]
 
 
-static func generate(run_seed: int, node_id: int, global_row: int, difficulty: int, template_id := "patrol", combat_index := 1, rocks := false) -> Dictionary:
+static func generate(run_seed: int, node_id: int, global_row: int, difficulty: int, template_id := "patrol", combat_index := 1, rocks := false, environment: Dictionary = {}) -> Dictionary:
+	if not environment.is_empty() and not NodeEnvironment.valid(environment):
+		push_error("Cannot generate an encounter with invalid node conditions.")
+		return {}
+	if not environment.is_empty():
+		rocks = int(environment.asteroid_density) > 0
 	if not TEMPLATES.has(template_id) or combat_index < 1 or combat_index > 14:
 		return {}
 	if template_id in ["bastion_warden", "pylon_escort"]:
-		return _generate_warden(run_seed, node_id, global_row, difficulty, template_id, combat_index, rocks)
+		return _generate_warden(run_seed, node_id, global_row, difficulty, template_id, combat_index, rocks, environment)
 	var template: Dictionary = TEMPLATES[template_id]
 	var budget := threat(global_row, difficulty, template.type)
 	if budget <= 0.0:
@@ -118,15 +123,18 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		"rewards": {"credits": roundi((90 + 10 * combat_index) * reward_multiplier), "materials": bundle,
 			"material_pool": material_pool, "initial_recovery_rate": 0.5}}
 	if rocks:
-		result["asteroids"] = AsteroidField.generate(hash("%s/rocks" % seed_value), 6)
+		var count: int = 6 if environment.is_empty() else NodeEnvironment.ROCK_COUNTS[int(environment.asteroid_density)]
+		result["asteroids"] = AsteroidField.generate(hash("%s/rocks" % seed_value), count)
 		result["hazard_budget"] = hazard_budget
 		result.environment_ids = ["asteroid_drift"]
+	if not environment.is_empty():
+		result["environment"] = environment.duplicate(true)
 	return result
 
 
-static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: int, template_id: String, combat_index: int, rocks: bool) -> Dictionary:
+static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: int, template_id: String, combat_index: int, rocks: bool, environment: Dictionary) -> Dictionary:
 	var boss := template_id == "bastion_warden"
-	var result := generate(run_seed, node_id, row, difficulty, "boss_patrol" if boss else "patrol", combat_index, rocks)
+	var result := generate(run_seed, node_id, row, difficulty, "boss_patrol" if boss else "patrol", combat_index, rocks, environment)
 	if result.is_empty():
 		return {}
 	var budget: float = result.budget - result.get("hazard_budget", 0.0)
@@ -209,15 +217,17 @@ static func freeze_campaign(run_seed: int, difficulty: int, graph: Dictionary) -
 		if node.kind not in ["combat", "boss"]:
 			continue
 		var template := "boss_patrol" if node.kind == "boss" else ("elite" if node.elite else "patrol")
-		var rocks: bool = node.kind == "combat" and int(node.local_row) in [3, 5] and int(node.id) % 2 == 0
+		var environment: Dictionary = node.get("environment", {})
+		var rocks: bool = int(environment.asteroid_density) > 0 if not environment.is_empty() else node.kind == "combat" and int(node.local_row) in [3, 5] and int(node.id) % 2 == 0
 		if node.kind == "combat" and not node.elite and int(node.combat_index) % 2 == 0:
 			template = "relay_defense"
 		if node.kind == "boss" and int(node.act) == 1:
 			template = "bastion_warden"
 		elif node.kind == "combat" and int(node.act) == 1 and int(node.local_row) == 5:
 			template = "pylon_escort"
-			rocks = false
-		var encounter := generate(run_seed, int(node.id), int(node.row), difficulty, template, int(node.combat_index), rocks)
+			if environment.is_empty():
+				rocks = false
+		var encounter := generate(run_seed, int(node.id), int(node.row), difficulty, template, int(node.combat_index), rocks, environment)
 		encounter["arena_layout"] = "corridor" if not rocks and int(node.combat_index) % 2 == 0 else "open"
 		result[str(int(node.id))] = encounter
 	return result
@@ -246,6 +256,15 @@ static func objective_ids(encounter: Dictionary) -> Array[String]:
 
 
 static func valid(encounter: Variant) -> bool:
+	if encounter is Dictionary and encounter.has("environment"):
+		if not NodeEnvironment.valid(encounter.environment):
+			return false
+		var count: int = NodeEnvironment.ROCK_COUNTS[int(encounter.environment.asteroid_density)]
+		if (count > 0) != encounter.has("asteroids"):
+			return false
+		if count > 0 and (not encounter.asteroids is Dictionary or not encounter.asteroids.get("roots") is Dictionary \
+			or encounter.asteroids.roots.size() != count):
+			return false
 	if encounter is Dictionary and encounter.has("arena_layout") and encounter.arena_layout not in ["open", "corridor"]:
 		return false
 	if encounter is Dictionary and encounter.has("enemy_roles") and not encounter.enemy_roles is bool:

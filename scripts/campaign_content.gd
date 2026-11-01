@@ -51,6 +51,7 @@ static func populate(geometry: Dictionary, seed_value: int) -> Dictionary:
 			node.name = BOSSES[act] + " approach"
 			if act == 2:
 				node.story_ids = ["ending"]
+		node.environment = NodeEnvironment.generate(seed_value, node)
 	for edge in graph.edges:
 		var exits := 0
 		for candidate in graph.edges:
@@ -75,6 +76,8 @@ static func valid(graph: Dictionary) -> bool:
 	if graph.get("content_version") != VERSION or not graph.get("routes") is Array:
 		return false
 	for node in graph.nodes:
+		if node.has("environment") and not NodeEnvironment.valid(node.environment):
+			return false
 		if node.get("type") not in ["start", "patrol", "elite", "boss", "staging", "port", "salvage", "survey", "signal"]:
 			return false
 		if not node.get("name") is String or not node.get("inhabited") is bool or not GOODS.has(node.get("goods_grade")):

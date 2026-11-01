@@ -78,11 +78,11 @@ func _test_combat() -> void:
 	target.faction = BattleSimulation.Faction.PLAYER
 	sim.register_entity(target)
 	var rng := sim.random.state
+	sim._damage(target, 10, Vector2.ZERO, null, "Beam", false, true)
+	check(target.shields == 10 and ship.hull_hp == 320, "Shield absorbs damage before hull")
 	sim._damage(target, 20, Vector2.ZERO, null, "Beam", false, true)
-	check(target.shields == 20 and ship.hull_hp == 320, "Shield absorbs damage before hull")
-	sim._damage(target, 30, Vector2.ZERO, null, "Beam", false, true)
 	check(target.shields == 0 and ship.hull_hp == 310 and target.permanent_damage_taken == 10, "Only unabsorbed damage reaches hull and repair report")
-	check(target.stats.weapons.size() == 1 and target.stats.thrust == 22 and target.stats.shields == 40, "Damage never disables equipment or builtin systems")
+	check(target.stats.weapons.size() == 1 and target.stats.thrust == 22 and target.stats.shields == 20, "Damage never disables equipment or builtin systems")
 	check(sim.random.state == rng, "No per-component scatter RNG for hull damage")
 	sim.visibility_enabled = true
 	sim.refresh_visibility()

@@ -17,7 +17,6 @@ var flagship_preview: Control
 var flagship_stats: GridContainer
 var flagship_description: ResourceText
 var flagship_bonuses: ResourceText
-var flagship_mounts: ResourceText
 var flagship_command: Label
 var status: Label
 
@@ -138,9 +137,6 @@ func _build_carousel() -> void:
 	flagship_description = ResourceText.create("")
 	flagship_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(flagship_description)
-	flagship_mounts = ResourceText.create("")
-	flagship_mounts.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(flagship_mounts)
 	status = Label.new()
 	status.name = "StartStatus"
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -160,18 +156,10 @@ func _update_flagship() -> void:
 	flagship_preview.owned = ship
 	flagship_preview.queue_redraw()
 	flagship_name.text = "%s   %d / %d" % [chassis.name, selected_flagship + 1, flagship_choices.size()]
-	flagship_command.text = "Command %d" % chassis.command
+	flagship_command.text = "Command Points %d" % chassis.command
 	flagship_stats.set_ship(ship)
-	flagship_bonuses.set_content(SlotCatalog.chassis_bonuses(chassis) + "\nBuilt-in Shield Generator I")
+	flagship_bonuses.set_content(SlotCatalog.chassis_bonuses(chassis))
 	flagship_description.set_content(chassis.description)
-	var counts := {}
-	for slot: Dictionary in chassis.slots:
-		var key := SlotCatalog.slot_label(slot)
-		counts[key] = int(counts.get(key, 0)) + 1
-	var mounts: Array[String] = []
-	for key: String in counts:
-		mounts.append("%d x %s" % [counts[key], key])
-	flagship_mounts.set_content("Mounts: " + ", ".join(mounts))
 	$CenterContainer/SetupModal/Contents/FlagshipDetails.scroll_vertical = 0
 	status.hide()
 

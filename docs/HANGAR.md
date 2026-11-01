@@ -16,9 +16,38 @@ Flagship bonuses are chassis-local: Civic earns +20% cargo/passenger delivery in
 
 The art-to-mount maps, prices, chassis hull/mass/thrust and command costs are draft tuning in `data/slot_chassis.json` and `data/slot_equipment.json`. Original, Research and Combat have eight mounts; Civic has ten. Every flagship has a fixed level I Shield Generator. Original artwork is unchanged. Engines are implicit; command-center mechanics are covered by hull. No built-in or fitted equipment has separate health or damage. All equipment stays active until hull drops strictly below zero; zero hull remains alive. Shields absorb damage first, then the entire remainder damages hull. Repairs restore surviving hull for the rounded-up missing hull amount in credits; destroyed ships cannot be repaired. The Fighter has +30% weapon damage and 20% per-weapon-hit dodge; direct/environmental/ability damage does not dodge. No slot bonuses or legacy adjacency buffs are applied; unsupported items are omitted from active purchases/research grants. Repair drones retain finite reserves but heal hull; Nanoforge/Renewal II are deferred because component rebuilding no longer applies.
 
-Shop chassis/equipment and loose stock rows open read-only item details in the right panel. Click elsewhere to restore stock; the green plus is the sole shop purchase action. Details include actual stats, effects/rates, mount restrictions and built-in equipment. Stock filters persist while inspecting, and installed-equipment drags restore the full-panel unequip target. The starter removes incompatible old equipment; previous incompatible physical layouts are rejected, not converted or rewritten.
+Shop chassis/equipment and loose stock rows open read-only item details in the right panel. Click elsewhere to restore stock; the green plus is the sole shop purchase action. Chassis descriptions show stats and bonuses, not mounting-point lists or built-in shield-generator prose. Shield Generator I supplies 20 shields, reflected in the ship's shield stat; this applies to installed generators and flagship shields. The selector labels command as Command Points. Equipment inspection retains size/category and effects/rates. Stock filters persist while inspecting, and installed-equipment drags restore the full-panel unequip target. The starter removes incompatible old equipment; previous incompatible physical layouts are rejected, not converted or rewritten.
 
 Shop, Fleet and Ships use the supplied `Progress_Cp` / `Progress_Cp_Bg` comparison bars for hull, maneuverability, mass and shields. Maneuverability consolidates speed, acceleration and turn rate using their chassis-wide means as weights; average base maneuverability scores 50. Thrust/mass feed those mechanics without double counting. Each displayed stat uses all base chassis as its reference range, linearly mapping minimum to 10% fill and maximum to 100%; real outfitted/damaged values are clamped to that display range without changing state. Ship-description numbers are rounded integers; calculations retain full precision. Equipment has no HP/condition UI. Engine/command-center descriptions are omitted. See [MOUNT_RULES.md](MOUNT_RULES.md).
+
+## Node environments and asteroids
+
+Each node's conditions are generated independently from campaign seed and node
+ID: asteroid density (Clear/Sparse/Medium/Dense), solar intensity (50-150%,
+where 100% is baseline) and nebula presence. Ports and opening encounters stay
+clear. Map details show current and selected destination conditions; these
+describe the destination, not an additional transit battle.
+
+Combat densities create 0/3/6/9 deterministic asteroid roots. The physical
+battle context now passes the frozen field into the existing AsteroidField
+simulation: rocks drift, collide with either faction, intercept shots and
+fracture when destroyed. Asteroids are neutral hazards, not required hostile
+objectives. Supplied `assets/environment/asteroids_small_d.png` and its normal,
+height, occlusion and specular maps render the atlas with nearest filtering.
+No extraction, mineral rewards or mining equipment is enabled.
+
+Solar and nebula conditions are ambient metadata only for now; they do not
+change weapon output, sensors or lighting. Future equipment can read the
+battle's shared `environment` dictionary. Conditions and starting rock records
+freeze in the existing encounter snapshot at departure. Continue/retries reuse
+that snapshot; visual activity and live asteroid damage never rewrite it.
+Older physical saves without environment metadata remain valid and retain
+their frozen asteroid fields. Unvisited nodes regenerate from seed without
+adding separate starfield/background save data.
+
+`test_node_environment.gd` covers deterministic generation, density counts,
+JSON validation, departure/Continue, physical battle wiring, drift/collisions,
+shot interception, no material payouts and native mapped rendering.
 
 ## Battle outcomes and run score
 

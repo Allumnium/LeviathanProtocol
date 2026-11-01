@@ -80,8 +80,15 @@ func outfit(ship_id: int, trade: bool) -> void:
 			if instance.equipment_id == best.id and int(instance.rank) == int(best.rank) and state.equipment_location(instance.uid).is_empty():
 				uid = instance.uid
 				break
-		if uid.is_empty() and state.buy_equipment(best.id, int(best.rank)):
-			uid = str(state.next_equipment_id - 1)
+		if uid.is_empty():
+			var research_reserve := 0
+			if science_build and state.current_research_ids.has("laboratory_iii") \
+				and not (best.id == "research_lab" and int(best.rank) == 3) \
+				and not state.equipment_inventory.values().any(func(item: Dictionary) -> bool:
+					return item.equipment_id == "research_lab" and int(item.rank) == 3):
+				research_reserve = int(SlotCatalog.find_equipment("research_lab", 3).price)
+			if state.credits >= int(best.price) + research_reserve and state.buy_equipment(best.id, int(best.rank)):
+				uid = str(state.next_equipment_id - 1)
 		if not uid.is_empty():
 			check(state.fit_equipment(ship_id, slot.id, uid), "Fit researched owned equipment")
 
@@ -155,7 +162,11 @@ func play(seed_value: int, trade: bool, science := false) -> void:
 		for candidate: int in routes:
 			if state.campaign_node(candidate).get("elite", false):
 				continue
-			if state.campaign_node(target).get("elite", false) or state.research_travel_time(state.current_node_id, candidate) > state.research_travel_time(state.current_node_id, target):
+			var density: int = state.node_environment(candidate).asteroid_density
+			var target_density: int = state.node_environment(target).asteroid_density
+			# Use the visible hazard forecast before optimizing travel research.
+			if state.campaign_node(target).get("elite", false) or density < target_density \
+				or (density == target_density and state.research_travel_time(state.current_node_id, candidate) > state.research_travel_time(state.current_node_id, target)):
 				target = candidate
 		check(state.travel_to(target), "Natural journey departs")
 		if state.battle_pending:
