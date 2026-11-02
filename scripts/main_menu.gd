@@ -78,7 +78,8 @@ func _on_continue_pressed() -> void:
 		status_label.show()
 		_is_starting_run = false
 		return
-	var path := "res://scenes/auto_battle.tscn" if GameState.battle_pending else GAME_MAP_SCENE_PATH
+	var path := GAME_MAP_SCENE_PATH if GameState.expedition_simulation != null \
+			else ("res://scenes/auto_battle.tscn" if GameState.battle_pending else GAME_MAP_SCENE_PATH)
 	var error := get_tree().change_scene_to_file(path)
 	if error != OK:
 		status_label.text = "Could not open the saved run. Please try again."

@@ -84,6 +84,15 @@ func set_area(world_seed: int, node_id: int) -> void:
 	_sync_star_count()
 
 
+func scroll_stationary(normalized_distance: float) -> void:
+	if not stationary or not is_finite(normalized_distance) or normalized_distance <= 0.0:
+		return
+	for star in _stars:
+		var phase := fposmod(star.world_offset.y / star.depth + 0.5 + normalized_distance, 1.0)
+		star.world_offset.y = (phase - 0.5) * star.depth
+	queue_redraw()
+
+
 func _process(delta: float) -> void:
 	_elapsed_time += delta
 	if stationary:

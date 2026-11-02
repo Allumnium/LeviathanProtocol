@@ -83,7 +83,9 @@ func run() -> void:
 	await settle()
 	var screen: Control = current_scene
 	await settle()
-	check(screen.active_tab == "FLEET", "Fleet is the first/default tab")
+	check(screen.name == "Hangar" and screen.active_tab == "FLEET",
+		"Continue opens the existing hangar screen on the Fleet travel page")
+	check(screen.travel_controls != null, "Fleet page includes compact expedition controls")
 	screen.selected_ship_id = 0
 	screen.active_tab = "SHIPS"
 	screen._refresh()

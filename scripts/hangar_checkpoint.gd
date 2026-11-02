@@ -1,6 +1,8 @@
 class_name HangarCheckpoint
 extends RefCounted
 
+const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
+
 static func valid(value: Variant) -> bool:
 	if not value is Dictionary or value.get("format") != "physical_hangar" or value.get("version") != 2:
 		return false
@@ -12,6 +14,9 @@ static func valid(value: Variant) -> bool:
 		if not _integer(value.get(key), 0):
 			return false
 	if value.difficulty > 2 or value.next_ship_id < 1 or value.next_equipment_id < 1 or not value.get("seed") is String or not value.seed.is_valid_int() or int(value.seed) < 0 or not value.get("run_id") is String or value.run_id.is_empty():
+		return false
+	if value.has("expedition") and (not ExpeditionStateData.valid(value.expedition)
+			or value.expedition.seed != value.seed):
 		return false
 	for key in ["pending", "ended", "completed"]:
 		if not value.get(key) is bool:

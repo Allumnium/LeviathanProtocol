@@ -1,8 +1,20 @@
 # Physical hangar
 
-Current scope is a medium vertical slice focused on UI/UX, using the existing systems and equipment. Follow V1-V6 in TODO.md. Further equipment tiers, bespoke boss phases and full-campaign depth are deferred for a later story-led pass. The implementation and test history below describes existing work, not a requirement to finish all that depth before reviewing the slice.
+Current scope is a continuous-expedition vertical slice using the existing physical systems, equipment and UI. Follow E01-E14 in [TODO.md](../TODO.md). Further equipment tiers, bespoke boss phases and full-campaign depth are deferred for a later story-led pass. The implementation and test history below describes existing work, not a requirement to finish all that depth before reviewing the slice.
 
-The actual campaign now uses the hangar. Start a new run from the main menu; Continue resumes a physical hangar checkpoint. The previous material run and blueprint libraries remain separate. There is no active ship-design screen or material wallet.
+New Run and Continue use the existing hangar screen, with Fleet as the continuous travel page. New expedition checkpoints use `user://expedition_run.json`; the temporary payload still embeds expedition state in the physical-hangar-v2 envelope. The previous physical/material runs and blueprint libraries remain separate. There is no active ship-design screen or material wallet.
+
+## Expedition station services
+
+Every management tab shares a compact top-row panel with Pause, Play (1x) and Fast Forward (10x) icons beside the existing tabs, research and wallet. There is no Clear button, destination dropdown or travel-control overlay over the Fleet canvas. Fuel, refueling and save retry remain in the footer. Play/fast-forward clear only user pause, never mandatory interruption/save-error pause. Travel remains live when changing management tabs.
+
+At the initial station, Depart opens a story-neutral destination-choice modal. Every arrival opens the same modal automatically, explaining exploration or station services for each onward option. A destination must be chosen before the modal closes; simulation waits during the choice. Choosing a destination commits the route before closing; a failed save keeps the dialog open with error/retry controls. Existing user/event pause reasons remain intact. Continue at a previously visited arrival reopens the chooser. Rich story-specific options are deferred. Map remains an informational visual scaffold, not a free-choice destination picker.
+
+Buying chassis/equipment, fitting, transfers, unequipping, selling stock, salvaging chassis and paid repairs require docking at a station whose declared services include `shipyard`. Refueling requires the separate `refuel` service. The actual expedition state and station position determine access, never the old current-node value. A settlement can refuel without offering a shipyard; stopping or pausing in space, reaching a POI or passing a station does not grant docking privileges.
+
+The backend validates service access before mutation or saving. Unavailable controls retain the existing layout with a short reason. Leaving a shipyard cancels equipment drags, pending inline sales, shopping and salvage confirmations; arriving restores applicable actions in place without rebuilding the Fleet view or resetting its pan/zoom. Equipment/ship inspection, research focus and formation edits remain available underway. User pause permits docked services; combat and save-error pause block them.
+
+Run [the baseline](../tests/run_baseline.ps1), optionally with `-Native`, using its isolated APPDATA. [Station-service tests](../tests/test_expedition_services.gd) cover access, unchanged state on rejection, Continue, refueling-only stations and UI cancellation/restoration.
 
 ## Ownership and transactions
 

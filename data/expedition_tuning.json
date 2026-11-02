@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "nav_units_per_day": 100.0,
+  "cruise_units_per_sim_second": 4.0,
+  "tactical_units_per_nav_unit": 8.0,
+  "fuel_capacity": 100.0,
+  "fuel_per_nav_unit": 0.1,
+  "fixed_tick_seconds": 0.03333333333333333,
+  "arrival_radius": 4.0,
+  "locations_path": "res://data/expedition_locations.json"
+}

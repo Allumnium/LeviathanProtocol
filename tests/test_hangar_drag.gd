@@ -33,6 +33,8 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://drag-hangar.json"
 	check(state.start_new_run(1, 42), "Start drag-and-drop fixture")
+	check(state.expedition_simulation.set_pause(ExpeditionState.PauseReason.USER, true),
+		"Pause the expedition clock while checking atomic fitting snapshots")
 	var data: Dictionary = state.hangar_snapshot()
 	data.credits = 5000
 	data.research.research_ids.append_array(["applied_energy", "civil_hospitality"])

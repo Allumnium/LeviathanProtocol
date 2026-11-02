@@ -5,6 +5,8 @@ const StatBars = preload("res://scripts/ship_stat_bars.gd")
 const CREDITS_ICON: Texture2D = preload("res://assets/credits.png")
 const SCIENCE_ICON: Texture2D = preload("res://assets/science.png")
 const BUY_ICON: Texture2D = preload("res://assets/ui/Btn_BuyCoins_n.png")
+const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
+const EXPEDITION_SAVE_INTERVAL := 5.0
 
 var selected_ship_id := -1
 var selected_slot := ""
@@ -54,6 +56,19 @@ var settings_dialog: PopupPanel
 var tabs: HBoxContainer
 var inspection: ScrollContainer
 var inspected_item: Dictionary = {}
+var travel_controls: PanelContainer
+var speed_buttons: Dictionary = {}
+var travel_pause_button: Button
+var travel_refuel_button: Button
+var travel_retry_button: Button
+var travel_fuel: Label
+var departure_button: Button
+var departure_modal: Control
+var departure_error: Label
+var departure_retry: Button
+var expedition_save_elapsed := 0.0
+var expedition_status_override := ""
+var shipyard_access_available := false
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
@@ -212,12 +227,20 @@ func _ready() -> void:
 	details_panel = details.get_parent()
 	resized.connect(_resize_panels)
 	_resize_panels()
+	var footer := HBoxContainer.new()
+	column.add_child(footer)
 	feedback = _label("")
-	column.add_child(feedback)
+	feedback.size_flags_horizontal = SIZE_EXPAND_FILL
+	footer.add_child(feedback)
+	_build_travel_controls(top, footer)
 	GameState.fleet_changed.connect(_queue_refresh)
 	GameState.research_changed.connect(_queue_refresh)
 	GameState.credits_changed.connect(_queue_refresh)
 	_refresh()
+	if GameState.expedition_simulation != null \
+			and GameState.expedition_simulation.state.visited_location_ids.size() > 1 \
+			and GameState.expedition_simulation.state.destination_location_id.is_empty():
+		_show_departure_choices()
 
 func _resize_panels() -> void:
 	if header_wallet != null:
@@ -234,6 +257,8 @@ func _resize_research_label() -> void:
 		research_status.text, HORIZONTAL_ALIGNMENT_LEFT, -1, research_status.get_theme_font_size("font_size")).x
 	var top := tabs.get_parent() as HBoxContainer
 	var available := size.x - 16 - tabs.get_combined_minimum_size().x - header_wallet.get_combined_minimum_size().x
+	if is_instance_valid(travel_controls):
+		available -= travel_controls.get_combined_minimum_size().x + top.get_theme_constant("separation")
 	available -= top.get_theme_constant("separation") * 3 + 36
 	research_status.custom_minimum_size.x = minf(text_width, maxf(1, available))
 	research_button.custom_minimum_size.x = maxf(120, research_status.custom_minimum_size.x + 36)
@@ -249,14 +274,75 @@ func _resize_research_label() -> void:
 		research_status.custom_minimum_size.x + 16 - rate_width - 4))
 
 func _process(delta: float) -> void:
-	if research_pulse == null:
+	if research_pulse != null:
+		if GameState.research_focus.is_empty():
+			research_pulse_time = fmod(research_pulse_time + delta, 1.0)
+			research_pulse.set_shader_parameter("white_mix", 0.08 * (1.0 - cos(TAU * research_pulse_time)) * 0.5)
+		else:
+			research_pulse_time = 0.0
+			research_pulse.set_shader_parameter("white_mix", 0.0)
+	_advance_expedition(delta)
+	_sync_station_services()
+
+func _sync_station_services() -> void:
+	var available: bool = GameState.can_use_shipyard()
+	if available == shipyard_access_available:
 		return
-	if GameState.research_focus.is_empty():
-		research_pulse_time = fmod(research_pulse_time + delta, 1.0)
-		research_pulse.set_shader_parameter("white_mix", 0.08 * (1.0 - cos(TAU * research_pulse_time)) * 0.5)
-	else:
-		research_pulse_time = 0.0
-		research_pulse.set_shader_parameter("white_mix", 0.0)
+	shipyard_access_available = available
+	if not available:
+		if get_viewport().gui_is_dragging():
+			get_viewport().gui_cancel_drag()
+		buy_open = false
+		if is_instance_valid(shop):
+			shop.queue_free()
+			shop = null
+	for button: Button in find_children("*", "Button", true, false):
+		if button.has_meta("shipyard_eligible"):
+			button.disabled = not available or not button.get_meta("shipyard_eligible")
+			if button.name in ["BuyChassis", "BuyEquipment"] and not available:
+				button.set_pressed_no_signal(false)
+	var reason := roster.find_child("StationServiceReason", true, false) as Label
+	if reason != null:
+		reason.text = GameState.station_service_error("shipyard")
+		reason.visible = not available
+	if is_instance_valid(stock):
+		stock.refresh_service_access()
+
+func _shipyard_action(button: Button, eligible := true) -> Button:
+	button.set_meta("shipyard_eligible", eligible)
+	button.disabled = not GameState.can_use_shipyard() or not eligible
+	return button
+
+func _advance_expedition(delta: float) -> void:
+	var simulation = GameState.expedition_simulation
+	if simulation == null or simulation.state == null or is_instance_valid(departure_modal):
+		return
+	var previous: Dictionary = simulation.state.snapshot()
+	var previous_boundary_count: int = simulation.emitted_boundaries.size()
+	if not simulation.advance(delta):
+		expedition_status_override = "Navigation error: " + simulation.last_error
+		_restore_expedition(previous)
+		_refresh_expedition_controls()
+		return
+	if is_instance_valid(formation_view):
+		formation_view.travel_distance_nu = simulation.state.traveled_distance_nu
+	expedition_save_elapsed += delta
+	var boundary_reached: bool = simulation.emitted_boundaries.size() != previous_boundary_count
+	_update_expedition_readouts()
+	if boundary_reached or expedition_save_elapsed >= EXPEDITION_SAVE_INTERVAL:
+		if not GameState.save_expedition_checkpoint():
+			_restore_expedition(previous)
+			simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
+			expedition_status_override = "Save failed: " + GameState.last_save_error
+			expedition_save_elapsed = 0.0
+		else:
+			expedition_save_elapsed = 0.0
+			if boundary_reached:
+				expedition_status_override = ""
+				if previous.travel_state == ExpeditionStateData.TravelState.CRUISING \
+						and simulation.state.destination_location_id.is_empty():
+					_show_departure_choices()
+		_refresh_expedition_controls()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not inspected_item.is_empty():
@@ -478,6 +564,9 @@ func _refresh() -> void:
 	refresh_queued = false
 	if traveling:
 		return
+	shipyard_access_available = GameState.can_use_shipyard()
+	if not shipyard_access_available:
+		buy_open = false
 	var buy_scroll_position := 0
 	if buy_open and is_instance_valid(shop) and shop.get_parent() == center \
 			and shop.get_meta("buy_mode", "") == buy_mode and is_instance_valid(shop_scroll):
@@ -558,6 +647,7 @@ func _refresh() -> void:
 		return
 	if active_tab == "MAP":
 		_show_map()
+		_refresh_expedition_controls()
 		return
 	roster.add_child(_label("SHIPS"))
 	var ship_scroll := ScrollContainer.new()
@@ -599,16 +689,20 @@ func _refresh() -> void:
 	buy.name = "BuyChassis" if mode == "SHIPS" else "BuyEquipment"
 	buy.toggle_mode = true
 	buy.button_pressed = buy_open and buy_mode == mode
-	buy.disabled = not GameState.is_shipyard_node(GameState.current_node_id)
+	_shipyard_action(buy)
 	roster.add_child(buy)
-	if not GameState.is_shipyard_node(GameState.current_node_id):
-		roster.add_child(_label("Buy at shipyard"))
+	var service_reason := _label(GameState.station_service_error("shipyard"))
+	service_reason.name = "StationServiceReason"
+	service_reason.visible = not shipyard_access_available
+	roster.add_child(service_reason)
 	if active_tab == "FLEET":
 		var board: Control = load("res://scripts/hangar_formation.gd").new()
 		board.selected_id = selected_ship_id
 		board.selected_ids.assign(formation_selection)
 		board.camera = formation_camera
 		board.zoom = formation_zoom
+		if GameState.expedition_simulation != null and GameState.expedition_simulation.state != null:
+			board.travel_distance_nu = GameState.expedition_simulation.state.traveled_distance_nu
 		formation_view = board
 		center.add_child(board)
 		board.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
@@ -642,10 +736,12 @@ func _refresh() -> void:
 			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 			_show_stock()
 			var repair := _button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id))))
-			repair.disabled = not owned.needs_repair() or GameState.credits < owned.repair_cost()
+			_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
 			roster.add_child(repair)
 			if not owned.flagship:
-				roster.add_child(_button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id)))
+				var salvage := _button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id))
+				_shipyard_action(salvage)
+				roster.add_child(salvage)
 			canvas.slot_selected.connect(func(key: String) -> void:
 				selected_slot = key
 				_show_details())
@@ -660,6 +756,316 @@ func _refresh() -> void:
 		if stock == null:
 			_show_stock()
 		_show_buy_panel(buy_scroll_position)
+	_refresh_expedition_controls()
+
+
+func _refresh_expedition_controls() -> void:
+	_sync_station_services()
+	if not is_instance_valid(travel_controls) or GameState.expedition_simulation == null \
+			or GameState.expedition_simulation.state == null:
+		return
+	var simulation = GameState.expedition_simulation
+	var state = simulation.state
+	for speed: int in speed_buttons:
+		var speed_button: Button = speed_buttons[speed]
+		speed_button.set_pressed_no_signal(state.pause_reasons.is_empty() and state.requested_speed == speed)
+		speed_button.disabled = state.travel_state in [
+			ExpeditionStateData.TravelState.ENGAGED,
+			ExpeditionStateData.TravelState.SETTLING,
+			ExpeditionStateData.TravelState.REGROUPING
+		] and speed != 1
+	travel_pause_button.set_pressed_no_signal(
+			ExpeditionStateData.PauseReason.USER in state.pause_reasons)
+	travel_fuel.text = "FUEL %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)]
+	var docked: Dictionary = simulation.locations.get(state.docked_location_id, {})
+	travel_refuel_button.visible = not docked.is_empty() \
+			and "refuel" in docked.get("services", []) and state.fuel < state.fuel_capacity
+	var refuel_cost := int(ceil((state.fuel_capacity - state.fuel) * 2.0))
+	travel_refuel_button.text = "REFUEL %d" % refuel_cost
+	travel_refuel_button.disabled = not GameState.station_service_error("refuel").is_empty() or GameState.credits < refuel_cost
+	travel_retry_button.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in state.pause_reasons
+	departure_button.visible = state.destination_location_id.is_empty() \
+			and state.travel_state in [ExpeditionStateData.TravelState.DOCKED, ExpeditionStateData.TravelState.STOPPED]
+	_update_expedition_readouts()
+
+
+func _update_expedition_readouts() -> void:
+	if not is_instance_valid(travel_controls) or GameState.expedition_simulation == null:
+		return
+	var simulation = GameState.expedition_simulation
+	var state = simulation.state
+	travel_fuel.text = "FUEL %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)]
+	if not expedition_status_override.is_empty():
+		feedback.text = expedition_status_override
+	elif not state.destination_location_id.is_empty():
+		var destination: Dictionary = simulation.locations.get(state.destination_location_id, {})
+		var point := Vector2(destination.position[0], destination.position[1])
+		var distance: float = state.position_nu.distance_to(point)
+		var effective_speed: int = 1 if state.travel_state in [
+			ExpeditionStateData.TravelState.ENGAGED,
+			ExpeditionStateData.TravelState.SETTLING,
+			ExpeditionStateData.TravelState.REGROUPING
+		] else state.requested_speed
+		var eta: float = distance / (float(simulation.tuning.cruise_units_per_sim_second) * effective_speed)
+		var paused: bool = not state.pause_reasons.is_empty()
+		feedback.text = "TO %s · %d NU · %s" % [
+			str(destination.get("name", "UNKNOWN")).to_upper(), roundi(distance),
+			"PAUSED" if paused else "ETA %ds" % ceili(eta)]
+	else:
+		feedback.text = _expedition_status_text()
+
+
+func _build_travel_controls(top: HBoxContainer, footer: HBoxContainer) -> void:
+	if GameState.expedition_simulation == null or GameState.expedition_simulation.state == null:
+		return
+	travel_controls = PanelContainer.new()
+	travel_controls.name = "ExpeditionTravelControls"
+	travel_controls.theme_type_variation = &"TimeControlsPanel"
+	travel_controls.size_flags_vertical = SIZE_SHRINK_CENTER
+	travel_controls.mouse_filter = Control.MOUSE_FILTER_PASS
+	top.add_child(travel_controls)
+	top.move_child(travel_controls, 1)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	travel_controls.add_child(row)
+	travel_pause_button = _time_button("pause", func() -> void:
+		_apply_expedition_action(func() -> bool:
+			return GameState.expedition_simulation.set_pause(ExpeditionStateData.PauseReason.USER, true)))
+	travel_pause_button.name = "ExpeditionPause"
+	row.add_child(travel_pause_button)
+	for speed: int in [1, 10]:
+		var speed_button := _time_button("play" if speed == 1 else "fast",
+				_on_expedition_play_pressed.bind(speed))
+		speed_button.name = "ExpeditionSpeed%d" % speed
+		speed_buttons[speed] = speed_button
+		row.add_child(speed_button)
+	var multiplier := _label("10x")
+	multiplier.autowrap_mode = TextServer.AUTOWRAP_OFF
+	multiplier.size_flags_vertical = SIZE_SHRINK_CENTER
+	multiplier.mouse_filter = MOUSE_FILTER_IGNORE
+	row.add_child(multiplier)
+	travel_fuel = _label("")
+	travel_fuel.name = "ExpeditionFuel"
+	travel_fuel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	travel_fuel.autowrap_mode = TextServer.AUTOWRAP_OFF
+	travel_fuel.size_flags_horizontal = Control.SIZE_SHRINK_END
+	travel_fuel.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	footer.add_child(travel_fuel)
+	travel_refuel_button = _button_with_sound("REFUEL",
+			Callable(self, "_on_expedition_refuel_pressed"), &"")
+	travel_refuel_button.name = "ExpeditionRefuel"
+	travel_refuel_button.custom_minimum_size = Vector2(74, 26)
+	footer.add_child(travel_refuel_button)
+	travel_retry_button = _button_with_sound("RETRY SAVE",
+			Callable(self, "_on_expedition_retry_pressed"), &"")
+	travel_retry_button.name = "ExpeditionRetrySave"
+	travel_retry_button.custom_minimum_size = Vector2(90, 26)
+	footer.add_child(travel_retry_button)
+	departure_button = _button("DEPART", _show_departure_choices)
+	departure_button.name = "ExpeditionDepart"
+	footer.add_child(departure_button)
+	_refresh_expedition_controls()
+
+func _show_departure_choices() -> void:
+	if is_instance_valid(departure_modal):
+		return
+	var simulation = GameState.expedition_simulation
+	if simulation == null or not simulation.state.destination_location_id.is_empty():
+		return
+	departure_modal = Control.new()
+	departure_modal.name = "DepartureChoices"
+	departure_modal.add_to_group("modal_ui")
+	departure_modal.z_index = 40
+	add_child(departure_modal)
+	departure_modal.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.65)
+	departure_modal.add_child(shade)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var margin := MarginContainer.new()
+	departure_modal.add_child(margin)
+	margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	for edge: String in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + edge, 24)
+	var panel := PanelContainer.new()
+	panel.name = "DeparturePanel"
+	panel.theme_type_variation = &"CompactPanel"
+	panel.size_flags_horizontal = SIZE_SHRINK_CENTER
+	panel.custom_minimum_size.x = minf(440, size.x - 48)
+	margin.add_child(panel)
+	var column := VBoxContainer.new()
+	panel.add_child(column)
+	column.add_child(_label("NEXT DESTINATION"))
+	column.add_child(_label("Choose where to go next."))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var choices := VBoxContainer.new()
+	choices.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(choices)
+	for id: String in simulation.state.discovered_location_ids:
+		var location: Dictionary = simulation.locations.get(id, {})
+		if location.is_empty() or not location.accessible:
+			continue
+		var distance: float = simulation.state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
+		if distance <= 0.000001:
+			continue
+		var option := VBoxContainer.new()
+		choices.add_child(option)
+		var choose := _button(location.name, _choose_departure.bind(id))
+		choose.set_meta("expedition_destination", id)
+		option.add_child(choose)
+		var description := "Explore a derelict field. No station services." if location.kind == "poi" \
+				else "Dock at this station."
+		var services: PackedStringArray = []
+		for service: String in location.services:
+			services.append(service.capitalize())
+		if not services.is_empty():
+			description += " " + ", ".join(services) + "."
+		option.add_child(_label("%s\n%d NU away" % [description, roundi(distance)]))
+	departure_error = _label("")
+	column.add_child(departure_error)
+	departure_retry = _button("RETRY SAVE", func() -> void:
+		_on_expedition_retry_pressed()
+		departure_error.text = expedition_status_override
+		departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons)
+	departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
+	column.add_child(departure_retry)
+
+func _choose_departure(location_id: String) -> void:
+	var simulation = GameState.expedition_simulation
+	if ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons:
+		departure_error.text = "Retry the failed save before choosing a destination."
+		return
+	_on_expedition_destination_selected(location_id)
+	if simulation.state.destination_location_id != location_id:
+		departure_error.text = expedition_status_override
+		departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
+		return
+	departure_modal.queue_free()
+	departure_modal = null
+	departure_error = null
+	departure_retry = null
+
+func _time_button(kind: String, action: Callable) -> Button:
+	var button := _button_with_sound("", action, &"")
+	button.custom_minimum_size = Vector2(24, 24)
+	button.toggle_mode = true
+	button.draw.connect(func() -> void:
+		var origin := (button.size - Vector2(12, 12)) * 0.5
+		var color := button.get_theme_color("font_disabled_color" if button.disabled else "font_color")
+		if kind == "pause":
+			for x: float in [0.0, 8.0]:
+				button.draw_rect(Rect2(origin + Vector2(x, 0), Vector2(4, 12)), color)
+		else:
+			var width := 6.0 if kind == "fast" else 10.0
+			for x: float in ([0.0, 6.0] if kind == "fast" else [1.0]):
+				button.draw_colored_polygon(PackedVector2Array([
+					origin + Vector2(x, 0), origin + Vector2(x + width, 6),
+					origin + Vector2(x, 12)]), color))
+	return button
+
+func _on_expedition_play_pressed(speed: int) -> void:
+	_apply_expedition_action(func() -> bool:
+		var simulation = GameState.expedition_simulation
+		if not simulation.set_speed(speed):
+			return false
+		if not simulation.set_pause(ExpeditionStateData.PauseReason.USER, false):
+			return false
+		if simulation.state.travel_state == ExpeditionStateData.TravelState.STOPPED \
+				and not simulation.state.destination_location_id.is_empty() \
+				and simulation.state.pause_reasons.is_empty():
+			return simulation.resume()
+		return true)
+
+func _expedition_status_text() -> String:
+	var simulation = GameState.expedition_simulation
+	var state = simulation.state
+	if not state.destination_location_id.is_empty():
+		var destination: Dictionary = simulation.locations.get(state.destination_location_id, {})
+		return "TO %s" % str(destination.get("name", "UNKNOWN")).to_upper()
+	if not state.docked_location_id.is_empty():
+		var dock: Dictionary = simulation.locations.get(state.docked_location_id, {})
+		return "DOCKED · %s" % str(dock.get("name", "STATION")).to_upper()
+	if state.travel_state == ExpeditionStateData.TravelState.STOPPED:
+		return "STOPPED · SELECT A COURSE"
+	return "NO ACTIVE COURSE"
+
+
+func _on_expedition_destination_selected(location_id: String) -> void:
+	_apply_expedition_action(func() -> bool:
+		return GameState.expedition_simulation.request_destination(location_id))
+
+
+func _on_expedition_speed_pressed(speed: int) -> void:
+	_apply_expedition_action(func() -> bool:
+		return GameState.expedition_simulation.set_speed(speed))
+
+
+func _on_expedition_pause_pressed() -> void:
+	var simulation = GameState.expedition_simulation
+	var pause: bool = ExpeditionStateData.PauseReason.USER not in simulation.state.pause_reasons
+	_apply_expedition_action(func() -> bool:
+		return simulation.set_pause(ExpeditionStateData.PauseReason.USER, pause))
+
+
+func _on_expedition_stop_pressed() -> void:
+	var simulation = GameState.expedition_simulation
+	var resume: bool = simulation.state.travel_state == ExpeditionStateData.TravelState.STOPPED
+	_apply_expedition_action(func() -> bool:
+		return simulation.resume() if resume else simulation.stop())
+
+
+func _on_expedition_clear_pressed() -> void:
+	_apply_expedition_action(func() -> bool:
+		return GameState.expedition_simulation.cancel_destination())
+
+
+func _on_expedition_refuel_pressed() -> void:
+	if not GameState.refuel_expedition():
+		expedition_status_override = GameState.last_save_error
+	else:
+		expedition_status_override = "FUEL TANKS REFILLED"
+	_refresh_expedition_controls()
+
+
+func _on_expedition_retry_pressed() -> void:
+	var simulation = GameState.expedition_simulation
+	var previous: Dictionary = simulation.state.snapshot()
+	simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, false)
+	if not GameState.save_expedition_checkpoint():
+		_restore_expedition(previous)
+		simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
+		expedition_status_override = "Save failed: " + GameState.last_save_error
+	else:
+		expedition_status_override = ""
+		expedition_save_elapsed = 0.0
+	_refresh_expedition_controls()
+
+
+func _apply_expedition_action(action: Callable) -> void:
+	var simulation = GameState.expedition_simulation
+	var previous: Dictionary = simulation.state.snapshot()
+	if not bool(action.call()):
+		expedition_status_override = simulation.last_error
+		_refresh_expedition_controls()
+		return
+	if not GameState.save_expedition_checkpoint():
+		_restore_expedition(previous)
+		simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
+		expedition_status_override = "Save failed: " + GameState.last_save_error
+	else:
+		expedition_status_override = ""
+		expedition_save_elapsed = 0.0
+	_refresh_expedition_controls()
+
+
+func _restore_expedition(snapshot: Dictionary) -> void:
+	var simulation = GameState.expedition_simulation
+	if not simulation.restore(snapshot):
+		push_error("Could not roll back expedition state: " + simulation.last_error)
+
 
 func _show_stock() -> void:
 	_clear(details)
@@ -688,7 +1094,7 @@ func _show_details() -> void:
 		details.add_child(_label("FLEET"))
 		var cost: int = GameState.fleet_repair_cost()
 		var repair := _button("REPAIR ALL %d cr" % cost, func() -> void: _result(GameState.repair_all_ships()))
-		repair.disabled = cost <= 0 or GameState.credits < cost
+		_shipyard_action(repair, cost > 0 and GameState.credits >= cost)
 		details.add_child(repair)
 		var totals := {"dps": 0.0, "shields": 0.0, "integrity": 0.0, "integrity_max": 0.0,
 			"cargo": 0, "passengers": 0}
@@ -765,9 +1171,11 @@ func _show_details() -> void:
 				details.add_child(_label("%s %d" % [str(contents.kind).capitalize(), contents.quantity]))
 	details.add_child(_button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id)))))
 	var repair := details.get_child(details.get_child_count() - 1) as Button
-	repair.disabled = not owned.needs_repair() or GameState.credits < owned.repair_cost()
+	_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
 	if not owned.flagship and active_tab != "FLEET":
-		details.add_child(_button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id)))
+		var salvage := _button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id))
+		_shipyard_action(salvage)
+		details.add_child(salvage)
 	var spacer := Control.new()
 	spacer.size_flags_vertical = SIZE_EXPAND_FILL
 	details.add_child(spacer)
@@ -851,7 +1259,8 @@ func _modal(title: String) -> VBoxContainer:
 	return column
 
 func _open_shop(mode := "EQUIPMENT") -> void:
-	if not GameState.is_shipyard_node(GameState.current_node_id):
+	if not GameState.can_use_shipyard():
+		feedback.text = GameState.station_service_error("shipyard")
 		return
 	buy_open = not buy_open or buy_mode != mode
 	buy_mode = mode
@@ -1034,6 +1443,9 @@ func _show_map() -> void:
 		graph.camera_position = map_camera.position
 		graph.camera_zoom = map_camera.zoom
 	graph.destination_selected.connect(_select_destination)
+	if GameState.expedition_simulation != null:
+		map_details.add_child(_label("Choose your onward destination after arrival."))
+		return
 	for id: int in GameState.get_reachable_nodes(GameState.current_node_id):
 		var preview: Dictionary = GameState.node_preview(id)
 		roster.add_child(_button(preview.title, _select_destination.bind(id)))
@@ -1065,6 +1477,9 @@ func _map_event_details() -> void:
 func _select_destination(id: int) -> void:
 	if traveling:
 		return
+	if GameState.expedition_simulation != null:
+		feedback.text = "Choose the next destination in the arrival dialog."
+		return
 	AudioManager.play_ui_sfx(&"detail")
 	GameState.set_planned_destination(id)
 	_clear(map_details)
@@ -1090,6 +1505,9 @@ func _select_destination(id: int) -> void:
 func _begin_travel(id: int) -> void:
 	if traveling:
 		return
+	if GameState.expedition_simulation != null:
+		feedback.text = "Choose the next destination in the arrival dialog."
+		return
 	traveling = true
 	# Commit departure before animation; prevent UI rebuilds until arrival.
 	if not GameState.travel_to(id):
@@ -1108,6 +1526,9 @@ func _begin_travel(id: int) -> void:
 		_refresh()
 
 func _confirm_salvage(id: int) -> void:
+	if not GameState.can_use_shipyard():
+		feedback.text = GameState.station_service_error("shipyard")
+		return
 	var owned: HangarShip = GameState.owned_ship(id)
 	if owned == null or owned.flagship:
 		return

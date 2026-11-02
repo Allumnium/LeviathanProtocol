@@ -1,6 +1,6 @@
 # Continuous Space Expedition - Implementation Plan
 
-Planning baseline: 2026-11-01. **This document is a plan, not an implementation report. All tasks below are unimplemented.**
+Planning baseline: 2026-11-01. Checkboxes track implementation progress; an isolated core prototype does not mean the feature is integrated into the playable run.
 
 This replaces the previous V1-V6/node-route backlog. The immediate target is a complete navigation conversion using existing physical ships, equipment, research, trade and autobattle. Deliver a representative mechanical slice before expanding content. The player's job is to choose destinations, manage the expedition and control time, not pilot individual ships.
 
@@ -10,7 +10,7 @@ The story specification is [docs/STORY_SPEC.md](docs/STORY_SPEC.md). Do not impl
 
 1. One continuous expedition world. Flagship and escorts remain visible; travel, hazards, combat, regrouping and docking never replace the gameplay scene. Cruise reads as upward flight with scenery scrolling downward.
 2. Free travel between discovered, accessible destinations. Existing beacon edges no longer constrain travel. Rerouting starts at the current physical position, including partway through a journey. Stop and Pause are different actions.
-3. Pause, 1x, 5x and 20x. Threat detection immediately reduces speed to 1x and starts autobattle **without an automatic pause**. Important decisions and fuel exhaustion pause. Optional discoveries reduce fast-forward to 1x.
+3. Header controls are Pause, Play (1x) and Fast Forward (10x) icons in a compact panel beside the existing top-row items, visible on every tab. No Clear button or destination dropdown. Older 5x/20x state remains readable by the prototype; these are not exposed in the UI. Threat detection immediately reduces speed to 1x and starts autobattle **without an automatic pause**. Important decisions and fuel exhaustion pause. Optional discoveries reduce fast-forward to 1x.
 4. Management interfaces stay live. Opening Fleet, Ships, Research or Map does not pause. Threats surface immediately even while a panel is open. A player pause or unresolved decision must never be cleared by another event.
 5. Keep a pannable three-act strategic map as an overlay, showing real fleet position, destinations, discoveries and route. Its act regions/layout are navigation scaffolding, not a requirement to retain old story encounters or boss progression.
 6. Fleet-wide fuel is in scope. Fuel is spent by actual distance, not speed multiplier; stations sell refueling for credits. An explicit rescue/tow option prevents an unwinnable empty-tank state.
@@ -105,6 +105,8 @@ Cruise direction is presented as screen-up, regardless of whether the strategic 
 - Continue restores the exact world state but opens paused, with the last requested speed visible; resuming an active fight is capped at 1x.
 
 ### 3.4 Travel states and interruption policy
+
+Current owner navigation preference: arrivals always open a required onward-destination modal describing what happens at each option. It cannot be dismissed without selecting a destination. The initial station has a Depart action that opens the same chooser. The story-neutral prototype describes exploration/station services; later story content will supply richer choices. Map is informational rather than a free-choice destination picker. This supersedes older map-selection/dropdown UI tasks below.
 
 Use a typed travel state independent of pause reasons and overlay state:
 
@@ -258,12 +260,12 @@ All proposed paths below are recommendations, not permission to build a generic 
 
 **Depends on:** none. **Owner area:** schema/content foundation.
 
-- [ ] Define typed travel/pause/event enums and a small `scripts/expedition_state.gd` DTO with validation boundaries from sections 3-4.
-- [ ] Add proposed `data/expedition_tuning.json` and `data/expedition_locations.json` plus minimal event fixture data. Validate IDs, services, positions, gates, numeric limits and references on load.
-- [ ] Adapt `CampaignGraph` geometry into NU locations without treating edges as route restrictions. Copy/derive only the required location metadata; old mandatory combat rows and boss flags are not arrival actions.
+- [x] Define typed travel/pause/boundary enums and a small `scripts/expedition_state.gd` DTO with validated save-state fields. Event data/runtime remains with E06.
+- [x] Add `data/expedition_tuning.json` and `data/expedition_locations.json` as a minimal story-neutral mechanical fixture. Validate IDs, services, positions, gates and tuning bounds on load. Event templates remain with E06.
+- [ ] Adapt `CampaignGraph` geometry into generated NU locations without treating edges as route restrictions. The current checked-in fixture is a deliberate hand-authored prototype, not final generated campaign geometry.
 - [ ] Define GameState commands: preview/select course, stop/resume/cancel, choose event, dock/undock, quote/buy fuel, quote/accept rescue, and existing physical services. Return repository-standard explicit error information.
-- [ ] Specify one tick-boundary command ordering rule, stable run/location/encounter/visit IDs and save schema before parallel consumers start.
-- [ ] Add malformed-data and fixture-connectivity tests in proposed `tests/test_expedition_state.gd`.
+- [x] Specify stable location IDs and the versioned expedition-state snapshot before consumers start. Tick-boundary command ordering/commit semantics remain open for runtime integration.
+- [x] Add malformed-data and fixture-shape tests in `tests/test_expedition_state.gd`. Reachability/rescue connectivity remains for E09.
 
 **Acceptance:** one deterministic, story-neutral world fixture has three represented act regions, usable initial service destinations, a gated later region and stable IDs. No old story sequence starts automatically.
 
@@ -271,25 +273,26 @@ All proposed paths below are recommendations, not permission to build a generic 
 
 **Depends on:** E01. **Owner area:** simulation core.
 
-- [ ] Implement proposed `scripts/expedition_simulation.gd` as the sole tick coordinator, owned by GameState.
-- [ ] Implement speed/pause reasons, the three clocks, route interpolation, stop/resume/cancel, reroute from current NU position and boundary clipping.
-- [ ] Use travel-state transitions/interrupt priority from section 3.4. Remove the six-step time-discard policy from the expedition path.
-- [ ] Implement typed proposal/event output so tick advancement does not emit uncommitted economic UI success.
-- [ ] Add overload handling that preserves input responsiveness and reports reduced effective speed.
-- [ ] Add proposed `tests/test_expedition_navigation.gd`: identical elapsed simulation produces identical distance at 1x/5x/20x; 20x does not skip arrival, interruption or zero-fuel boundaries.
+- [x] Implement the isolated `scripts/expedition_simulation.gd` prototype as a fixed-step navigation coordinator. GameState ownership/wiring remains E04.
+- [x] Implement supported speeds, independent pause reasons, stop/resume/cancel, rerouting from current NU position and exact fuel/station arrival clipping.
+- [ ] Add all travel-state transitions and interrupt priorities from section 3.4; this prototype covers cruise, stop, dock and fuel interruption only.
+- [ ] Add boundary proposal/commit coordination so world/economic effects are durable before the UI receives success. Current typed boundary signals are test/core events only.
+- [ ] Add overload profiling/backlog handling that preserves input responsiveness and reports reduced effective speed. Prototype preserves tick debt and does not yet budget work per frame.
+- [x] Add `tests/test_expedition_navigation.gd`: equal simulated time at all speeds, rerouting, pause separation, fuel and arrival boundaries.
 
 **Acceptance:** a headless route can be stopped/rerouted repeatedly at arbitrary fractions with no teleport, extra days, duplicate arrivals or leftover fast-forward ticks after interruption.
 
-#### E03 - Mount the persistent world and continuous fleet
+#### E03 - Mount continuous travel in the existing game UI
 
 **Depends on:** E01, E02. **Owner area:** world view plus combat lifecycle integration.
 
-- [ ] Rework `game_map.tscn` into an expedition shell with proposed `scripts/expedition_screen.gd`; leave reusable hangar panel logic available for E05.
+- [x] Keep `scenes/game_map.tscn` and `scripts/hangar_screen.gd` as the game shell. Continue and New Run retain the original screen flow; do not create a replacement expedition interface.
 - [ ] Factor player initialization/noncombat movement from `BattleSimulation.setup_owned`; support a valid fleet in an empty world without immediately declaring victory/withdrawal.
-- [ ] Render the same player actors with shared art/collision scale in cruise and stationary states. No map fleet-preview replacement during travel.
-- [ ] Add camera-follow/upward travel projection, smooth reroute frame changes, floating-origin handling and deterministic scrolling star cells.
+- [x] Use the existing Fleet formation page as the primary travel view, preserving the original roster, side panels, formation controls, header and tab navigation. Add only a compact travel overlay.
+- [x] Render the live `HangarShip` fleet with its chassis artwork and fitted equipment while traveling; scroll the existing star background with distance. Battle actors remain unchanged.
+- [ ] Add world-space camera-follow/upward travel projection, smooth reroute frame changes, floating-origin handling and deterministic location-seeded star cells. The current view uses deterministic campaign-seeded stars and distance-driven vertical drift only.
 - [ ] Handle pause/stop exhaust, resizing and overlay-safe camera framing without regenerating stars or resetting pan/zoom.
-- [ ] Add proposed `tests/test_expedition_world.gd`, including actor/root identity assertions and projection/rebase checks.
+- [x] Add `tests/test_expedition_world.gd` for continuous movement, stop/pause distinction, rerouting, active fleet, existing-screen continuity and basic viewport coverage. Actor/root identity and projection/rebase checks remain.
 
 **Acceptance:** the flagship and escorts cruise upward, stop and reverse strategic course without scene replacement, actor respawn, background reseeding or formation teleport. No combat AI runs merely because an empty cruise world exists.
 
@@ -297,24 +300,28 @@ All proposed paths below are recommendations, not permission to build a generic 
 
 **Depends on:** E01, E02, E03. **Owner area:** GameState/persistence.
 
-- [ ] Add proposed `scripts/expedition_checkpoint.gd`; reuse AtomicRunStore and shared physical validation without node-pending constraints.
-- [ ] Make new-run save path/summary/Continue use the expedition namespace. Preserve starter choices and transactional new-run failure handling.
+- [ ] Add `scripts/expedition_checkpoint.gd`; reuse AtomicRunStore and shared physical validation without node-pending constraints. The thin slice currently stores an optional expedition snapshot inside the physical-hangar-v2 envelope; replace this temporary wrapper before broad rollout.
+- [x] Make new runs use `user://expedition_run.json`; the main-menu summary and Continue use that namespace. Preserve starter choices and transactional new-run failure handling.
 - [ ] Replace routine `_apply_hangar` reconstruction with validated reconciliation by ID/UID. Preserve runtime actor references and update only affected stats/caches.
-- [ ] Save/restore prototype cruise/stopped/docked state, route, clocks, resources, focus and pending interruptions. Add later-state fields incrementally with E07/E09/E11; do not mark full persistence done here.
-- [ ] Implement periodic/event checkpoint policy and explicit save-error pause/retry.
-- [ ] Add proposed `tests/test_expedition_persistence.gd`: crash-stage recovery, bad payload rejection, generation conflicts, failure rollback and object identity preservation.
+- [x] Save/restore prototype cruise/stopped/docked state, route, clocks and fuel. Focus and pending interruptions remain with later E07/E09/E11 work.
+- [x] Add five-real-second periodic saves plus immediate route, stop, speed, pause, docking and fuel transaction checkpoints; roll back and pause on a failed save, with an explicit retry action.
+- [ ] Add `tests/test_expedition_persistence.gd`: crash-stage recovery, bad payload rejection, generation conflicts, failure rollback and object identity preservation. Current coverage checks a committed midroute restore only.
 
 **Acceptance:** Continue resumes the exact prototype position paused; a focus/credit/save operation does not move or reset the live fleet. Old user files are neither read as expeditions nor rewritten.
 
-#### E05 - Embed live management, speed HUD and basic map controls
+#### E05 - Add travel controls to existing management pages
 
 **Depends on:** E03, E04. **Owner area:** UI.
 
-- [ ] Extract/parameterize hangar panel construction so it has no root scene/music ownership or opaque full-screen background.
-- [ ] Implement persistent destination/status, Stop/Resume, Pause/1x/5x/20x and fuel HUD using shared styles. Show actual/effective speed when limited.
-- [ ] Embed Fleet/Ships/Research/Map as live panels with fleet-safe visible area. Preserve direct-art fitting, selection, filters and camera state.
+- [x] Preserve the existing Hangar/Fleet/Ships/Research/Map UI as the primary interface. The persistent compact header panel contains Pause, Play (1x) and Fast Forward (10x) icons. Fuel/refueling/retry remain in the footer, not over the Fleet canvas.
+- [x] Remove destination dropdown, Clear, Stop and old speed buttons from the visible UI. Keep existing backend navigation commands and old speed snapshots usable.
+- [x] Add a required arrival-choice modal describing story-neutral destinations/services, with no dismiss action. Initial Depart opens the same chooser. Freeze simulation while choosing; retain user/event pauses; only close after a committed route, with in-modal save-error/retry handling. Full strategic visualization remains E08.
+- [x] Add basic docked refueling with a single atomic credits-and-fuel checkpoint. Amount quotes, partial refueling and rescue remain E09.
+- [ ] Keep Ships/Research/Map accessible during travel and add their remaining service/overlay behavior without replacing their current panels.
 - [ ] Remove `traveling` UI lockout and graph Tween authority. Basic map route controls call new commands; final discovery/range map is E08.
-- [ ] Apply backend service capability checks immediately; prototype shipyard access must not let an undocked fleet refit.
+- [x] Apply backend service capability checks immediately. Buying, fitting/transfers/unequipping, stock selling, salvage and paid repairs require the expedition's actual docked shipyard, not the legacy map node. Refueling checks its separate declared service. Stop, pause, POI arrival and stale dock IDs grant no service access. User pause permits docked management; combat/save failure blocks services.
+- [x] Refresh service actions in place on departure/arrival without rebuilding Fleet or resetting its camera. Cancel active fitting drags, pending inline sales, the embedded shop and salvage confirmations when access is lost; keep equipment inspection, research focus and formation editing available underway.
+- [x] Add `tests/test_expedition_services.gd` to the baseline: backend rejection/atomicity, station service differences, Continue access, live UI cancellation/restoration and native drag cancellation. Keep fitting snapshot regressions paused so their comparisons exclude unrelated clock advancement.
 - [ ] Wire alert priority/input cancellation so threats and decisions cannot be hidden behind management or inherit stale clicks.
 - [ ] Add proposed `tests/test_expedition_ui.gd` native layout/interaction coverage at 640x360, 1280x720 and 1920x1080.
 
@@ -366,7 +373,8 @@ All proposed paths below are recommendations, not permission to build a generic 
 
 - [ ] Add distance-accounted fractional fuel with exact depletion clipping and speed-independent quotes.
 - [ ] Physically render/approach selected stations, dock once within arrival radius and open only declared services. Do not trigger services on mere proximity.
-- [ ] Gate every buy/refit/unequip/transfer/sale/salvage/repair command at a docked shipyard; preserve atomic drag rollback and quote invalidation.
+- [x] Gate every buy/refit/unequip/transfer/sale/salvage/repair command at a docked shipyard and preserve atomic drag rollback. Shared station-service checks and E05 service tests cover the prototype.
+- [ ] Invalidate/reconfirm stale repair quotes when continuous self-repair changes the displayed cost; wire this with E10.
 - [ ] Implement refuel amount/price/confirm using shared UI; commit tank and credits atomically.
 - [ ] Implement quoted rescue contract, visible tow, emergency station refill, explicit debt and no softlocks. Save/restore mid-tow.
 - [ ] Adapt HangarTrade to undock/dock visit IDs, reroute-safe UID loads, distinct-origin delivery and once-only fees.

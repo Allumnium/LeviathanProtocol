@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "locations": [
+    {
+      "id": "start_station",
+      "name": "Start Station",
+      "act": 1,
+      "kind": "station",
+      "position": [0.0, 0.0],
+      "services": ["shipyard", "refuel", "trade"],
+      "discovered": true,
+      "accessible": true,
+      "safe": true,
+      "region": "act_1",
+      "station_key": "start"
+    },
+    {
+      "id": "refuel_station_1",
+      "name": "Refueling Post",
+      "act": 1,
+      "kind": "station",
+      "position": [240.0, -35.0],
+      "services": ["shipyard", "refuel", "trade"],
+      "discovered": true,
+      "accessible": true,
+      "safe": true,
+      "region": "act_1",
+      "station_key": "refueling_post"
+    },
+    {
+      "id": "derelict_1",
+      "name": "Derelict Field",
+      "act": 1,
+      "kind": "poi",
+      "position": [355.0, 75.0],
+      "services": [],
+      "discovered": true,
+      "accessible": true,
+      "safe": false,
+      "region": "act_1",
+      "poi_type": "derelict"
+    },
+    {
+      "id": "settlement_1",
+      "name": "Frontier Settlement",
+      "act": 1,
+      "kind": "station",
+      "position": [470.0, -20.0],
+      "services": ["refuel", "trade"],
+      "discovered": true,
+      "accessible": true,
+      "safe": true,
+      "region": "act_1",
+      "station_key": "settlement"
+    },
+    {
+      "id": "act_2_gate",
+      "name": "Act II Region Gate",
+      "act": 2,
+      "kind": "gate",
+      "position": [820.0, 0.0],
+      "services": [],
+      "discovered": false,
+      "accessible": false,
+      "safe": false,
+      "region": "act_2",
+      "required_flag": "act_ii_unlocked"
+    },
+    {
+      "id": "refuel_station_2",
+      "name": "Act II Refueling Station",
+      "act": 2,
+      "kind": "station",
+      "position": [1060.0, 65.0],
+      "services": ["refuel", "trade"],
+      "discovered": false,
+      "accessible": false,
+      "safe": true,
+      "region": "act_2",
+      "station_key": "outer_reach"
+    },
+    {
+      "id": "act_3_gate",
+      "name": "Act III Region Gate",
+      "act": 3,
+      "kind": "gate",
+      "position": [1680.0, 0.0],
+      "services": [],
+      "discovered": false,
+      "accessible": false,
+      "safe": false,
+      "region": "act_3",
+      "required_flag": "act_iii_unlocked"
+    },
+    {
+      "id": "refuel_station_3",
+      "name": "Act III Refueling Station",
+      "act": 3,
+      "kind": "station",
+      "position": [1920.0, -55.0],
+      "services": ["refuel", "trade"],
+      "discovered": false,
+      "accessible": false,
+      "safe": true,
+      "region": "act_3",
+      "station_key": "deep_frontier"
+    }
+  ]
+}

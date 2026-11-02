@@ -7,7 +7,7 @@ var received: Callable
 var equipment_texture: Texture2D
 
 func _get_drag_data(_position: Vector2) -> Variant:
-	if equipment_uid.is_empty() or not GameState.equipment_inventory.has(equipment_uid):
+	if not GameState.can_use_shipyard() or equipment_uid.is_empty() or not GameState.equipment_inventory.has(equipment_uid):
 		return null
 	var item: Dictionary = SlotCatalog.find_equipment(GameState.equipment_inventory[equipment_uid].equipment_id, int(GameState.equipment_inventory[equipment_uid].rank))
 	var preview: Control = preload("res://scripts/hangar_equipment_preview.gd").new()

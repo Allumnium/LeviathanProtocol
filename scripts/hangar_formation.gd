@@ -18,6 +18,8 @@ var box_end := Vector2.ZERO
 var glows: Dictionary = {}
 var starfield: Control
 var hit_images: Dictionary = {}
+var travel_distance_nu := 0.0
+var _last_travel_distance_nu := 0.0
 
 func _ready() -> void:
 	SurfaceArt.apply(self)
@@ -25,10 +27,13 @@ func _ready() -> void:
 	focus_mode = FOCUS_NONE
 	starfield = load("res://scripts/main_menu_starfield.gd").new()
 	starfield.stationary = true
+	starfield.set_area(GameState.run_seed, 0)
 	starfield.show_behind_parent = true
 	starfield.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(starfield)
 	starfield.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if travel_distance_nu > 0.0:
+		starfield.call("scroll_stationary", travel_distance_nu * 0.002)
 	if selected_ids.is_empty() and selected_id > 0:
 		selected_ids.append(selected_id)
 	for owned: HangarShip in GameState.fleet:
@@ -134,6 +139,10 @@ func _gui_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
 		exhaust_elapsed += delta
+		if starfield != null and travel_distance_nu > _last_travel_distance_nu:
+			starfield.call("scroll_stationary",
+					(travel_distance_nu - _last_travel_distance_nu) * 0.002)
+			_last_travel_distance_nu = travel_distance_nu
 		queue_redraw()
 
 func _draw() -> void:

@@ -9,7 +9,7 @@ static func payload(uid: String) -> Dictionary:
 static func valid(data: Variant) -> bool:
 	return data is Dictionary and data.get("kind") == "hangar_equipment" and data.get("run_id") == _state().run_id \
 		and data.get("uid") is String and _state().equipment_inventory.has(data.uid) \
-		and not _state().battle_pending and not _state().run_ended and not _state().completed
+		and _state().can_use_shipyard()
 
 static func can_fit(ship_id: int, slot_id: String, data: Variant, grants: Dictionary = {}) -> bool:
 	if not valid(data):

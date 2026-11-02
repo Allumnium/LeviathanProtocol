@@ -173,6 +173,7 @@ func _render() -> void:
 		AudioManager.connect_ui_button(cancel)
 		var sell: Button = ActionButton.new()
 		sell.name = "SellAction"
+		sell.disabled = not GameState.can_use_shipyard()
 		second_line.add_child(sell)
 		sell.pressed.connect(func() -> void:
 			if pending_sale != instance.uid:
@@ -199,6 +200,11 @@ func _set_pending_sale(uid: String) -> void:
 		controls.summary.text = "Sell?" if id == uid else controls.text
 		controls.cancel.visible = id == uid
 		controls.sell.action = "confirm" if id == uid else "sell"
+
+func refresh_service_access() -> void:
+	_set_pending_sale("")
+	for controls: Dictionary in sale_controls.values():
+		controls.sell.disabled = not GameState.can_use_shipyard()
 
 func _can_drop_data(_position: Vector2, data: Variant) -> bool:
 	return Transfer.can_store(data)

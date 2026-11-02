@@ -750,6 +750,18 @@ content_margin_right = 16.0
 content_margin_top = 8.0
 content_margin_bottom = 8.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_time_controls"]
+content_margin_left = 4.0
+content_margin_top = 3.0
+content_margin_right = 4.0
+content_margin_bottom = 3.0
+bg_color = Color(0.035, 0.055, 0.075, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.3, 0.4, 1)
+
 [resource]
 VictoryPanel/base_type = &"PanelContainer"
 VictoryPanel/styles/panel = SubResource("Style_victory")
@@ -813,6 +825,8 @@ CompactFrame/base_type = &"Panel"
 CompactFrame/styles/panel = SubResource("StyleBoxTexture_tactical_panel")
 CompactPanel/base_type = &"PanelContainer"
 CompactPanel/styles/panel = SubResource("StyleBoxTexture_tactical_panel")
+TimeControlsPanel/base_type = &"PanelContainer"
+TimeControlsPanel/styles/panel = SubResource("StyleBoxFlat_time_controls")
 CompactPopup/base_type = &"PopupPanel"
 CompactPopup/styles/panel = SubResource("StyleBoxTexture_tactical_panel")
 TacticalButton/base_type = &"Button"

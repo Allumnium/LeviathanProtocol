@@ -6,6 +6,7 @@ signal research_changed
 signal travel_plan_changed
 
 enum Difficulty { EASY, MEDIUM, HARD }
+const ExpeditionSimulationScript = preload("res://scripts/expedition_simulation.gd")
 var fleet: Array[FleetShip] = []
 var next_ship_id := 1
 var credits := 600
@@ -40,7 +41,7 @@ var battle_auto_camera := true
 var tutorials_enabled := true
 var battle_speed := 1
 var destroy_all_neutral_targets := false
-var run_save_path := "user://hangar_run.json"
+var run_save_path := "user://expedition_run.json"
 var last_save_error := ""
 var _checkpoint_store := AtomicRunStore.new()
 
@@ -57,9 +58,10 @@ var battle_reserves: Dictionary = {}
 var navigation: Dictionary = {}
 var pending_encounter: Dictionary = {}
 var run_score: Dictionary = {}
+var expedition_simulation
 
 func _ready() -> void:
-	run_save_path = "user://hangar_run.json"
+	run_save_path = "user://expedition_run.json"
 	run_seed = 1
 
 
@@ -71,6 +73,18 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	var before := hangar_snapshot()
 	var previous_generation := hangar_generation
 	run_seed = _new_run_seed() if seed_value == -1 else seed_value
+	expedition_simulation = ExpeditionSimulationScript.new()
+	if not expedition_simulation.configure(run_seed):
+		var setup_error: String = expedition_simulation.last_error
+		if not before.is_empty():
+			run_seed = int(before.seed)
+			difficulty = int(before.difficulty) as Difficulty
+			navigation = before.get("navigation", {}).duplicate(true)
+			_build_campaign()
+			_apply_hangar(before, true)
+		hangar_generation = previous_generation
+		last_save_error = setup_error
+		return false
 	difficulty = selected_difficulty as Difficulty
 	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
 	credits = 700
@@ -118,7 +132,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 			difficulty = int(before.difficulty) as Difficulty
 			navigation = before.get("navigation", {}).duplicate(true)
 			_build_campaign()
-			_apply_hangar(before)
+			_apply_hangar(before, true)
 		hangar_generation = previous_generation
 		return false
 	_notify_hangar()
@@ -191,9 +205,11 @@ func hangar_snapshot() -> Dictionary:
 		data.navigation = navigation.duplicate(true)
 	if not run_score.is_empty():
 		data.score = run_score.duplicate(true)
+	if expedition_simulation != null and expedition_simulation.state != null:
+		data.expedition = expedition_simulation.state.snapshot()
 	return data
 
-func _apply_hangar(data: Dictionary) -> void:
+func _apply_hangar(data: Dictionary, restore_expedition := false) -> void:
 	run_id = data.run_id
 	run_seed = int(data.seed)
 	difficulty = int(data.difficulty) as Difficulty
@@ -234,6 +250,15 @@ func _apply_hangar(data: Dictionary) -> void:
 		if navigation.is_empty() and data.has("pending_encounter"):
 			frozen_encounters[str(destination_node_id)] = data.pending_encounter.duplicate(true)
 		battle_aliens = EncounterGenerator.initial_fleet(get_frozen_encounter(destination_node_id))
+	if restore_expedition and not data.has("expedition"):
+		expedition_simulation = null
+	elif data.has("expedition") and (restore_expedition or expedition_simulation == null
+			or expedition_simulation.state == null
+			or expedition_simulation.state.seed != int(data.expedition.seed)):
+		expedition_simulation = ExpeditionSimulationScript.new()
+		if not expedition_simulation.configure(run_seed) or not expedition_simulation.restore(data.expedition):
+			last_save_error = expedition_simulation.last_error
+			push_error("Could not restore the saved expedition state: " + last_save_error)
 
 func save_run_checkpoint() -> bool:
 	return _save_hangar(hangar_snapshot())
@@ -269,19 +294,55 @@ func load_run_checkpoint() -> bool:
 	difficulty = int(saved.payload.difficulty) as Difficulty
 	navigation = saved.payload.get("navigation", {}).duplicate(true)
 	_build_campaign()
-	_apply_hangar(saved.payload)
+	_apply_hangar(saved.payload, true)
 	hangar_generation = int(saved.generation)
 	_notify_hangar()
 	return true
 
 func checkpoint_summary() -> Dictionary:
 	var saved := _checkpoint_store.load_latest(run_save_path, HangarCheckpoint.valid)
-	return {} if saved.is_empty() else {"ended": saved.payload.ended or saved.payload.completed, "pending": saved.payload.pending, "node": saved.payload.current}
+	return {} if saved.is_empty() else {"ended": saved.payload.ended or saved.payload.completed,
+		"pending": saved.payload.pending, "node": saved.payload.current,
+		"expedition": saved.payload.has("expedition")}
+
+func save_expedition_checkpoint() -> bool:
+	if expedition_simulation == null or expedition_simulation.state == null:
+		last_save_error = "No active expedition state."
+		return false
+	return save_run_checkpoint()
+
+func refuel_expedition() -> bool:
+	if expedition_simulation == null or expedition_simulation.state == null:
+		last_save_error = "No active expedition state."
+		return false
+	last_save_error = station_service_error("refuel")
+	if not last_save_error.is_empty():
+		return false
+	var expedition_state = expedition_simulation.state
+	var missing: float = expedition_state.fuel_capacity - expedition_state.fuel
+	if missing <= 0.000001:
+		last_save_error = "The expedition fuel tanks are already full."
+		return false
+	var price := int(ceil(missing * 2.0))
+	if credits < price:
+		last_save_error = "Not enough credits to refuel. Cost: %d." % price
+		return false
+	var proposal := hangar_snapshot()
+	proposal.credits = credits - price
+	proposal.expedition.fuel = expedition_state.fuel_capacity
+	if not _save_hangar(proposal):
+		return false
+	credits = int(proposal.credits)
+	expedition_state.fuel = expedition_state.fuel_capacity
+	credits_changed.emit()
+	return true
 
 func prepare_checkpoint_resume() -> bool:
 	return not fleet.is_empty() and not run_ended
 
 func buy_equipment(key: String, rank := 1) -> bool:
+	if not _require_shipyard():
+		return false
 	if key in HangarResearch.DEFERRED_PURCHASES:
 		return false
 	var item := SlotCatalog.find_equipment(key, rank)
@@ -302,7 +363,7 @@ func equipment_location(uid: String) -> Dictionary:
 	return {}
 
 func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
-	if not _can_refit():
+	if not _require_shipyard():
 		return false
 	var target := owned_ship(ship_id)
 	if target == null:
@@ -346,6 +407,8 @@ func _fitted_integrity(entry: Dictionary, inventory: Dictionary) -> float:
 	return total
 
 func sell_equipment(uid: String) -> bool:
+	if not _require_shipyard():
+		return false
 	if not _can_refit() or not equipment_inventory.has(uid) or not equipment_location(uid).is_empty() or HangarTrade.has_load(equipment_inventory[uid]):
 		return false
 	var instance: Dictionary = equipment_inventory[uid]
@@ -356,6 +419,8 @@ func sell_equipment(uid: String) -> bool:
 	return _commit_hangar(data)
 
 func buy_chassis(key: String) -> bool:
+	if not _require_shipyard():
+		return false
 	var chassis := SlotCatalog.find_chassis(key)
 	if not _can_refit() or not is_shipyard_node(current_node_id) or chassis.is_empty() or int(chassis.command) > 0 or credits < int(chassis.price) or used_command() + int(chassis.command_cost) > command_limit():
 		return false
@@ -369,6 +434,8 @@ func buy_chassis(key: String) -> bool:
 	return _commit_hangar(data)
 
 func salvage_hangar_ship(ship_id: int) -> bool:
+	if not _require_shipyard():
+		return false
 	var target := owned_ship(ship_id)
 	if not _can_refit() or target == null or target.flagship:
 		return false
@@ -387,6 +454,34 @@ func owned_ship(ship_id: int) -> HangarShip:
 
 func _can_refit() -> bool:
 	return not run_id.is_empty() and not battle_pending and not run_ended and not completed
+
+func station_service_error(service: String) -> String:
+	if not _can_refit():
+		return "Station services are unavailable during combat or after the run ends."
+	if expedition_simulation == null:
+		return "" if campaign_node(current_node_id).get("inhabited", false) else "Dock at a shipyard to use this service."
+	var state = expedition_simulation.state
+	if state == null:
+		return "No active expedition state."
+	if ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR in state.pause_reasons:
+		return "Retry the failed save before using station services."
+	if state.travel_state != ExpeditionSimulationScript.State.TravelState.DOCKED:
+		return "Dock at a shipyard to refit, sell, salvage or repair." if service == "shipyard" \
+			else "Dock at a refueling station to refuel."
+	var location: Dictionary = expedition_simulation.locations.get(state.docked_location_id, {})
+	if location.is_empty() or location.get("kind") != "station" \
+			or state.position_nu.distance_to(Vector2(location.position[0], location.position[1])) > 0.000001:
+		return "The fleet is not docked at a valid station."
+	if service not in location.get("services", []):
+		return "This station has no shipyard." if service == "shipyard" else "This station does not offer refueling."
+	return ""
+
+func can_use_shipyard() -> bool:
+	return station_service_error("shipyard").is_empty()
+
+func _require_shipyard() -> bool:
+	last_save_error = station_service_error("shipyard")
+	return last_save_error.is_empty()
 
 func command_limit() -> int:
 	for owned: HangarShip in fleet:
@@ -426,6 +521,8 @@ func is_run_lost() -> bool:
 	return run_ended
 
 func repair_ship(owned: FleetShip) -> bool:
+	if not _require_shipyard():
+		return false
 	if not _can_refit() or not fleet.has(owned) or not owned.is_alive() or not owned.needs_repair() or credits < owned.repair_cost():
 		return false
 	var before := hangar_snapshot()
@@ -469,6 +566,8 @@ func fleet_repair_cost() -> int:
 	return cost
 
 func repair_all_ships() -> bool:
+	if not _require_shipyard():
+		return false
 	var cost := fleet_repair_cost()
 	if not _can_refit() or cost <= 0 or credits < cost:
 		return false
@@ -837,4 +936,4 @@ func run_progress_snapshot() -> Dictionary:
 	return hangar_snapshot().research
 
 func is_shipyard_node(node_id: int) -> bool:
-	return not battle_pending and not run_ended and node_id == current_node_id and campaign_node(node_id).get("inhabited", false)
+	return node_id == current_node_id and can_use_shipyard()

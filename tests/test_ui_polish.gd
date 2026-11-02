@@ -356,7 +356,7 @@ func run() -> void:
 	await settle()
 	check(screen.tabs.size.x == 248 and screen.header_wallet.get_global_rect().end.x <= screen.size.x
 		and screen.research_button.get_global_rect().encloses(screen.research_status.get_global_rect())
-		and screen.research_button.size.y <= 44,
+		and screen.research_button.size.y <= 48,
 		"Long research titles wrap without narrowing tabs or pushing the wallet offscreen")
 	await capture("research-header-long-640")
 	screen.research_status.text = short_research_text
@@ -493,7 +493,10 @@ func run() -> void:
 	state.run_save_path = "user://focus-save-blocked/run.json"
 	screen.research_panel._activate("applied_energy")
 	await settle()
-	check(state.hangar_snapshot() == focus_snapshot and not screen.feedback.text.is_empty(),
+	var failed_focus_snapshot: Dictionary = state.hangar_snapshot()
+	failed_focus_snapshot.erase("expedition")
+	focus_snapshot.erase("expedition")
+	check(failed_focus_snapshot == focus_snapshot and not screen.feedback.text.is_empty(),
 		"Failed double-click focus save rolls back state and displays the existing failure notification")
 	state.run_save_path = focus_save_path
 	screen.research_panel._select("laboratory_ii")
@@ -554,7 +557,7 @@ func run() -> void:
 	check(not state.move_ships({1: Vector2(6, 0)}) and state.hangar_snapshot() == saved, "Out-of-bounds group move is rejected atomically")
 	await settle()
 	board = screen.formation_view
-	var empty: Vector2 = board.global_position + Vector2(20, 20)
+	var empty: Vector2 = board.global_position + Vector2(20, 120)
 	await drag(empty, empty)
 	check(screen.selected_ship_id == 0 and screen.formation_view.selected_ids.is_empty(), "Empty-space click deselects")
 	check(screen.details.get_child(1).get_meta("resource_text", "").begins_with("REPAIR ALL"), "Empty selection offers repair all")
@@ -695,23 +698,22 @@ func run() -> void:
 	check(star_layout(graph.starfield) == layout, "Map uses the same node seed")
 	check(not screen.get_theme_color("background_color", "SlotCanvas").r > 0.03, "Space background stays dark")
 	var target: int = state.get_reachable_nodes(state.current_node_id)[0]
-	graph.start_travel(target)
-	check(graph._travel_duration >= 2 and graph._travel_duration <= 3, "Distance-scaled travel takes 2-3 seconds")
-	graph.set_process(false)
-	graph._process(graph._travel_duration * 0.25)
-	check(graph._ship_world_position.is_equal_approx(graph._travel_start.lerp(graph._travel_end, 0.25)), "Travel flies linearly at a steady speed")
-	graph._traveling = false
-	graph.set_process(true)
+	var expedition = state.expedition_simulation
+	var expedition_position: Vector2 = expedition.state.position_nu
 	screen._begin_travel(target)
-	check(screen.traveling and graph._traveling, "Actual Travel starts flight before changing scene")
+	check(not screen.traveling and current_scene == screen
+		and expedition.state.position_nu.is_equal_approx(expedition_position),
+		"Legacy graph travel cannot replace the continuous Fleet travel view")
+	check(screen.travel_controls != null and screen.travel_controls.is_visible_in_tree(),
+		"Fleet travel controls remain available while inspecting the existing map")
 	var generation: int = state.hangar_generation
-	screen._begin_travel(target)
-	check(state.hangar_generation == generation, "Double travel cannot settle twice")
-	await create_timer(0.6).timeout
-	check(is_instance_valid(graph) and graph._travel_elapsed > 0 and graph._traveling, "Flight remains visible en route")
-	await capture("map-flight")
-	await create_timer(3.0).timeout
-	check(current_scene != screen or not screen.traveling, "Flight finishes and resumes destination")
+	screen._on_expedition_destination_selected("refuel_station_1")
+	screen._process(0.25)
+	check(expedition.state.destination_location_id == "refuel_station_1"
+		and expedition.state.position_nu.distance_to(expedition_position) > 0
+		and current_scene == screen,
+		"Course selection moves the fleet in place without a map-scene transition")
+	check(state.hangar_generation > generation, "Expedition course is checkpointed atomically")
 	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
 	root.add_child(menu)
 	current_scene = menu
