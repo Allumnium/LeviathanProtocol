@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 # Demo vertical slice: Haven Dock -> events/battles -> trade/research/repair
 # -> Leviathan Protocol broadcast -> Bastion Warden -> demo complete.
 const Travel = preload("res://scripts/expedition_state.gd")
@@ -70,16 +72,17 @@ func refit() -> void:
 	if not state.can_use_shipyard():
 		return
 	state.repair_all_ships()
-	var weapon := "laser" if state.current_research_ids.has("applied_energy") else "mini_turret"
-	var item := SlotCatalog.find_equipment(weapon)
 	var fighter := SlotCatalog.find_chassis("fighter")
-	if state.credits > int(fighter.price) + 200 and state.used_command() + int(fighter.command_cost) <= state.command_limit():
-		check(state.buy_chassis("fighter"), "Buy an escort fighter")
+	var fighter_price := ShipLoadouts.ship_price("fighter", ShipLoadouts.default_for("fighter"))
+	if state.credits > fighter_price + 200 and state.used_command() + int(fighter.command_cost) <= state.command_limit():
+		check(state.buy_ship("fighter"), "Buy an escort fighter")
+	if not state.current_research_ids.has("applied_energy"):
+		return
+	# Upgrade mini turrets to lasers once researched, like a player refitting.
 	for owned in state.fleet:
-		for slot in owned.chassis.slots:
-			if not owned.mounts.has(slot.id) and SlotCatalog.compatible(slot, item) and state.credits > 250:
-				if state.buy_equipment(weapon):
-					check(state.fit_equipment(owned.id, slot.id, str(state.next_equipment_id - 1)), "Fit purchased weapon")
+		for slot_id: String in owned.mounts.keys():
+			if owned.mounts[slot_id].equipment_id == "mini_turret" and state.credits > 100:
+				check(state.swap_part(owned.id, slot_id, "laser"), "Refit a turret to a laser")
 
 func run() -> void:
 	state = root.get_node("GameState")

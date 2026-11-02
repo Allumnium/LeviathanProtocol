@@ -44,19 +44,18 @@ func run() -> void:
 	fixture.research.research_ids.append_array(["applied_energy", "laboratory_ii", "bastion_ii", "command_i", "command_ii"])
 	fixture.research.branch_choices["survival"] = "bastion"
 	fixture.research.branch_choices["fleet_operations"] = "command"
-	check(state._commit_hangar(fixture) and state.buy_chassis("transport"), "Buy actual Transport")
+	check(state._commit_hangar(fixture) and state.buy_ship("transport"), "Buy actual Transport")
 	var transport_id: int = state.fleet[-1].id
 	var uids: Array[String] = []
-	for id in ["research_lab", "shield_relay", "tactical_computer"]:
-		check(state.buy_equipment(id, 2 if id == "research_lab" else 1), "Buy matching-size equipment: " + id)
-		var uid := str(state.next_equipment_id - 1)
+	for key in ["research_lab@2", "shield_relay", "tactical_computer"]:
+		check(state.swap_part(transport_id, "port", key), "Transport left accepts " + key)
+		var uid: String = state.owned_ship(transport_id).mounts.port.uid
 		uids.append(uid)
 		var credits: int = state.credits
-		check(state.fit_equipment(transport_id, "port", uid), "Transport left accepts " + id)
-		check(state.fit_equipment(transport_id, "starboard", uid), "Transport right accepts " + id)
+		check(state.fit_equipment(transport_id, "starboard", uid), "Transport right accepts " + key)
 		check(state.credits == credits and not state.owned_ship(transport_id).mounts.has("port"), "Transfers remain free and unique")
 	var before: Dictionary = state.hangar_snapshot()
-	check(not state.fit_equipment(transport_id, "aft", uids[0]) and state.hangar_snapshot() == before, "Bad position/size leaves the save unchanged")
+	check(not state.fit_equipment(transport_id, "aft", uids[-1]) and state.hangar_snapshot() == before, "Bad position/size leaves the save unchanged")
 	check(state.load_run_checkpoint() and state.owned_ship(transport_id).mounts.starboard.uid == uids[-1], "Cross-category fit survives physical checkpoint reload")
 	await ui_checks(transport_id, uids)
 	stacking_checks(transport_id)
@@ -69,13 +68,13 @@ func stacking_checks(transport_id: int) -> void:
 	data.research.branch_choices["force_projection"] = "siege"
 	data.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(data), "Unlock existing stackable equipment fixture")
-	check(state.buy_chassis("drone") and state.buy_equipment("ammunition_magazine"), "Buy a general M magazine host and instance")
+	check(state.buy_ship("drone"), "Buy a general M magazine host")
 	var drone_id: int = state.fleet[-1].id
-	check(state.fit_equipment(drone_id, "center", str(state.next_equipment_id - 1)), "General Drone center accepts a magazine")
+	check(state.swap_part(drone_id, "center", "ammunition_magazine"), "General Drone center accepts a magazine")
 	check(state.owned_ship(drone_id).weapon_cycle_rate() == 1.2, "Real general mount supplies ship-wide cycling")
 	for location in ["port", "starboard"]:
-		check(state.buy_equipment("tactical_computer"), "Buy a distinct computer instance")
-		check(state.fit_equipment(transport_id, location, str(state.next_equipment_id - 1)), "Either large Transport utility mount accepts a computer")
+		if state.owned_ship(transport_id).mounts.get(location, {}).get("equipment_id", "") != "tactical_computer":
+			check(state.swap_part(transport_id, location, "tactical_computer"), "Either large Transport utility mount accepts a computer")
 	var member := BattleSimulation.Combatant.new()
 	member.owned_ship = state.owned_ship(transport_id)
 	check(CombatDoctrines.operational(member, ShipPart.Type.TACTICAL_COMPUTER).size() == 2, "Both physical computers contribute to synchronization")
@@ -101,17 +100,20 @@ func ui_checks(transport_id: int, uids: Array[String]) -> void:
 		await settle()
 		for side in ["port", "starboard"]:
 			var button: Button = screen.canvas.slot_buttons[side]
-			for uid: String in uids:
-				if state.equipment_location(uid).is_empty():
-					check(uid in screen.stock.visible_uids and button._can_drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uid)), "Both side targets accept stock from all matching-size categories")
+			screen.canvas.slot_selected.emit(side)
+			await settle()
+			var options: Control = screen.details.find_child("PartOptions", true, false)
+			for part in ["Part_research_lab_2", "Part_shield_relay", "Part_tactical_computer"]:
+				check(options != null and options.find_child(part, false, false) != null, "Both side mounts offer every matching-size category: " + part)
 			check(button.focus_mode == Control.FOCUS_NONE and button.tooltip_text.is_empty(), "General mount retains focus/tooltip preferences")
 		check(screen.canvas.slot_buttons.port.get_global_rect().intersects(screen.canvas.slot_buttons.starboard.get_global_rect()) == false, "Broader menus do not overlap controls")
 	root.size = Vector2i(1280, 720)
 	await settle()
-	var button: Button = screen.canvas.slot_buttons.port
-	button._drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uids[0]))
+	screen.canvas.slot_selected.emit("port")
 	await settle()
-	check(state.owned_ship(transport_id).mounts.port.uid == uids[0], "Drop target fits civic equipment in the utility mount")
+	screen.details.find_child("Part_research_lab_2", true, false).pressed.emit()
+	await settle()
+	check(state.owned_ship(transport_id).mounts.port.equipment_id == "research_lab", "Part picker fits civic equipment in the utility mount")
 	screen.selected_slot = "port"
 	screen._show_details()
 	check(not text_under(screen.details).contains("General |"), "General mount has no redundant category text")

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "loadouts": {
+    "flagship_basic": [
+      {"id": "command", "name": "Command", "mounts": {"fore": "mini_turret", "port": "mini_turret", "starboard": "mini_turret", "spine": "research_lab", "aft_port": "thruster", "aft_starboard": "thruster", "inner_port": "hull_plate", "inner_starboard": "hull_plate"}},
+      {"id": "gunline", "name": "Gunline", "mounts": {"fore": "laser", "port": "laser", "starboard": "laser", "spine": "double_laser", "aft_port": "thruster", "aft_starboard": "thruster", "inner_port": "hull_plate", "inner_starboard": "hull_plate"}},
+      {"id": "bulwark", "name": "Bulwark", "mounts": {"fore": "hull_plate", "port": "mini_turret", "starboard": "mini_turret", "spine": "shield_generator", "aft_port": "hull_plate", "aft_starboard": "hull_plate", "inner_port": "hull_plate", "inner_starboard": "hull_plate"}}
+    ],
+    "flagship_civic": [
+      {"id": "merchant", "name": "Merchant", "mounts": {"cargo": "cargo_hold", "upper_port": "passenger_cabin", "upper_starboard": "passenger_cabin", "spine": "research_lab", "lower_starboard": "shield_generator", "port": "mini_turret", "starboard": "mini_turret", "fore": "thruster"}},
+      {"id": "escort_carrier", "name": "Escort Carrier", "mounts": {"cargo": "cargo_hold", "outer_port": "repair_drone_bay", "outer_starboard": "repair_drone_bay", "upper_port": "shield_generator", "upper_starboard": "shield_generator", "spine": "research_lab", "port": "laser", "starboard": "laser", "fore": "hull_plate"}}
+    ],
+    "flagship_science": [
+      {"id": "survey", "name": "Survey", "mounts": {"central": "cargo_hold", "outer_port": "research_lab@2", "outer_starboard": "research_lab@2", "spine": "research_lab", "lower_port": "shield_generator", "lower_starboard": "shield_generator", "port": "mini_turret", "starboard": "mini_turret"}},
+      {"id": "observatory", "name": "Observatory", "mounts": {"central": "research_lab@3", "spine": "research_lab", "lower_port": "shield_generator", "lower_starboard": "shield_generator", "port": "laser", "starboard": "laser"}}
+    ],
+    "flagship_offense": [
+      {"id": "battleship", "name": "Battleship", "mounts": {"fore": "railgun", "outer_port": "double_laser", "outer_starboard": "double_laser", "port": "laser", "starboard": "laser", "aft_port": "thruster", "aft_starboard": "thruster", "spine": "research_lab"}},
+      {"id": "missile_cruiser", "name": "Missile Cruiser", "mounts": {"fore": "railgun", "outer_port": "missile_rack", "outer_starboard": "missile_rack", "port": "point_defense_turret", "starboard": "point_defense_turret", "aft_port": "hull_plate", "aft_starboard": "hull_plate", "spine": "research_lab"}}
+    ],
+    "fighter": [
+      {"id": "interceptor", "name": "Interceptor", "mounts": {"fore": "thruster", "port": "mini_turret", "starboard": "mini_turret"}},
+      {"id": "striker", "name": "Striker", "mounts": {"fore": "mini_turret", "port": "laser", "starboard": "laser"}},
+      {"id": "escort", "name": "Escort", "mounts": {"fore": "hull_plate", "port": "point_defense_turret", "starboard": "point_defense_turret"}}
+    ],
+    "transport": [
+      {"id": "freighter", "name": "Freighter", "mounts": {"hold": "cargo_hold", "fore": "hull_plate", "aft": "hull_plate"}},
+      {"id": "tender", "name": "Tender", "mounts": {"hold": "cargo_hold", "port": "repair_drone_bay", "starboard": "repair_drone_bay", "fore": "hull_plate", "aft": "hull_plate"}},
+      {"id": "survey", "name": "Survey", "mounts": {"hold": "cargo_hold", "port": "research_lab@2", "starboard": "research_lab@2", "fore": "hull_plate", "aft": "hull_plate"}}
+    ],
+    "corsair": [
+      {"id": "raider", "name": "Raider", "mounts": {"fore": "railgun", "port": "double_laser", "starboard": "double_laser", "aft": "thruster"}},
+      {"id": "missileer", "name": "Missileer", "mounts": {"fore": "railgun", "port": "missile_rack", "starboard": "missile_rack", "aft": "hull_plate"}},
+      {"id": "guardian", "name": "Guardian", "mounts": {"fore": "shield_relay", "port": "shield_generator", "starboard": "shield_generator", "aft": "hull_plate"}}
+    ],
+    "frigate": [
+      {"id": "picket", "name": "Picket", "mounts": {"fore": "mini_turret", "fore_2": "mini_turret", "fore_3": "laser", "fore_4": "laser", "port": "mini_turret", "starboard": "mini_turret", "center": "missile_rack", "aft": "thruster"}},
+      {"id": "lancer", "name": "Lancer", "mounts": {"fore": "laser", "fore_2": "laser", "fore_3": "laser", "fore_4": "laser", "port": "laser", "starboard": "laser", "center": "double_laser", "aft": "thruster"}},
+      {"id": "carrier", "name": "Carrier", "mounts": {"fore": "point_defense_turret", "fore_2": "point_defense_turret", "fore_3": "point_defense_turret", "fore_4": "point_defense_turret", "port": "hull_plate", "starboard": "hull_plate", "center": "flight_deck", "aft": "hull_plate"}}
+    ],
+    "drone": [
+      {"id": "gun_drone", "name": "Gun Drone", "mounts": {"fore": "mini_turret", "port": "mini_turret", "starboard": "mini_turret", "center": "armor_block"}},
+      {"id": "laser_drone", "name": "Laser Drone", "mounts": {"fore": "laser", "port": "laser", "starboard": "laser", "center": "double_laser"}},
+      {"id": "shield_drone", "name": "Shield Drone", "mounts": {"fore": "hull_plate", "port": "hull_plate", "starboard": "hull_plate", "center": "shield_generator"}}
+    ]
+  }
+}

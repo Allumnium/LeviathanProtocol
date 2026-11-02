@@ -3,7 +3,7 @@ extends RefCounted
 const DATA_PATH := "res://data/expedition_events.json"
 const TRIGGERS := ["distance", "zone", "arrival", "start"]
 const COMBAT_TEMPLATES := ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]
-const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "loot", "combat", "flag",
+const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "combat", "flag",
 	"discover", "requires_credits", "complete"]
 
 # Older fixtures only declared `distance_nu`; they remain distance triggers with
@@ -86,10 +86,10 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 	for key: Variant in effects:
 		if key not in EFFECT_KEYS:
 			return false
-	for key in ["credits", "loot", "requires_credits"]:
+	for key in ["credits", "requires_credits"]:
 		if effects.has(key) and not SaveValidation.integer(effects[key]):
 			return false
-	if effects.get("loot", 0) < 0 or effects.get("loot", 0) > 3 or effects.get("requires_credits", 0) < 0:
+	if effects.get("requires_credits", 0) < 0:
 		return false
 	for key in ["fuel", "research", "hull_damage"]:
 		if effects.has(key) and not SaveValidation.number(effects[key]):

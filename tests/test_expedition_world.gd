@@ -38,6 +38,7 @@ func run() -> void:
 	for authored: Dictionary in state.expedition_simulation.events:
 		state.expedition_simulation.state.event_receipts[authored.id] = true
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
+	screen.active_tab = "FLEET"
 	root.add_child(screen)
 	current_scene = screen
 	await settle()

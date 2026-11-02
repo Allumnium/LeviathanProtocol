@@ -29,20 +29,20 @@ func run() -> void:
 			actual.append("%s=%s:%s" % [slot.id, slot.size, slot.type])
 		check(actual == expected[id], "%s exact owner mount specification" % id)
 	var flagship: HangarShip = state.fleet[0]
-	check(flagship.hull_hp == 320 and flagship.get_stats().thrust == 22, "Flagship high hull and low thrust")
+	check(flagship.hull_hp == 330 and flagship.get_stats().thrust == 72, "Command flagship: high hull, thrusters fitted")
 	check(flagship.get_stats().shields == 40, "Defensive flagship doubled level I shields")
-	check(state.equipment_inventory.size() == 10, "Starter fleet receives ten compatible equipment instances, including the Transport's hold and plates")
-	check(not flagship.mounts.has("inner_port"), "Incompatible starter armor removed without replacement")
+	check(state.equipment_inventory.size() == 17, "Starter fleet is fully fitted from default loadouts")
+	check(state.ship_loadout_id(flagship.id) == "command", "Flagship starts with the Command loadout")
 	var healthy: Dictionary = state.hangar_snapshot()
 	check(healthy.version == 2 and not healthy.ships[0].has("builtins"), "Schema2 has no builtin component health")
 	for instance: Dictionary in healthy.equipment.values():
 		check(not instance.has("hp"), "Schema2 equipment has no component health")
 	flagship.damage_cell(Vector2i(1, 0), 50)
-	check(flagship.get_stats().shields == 40 and flagship.hull_hp == 271, "Armor reduces hull damage while shields remain operational")
+	check(flagship.get_stats().shields == 40 and flagship.hull_hp == 281, "Armor reduces hull damage while shields remain operational")
 	check(flagship.repair_cost() == 49, "Repair quote counts actual hull damage only")
 	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Hull damage survives reload")
 	flagship = state.fleet[0]
-	check(flagship.hull_hp == 271 and flagship.get_stats().shields == 40, "Reload preserves hull damage and operational shield")
+	check(flagship.hull_hp == 281 and flagship.get_stats().shields == 40, "Reload preserves hull damage and operational shield")
 	var damaged: Dictionary = state.hangar_snapshot()
 	var generation: int = state.hangar_generation
 	state.hangar_generation += 1
@@ -50,7 +50,7 @@ func run() -> void:
 	check(state.hangar_snapshot() == damaged, "Failed repair changes no credits or hull")
 	state.hangar_generation = generation
 	check(state.repair_ship(state.fleet[0]), "Hull repairs through normal credits transaction")
-	check(state.fleet[0].hull_hp == 320 and state.fleet[0].get_stats().shields == 40 and state.credits == int(damaged.credits) - 49, "Repair restores only hull with exact quote")
+	check(state.fleet[0].hull_hp == 330 and state.fleet[0].get_stats().shields == 40 and state.credits == int(damaged.credits) - 49, "Repair restores only hull with exact quote")
 	var invalid: Dictionary = state.hangar_snapshot()
 	invalid.ships[0]["builtins"] = {"shield": 25}
 	check(not HangarCheckpoint.valid(invalid), "Schema2 rejects retired builtin health")
@@ -62,40 +62,12 @@ func run() -> void:
 	var scene: Control = load("res://scenes/game_map.tscn").instantiate()
 	# Snapshot comparisons below exclude unrelated docked clock advancement.
 	state.expedition_simulation.set_pause(ExpeditionState.PauseReason.USER, true)
+	scene.active_tab = "FLEET"
 	root.add_child(scene)
 	current_scene = scene
 	await process_frame
 	await process_frame
-	scene._open_shop("EQUIPMENT")
-	await process_frame
-	await process_frame
-	var equipment_row: Button
-	for row in scene.shop_rows.get_children():
-		var offer: Button = row.get_child(1)
-		if offer.get_meta("equipment_id", "") == "mini_turret":
-			equipment_row = offer
-	check(equipment_row != null, "Inspectable researched equipment in shop")
 	var credits: int = state.credits
-	_click(equipment_row.get_global_rect().get_center())
-	await process_frame
-	await process_frame
-	check(state.credits == credits, "Equipment row inspection is not purchase")
-	check(scene.inspected_item.get("id", "") == "mini_turret" and scene.inspection != null and not scene.stock.visible, "Equipment click replaces right panel with details")
-	check(_text(scene.inspection).contains("damage x") and not _text(scene.inspection).contains("HP")
-		and not _text(scene.inspection).contains("Command Center") and not _text(scene.inspection).contains("Built-in Engine"),
-		"Equipment preview includes weapon rates, never component HP or implicit engine/core")
-	_click(Vector2(4, root.get_visible_rect().size.y - 4))
-	await process_frame
-	check(scene.inspected_item.is_empty() and scene.stock.visible, "Blank click restores stock")
-	check(state.buy_equipment("mini_turret"), "Purchase a unique loose item for inspection")
-	await process_frame
-	await process_frame
-	var row: Button = scene.stock.rows.get_child(0)
-	_click(row.get_global_rect().get_center())
-	await process_frame
-	check(scene.inspected_item.get("uid", "") == row.get_meta("inspect_equipment"), "Stock click inspects actual equipment UID")
-	check(not scene.stock.visible, "Stock temporarily hidden, not rebuilt")
-	scene._clear_inspection()
 	scene._open_shop("SHIPS")
 	await process_frame
 	await process_frame
@@ -124,15 +96,6 @@ func run() -> void:
 	_click(scene.inspection.get_global_rect().get_center())
 	await process_frame
 	check(scene.inspection != null, "Inspector contents and scrollbar remain interactive")
-	var before_drag: Dictionary = state.hangar_snapshot()
-	var installed_uid: String = state.fleet[0].mounts.port.uid
-	scene.force_drag(load("res://scripts/hangar_equipment_transfer.gd").payload(installed_uid), Control.new())
-	await process_frame
-	check(scene.inspected_item.is_empty() and scene.stock.visible and scene.stock.unequip_mode, "Installed drag reveals full-panel unequip target from inspection")
-	_click(Vector2(4, root.get_visible_rect().size.y - 4))
-	await process_frame
-	check(not scene.stock.unequip_mode and scene.stock.filters.visible, "Drag cancellation restores stock controls")
-	check(state.hangar_snapshot() == before_drag, "Cancelled inspected-equipment drag is mutation-free")
 	scene._inspect_chassis("fighter")
 	state.credits = 300
 	scene._refresh()
@@ -173,11 +136,15 @@ func run() -> void:
 	scene._refresh()
 	await process_frame
 	await process_frame
-	scene._inspect_equipment("mini_turret", 1)
+	scene._inspect_chassis("fighter")
 	_click(scene.canvas.slot_buttons.port.get_global_rect().get_center())
 	await process_frame
 	check(scene.slot_info.visible and scene.slot_info.source_text.contains("Mini Turret"), "Art selection still updates installed-part details after inspection")
-	check(scene.inspected_item.is_empty() and scene.stock.visible, "Art click exits catalog inspection and restores stock")
+	check(scene.inspected_item.is_empty() and scene.details.find_child("RefitPanel", true, false).visible,
+		"Art click exits catalog inspection and restores the refit panel")
+	check(state.swap_part(scene.selected_ship_id, "fore", ""), "Empty a mount for the stats check")
+	await process_frame
+	await process_frame
 	_click(scene.canvas.slot_buttons.fore.get_global_rect().get_center())
 	await process_frame
 	check(scene.stats_grid.visible and not scene.slot_info.visible, "Empty mount restores ship stats without inspection interference")

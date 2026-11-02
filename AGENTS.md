@@ -1,5 +1,7 @@
 # Current game: physical hangar
 
+**Direction update (2026-11-02):** see "Fleet-command direction" in TODO.md. It supersedes the shared stock, equipment buying/selling, drag-fitting, research-gated equipment and single-ship UI rules below; follow it where they conflict.
+
 Current priority is a medium-sized vertical slice and finalizing UI/UX. Follow V1-V6 in TODO.md before expanding content depth. Preserve implemented systems/art/saves and use current equipment/encounters to exercise a coherent hangar -> travel/research/trade -> battle -> report/refit loop. Defer ECM/Phase, additional passenger/science equipment, advanced endpoints, new boss phases and full Act II/III expansion until the UI/UX is settled; let story needs drive later depth. Do not treat the earlier full-campaign MVP backlog as required for this slice. Essential slice clarity, performance and save reliability remain required; no unsolicited new systems or optional extras.
 
 The actual game uses scripts/hangar_state.gd (autoload GameState), scenes/game_map.tscn and scripts/hangar_screen.gd. The owner replaced materials, recipes and ship design with physical chassis and equipment instances. No designer, blueprints, material inventory, construction grids, equipment orientation, reserves, design-family limits or deployment-capacity system in the active game. Weapons aim automatically and thrust is ship-wide.

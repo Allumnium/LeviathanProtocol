@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 var checks := 0
 var failures := 0
 var state: Node
@@ -27,7 +29,7 @@ func run() -> void:
 		var broken: Dictionary = valid.duplicate(true)
 		broken.research.erase(key)
 		check(not HangarCheckpoint.valid(broken), "Reject missing " + key)
-	for hp in [-1.0, 321.0, INF, NAN]:
+	for hp in [-1.0, state.fleet[0].hull_max + 1.0, INF, NAN]:
 		var broken: Dictionary = valid.duplicate(true)
 		broken.ships[0].hull_hp = hp
 		check(not HangarCheckpoint.valid(broken), "Reject invalid hull HP")
@@ -46,7 +48,8 @@ func run() -> void:
 	broken.ships[0].mounts["unknown"] = "1"
 	check(not HangarCheckpoint.valid(broken), "Reject invented slot")
 	for key in ["crew_quarters", "focusing_lens", "reactive_bulkhead", "observation_deck", "repair_station", "mining_laser"]:
-		check(not state.buy_equipment(key), "No unsupported purchase " + key)
+		check(not ShipLoadouts.obtainable(SlotCatalog.find_equipment(key)), "No unsupported part offered " + key)
+	check(not state.swap_part(1, "spine", "crew_quarters"), "Unsupported part cannot be fitted")
 	check(state.save_run_checkpoint(), "Create second verified generation and backup")
 	var file := FileAccess.open(state.run_save_path, FileAccess.WRITE)
 	file.store_string("corrupt")
@@ -57,7 +60,7 @@ func run() -> void:
 	var before: Dictionary = canonical(state.hangar_snapshot())
 	var real_path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/not-a-directory/save.json"
-	check(not state.buy_equipment("mini_turret"), "Failed save rejects purchase")
+	check(not state.swap_part(1, "fore", "laser"), "Failed save rejects refit")
 	check(canonical(state.hangar_snapshot()) == before, "Failed save leaves credits and ownership unchanged")
 	state.run_save_path = real_path
 	var lead: HangarShip = state.owned_ship(1)
@@ -77,43 +80,37 @@ func run() -> void:
 	check(state.load_run_checkpoint() and state.owned_ship(1).hull_hp == state.owned_ship(1).hull_max
 		and state.owned_ship(1).mounts == identity, "Paid hull-only repair reloads without replacing equipment")
 	check(not state.has_method("repair_equipment"), "No separate equipment repair backend")
-	check(state.buy_equipment("mini_turret"), "Buy flat-resale fixture")
-	var resale_uid := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(1, "fore", resale_uid), "Fit resale instance")
 	state.owned_ship(1).damage_cell(Vector2i(1, 0), 20)
-	check(state.fit_equipment(1, "fore", ""), "Damaged host returns unchanged equipment to stock")
 	before = canonical(state.hangar_snapshot())
 	state.run_save_path = "res://project.godot/not-a-directory/save.json"
-	check(not state.sell_equipment(resale_uid) and canonical(state.hangar_snapshot()) == before, "Failed sale preserves credits and exact stock identity")
+	check(not state.swap_part(1, "fore", "laser") and canonical(state.hangar_snapshot()) == before, "Failed refit save preserves credits and exact identities")
 	state.run_save_path = real_path
-	var sale_credits: int = state.credits
-	check(state.sell_equipment(resale_uid) and state.credits == sale_credits + 20, "Equipment resale is flat half catalog price after battle damage")
+	var hull_before: float = state.owned_ship(1).hull_hp
+	check(state.swap_part(1, "fore", "laser") and state.owned_ship(1).hull_hp == hull_before, "Refitting a damaged host keeps its hull damage")
 	# Command budget is independent of credits and cannot be bypassed by direct calls.
 	state.credits = 10000
 	check(state.save_run_checkpoint(), "Fund command test")
 	for index in range(state.command_limit() - state.used_command()):
-		check(state.buy_chassis("drone"), "Buy within command budget")
+		check(state.buy_ship("drone"), "Buy within command budget")
 	check(state.used_command() == state.command_limit(), "Command budget filled")
-	check(not state.buy_chassis("drone"), "Command overflow rejected")
-	check(not state.buy_chassis("flagship_basic"), "Cannot buy second flagship")
+	check(not state.buy_ship("drone"), "Command overflow rejected")
+	check(not state.buy_ship("flagship_basic"), "Cannot buy second flagship")
 	var slowest := 0
 	for index in range(20):
 		var start := Time.get_ticks_msec()
-		check(state.fit_equipment(1, "fore", "1"), "Repeated equipment selection")
+		check(state.swap_part(1, "fore", "mini_turret" if index % 2 == 0 else "laser"), "Repeated part swap")
 		slowest = maxi(slowest, Time.get_ticks_msec() - start)
 	check(slowest < 500, "Refits finish within 500ms")
 	# Trade runs on physical gear and commits along with travel, damage and credits.
 	check(state.start_new_run(1, 909), "Trade run")
 	state.credits = 2000
 	state.current_research_ids.append("civil_hospitality")
-	check(state.buy_chassis("transport"), "Buy physical cargo host")
+	check(state.buy_ship("transport"), "Buy physical cargo host")
 	var transport_id: int = state.fleet[-1].id
-	check(state.buy_equipment("cargo_hold"), "Buy working cargo hold")
-	var cargo_uid := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(transport_id, "hold", cargo_uid), "Equip hold")
-	check(state.buy_equipment("passenger_cabin"), "Buy working cabin")
-	var cabin_uid := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(1, "spine", cabin_uid), "Equip cabin, returning lab to stock")
+	var cargo_uid: String = state.owned_ship(transport_id).mounts.hold.uid
+	check(SlotCatalog.find_equipment(state.equipment_inventory[cargo_uid].equipment_id).id == "cargo_hold", "Freighter arrives with a working hold")
+	check(state.swap_part(1, "spine", "passenger_cabin"), "Equip cabin, scrapping the lab")
+	var cabin_uid: String = state.owned_ship(1).mounts.spine.uid
 	var data: Dictionary = state.hangar_snapshot()
 	var source: Dictionary = state.campaign_node(0)
 	var target := {"id": 1, "inhabited": true}
@@ -164,7 +161,7 @@ func run() -> void:
 	check(state.equipment_inventory[cargo_uid].load.quantity == 10 and state.equipment_inventory[cabin_uid].load.quantity == 4, "Hull repairs neither destroy nor recreate existing loads")
 	# Losing the flagship ends battle despite armed escorts.
 	state.credits = 1000
-	check(state.buy_chassis("drone"), "Escort purchase")
+	check(state.buy_ship("drone"), "Escort purchase")
 	check(state.fit_equipment(state.fleet[-1].id, "fore", "1"), "Escort armed")
 	check(state.travel_to(state.get_reachable_nodes(0)[0]), "Flagship loss battle")
 	var sim := BattleSimulation.new()

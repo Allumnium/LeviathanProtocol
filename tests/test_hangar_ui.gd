@@ -83,8 +83,8 @@ func run() -> void:
 	await settle()
 	var screen: Control = current_scene
 	await settle()
-	check(screen.name == "Hangar" and screen.active_tab == "FLEET",
-		"Continue opens the existing hangar screen on the Fleet travel page")
+	check(screen.name == "Hangar" and screen.active_tab == "MAP",
+		"Continue opens the existing hangar screen on the Map home page")
 	check(screen.travel_controls != null, "Fleet page includes compact expedition controls")
 	screen.selected_ship_id = 0
 	screen.active_tab = "SHIPS"
@@ -157,27 +157,23 @@ func run() -> void:
 			check(screen.canvas.get_global_rect().encloses(rect), "Mount stays in canvas")
 			check(not placed.any(func(other: Rect2) -> bool: return rect.intersects(other)), "Mount controls never overlap")
 			placed.append(rect)
-		for uid: String in screen.stock.visible_uids:
-			check(state.equipment_inventory.has(uid) and state.equipment_location(uid).is_empty(), "Stock offers owned uninstalled instances")
 		check(screen.get_global_rect().encloses(screen.details.get_global_rect()), "Details fit screen")
 		check(screen.get_global_rect().encloses(screen.roster.get_global_rect()), "Roster fits screen")
 	root.size = Vector2i(1280, 720)
 	await settle()
-	check(state.buy_equipment("mini_turret"), "Buy gear through actual state")
+	var replaced_uid: String = state.owned_ship(1).mounts.port.uid
+	screen.canvas.slot_selected.emit("port")
 	await settle()
-	var uid := str(state.next_equipment_id - 1)
-	var button: Button = screen.canvas.slot_buttons.port
-	check(uid in screen.stock.visible_uids, "New purchase appears in stock")
-	button._drop_data(Vector2.ZERO, preload("res://scripts/hangar_equipment_transfer.gd").payload(uid))
+	screen.details.find_child("Part_laser", true, false).pressed.emit()
 	await settle()
-	check(state.owned_ship(1).mounts.port.uid == uid, "Drop target equips physical item")
-	check(state.equipment_location("1").is_empty(), "Replaced physical item returns to stock")
+	check(state.owned_ship(1).mounts.port.equipment_id == "laser", "Clicking a mount and a part refits that mount")
+	check(not state.equipment_inventory.has(replaced_uid), "Replaced part is scrapped; there is no stock")
 	state.credits = 5000
-	check(state.save_run_checkpoint(), "Fund chassis layout fixtures")
+	check(state.save_run_checkpoint(), "Fund ship layout fixtures")
 	for chassis in SlotCatalog.chassis():
 		if int(chassis.command) > 0:
 			continue
-		check(state.buy_chassis(chassis.id), "Buy " + chassis.name + " for actual hangar review")
+		check(state.buy_ship(chassis.id), "Buy " + chassis.name + " for actual hangar review")
 		screen.selected_ship_id = state.fleet[-1].id
 		await settle()
 		for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
@@ -190,6 +186,9 @@ func run() -> void:
 				check(screen.canvas.get_global_rect().encloses(rect), chassis.name + " mount in canvas")
 				check(not rectangles.any(func(other: Rect2) -> bool: return rect.intersects(other)), chassis.name + " mounts do not overlap")
 				rectangles.append(rect)
+			var loadouts: Control = screen.details.find_child("RefitPanel", true, false)
+			check(loadouts != null and screen.details_panel.get_global_rect().grow(1).encloses(loadouts.get_child(loadouts.get_child_count() - 1).get_global_rect()),
+				chassis.name + " loadout choices fit the panel")
 		check(state.salvage_hangar_ship(screen.selected_ship_id), "Immediate fixture salvage")
 		await settle()
 	root.size = Vector2i(1280, 720)
@@ -197,21 +196,14 @@ func run() -> void:
 	screen.selected_ship_id = 1
 	screen._refresh()
 	await settle()
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
+	check(screen.roster.find_child("BuyEquipment", true, false) == null, "There is no equipment shop")
+	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
-	check(screen.shop.visible, "Shop opens")
-	check(str(screen.shop.find_child("ShopHeading", true, false).text).ends_with("Equipment"),
-		"Equipment entry point names the station and its equipment shop")
-	check(screen.shop.find_children("*", "Button", true, false).all(
-		func(control: Button) -> bool: return control.text not in ["Equipment", "Ships"]),
-		"Embedded shop has no internal mode buttons")
-	check(screen.shop.find_children("*", "ScrollContainer", true, false).is_empty(),
-		"Station shop never scrolls")
+	check(screen.shop.visible, "Ship shop opens")
+	check(str(screen.shop.find_child("ShopHeading", true, false).text).ends_with("Ships"),
+		"Shop names the station and its ships")
+	check(screen.shop.find_children("*", "ScrollContainer", true, false).is_empty(), "Station shop never scrolls")
 	var station: Dictionary = state.expedition_simulation.locations[state.expedition_simulation.state.docked_location_id]
-	var grants: Dictionary = state.research_grants()
-	var first_row: HBoxContainer = screen.shop_rows.get_child(0)
-	check(first_row.get_child(1).get_meta("equipment_id") == station.featured[0],
-		"Featured station stock is offered first")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
@@ -221,77 +213,37 @@ func run() -> void:
 		var corner_close: TextureButton = screen.shop.find_child("CloseX", true, false)
 		check(corner_close.position == Vector2(screen.shop.size.x - corner_close.size.x - 1, 1),
 			"Shop close tracks the one-pixel top/right inset at every resolution")
-		check(not screen.shop.is_in_group("modal_ui") and not screen.shop.get_global_rect().intersects(screen.details_panel.get_global_rect()), "Buy panel leaves stock and roster accessible without a modal backdrop")
-		check(screen.find_child("ScienceIcon", true, false) != null
-			and screen.research_status.text == "Choose Research",
+		check(not screen.shop.is_in_group("modal_ui") and not screen.shop.get_global_rect().intersects(screen.details_panel.get_global_rect()),
+			"Buy panel leaves the side panels accessible without a modal backdrop")
+		check(screen.find_child("ScienceIcon", true, false) != null and screen.research_status.text == "Choose Research",
 			"Research status remains visible on every tab")
-		check(screen.shop_rows.get_child_count() > 0, "Shop offers stock at every resolution")
+		check(screen.shop_rows.get_child_count() > 0, "Shop offers ships at every resolution")
 		for row: HBoxContainer in screen.shop_rows.get_children():
 			var purchase: Button = row.get_child(1)
-			check(screen.shop.get_global_rect().grow(1).encloses(row.get_global_rect()),
-				"Every offered item fits inside the shop without scrolling")
-			check(row.find_child("ItemArt", true, false) != null, "Shop items show artwork or the placeholder")
-			check(purchase.get_meta("equipment_id") in station.stock, "Shop offers only this station's stock")
-			for label: Label in purchase.find_children("*", "Label", true, false):
-				check(purchase.get_global_rect().encloses(label.get_global_rect()),
-					"Purchase labels remain inside their row at every resolution")
-			check((purchase.find_child("BuyIcon", true, false) != null) == not purchase.disabled,
-				"Green plus appears only for purchasable equipment")
-			check(purchase.find_child("PriceIcon", true, false) != null,
-				"Shop price uses credits artwork")
-			var unlocked := SlotCatalog.unlocked(SlotCatalog.find_equipment(purchase.get_meta("equipment_id"), purchase.get_meta("rank")), grants)
-			check((purchase.find_child("ResearchRequiredIcon", true, false) != null) == not unlocked,
-				"Locked equipment shows science artwork rather than Research text")
-		for checkbox: CheckBox in screen.stock.filters.find_children("*", "CheckBox", true, false):
-			check(screen.stock.filters.get_global_rect().encloses(checkbox.get_global_rect()), "Filter checkbox fits its panel at each supported resolution")
-			check(checkbox.button_group == null and checkbox.focus_mode == Control.FOCUS_NONE, "Checkboxes are independent and excluded from focus cycling")
+			check(screen.shop.get_global_rect().grow(1).encloses(row.get_global_rect()), "Every offer fits inside the shop without scrolling")
+			check(purchase.get_meta("inspect_chassis") in station.chassis_stock, "Ship offers come from this station")
+			check((purchase.find_child("BuyIcon", true, false) != null) == not purchase.disabled
+				and purchase.find_child("PriceIcon", true, false) != null, "Ship price uses artwork and unavailable ships have no plus")
 		if resolution == Vector2i(640, 360) and "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 			await RenderingServer.frame_post_draw
 			root.get_texture().get_image().save_png("res://.local/hangar/ui-shop-640.png")
 	root.size = Vector2i(1280, 720)
 	await settle()
-	screen.tabs.get_child(0).pressed.emit()
-	await settle()
-	check(screen.roster.find_child("BuyEquipment", true, false) == null, "Fleet offers only chassis buying")
-	screen.roster.find_child("BuyChassis", true, false).pressed.emit()
-	await settle()
-	check(screen.buy_mode == "SHIPS" and screen.shop_rows.get_child_count() > 0, "Center panel lists purchasable chassis")
-	check(str(screen.shop.find_child("ShopHeading", true, false).text).ends_with("Ships"),
-		"Chassis entry point switches the open panel and heading")
-	for row: HBoxContainer in screen.shop_rows.get_children():
-		var purchase: Button = row.get_child(1)
-		check((purchase.find_child("BuyIcon", true, false) != null) == not purchase.disabled
-			and purchase.find_child("PriceIcon", true, false) != null,
-			"Chassis price uses artwork and unavailable chassis has no plus")
-		check(purchase.get_meta("inspect_chassis") in station.chassis_stock, "Chassis offers come from this station")
-	if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
-		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-ships.png")
-	screen.tabs.get_child(1).pressed.emit()
-	await settle()
-	check(screen.roster.find_child("BuyChassis", true, false) == null, "Ships offers only equipment buying")
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
-	await settle()
-	check(screen.shop.find_children("*", "LineEdit", true, false).is_empty()
-		and screen.stock.find_children("*", "LineEdit", true, false).is_empty()
-		and screen.shop.find_children("*", "OptionButton", true, false).is_empty()
-		and screen.stock.find_children("*", "OptionButton", true, false).is_empty(),
-		"Stock and Buy have no search or single-choice controls")
-	var inventory_before: int = state.equipment_inventory.size()
+	var fleet_before: int = state.fleet.size()
 	for row: HBoxContainer in screen.shop_rows.get_children():
 		var purchase: Button = row.get_child(1)
 		if not purchase.disabled:
 			purchase.find_child("BuyIcon", true, false).pressed.emit()
 			break
 	await settle()
-	check(state.equipment_inventory.size() == inventory_before + 1 and screen.buy_open and screen.shop != null, "Purchase updates stock while center shop stays open")
+	check(state.fleet.size() == fleet_before + 1 and screen.buy_open and screen.shop != null, "Purchase adds a fitted ship while the shop stays open")
 	if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-equipment.png")
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
+		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-ships.png")
+	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
 	check(not screen.buy_open and screen.shop == null and screen.canvas != null, "Buy button toggles back to ship fitting")
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
+	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
 	var close: TextureButton = screen.shop.find_child("CloseX", true, false)
 	check(close.texture_normal.atlas.resource_path == "res://assets/ui/Btn_ClosePanel_n.png"
@@ -308,16 +260,15 @@ func run() -> void:
 	close.pressed.emit()
 	await settle()
 	check(screen.shop == null, "X closes shop")
-	check(screen.stock != null and not screen.has_method("_open_stock"), "Stock selling has no Manage panel")
 	var science_fixture: Dictionary = state.hangar_snapshot()
 	science_fixture.research.research_ids.append("laboratory_ii")
 	science_fixture.research.research_ids.append("laboratory_iii")
 	science_fixture.research.story_flags["boss_i_defeated"] = true
 	check(state._commit_hangar(science_fixture), "Late-game research UI fixture")
-	check(state.buy_chassis("transport"), "Science chassis UI fixture")
+	check(state.buy_ship("transport"), "Science ship UI fixture")
 	var science_ship: int = state.fleet[-1].id
-	check(state.buy_equipment("research_lab", 2) and state.fit_equipment(science_ship, "port", str(state.next_equipment_id - 1)), "Lab II UI fixture")
-	check(state.buy_equipment("research_lab", 3) and state.fit_equipment(science_ship, "hold", str(state.next_equipment_id - 1)), "Lab III UI fixture")
+	check(state.swap_part(science_ship, "port", "research_lab@2"), "Lab II UI fixture")
+	check(state.swap_part(science_ship, "hold", "research_lab@3"), "Lab III UI fixture")
 	await settle()
 	screen.selected_ship_id = 1
 	for title in ["RESEARCH", "FLEET", "MAP", "SHIPS"]:

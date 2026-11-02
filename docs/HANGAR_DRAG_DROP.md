@@ -1,5 +1,8 @@
 # Hangar stock and drag fitting
 
+> **Superseded.** Drag-and-drop fitting and the shared equipment stock were removed by the fleet-command D1 loadouts change. Ships are refitted from named loadouts or per-mount part choices at shipyards; see [HANGAR.md](HANGAR.md#ships-and-loadouts-fleet-command-d1). The retired tests are in `docs/history/pre_loadout_tests/`. This file is kept as history.
+
+
 The physical hangar no longer uses equipment dropdowns on ship mounts. The right panel shows uninstalled, owned equipment instances. Ship selection and repair/salvage actions remain on the left; the ship and its live stats occupy the center.
 
 Mount labels are aligned into two columns beside the ship, with connector lines to actual mounts. Only occupied mounts show a card and connector, including during equipment drags; empty mounts never show labels. Each fitted card is one line with the full equipment name. Connectors are consistently opaque white, one physical screen pixel wide, without antialiasing, with vertices snapped to pixel centers; equipment category, damage and drag validity do not recolor them. There are no extra headings, Empty lines, abbreviations or wrapping. Rail widths and card positions remain reserved even when empty cards are hidden, keeping ship scale and drop geometry stable before, during and after dragging. Side cards are display-only: they cannot select equipment, start drags, accept drops or trigger preview snapping. All fitting/selection/transfer gestures use the actual mounts in the ship art; start unequipping there and drop into the right panel. No text or opaque controls cover chassis/module art.

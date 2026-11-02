@@ -42,10 +42,10 @@
       "position": [355.0, -27.0],
       "radius": 22.0,
       "title": "Free trader",
-      "text": "A battered independent hauler hails you. \"Spare parts, no questions asked. Sixty credits for the crate.\"",
+      "text": "A battered independent hauler hails you. \"Spare fuel cells, no questions asked. Sixty credits for forty units.\"",
       "art": "res://assets/transport.png",
       "options": [
-        {"id": "buy", "label": "BUY THE CRATE (60)", "effects": {"credits": -60, "loot": 1, "requires_credits": 60}},
+        {"id": "buy", "label": "BUY FUEL CELLS (60)", "effects": {"credits": -60, "fuel": 40.0, "requires_credits": 60}},
         {"id": "pass", "label": "NO THANKS", "effects": {}}
       ]
     },

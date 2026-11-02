@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 var checks := 0
 var failures := 0
 
@@ -181,7 +183,7 @@ func transactions() -> void:
 	check(state.start_new_run(1, 642), "Start research/purchase checks")
 	var base: Dictionary = state.hangar_snapshot()
 	for id in ["ammunition_magazine", "railgun", "command_uplink", "tactical_computer"]:
-		check(not state.buy_equipment(id) and state.hangar_snapshot() == base, "New equipment remains research-gated")
+		check(ShipLoadouts.obtainable(SlotCatalog.find_equipment(id)), "Intermediates are selectable without research")
 	var fixture := base.duplicate(true)
 	fixture.credits = 5000
 	fixture.research.research_ids.append_array(["guided_munitions", "siege_i", "siege_ii", "command_i", "command_ii"])
@@ -189,8 +191,14 @@ func transactions() -> void:
 	fixture.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(fixture), "Siege/command prerequisites and branch choices validate")
 	check(not state.set_research_focus("carrier_i"), "Siege choice excludes carrier research")
-	for id in ["ammunition_magazine", "railgun", "command_uplink", "tactical_computer"]:
-		check(state.buy_equipment(id), "Researched intermediate is purchasable at the shipyard")
+	check(state.buy_ship("corsair") and state.buy_ship("drone"), "Buy intermediate hosts")
+	var drone_host: int = state.fleet[-1].id
+	var corsair_host: int = state.fleet[-2].id
+	if state.owned_ship(corsair_host).mounts.get("fore", {}).get("equipment_id", "") != "railgun":
+		check(state.swap_part(corsair_host, "fore", "railgun"), "Fit a railgun")
+	check(state.owned_ship(corsair_host).mounts.fore.equipment_id == "railgun" and state.swap_part(1, "spine", "ammunition_magazine")
+			and state.swap_part(drone_host, "center", "command_uplink") and state.swap_part(2, "port", "tactical_computer"),
+			"Intermediates are fitted at the shipyard")
 	check(state.load_run_checkpoint(), "New identities survive physical checkpoint reload")
 	for id in ["ammunition_magazine", "railgun", "command_uplink", "tactical_computer"]:
 		var item := SlotCatalog.find_equipment(id)

@@ -18,3 +18,4 @@ res://scripts/research_panel.gd
 res://scripts/slot_catalog.gd
 res://scripts/expedition_map.gd
 res://tests/test_expedition_demo.gd
+res://tests/test_ship_refit.gd

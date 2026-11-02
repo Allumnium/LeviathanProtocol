@@ -8,6 +8,7 @@ const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
 const SceneFadeScript = preload("res://scripts/scene_fade.gd")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 const UiKit = preload("res://scripts/ui_kit.gd")
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
 const EXPEDITION_SAVE_INTERVAL := 5.0
 
 var selected_ship_id := -1
@@ -28,9 +29,9 @@ var feedback: Label
 var canvas: Control
 var shop: Control
 var buy_open := false
-var buy_mode := "EQUIPMENT"
+var buy_mode := "SHIPS"
 var shop_rows: GridContainer
-var active_tab := "FLEET"
+var active_tab := "MAP"
 var formation_view: Control
 var formation_camera := Vector2.ZERO
 var formation_zoom := 1.0
@@ -45,8 +46,7 @@ var map_selected_id := ""
 var map_details: VBoxContainer
 var flagship_icon: Texture2D
 var refresh_queued := false
-var stock: Control
-var stock_preferences: Dictionary = {}
+var refit_panel: VBoxContainer
 var stats_grid: GridContainer
 var slot_info: ResourceText
 var roster_panel: PanelContainer
@@ -85,6 +85,14 @@ func _ready() -> void:
 	background.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	add_child(margin)
 	margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	# A transient first-frame minimum size (wrapping text at zero width) can grow
+	# the margin's offsets permanently; snap it back to the screen afterwards.
+	var snap_margin := func() -> void:
+		var fits := margin.get_combined_minimum_size().y <= size.y and margin.get_combined_minimum_size().x <= size.x
+		if fits and (margin.size.y > size.y + 0.5 or margin.size.x > size.x + 0.5):
+			margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	margin.resized.connect(snap_margin, CONNECT_DEFERRED)
+	margin.minimum_size_changed.connect(snap_margin, CONNECT_DEFERRED)
 	for edge in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + edge, 8)
 	var column := VBoxContainer.new()
@@ -190,7 +198,7 @@ func _ready() -> void:
 	research_progress_row.add_child(research_rate)
 	research_column.resized.connect(_resize_research_label)
 	flagship_icon = load("res://assets/flag.png")
-	for title in ["FLEET", "SHIPS", "MAP"]:
+	for title in ["MAP", "FLEET", "SHIPS"]:
 		var tab := _button_with_sound(title, func() -> void:
 			if traveling:
 				return
@@ -314,14 +322,13 @@ func _sync_station_services() -> void:
 	for button: Button in find_children("*", "Button", true, false):
 		if button.has_meta("shipyard_eligible"):
 			button.disabled = not available or not button.get_meta("shipyard_eligible")
-			if button.name in ["BuyChassis", "BuyEquipment"] and not available:
+			if button.name == "BuyShips" and not available:
 				button.set_pressed_no_signal(false)
 	var reason := roster.find_child("StationServiceReason", true, false) as Label
 	if reason != null:
 		reason.text = GameState.station_service_error("shipyard")
 		reason.visible = not available
-	if is_instance_valid(stock):
-		stock.refresh_service_access()
+	_render_refit_panel()
 
 func _shipyard_action(button: Button, eligible := true) -> Button:
 	button.set_meta("shipyard_eligible", eligible)
@@ -388,13 +395,10 @@ func _clear_inspection() -> void:
 		details.remove_child(inspection)
 		inspection.queue_free()
 	inspection = null
-	if is_instance_valid(stock):
-		stock.show()
-
-func _inspect_equipment(id: String, rank: int, uid := "") -> void:
-	AudioManager.play_ui_sfx(&"detail")
-	inspected_item = {"kind": "equipment", "id": id, "rank": rank, "uid": uid}
-	_render_inspection()
+	for child: Node in details.get_children():
+		if child.has_meta("hidden_by_inspection"):
+			child.remove_meta("hidden_by_inspection")
+			child.show()
 
 func _inspect_chassis(id: String) -> void:
 	AudioManager.play_ui_sfx(&"detail")
@@ -402,12 +406,14 @@ func _inspect_chassis(id: String) -> void:
 	_render_inspection()
 
 func _render_inspection() -> void:
-	if stock == null:
-		_show_stock()
 	if is_instance_valid(inspection):
 		details.remove_child(inspection)
 		inspection.queue_free()
-	stock.hide()
+	# Inspection temporarily replaces the right panel's contents.
+	for child: Node in details.get_children():
+		if child is Control and child.visible:
+			child.set_meta("hidden_by_inspection", true)
+			child.hide()
 	inspection = ScrollContainer.new()
 	inspection.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	inspection.name = "ItemDetails"
@@ -625,7 +631,7 @@ func _refresh() -> void:
 		shop = null
 	_clear(center)
 	canvas = null
-	stock = null
+	refit_panel = null
 	stats_grid = null
 	slot_info = null
 	if selected_ship_id > 0 and GameState.owned_ship(selected_ship_id) == null:
@@ -669,11 +675,10 @@ func _refresh() -> void:
 		for owned: HangarShip in GameState.fleet:
 			ship_rows.add_child(_ship_tile(owned, tile_size))
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
-	var mode := "SHIPS" if active_tab == "FLEET" else "EQUIPMENT"
-	var buy := _button_with_sound("Buy Chassis" if mode == "SHIPS" else "Buy Equipment", _open_shop.bind(mode), &"animate_ui")
-	buy.name = "BuyChassis" if mode == "SHIPS" else "BuyEquipment"
+	var buy := _button_with_sound("Buy Ships", _open_shop.bind("SHIPS"), &"animate_ui")
+	buy.name = "BuyShips"
 	buy.toggle_mode = true
-	buy.button_pressed = buy_open and buy_mode == mode
+	buy.button_pressed = buy_open
 	_shipyard_action(buy)
 	roster.add_child(buy)
 	var service_reason := _label(GameState.station_service_error("shipyard"))
@@ -721,7 +726,7 @@ func _refresh() -> void:
 			stats_grid.columns = 2 if size.x < 1000 else 4
 			bottom.add_child(stats_grid)
 			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-			_show_stock()
+			_show_refit_panel()
 			var repair := _button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id))))
 			_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
 			roster.add_child(repair)
@@ -731,17 +736,10 @@ func _refresh() -> void:
 				roster.add_child(salvage)
 			canvas.slot_selected.connect(func(key: String) -> void:
 				selected_slot = key
-				_show_details())
-			canvas.instance_selected.connect(func(key: String, uid: String) -> void:
-				selected_slot = key
-				var ok := GameState.fit_equipment(selected_ship_id, key, uid)
-				if ok:
-					AudioManager.play_ui_sfx(&"place")
-				_result(ok))
+				_show_details()
+				_render_refit_panel())
 	_show_details()
 	if buy_open:
-		if stock == null:
-			_show_stock()
 		_show_buy_panel()
 	_refresh_expedition_controls()
 
@@ -1271,19 +1269,95 @@ func _restore_expedition(snapshot: Dictionary) -> void:
 		push_error("Could not roll back expedition state: " + simulation.last_error)
 
 
-func _show_stock() -> void:
+func _show_refit_panel() -> void:
 	_clear(details)
-	stock = load("res://scripts/hangar_stock.gd").new()
-	stock.preferences = stock_preferences.duplicate()
-	stock.size_flags_vertical = SIZE_EXPAND_FILL
-	details.add_child(stock)
-	stock.changed_preferences.connect(func(value: Dictionary) -> void:
-		stock_preferences = value)
-	stock.equipment_stored.connect(_result)
-	stock.equipment_sold.connect(_result)
-	stock.equipment_selected.connect(func(uid: String) -> void:
-		var instance: Dictionary = GameState.equipment_inventory[uid]
-		_inspect_equipment(instance.equipment_id, int(instance.rank), uid))
+	refit_panel = VBoxContainer.new()
+	refit_panel.name = "RefitPanel"
+	refit_panel.size_flags_vertical = SIZE_EXPAND_FILL
+	details.add_child(refit_panel)
+	_render_refit_panel()
+
+# Ships are refitted as a whole loadout, or one mount at a time after clicking
+# that mount on the ship. Both happen only at a shipyard, for a small fee.
+func _render_refit_panel() -> void:
+	if not is_instance_valid(refit_panel):
+		return
+	_clear(refit_panel)
+	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
+	if owned == null:
+		return
+	var access: bool = GameState.can_use_shipyard()
+	var slot := ShipLoadouts.slot_by_id(owned.chassis, selected_slot)
+	if slot.is_empty():
+		var current: String = GameState.ship_loadout_id(owned.id)
+		var heading := UiKit.label("LOADOUT" if not current.is_empty() else "LOADOUT \u00b7 CUSTOM", &"HeaderResearch")
+		heading.name = "LoadoutHeading"
+		refit_panel.add_child(heading)
+		for loadout: Dictionary in ShipLoadouts.for_chassis(owned.chassis_id):
+			var fee: int = GameState.refit_quote(owned.id, loadout.mounts)
+			var fitted: bool = loadout.id == current
+			var option := UiKit.button(str(loadout.name) + ("  FITTED" if fitted else "  %d cr" % fee),
+				_refit_to.bind(loadout.id), &"")
+			option.name = "Loadout_" + str(loadout.id)
+			option.clip_text = true
+			option.disabled = fitted or not access or GameState.credits < fee
+			refit_panel.add_child(option)
+		refit_panel.add_child(UiKit.label("Click a mount on the ship to change one part."))
+	else:
+		refit_panel.add_child(UiKit.label(SlotCatalog.slot_label(slot).to_upper(), &"HeaderResearch"))
+		var instance: Dictionary = owned.mounts.get(slot.id, {})
+		var current_key := "" if instance.is_empty() else ShipLoadouts.key_for({"id": instance.equipment_id, "rank": int(instance.rank)})
+		if not instance.is_empty():
+			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
+			refit_panel.add_child(_resource_label("%s\n%s" % [item.name, _part_effect(item)]))
+		var grid := GridContainer.new()
+		grid.name = "PartOptions"
+		grid.columns = 1
+		grid.add_theme_constant_override("h_separation", 4)
+		grid.add_theme_constant_override("v_separation", 4)
+		refit_panel.add_child(grid)
+		for item: Dictionary in ShipLoadouts.part_options(slot):
+			var key := ShipLoadouts.key_for(item)
+			var fee := ShipLoadouts.part_fee(item)
+			var option := UiKit.button("%s %d cr" % [item.name, fee] if key != current_key else str(item.name),
+				_swap_part_to.bind(slot.id, key), &"")
+			option.name = "Part_" + key.replace("@", "_")
+			option.theme_type_variation = &"CompactButton"
+			option.custom_minimum_size.y = 24
+			option.clip_text = true
+			option.size_flags_horizontal = SIZE_EXPAND_FILL
+			option.disabled = key == current_key or not access or GameState.credits < fee
+			grid.add_child(option)
+		if not instance.is_empty():
+			var strip := UiKit.button("REMOVE PART", _swap_part_to.bind(slot.id, ""), &"")
+			strip.name = "RemovePart"
+			strip.disabled = not access
+			refit_panel.add_child(strip)
+		var back := UiKit.button("LOADOUTS", func() -> void:
+			selected_slot = ""
+			if is_instance_valid(canvas):
+				canvas.selected_slot = ""
+				canvas.queue_redraw()
+			_show_details()
+			_render_refit_panel(), &"detail")
+		back.name = "BackToLoadouts"
+		refit_panel.add_child(back)
+	if not access:
+		var reason := UiKit.label(GameState.station_service_error("shipyard"))
+		reason.name = "RefitServiceReason"
+		refit_panel.add_child(reason)
+
+func _refit_to(loadout_id: String) -> void:
+	var ok: bool = GameState.refit_ship(selected_ship_id, loadout_id)
+	if ok:
+		AudioManager.play_ui_sfx(&"place")
+	_result(ok)
+
+func _swap_part_to(slot_id: String, key: String) -> void:
+	var ok: bool = GameState.swap_part(selected_ship_id, slot_id, key)
+	if ok:
+		AudioManager.play_ui_sfx(&"place")
+	_result(ok)
 
 func _show_details() -> void:
 	if (not inspected_item.is_empty() and active_tab != "SHIPS") or (buy_open and active_tab == "FLEET"):
@@ -1324,7 +1398,9 @@ func _show_details() -> void:
 		for candidate: Dictionary in owned.chassis.slots:
 			if candidate.id == selected_slot and owned.mounts.has(selected_slot):
 				slot = candidate
-		if slot.is_empty():
+		# An empty mount stays selected so the refit panel can offer parts for it;
+		# only a mount that no longer exists clears the selection.
+		if ShipLoadouts.slot_by_id(owned.chassis, selected_slot).is_empty():
 			selected_slot = ""
 			canvas.selected_slot = ""
 		stats_grid.visible = slot.is_empty()
@@ -1459,7 +1535,7 @@ func _modal(title: String) -> VBoxContainer:
 		shop = null)
 	return column
 
-func _open_shop(mode := "EQUIPMENT") -> void:
+func _open_shop(mode := "SHIPS") -> void:
 	if not GameState.can_use_shipyard():
 		feedback.text = GameState.station_service_error("shipyard")
 		return
@@ -1481,7 +1557,7 @@ func _show_buy_panel(_scroll_position := 0) -> void:
 	card.add_child(column)
 	var simulation = GameState.expedition_simulation
 	var station: Dictionary = {} if simulation == null else simulation.locations.get(simulation.state.docked_location_id, {})
-	var heading := _label("%s · %s" % [str(station.get("name", "Shipyard")), "Ships" if buy_mode == "SHIPS" else "Equipment"])
+	var heading := _label("%s · Ships" % str(station.get("name", "Shipyard")))
 	heading.name = "ShopHeading"
 	heading.custom_minimum_size.y = 22
 	column.add_child(heading)
@@ -1500,10 +1576,7 @@ func _show_buy_panel(_scroll_position := 0) -> void:
 	shop_rows.add_theme_constant_override("v_separation", 4)
 	shop_rows.size_flags_horizontal = SIZE_EXPAND_FILL
 	column.add_child(shop_rows)
-	if buy_mode == "SHIPS":
-		_shop_ships()
-	else:
-		_shop_equipment()
+	_shop_ships()
 
 # Each shipyard sells a fixed, seeded selection of its own stock; only as many
 # cards as fit the panel are offered, so the shop never needs to scroll.
@@ -1543,57 +1616,6 @@ func _shop_thumbnail(texture: Texture2D, lit: bool) -> TextureRect:
 	image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	return image
 
-func _shop_equipment() -> void:
-	buy_mode = "EQUIPMENT"
-	_clear(shop_rows)
-	var grants: Dictionary = GameState.research_grants()
-	var all_ids: Array = []
-	for item in SlotCatalog.equipment():
-		if int(item.rank) == 1:
-			all_ids.append(item.id)
-	var capacity := _shop_capacity(40)
-	shop_rows.columns = capacity.x
-	var shown := 0
-	for id: Variant in _station_stock("stock", all_ids):
-		if shown >= capacity.x * capacity.y:
-			break
-		var item := SlotCatalog.find_equipment(str(id), 1)
-		if item.is_empty() or item.id in HangarResearch.DEFERRED_EQUIPMENT or item.id in HangarResearch.DEFERRED_PURCHASES:
-			continue
-		var unlocked := SlotCatalog.unlocked(item, grants)
-		var row := HBoxContainer.new()
-		row.size_flags_horizontal = SIZE_EXPAND_FILL
-		var art_path := str(item.get("art", ""))
-		row.add_child(_shop_thumbnail(SurfaceArt.texture(art_path) if not art_path.is_empty() else PlaceholderAssets.art(), not art_path.is_empty()))
-		var button := _shop_button(
-			item.name, "%s %s" % [item.type.capitalize(), item.size], int(item.price),
-			unlocked, unlocked and GameState.credits >= int(item.price),
-			func() -> void:
-				var ok := GameState.buy_equipment(item.id, int(item.rank))
-				if ok:
-					AudioManager.play_ui_sfx(&"purchase")
-				_result(ok),
-			true)
-		button.size_flags_horizontal = SIZE_EXPAND_FILL
-		button.set_meta("equipment_id", item.id)
-		button.set_meta("rank", int(item.rank))
-		button.set_meta("inspect_equipment", item.id)
-		button.gui_input.connect(func(event: InputEvent) -> void:
-			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-				_inspect_equipment(item.id, int(item.rank)))
-		row.add_child(button)
-		shop_rows.add_child(row)
-		shown += 1
-	if shown == 0:
-		shop_rows.add_child(_label("Nothing for sale"))
-
-func _shop_equipment_filters_changed(value: Dictionary) -> void:
-	stock_preferences = value
-	if is_instance_valid(stock):
-		stock.preferences = value.duplicate(true)
-		stock.filters.set_preferences(value)
-		stock._render()
-
 func _shop_ships() -> void:
 	buy_mode = "SHIPS"
 	_clear(shop_rows)
@@ -1616,11 +1638,13 @@ func _shop_ships() -> void:
 		var image := _shop_thumbnail(SurfaceArt.texture(chassis.art), true)
 		image.custom_minimum_size = Vector2(40, 48)
 		row.add_child(image)
-		var available_to_buy := GameState.credits >= int(chassis.price) and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
+		var loadout := ShipLoadouts.default_for(chassis.id)
+		var price := ShipLoadouts.ship_price(chassis.id, loadout)
+		var available_to_buy := not loadout.is_empty() and GameState.credits >= price and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
 		var button := _shop_button(
-			chassis.name, "%d command" % chassis.command_cost, int(chassis.price), true, available_to_buy,
+			"%s (%s)" % [chassis.name, loadout.get("name", "")], "%d command" % chassis.command_cost, price, true, available_to_buy,
 			func() -> void:
-				var ok := GameState.buy_chassis(chassis.id)
+				var ok := GameState.buy_ship(chassis.id)
 				if ok:
 					AudioManager.play_ui_sfx(&"purchase")
 				_result(ok),

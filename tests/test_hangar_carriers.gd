@@ -41,21 +41,17 @@ func run() -> void:
 	state.run_save_path = "user://carrier-tests.json"
 	check(state.start_new_run(1, 1357), "Start physical carrier fixture")
 	var original: Dictionary = state.hangar_snapshot()
-	check(not state.buy_equipment("flight_deck") and state.hangar_snapshot() == original, "Locked bay cannot be bought or debit credits")
 	check(not state.set_research_focus("carrier_i"), "Carrier research requires Guided Munitions")
 	var fixture := original.duplicate(true)
 	fixture.credits = 5000
-	fixture.research.research_ids.append_array(["guided_munitions", "carrier_i", "carrier_ii"])
-	fixture.research.branch_choices["force_projection"] = "carrier"
-	check(state._commit_hangar(fixture), "Research-gated carrier fixture validates")
-	check(state.buy_equipment("flight_deck"), "Shipyard sells physical researched Flight Deck")
-	var deck_uid := str(state.next_equipment_id - 1)
-	check(not state.fit_equipment(1, "fore", deck_uid), "Wrong type/size does not accept a deck")
-	check(state.fit_equipment(1, "spine", deck_uid), "Exact M general mount accepts owned deck")
-	check(state.buy_chassis("corsair") and state.buy_equipment("torpedo_bomber_bay"), "Buy bomber host and researched bay")
-	var bomber_uid := str(state.next_equipment_id - 1)
+	check(state._commit_hangar(fixture), "Carrier fixture validates")
+	check(not state.swap_part(1, "fore", "flight_deck"), "Wrong type/size does not accept a deck")
+	check(state.swap_part(1, "spine", "flight_deck"), "Exact M general mount accepts a deck without research")
+	var deck_uid: String = state.owned_ship(1).mounts.spine.uid
+	check(state.buy_ship("corsair"), "Buy bomber host")
 	var corsair: HangarShip = state.fleet[-1]
-	check(state.fit_equipment(corsair.id, "fore", bomber_uid), "Exact L offense accepts bomber bay")
+	check(state.swap_part(corsair.id, "fore", "torpedo_bomber_bay"), "Exact L combat mount accepts bomber bay")
+	var bomber_uid: String = state.owned_ship(corsair.id).mounts.fore.uid
 	check(state.load_run_checkpoint() and not state.equipment_location(deck_uid).is_empty(), "Equipment ownership survives reload")
 	check(HangarResearch.registry().research.any(func(row: Dictionary) -> bool: return row.id == "carrier_ii"), "Carrier branch is in the actual tree")
 	check(SlotCatalog.find_equipment("flight_deck").size == "M" and SlotCatalog.find_equipment("torpedo_bomber_bay").size == "L", "Draft mounts provide exact fitting opportunities")

@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 var state: Node
 var checks := 0
 var failures := 0
@@ -31,14 +33,12 @@ func run() -> void:
 	fixture.research.research_ids.append("laboratory_iii")
 	fixture.research.story_flags["boss_i_defeated"] = true
 	check(state._commit_hangar(fixture), "Late-game fixture validates")
-	check(state.buy_chassis("transport"), "Buy chassis with L civic mount")
+	check(state.buy_ship("transport"), "Buy ship with L civic mount")
 	var frigate_id: int = state.fleet[-1].id
-	check(state.buy_equipment("research_lab", 2), "Buy Lab II")
-	var lab_ii := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(frigate_id, "port", lab_ii), "Fit exact L Lab II")
-	check(state.buy_equipment("research_lab", 3), "Buy Lab III")
-	var lab_iii := str(state.next_equipment_id - 1)
-	check(state.fit_equipment(frigate_id, "hold", lab_iii), "Fit exact XL Lab III")
+	check(state.swap_part(frigate_id, "port", "research_lab@2"), "Fit exact L Lab II")
+	var lab_ii: String = state.owned_ship(frigate_id).mounts.port.uid
+	check(state.swap_part(frigate_id, "hold", "research_lab@3"), "Fit exact XL Lab III")
+	var lab_iii: String = state.owned_ship(frigate_id).mounts.hold.uid
 	var science := ScienceRules.snapshot(state.get_deployed_fleet())
 	check(science.labs.size() == 3 and science.production_version == 2, "Physical snapshot identifies ranked production")
 	check(ScienceRules.production_rate(science) == 6.0, "Lab I + II + III = 6 RP/day")
@@ -49,9 +49,10 @@ func run() -> void:
 	check(ScienceRules.production_rate({"labs": [{"rank": 3}]}) == 1.0, "Historical snapshots retain their prior lab rate")
 	check(state.load_run_checkpoint(), "Ranked equipment survives reload")
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0, "Reload retains ranked production")
-	check(state.fit_equipment(frigate_id, "port", ""), "Unequip Lab II")
-	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 4.0, "Stock labs do not produce research")
-	check(state.fit_equipment(frigate_id, "port", lab_ii), "Refit Lab II")
+	check(state.swap_part(frigate_id, "port", ""), "Remove Lab II")
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 4.0, "Removed labs do not produce research")
+	check(state.swap_part(frigate_id, "port", "research_lab@2"), "Refit Lab II")
+	lab_ii = state.owned_ship(frigate_id).mounts.port.uid
 	var lead: HangarShip = state.owned_ship(frigate_id)
 	var laboratories := lead.mounts.duplicate(true)
 	lead.damage_cell(Vector2i(lead.units.size() - 1, 0), lead.hull_hp * 0.75)
@@ -59,7 +60,7 @@ func run() -> void:
 		and lead.mounts == laboratories, "Substantial hull damage does not interrupt or replace ranked labs")
 	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Damaged operational labs persist")
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0
-		and state.owned_ship(frigate_id).mounts == laboratories, "Reload preserves ranked lab identities and operation")
+		and SaveValidation.same(state.owned_ship(frigate_id).mounts, laboratories), "Reload preserves ranked lab identities and operation")
 	check(state.repair_ship(state.owned_ship(frigate_id)), "Repair lab host hull")
 	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 6.0, "Hull repair does not change ranked production")
 	check(state.set_research_focus("applied_energy"), "Set focus before travel")
@@ -113,13 +114,13 @@ func run() -> void:
 	check(not state.set_research_focus("disruption_ii"), "No new research focus on inactive ability")
 	fixture.research.research_ids.append("disruption_ii")
 	check(state._commit_hangar(fixture), "Previously earned deferred research remains readable")
-	check(not state.buy_equipment("gravitic_snare"), "Inactive ability cannot be purchased")
+	check(not ShipLoadouts.obtainable(SlotCatalog.find_equipment("gravitic_snare")), "Inactive ability cannot be fitted")
 	for node in range(state.campaign_dag.nodes.size()):
 		check(state.equipment_loot(node).get("id") != "gravitic_snare", "Loot never awards inactive equipment")
 	check(not HangarResearch.view_registry().research.any(func(node: Dictionary) -> bool: return node.id == "disruption_ii"), "Inactive research omitted from active tree")
 	# Already-owned inactive equipment can be inspected, removed and sold; it
 	# cannot silently become deployable or be duplicated by fitting another copy.
-	check(state.buy_chassis("corsair"), "Legacy deferred equipment host")
+	check(state.buy_ship("corsair"), "Legacy deferred equipment host")
 	var host_id: int = state.fleet[-1].id
 	fixture = state.hangar_snapshot()
 	var uid := str(fixture.next_equipment_id)
@@ -128,7 +129,6 @@ func run() -> void:
 	fixture.ships[-1].mounts["fore"] = uid
 	check(state._commit_hangar(fixture) and state.load_run_checkpoint(), "Legacy inactive item remains readable")
 	check(state.deployment_error() == "Unequip deferred equipment", "Inactive loadout cannot depart")
-	check(state.fit_equipment(host_id, "fore", ""), "Legacy inactive item can be removed")
-	check(state.sell_equipment(uid), "Legacy inactive item can be sold")
+	check(state.fit_equipment(host_id, "fore", "") and not state.equipment_inventory.has(uid), "Legacy inactive item can be removed (and is scrapped)")
 	print("HANGAR RESEARCH: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

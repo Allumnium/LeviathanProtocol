@@ -261,14 +261,17 @@ func run() -> void:
 	settings.queue_free()
 	var data: Dictionary = state.hangar_snapshot()
 	data.credits = 5000
-	check(state._commit_hangar(data) and state.buy_chassis("transport"), "Buy escort")
+	check(state._commit_hangar(data) and state.buy_ship("transport"), "Buy escort")
 	check(state.move_ships({state.fleet.back().id: Vector2(2, 1)}),
 		"Purchased fixture escort stays outside the starter group selection")
 	screen = load("res://scenes/game_map.tscn").instantiate()
 	root.add_child(screen)
 	current_scene = screen
 	await settle()
-	check(screen.active_tab == "FLEET", "Fleet opens first")
+	check(screen.active_tab == "MAP", "Map opens first")
+	screen.tabs.get_child(1).pressed.emit()
+	await settle()
+	check(screen.active_tab == "FLEET", "Fleet tab opens the formation view")
 	check(screen.formation_view.exhaust_elapsed > 0, "Fleet view continuously animates preview thrust")
 	check(root.snap_2d_transforms_to_pixel and root.snap_2d_vertices_to_pixel,
 		"Active viewport snaps UI positions and vertices to pixels")
@@ -365,7 +368,7 @@ func run() -> void:
 	await settle()
 	check(screen.research_button.size.y <= 34, "Research button returns to compact height after a long name")
 	check(screen.roster.find_child("BuyEquipment", true, false) == null
-		and screen.roster.find_child("BuyChassis", true, false) != null, "Fleet has only Buy Chassis")
+		and screen.roster.find_child("BuyShips", true, false) != null, "Fleet offers Buy Ships")
 	screen.formation_view.camera = Vector2(25, -12)
 	screen.formation_view.zoom = 1.3
 	var roster_escort_id: int = state.fleet[1].id
@@ -389,78 +392,45 @@ func run() -> void:
 		"Native Fleet sprite double-click opens the matching ship editor")
 	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false).button_pressed,
 		"Editor sprite tile marks the double-clicked ship")
-	screen.tabs.get_child(0).pressed.emit()
+	screen.tabs.get_child(1).pressed.emit()
 	await settle()
 	check(screen.formation_view.camera == Vector2(25, -12) and is_equal_approx(screen.formation_view.zoom, 1.3),
 		"Returning from sprite double-click preserves formation pan and zoom")
 	screen.selected_ship_id = state.fleet[0].id
 	screen._refresh()
 	await settle()
-	screen.tabs.get_child(1).pressed.emit()
+	screen.tabs.get_child(2).pressed.emit()
 	await settle()
-	check(screen.roster.find_child("BuyChassis", true, false) == null, "Ships has only Buy Equipment")
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
+	check(screen.roster.find_child("BuyEquipment", true, false) == null
+		and screen.details.find_child("RefitPanel", true, false) != null,
+		"Ships shows loadout refits instead of an equipment shop")
+	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
-	check(screen.stock != null and screen.stock.get_parent() == screen.details
-		and screen.buy_mode == "EQUIPMENT", "Ships equipment shop shows shared stock in the right panel")
-	var range_control: Control = screen.stock.filters.size_range
-	var range_origin: Vector2 = range_control.global_position
-	await drag(range_origin + Vector2(range_control._handle_center(0), 10),
-		range_origin + Vector2(range_control._handle_x(1), 10))
-	check(screen.stock.filters.get_preferences().sizes == ["M", "L", "XL"],
-		"Dragging the lower size handle selects an inclusive range")
-	await drag(range_origin + Vector2(range_control._handle_center(1), 10),
-		range_origin + Vector2(range_control._handle_x(1), 10))
-	check(screen.stock.filters.get_preferences().sizes == ["M"],
-		"Range handles can meet on one inclusive size")
-	await drag(range_origin + Vector2(range_control._handle_center(0), 10),
-		range_origin + Vector2(range_control._handle_x(0), 10))
-	check(screen.stock.filters.get_preferences().sizes == ["S", "M"],
-		"Both handles remain selectable when the range has one size")
-	await drag(range_origin + Vector2(range_control._handle_center(0), 10),
-		range_origin + Vector2(range_control._handle_x(3), 10))
-	check(screen.stock.filters.get_preferences().sizes == ["M"],
-		"Dragging an endpoint beyond the other handle never crosses it")
-	await drag(range_origin + Vector2(range_control._handle_center(1), 10),
-		range_origin + Vector2(range_control.size.x + 12, 10))
-	check(screen.stock.filters.get_preferences().sizes == ["M", "L", "XL"]
-		and range_control.dragging_handle == -1,
-		"Releasing outside the range clamps to the final stop and ends dragging")
-	screen.stock.filters.set_preferences({"sizes": ["S", "L"]})
-	screen.stock._change()
-	check(screen.stock.filters.get_preferences().sizes == ["S", "M", "L"],
-		"Disjoint historical size preferences normalize to their inclusive span")
-	screen.stock.filters.set_preferences({})
-	screen.stock._change()
-	await settle()
-	var before_purchase: int = state.equipment_inventory.size()
+	var before_purchase: int = state.fleet.size()
 	for offer: HBoxContainer in screen.shop_rows.get_children():
 		var purchase: Button = offer.get_child(1)
 		if not purchase.disabled:
 			var row_center := purchase.get_global_rect().get_center()
 			await drag(row_center, row_center)
-			check(state.equipment_inventory.size() == before_purchase,
-				"Clicking the equipment shop row does not purchase")
+			check(state.fleet.size() == before_purchase, "Clicking a ship offer does not purchase")
 			purchase.pressed.emit()
-			check(state.equipment_inventory.size() == before_purchase,
-				"Equipment inspection row has no purchase callback")
-			check(not screen.inspected_item.is_empty() and screen.inspection != null and not screen.stock.visible,
-				"Equipment row opens inspection while retaining hidden stock")
+			check(state.fleet.size() == before_purchase, "Ship inspection row has no purchase callback")
+			check(not screen.inspected_item.is_empty() and screen.inspection != null,
+				"Ship offer opens inspection in the side panel")
 			var buy: TextureButton = purchase.find_child("BuyIcon", true, false)
 			check(buy != null and buy.size == Vector2(32, 32) and purchase.size.y < 52,
-				"Equipment has a double-size green buy button and compact row")
+				"Ship offers have a double-size green buy button and compact row")
 			await drag(buy.get_global_rect().get_center(), buy.get_global_rect().get_center())
 			break
 	await settle()
-	check(screen.stock != null and screen.buy_open and state.equipment_inventory.size() == before_purchase + 1,
-		"Equipment purchases refresh stock while keeping the shop open")
-	await capture("fleet-equipment-shop")
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
+	check(screen.buy_open and state.fleet.size() == before_purchase + 1, "Ship purchases keep the shop open")
+	await capture("ships-shop")
+	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
-	screen.tabs.get_child(0).pressed.emit()
+	screen.tabs.get_child(1).pressed.emit()
 	await settle()
-	check(screen.stock == null and screen.details.get_child(0).text == state.fleet[0].display_name,
-		"Closing Fleet equipment shop restores ship details")
+	check(not screen.buy_open and screen.details.get_child(0).text == state.fleet[0].display_name,
+		"Closing the ship shop restores ship details")
 	await drag(screen.research_status.get_global_rect().get_center(), screen.research_status.get_global_rect().get_center())
 	check(screen.active_tab == "RESEARCH" and screen.research_button.button_pressed,
 		"Clicking embedded research content activates its tab")
@@ -507,7 +477,7 @@ func run() -> void:
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4
 		and screen.research_panel.selected_id == "laboratory_ii",
 		"Research focus refresh preserves camera and selection")
-	screen.tabs.get_child(0).pressed.emit()
+	screen.tabs.get_child(1).pressed.emit()
 	await settle()
 	screen.research_button.pressed.emit()
 	await settle()
@@ -515,7 +485,7 @@ func run() -> void:
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4,
 		"Returning to Research preserves the user's view")
 	await capture("research-view-preserved")
-	screen.tabs.get_child(0).pressed.emit()
+	screen.tabs.get_child(1).pressed.emit()
 	await settle()
 	var board: Control = screen.formation_view
 	board.camera = Vector2(20, -15)
@@ -571,7 +541,7 @@ func run() -> void:
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
 		and repair_label.icon_size == screen.details.get_child(1).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 970 / 970\n1 RP / day\nCargo capacity 10",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo capacity 20",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -587,8 +557,8 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1190 / 1190\n2 RP / day\nCargo capacity 20\nPassenger capacity 4" % [
-		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1310 / 1310\n2 RP / day\nCargo capacity 30\nPassenger capacity 4" % [
+		10.8 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
@@ -601,13 +571,13 @@ func run() -> void:
 	summary_ship.hull_hp -= 15
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1175 / 1190\n2 RP / day\nCargo capacity 20\nPassenger capacity 4" % [
-		7.2 + fixture_summary.dps, 40 + fixture_summary.shields],
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1295 / 1310\n2 RP / day\nCargo capacity 30\nPassenger capacity 4" % [
+		10.8 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 7.2\nShield 40\nHull 970 / 970\n1 RP / day\nCargo capacity 10",
+	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo capacity 20",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()
@@ -690,6 +660,7 @@ func run() -> void:
 	screen.queue_free()
 	await settle()
 	screen = load("res://scenes/game_map.tscn").instantiate()
+	screen.active_tab = "FLEET"
 	root.add_child(screen)
 	current_scene = screen
 	await settle()

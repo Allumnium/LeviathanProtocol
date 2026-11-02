@@ -19,6 +19,44 @@ A playable Act I demo now runs end to end; see "Demo vertical slice" in [docs/HA
 
 Partially delivered from the plan: authored distance/zone/arrival events with effects (E06/E07), the expedition Map overlay (E08), docked trade/refuel (E09), distance research and self-repair (E10), and combat admission/settlement keyed by event ID (E11). Still open: procedural POIs/cells, rescue/tow, refuel quotes, the expedition checkpoint format, and the E12-E14 pacing/performance work.
 
+## Fleet-command direction (owner review 2026-11-02)
+
+The player commands fleets, not parts. Cut equipment busywork, make research feel powerful, and scale to fleets of 30-50 ships. Where this conflicts with older sections or AGENTS.md (shared stock, equipment buying/selling, drag-fitting, research-gated equipment, single-ship UI), this section wins. Build in order; each phase ships playable with tests.
+
+### D1 - Foundation: loadouts instead of stock
+
+- [x] Remove the player's equipment stock, equipment buying, inline selling and drag-fitting. Equipment exists only on ships; per-instance IDs remain internal (cargo/passenger loads still follow them).
+- [x] Every ship class has named loadouts in data (e.g. Fighter: Interceptor / Striker / Escort). Ships are bought fully fitted with their default loadout.
+- [x] At a shipyard, a ship can switch loadout, or swap one mount's part by clicking the mount; refits cost a small fee per changed part. Loaded holds/cabins must deliver first.
+- [x] All obtainable equipment is selectable; research no longer gates parts.
+- [x] "Buy Chassis" becomes "Buy Ships".
+- [x] Map is the first, default tab and the home screen; Fleet is for arrangement.
+- [x] Battle rewards stop granting items: credits and research points for now (D2 adds the rest).
+- [x] Pricing: refit fee per changed part = max(5, 25% of part price), removals free; a fitted ship costs its chassis plus half its parts. Data: `data/ship_loadouts.json`, logic: `scripts/ship_loadouts.gd`, tests: `tests/test_ship_refit.gd`.
+
+### D2 - Rewards and resources
+
+- [ ] Battle/event rewards: credits, research points, occasional rescued ships that join the fleet, rarely fuel.
+- [ ] Missiles as a consumable fleet resource (FTL-style): missile weapons spend them; bought at stations and found in salvage.
+
+### D3 - Squadrons and stances
+
+- [ ] Ships belong to squadrons, the main unit of command. A squadron owns its stance, formation slot and default loadout, with per-ship overrides.
+- [ ] Stances: Seek & Destroy, Defend Flagship, Evade. Combat AI targeting and movement follow them (Evade keeps transports out of fights).
+- [ ] Group actions: refit, repair, buy N ships into a squadron. The Fleet tab arranges squadrons as blocks.
+
+### D4 - Research that you can feel
+
+- [ ] Replace flat percentages with noticeable effects, StarCraft-style: e.g. "Prismatic lasers" make lasers continuous beams that ramp damage the longer they stay on target; missiles that split; shields that pulse.
+- [ ] Economy/travel nodes: passive income, fuel economy, faster cruise / fewer random encounters.
+- [ ] Activated combat abilities with cooldowns (build on the existing ability bar).
+- [ ] Research raises the command limit as long-term fleet growth. Keep a few exclusive branch choices so runs differ.
+
+### D5 - Scale to large fleets
+
+- [ ] Support 20-30 fighters and 10-20 transports: raise the live battle-entity cap (currently 64 shared) and command budgets, profile 50-vs-40 battles at 5x, and cheapen distant AI if needed.
+- [ ] Squadron-level battle HUD, health and reports; squadron-grouped Ships/Fleet views.
+
 ## 1. Confirmed owner decisions
 
 1. One continuous expedition world. Flagship and escorts remain visible; travel, hazards, combat, regrouping and docking never replace the gameplay scene. Cruise reads as upward flight with scenery scrolling downward.

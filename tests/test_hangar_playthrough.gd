@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 # Player-like progression: normal credit/research APIs, no free unlocks, repairs
 # paid from earnings and every combat outcome produced by the real simulation.
 var state: Node
@@ -77,22 +79,14 @@ func outfit(ship_id: int, trade: bool) -> void:
 				best = item
 		if best.is_empty():
 			continue
-		var uid := ""
-		for instance: Dictionary in state.equipment_inventory.values():
-			if instance.equipment_id == best.id and int(instance.rank) == int(best.rank) and state.equipment_location(instance.uid).is_empty():
-				uid = instance.uid
-				break
-		if uid.is_empty():
-			var research_reserve := 0
-			if science_build and state.current_research_ids.has("laboratory_iii") \
-				and not (best.id == "research_lab" and int(best.rank) == 3) \
-				and not state.equipment_inventory.values().any(func(item: Dictionary) -> bool:
-					return item.equipment_id == "research_lab" and int(item.rank) == 3):
-				research_reserve = int(SlotCatalog.find_equipment("research_lab", 3).price)
-			if state.credits >= int(best.price) + research_reserve and state.buy_equipment(best.id, int(best.rank)):
-				uid = str(state.next_equipment_id - 1)
-		if not uid.is_empty():
-			check(state.fit_equipment(ship_id, slot.id, uid), "Fit researched owned equipment")
+		var research_reserve := 0
+		if science_build and state.current_research_ids.has("laboratory_iii") \
+			and not (best.id == "research_lab" and int(best.rank) == 3) \
+			and not state.equipment_inventory.values().any(func(item: Dictionary) -> bool:
+				return item.equipment_id == "research_lab" and int(item.rank) == 3):
+			research_reserve = ShipLoadouts.part_fee(SlotCatalog.find_equipment("research_lab", 3))
+		if state.credits >= ShipLoadouts.part_fee(best) + research_reserve:
+			check(state.swap_part(ship_id, slot.id, ShipLoadouts.key_for(best)), "Refit to researched equipment")
 
 func prepare(trade: bool) -> void:
 	var ids: Array[int] = []
@@ -122,9 +116,9 @@ func prepare(trade: bool) -> void:
 				return item.equipment_id == "research_lab" and int(item.rank) == 3):
 			research_reserve = int(SlotCatalog.find_equipment("research_lab", 3).price)
 		# Do not buy an empty hull with no money left for its initial guns.
-		if state.credits < int(chassis.price) + 160 + research_reserve:
+		if state.credits < ShipLoadouts.ship_price(key, ShipLoadouts.default_for(key)) + 160 + research_reserve:
 			continue
-		if state.buy_chassis(key):
+		if state.buy_ship(key):
 			outfit(state.fleet[-1].id, trade)
 
 func focus(trade: bool) -> void:

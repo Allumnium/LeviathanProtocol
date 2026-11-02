@@ -7,6 +7,7 @@ signal travel_plan_changed
 
 enum Difficulty { EASY, MEDIUM, HARD }
 const ExpeditionSimulationScript = preload("res://scripts/expedition_simulation.gd")
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
 var fleet: Array[FleetShip] = []
 var next_ship_id := 1
 var credits := 600
@@ -118,21 +119,17 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	last_battle_report.clear()
 	last_equipment_loot = ""
 	_build_campaign()
+	# Every starting ship arrives fully fitted with its class's default loadout.
 	var lead := _add_chassis(flagship_id, true)
 	lead.formation = Vector2.ZERO
-	_give_starter_equipment(lead, "mini_turret", "port")
-	_give_starter_equipment(lead, "mini_turret", "starboard")
-	_give_starter_equipment(lead, "research_lab", "spine")
+	_install_loadout(lead, ShipLoadouts.default_for(flagship_id))
 	var transport := _add_chassis("transport")
 	transport.formation = Vector2(0, 1.1)
-	# The convoy starts ready to trade, with armor on every mount a plate fits.
-	_give_starter_equipment(transport, "cargo_hold", "hold")
-	_fit_starter_armor(transport)
+	_install_loadout(transport, ShipLoadouts.default_for("transport"))
 	for index in range(2):
 		var fighter := _add_chassis("fighter")
 		fighter.formation = Vector2(-1.25 if index == 0 else 1.25, -1.25)
-		_give_starter_equipment(fighter, "mini_turret", "port")
-		_give_starter_equipment(fighter, "mini_turret", "starboard")
+		_install_loadout(fighter, ShipLoadouts.default_for("fighter"))
 	hangar_generation = -1
 	if not save_run_checkpoint():
 		if not before.is_empty():
@@ -146,29 +143,14 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	_notify_hangar()
 	return true
 
-func _give_starter_equipment(owned: HangarShip, key: String, preferred: String) -> void:
-	var instance := _new_equipment(key)
-	var item := SlotCatalog.find_equipment(key)
-	for slot: Dictionary in owned.chassis.slots:
-		if slot.id == preferred and not owned.mounts.has(slot.id) and SlotCatalog.compatible(slot, item):
-			owned.mounts[slot.id] = instance
-			owned.rebuild_units()
-			return
-	# Catalog edits may remove compatible mounts; keep the real item in stock.
-	for slot: Dictionary in owned.chassis.slots:
-		if not owned.mounts.has(slot.id) and SlotCatalog.compatible(slot, item):
-			owned.mounts[slot.id] = instance
-			owned.rebuild_units()
-			return
-
-func _fit_starter_armor(owned: HangarShip) -> void:
-	for slot: Dictionary in owned.chassis.slots:
-		if owned.mounts.has(slot.id):
-			continue
-		for key in ["hull_plate", "armor_block"]:
-			if SlotCatalog.compatible(slot, SlotCatalog.find_equipment(key)):
-				_give_starter_equipment(owned, key, slot.id)
-				break
+func _install_loadout(owned: HangarShip, loadout: Dictionary) -> void:
+	for slot_id: String in loadout.get("mounts", {}):
+		var parsed := ShipLoadouts.parse_key(str(loadout.mounts[slot_id]))
+		var instance := _new_equipment(parsed.id, parsed.rank)
+		if not instance.is_empty():
+			owned.mounts[slot_id] = instance
+	owned.rebuild_units()
+	owned.hull_hp = owned.hull_max
 
 func _build_campaign() -> void:
 	campaign_active = true
@@ -193,17 +175,6 @@ func _new_equipment(key: String, rank := 1) -> Dictionary:
 	var instance := {"uid": uid, "equipment_id": key, "rank": rank}
 	equipment_inventory[uid] = instance
 	return instance
-
-func _give_equipment(owned: HangarShip, slot: String, key: String) -> void:
-	var mount := {}
-	for candidate: Dictionary in owned.chassis.slots:
-		if candidate.id == slot:
-			mount = candidate
-	var item := SlotCatalog.find_equipment(key)
-	if mount.is_empty() or not SlotCatalog.compatible(mount, item):
-		return
-	owned.mounts[slot] = _new_equipment(key)
-	owned.rebuild_units()
 
 func hangar_snapshot() -> Dictionary:
 	var ships: Array = []
@@ -415,14 +386,6 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 			if owned != null and owned.is_alive():
 				entry.hull_hp = maxf(0.0, float(entry.hull_hp) - owned.hull_max * float(effects.hull_damage))
 		summary.append("Hull damage %d%%" % roundi(float(effects.hull_damage) * 100))
-	for index in range(int(effects.get("loot", 0))):
-		var item := _expedition_loot("%s/%s/%d" % [event_id, choice, index])
-		if item.is_empty():
-			continue
-		var uid := str(proposal.next_equipment_id)
-		proposal.equipment[uid] = {"uid": uid, "equipment_id": item.id, "rank": int(item.rank)}
-		proposal.next_equipment_id += 1
-		summary.append("Found " + str(item.name))
 	if effects.has("flag"):
 		summary.append("New destination revealed")
 	if effects.has("combat"):
@@ -435,7 +398,7 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	if not _save_hangar(proposal):
 		return false
 	var hangar_changed := false
-	for key in ["credits", "research", "hull_damage", "loot", "combat"]:
+	for key in ["credits", "research", "hull_damage", "combat"]:
 		hangar_changed = hangar_changed or effects.has(key)
 	if hangar_changed:
 		_apply_hangar(proposal)
@@ -472,22 +435,6 @@ func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
 	encounter["expedition_event_id"] = event_id
 	encounter["complete"] = bool(effects.get("complete", false))
 	return encounter
-
-func _expedition_loot(key: String) -> Dictionary:
-	var candidates: Array[Dictionary] = []
-	var grants := research_grants()
-	for item in SlotCatalog.equipment():
-		if item.id in HangarResearch.DEFERRED_PURCHASES or item.id in HangarResearch.DEFERRED_EQUIPMENT \
-				or item.id == "command_center" or not SlotCatalog.unlocked(item, grants):
-			continue
-		if fleet.any(func(owned: FleetShip) -> bool:
-			return (owned as HangarShip).chassis.slots.any(func(slot: Dictionary) -> bool: return SlotCatalog.compatible(slot, item))):
-			candidates.append(item)
-	if candidates.is_empty():
-		return {}
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%d/loot/%s" % [run_seed, key])
-	return candidates[rng.randi_range(0, candidates.size() - 1)]
 
 func station_trade_node(location_id: String) -> Dictionary:
 	if expedition_simulation == null:
@@ -694,21 +641,6 @@ func _deliver_loads(location_id: String) -> int:
 			owned.mounts[slot] = equipment_inventory[owned.mounts[slot].uid]
 	return credits - before
 
-func buy_equipment(key: String, rank := 1) -> bool:
-	if not _require_shipyard():
-		return false
-	if key in HangarResearch.DEFERRED_PURCHASES:
-		return false
-	var item := SlotCatalog.find_equipment(key, rank)
-	if not _can_refit() or not is_shipyard_node(current_node_id) or not SlotCatalog.unlocked(item, research_grants()) or credits < int(item.price):
-		return false
-	var data := hangar_snapshot()
-	var uid := str(next_equipment_id)
-	data.equipment[uid] = {"uid": uid, "equipment_id": key, "rank": rank}
-	data.next_equipment_id += 1
-	data.credits -= int(item.price)
-	return _commit_hangar(data)
-
 func equipment_location(uid: String) -> Dictionary:
 	for owned: HangarShip in fleet:
 		for slot in owned.mounts:
@@ -716,16 +648,15 @@ func equipment_location(uid: String) -> Dictionary:
 				return {"ship_id": owned.id, "slot": slot}
 	return {}
 
+# Moves an existing instance to a mount (internal primitive). There is no
+# stock: a displaced or removed part is scrapped.
 func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
 	if not _require_shipyard():
 		return false
 	var target := owned_ship(ship_id)
 	if target == null:
 		return false
-	var slot := {}
-	for candidate: Dictionary in target.chassis.slots:
-		if candidate.id == slot_id:
-			slot = candidate
+	var slot := ShipLoadouts.slot_by_id(target.chassis, slot_id)
 	if slot.is_empty():
 		return false
 	if not uid.is_empty():
@@ -733,9 +664,7 @@ func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
 			return false
 		var instance: Dictionary = equipment_inventory[uid]
 		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-		if item.id in HangarResearch.DEFERRED_PURCHASES:
-			return false
-		if not SlotCatalog.compatible(slot, item) or not SlotCatalog.unlocked(item, research_grants()):
+		if not SlotCatalog.compatible(slot, item) or not ShipLoadouts.obtainable(item):
 			return false
 	var data := hangar_snapshot()
 	for entry: Dictionary in data.ships:
@@ -745,6 +674,8 @@ func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
 				if HangarTrade.has_load(data.equipment[entry.mounts[key]]):
 					last_save_error = "Deliver passengers/cargo first"
 					return false # Deliver occupied cabins/holds before removing them.
+				if entry.mounts[key] != uid:
+					data.equipment.erase(entry.mounts[key])
 				entry.mounts.erase(key)
 		if int(entry.id) == ship_id and not uid.is_empty():
 			entry.mounts[slot_id] = uid
@@ -760,31 +691,116 @@ func _fitted_integrity(entry: Dictionary, inventory: Dictionary) -> float:
 		total += SlotCatalog.stats_for(instance.equipment_id, int(instance.rank)).integrity
 	return total
 
-func sell_equipment(uid: String) -> bool:
+func ship_loadout_id(ship_id: int) -> String:
+	var owned := owned_ship(ship_id)
+	return "" if owned == null else ShipLoadouts.matching(owned.chassis_id, owned.mounts)
+
+func refit_quote(ship_id: int, target: Dictionary) -> int:
+	var owned := owned_ship(ship_id)
+	return 0 if owned == null else ShipLoadouts.refit_fee(ShipLoadouts.current_keys(owned.mounts), target)
+
+func refit_ship(ship_id: int, loadout_id: String) -> bool:
+	var owned := owned_ship(ship_id)
+	var loadout: Dictionary = {} if owned == null else ShipLoadouts.find(owned.chassis_id, loadout_id)
+	if loadout.is_empty():
+		last_save_error = "Unknown loadout."
+		return false
+	return _refit(ship_id, loadout.mounts)
+
+# Swaps one mount to `key` ("id" or "id@rank"); an empty key strips the mount.
+func swap_part(ship_id: int, slot_id: String, key: String) -> bool:
+	var owned := owned_ship(ship_id)
+	if owned == null:
+		return false
+	var target := ShipLoadouts.current_keys(owned.mounts)
+	if key.is_empty():
+		target.erase(slot_id)
+	else:
+		target[slot_id] = key
+	return _refit(ship_id, target)
+
+# Atomic shipyard refit to the given mount keys, paying the per-part fee.
+func _refit(ship_id: int, target: Dictionary) -> bool:
 	if not _require_shipyard():
 		return false
-	if not _can_refit() or not equipment_inventory.has(uid) or not equipment_location(uid).is_empty() or HangarTrade.has_load(equipment_inventory[uid]):
+	var owned := owned_ship(ship_id)
+	if not _can_refit() or owned == null:
+		last_save_error = "Refits are unavailable right now."
 		return false
-	var instance: Dictionary = equipment_inventory[uid]
-	var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
+	for slot_id: String in target:
+		var item := ShipLoadouts.item_for(str(target[slot_id]))
+		if not SlotCatalog.compatible(ShipLoadouts.slot_by_id(owned.chassis, slot_id), item) or not ShipLoadouts.obtainable(item):
+			last_save_error = "That part does not fit this mount."
+			return false
+	var current := ShipLoadouts.current_keys(owned.mounts)
+	if SaveValidation.same(current, target):
+		last_save_error = "Already fitted."
+		return false
+	var fee := ShipLoadouts.refit_fee(current, target)
+	if credits < fee:
+		last_save_error = "Not enough credits to refit. Cost: %d." % fee
+		return false
 	var data := hangar_snapshot()
-	RunScore.earn_credits(data, floori(float(item.price) * 0.5))
-	data.equipment.erase(uid)
+	var entry: Dictionary = {}
+	for candidate: Dictionary in data.ships:
+		if int(candidate.id) == ship_id:
+			entry = candidate
+	var armor_before := _fitted_integrity(entry, data.equipment)
+	var slots := current.keys()
+	for slot_id: String in target:
+		if slot_id not in slots:
+			slots.append(slot_id)
+	for slot_id: String in slots:
+		if str(current.get(slot_id, "")) == str(target.get(slot_id, "")):
+			continue
+		if entry.mounts.has(slot_id):
+			var old_uid: String = entry.mounts[slot_id]
+			if HangarTrade.has_load(data.equipment[old_uid]):
+				last_save_error = "Deliver passengers/cargo first"
+				return false
+			data.equipment.erase(old_uid)
+			entry.mounts.erase(slot_id)
+		if target.has(slot_id):
+			var parsed := ShipLoadouts.parse_key(str(target[slot_id]))
+			var uid := str(data.next_equipment_id)
+			data.next_equipment_id += 1
+			data.equipment[uid] = {"uid": uid, "equipment_id": parsed.id, "rank": int(parsed.rank)}
+			entry.mounts[slot_id] = uid
+	var fitted := _fitted_integrity(entry, data.equipment)
+	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
+	data.credits -= fee
 	return _commit_hangar(data)
 
-func buy_chassis(key: String) -> bool:
+# Ships are sold fully fitted with a named loadout (the class default if none).
+func buy_ship(key: String, loadout_id := "") -> bool:
 	if not _require_shipyard():
 		return false
 	var chassis := SlotCatalog.find_chassis(key)
-	if not _can_refit() or not is_shipyard_node(current_node_id) or chassis.is_empty() or int(chassis.command) > 0 or credits < int(chassis.price) or used_command() + int(chassis.command_cost) > command_limit():
+	var loadout := ShipLoadouts.default_for(key) if loadout_id.is_empty() else ShipLoadouts.find(key, loadout_id)
+	var price := ShipLoadouts.ship_price(key, loadout)
+	if not _can_refit() or chassis.is_empty() or int(chassis.command) > 0 or loadout.is_empty():
+		return false
+	if credits < price:
+		last_save_error = "Not enough credits. Cost: %d." % price
+		return false
+	if used_command() + int(chassis.command_cost) > command_limit():
+		last_save_error = "Not enough command capacity."
 		return false
 	var data := hangar_snapshot()
 	var candidate := HangarShip.new()
 	candidate.initialize_chassis(key, next_ship_id)
 	candidate.formation = Vector2(fleet.size() % 3 - 1, floori(fleet.size() / 3.0))
-	data.ships.append(candidate.to_hangar_data())
+	var entry := candidate.to_hangar_data()
+	for slot_id: String in loadout.mounts:
+		var parsed := ShipLoadouts.parse_key(str(loadout.mounts[slot_id]))
+		var uid := str(data.next_equipment_id)
+		data.next_equipment_id += 1
+		data.equipment[uid] = {"uid": uid, "equipment_id": parsed.id, "rank": int(parsed.rank)}
+		entry.mounts[slot_id] = uid
+	entry.hull_hp = float(chassis.integrity) + _fitted_integrity(entry, data.equipment)
+	data.ships.append(entry)
 	data.next_ship_id += 1
-	data.credits -= int(chassis.price)
+	data.credits -= price
 	return _commit_hangar(data)
 
 func salvage_hangar_ship(ship_id: int) -> bool:
@@ -1120,7 +1136,8 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	if not _save_hangar(data):
 		return false
 	last_battle_report.clear()
-	last_equipment_loot = equipment_loot(destination_node_id).get("name", "") if won else ""
+	var legacy_loot := str(equipment_loot(destination_node_id).get("name", "")) if won else ""
+	last_equipment_loot = "" if legacy_loot.is_empty() else "Loot: " + legacy_loot
 	for actor in simulation.players:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
 			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
@@ -1146,14 +1163,16 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
 	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
 	var event_id: String = pending_encounter.get("expedition_event_id", "")
-	var loot := {}
+	var reward := ""
 	if won:
 		RunScore.earn_credits(data, int(pending_encounter.rewards.credits))
-		loot = _expedition_loot("battle/" + event_id)
-		if not loot.is_empty():
-			var uid := str(data.next_equipment_id)
-			data.equipment[uid] = {"uid": uid, "equipment_id": loot.id, "rank": int(loot.rank)}
-			data.next_equipment_id += 1
+		# Victories yield research data instead of loose equipment.
+		var rp := 2.0 + float(pending_encounter.get("global_row", 1))
+		if str(data.research.research_focus).is_empty():
+			reward = "Research data lost: no focus"
+		else:
+			_allocate_research(data.research, rp)
+			reward = "+%s RP" % ScienceRules.format_rp(rp)
 		if pending_encounter.get("complete", false):
 			data.completed = true
 			data.research.story_flags["boss_i_defeated"] = true
@@ -1167,7 +1186,7 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	if not _save_hangar(data):
 		return false
 	last_battle_report.clear()
-	last_equipment_loot = str(loot.get("name", "")) if won else ""
+	last_equipment_loot = reward
 	for actor in simulation.players:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
 			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})

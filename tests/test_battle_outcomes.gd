@@ -43,27 +43,24 @@ func run() -> void:
 	state._apply_hangar(data)
 	check(not state.hangar_snapshot().has("score"), "Resaving an older run does not enable scoring")
 	check(state.start_new_run(1, 810), "Restart scored fixture")
-	check(state.buy_equipment("mini_turret"), "Purchase fixture")
-	var uid := str(state.next_equipment_id - 1)
+	check(state.buy_ship("drone"), "Salvage income fixture starts")
+	var salvage_id: int = state.fleet[-1].id
+	var salvage_value := floori(float(state.fleet[-1].chassis.price) * 0.5)
+	check(state.run_score.credits_earned == 0, "Spending never counts as earned credits")
 	var before: Dictionary = state.hangar_snapshot()
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-score-save.json"
-	check(not state.sell_equipment(uid) and state.hangar_snapshot() == before, "Failed sale changes neither credits nor score")
+	check(not state.salvage_hangar_ship(salvage_id) and state.hangar_snapshot() == before, "Failed salvage changes neither credits nor score")
 	state.run_save_path = path
-	check(state.sell_equipment(uid) and state.run_score.credits_earned == 20, "Sale income counts once")
-	check(state.save_run_checkpoint() and state.load_run_checkpoint() and state.run_score.credits_earned == 20,
+	check(state.salvage_hangar_ship(salvage_id) and state.run_score.credits_earned == salvage_value,
+		"Chassis salvage includes gross credit income once")
+	check(state.save_run_checkpoint() and state.load_run_checkpoint() and state.run_score.credits_earned == salvage_value,
 		"Score persists across Continue")
 	var delivery: Dictionary = state.hangar_snapshot()
 	delivery.equipment["3"].load = {"kind": "cargo", "quantity": 10, "unit_value": 6, "origin": 0}
 	HangarTrade.arrive(delivery, {"inhabited": true})
 	HangarTrade.arrive(delivery, {"inhabited": true})
-	check(delivery.score.credits_earned == 80, "Delivery counts gross income exactly once")
-	check(state.buy_chassis("drone"), "Salvage income fixture starts")
-	var salvage_id: int = state.fleet[-1].id
-	var salvage_value := floori(float(state.fleet[-1].chassis.price) * 0.5)
-	check(state.run_score.credits_earned == 20, "Spending never reduces accumulated earned credits")
-	check(state.salvage_hangar_ship(salvage_id) and state.run_score.credits_earned == 20 + salvage_value,
-		"Chassis salvage includes gross credit income")
+	check(delivery.score.credits_earned == salvage_value + 60, "Delivery counts gross income exactly once")
 	_test_damage()
 	await _test_victory()
 	await _test_defeat()
@@ -161,7 +158,7 @@ func _test_victory() -> void:
 
 func _test_defeat() -> void:
 	check(state.start_new_run(1, 810), "Defeat scoring fixture starts")
-	check(state.buy_chassis("drone"), "Surviving escort defeat fixture starts")
+	check(state.buy_ship("drone"), "Surviving escort defeat fixture starts")
 	var battle := _battle()
 	await settle()
 	state.fleet[0].hull_hp = -1

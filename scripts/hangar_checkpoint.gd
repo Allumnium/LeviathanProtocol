@@ -3,6 +3,7 @@ extends RefCounted
 
 const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
 const ExpeditionSimulationData = preload("res://scripts/expedition_simulation.gd")
+const ShipLoadoutsData = preload("res://scripts/ship_loadouts.gd")
 
 static func valid(value: Variant) -> bool:
 	if not value is Dictionary or value.get("format") != "physical_hangar" or value.get("version") != 2:
@@ -140,7 +141,7 @@ static func valid(value: Variant) -> bool:
 			var instance: Dictionary = equipment[uid]
 			max_hull += SlotCatalog.stats_for(instance.equipment_id, int(instance.rank)).integrity
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			if mount.is_empty() or not SlotCatalog.compatible(mount, item) or not SlotCatalog.unlocked(item, grants):
+			if mount.is_empty() or not SlotCatalog.compatible(mount, item) or not (ShipLoadoutsData.obtainable(item) or SlotCatalog.unlocked(item, grants)):
 				return false
 		if entry.hull_hp > max_hull:
 			return false

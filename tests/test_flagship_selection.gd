@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 var checks := 0
 var failures := 0
 var state: Node
@@ -35,19 +37,22 @@ func run() -> void:
 		budgets[int(chassis.command)] = true
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.flagship).size() == 1
 			and state.get_deployed_fleet().size() == 4, "Exactly one mandatory flagship and all starter ships deploy")
-		var transport_items: Array = state.fleet[1].mounts.values().map(func(item: Dictionary) -> String: return item.equipment_id)
-		check(state.equipment_inventory.size() == 10 and state.fleet[0].mounts.size() == 3
-			and transport_items.count("cargo_hold") == 1 and transport_items.count("hull_plate") == 2
-			and state.fleet[2].mounts.size() == 2 and state.fleet[3].mounts.size() == 2,
-			"Ten unique starter instances: armed flagship and Fighters, Transport with cargo hold and armor plates")
-		check(state.fleet[0].get_stats().shields == (40 if chassis.id == "flagship_basic" else 20)
-			and state.can_deploy(), "Defensive flagship has doubled shields; other flagships retain one generator")
+		var fitted := 0
+		for owned: HangarShip in state.fleet:
+			fitted += owned.mounts.size()
+			check(state.ship_loadout_id(owned.id) == ShipLoadouts.default_for(owned.chassis_id).id,
+				"%s starts with its default loadout" % owned.chassis_id)
+		check(state.equipment_inventory.size() == fitted, "Every starter equipment instance is fitted; there is no stock")
+		var generators: int = state.fleet[0].mounts.values().filter(func(item: Dictionary) -> bool:
+			return item.equipment_id == "shield_generator").size()
+		check(state.fleet[0].get_stats().shields == (40 if chassis.id == "flagship_basic" else 20) + 20 * generators
+			and state.can_deploy(), "Defensive flagship has doubled built-in shields; others retain one plus fitted generators")
 		check(HangarCheckpoint.valid(state.hangar_snapshot()) and state.save_run_checkpoint()
 			and state.load_run_checkpoint() and state.fleet[0].chassis_id == chassis.id, "Selected flagship roundtrips atomically")
 		check(state.fleet[1].formation.is_equal_approx(Vector2(0, 1.1))
 			and state.fleet[2].formation == Vector2(-1.25, -1.25) and state.fleet[3].formation == Vector2(1.25, -1.25),
 			"Continue retains starter triangle positions")
-		check(not state.buy_chassis(chassis.id), "Cannot buy a second flagship")
+		check(not state.buy_ship(chassis.id), "Cannot buy a second flagship")
 		check(state.fleet[0].art_texture is CanvasTexture, "New flagship uses supplied mapped artwork")
 		var simulation := BattleSimulation.new()
 		var enemies: Array[RefCounted] = [AlienShip.threat_variant("fighter", 0)]
@@ -110,10 +115,17 @@ func _test_fitting_views() -> void:
 	screen.queue_free()
 	await settle()
 
+# Bonus fixtures isolate one part on the flagship (part removal is free).
+func strip_flagship_except(keep: String) -> void:
+	for slot_id: String in state.fleet[0].mounts.keys():
+		if slot_id != keep:
+			check(state.swap_part(state.fleet[0].id, slot_id, ""), "Strip flagship " + slot_id)
+
 func _test_bonuses() -> void:
 	check(state.start_new_run(1, 351, true, "flagship_offense"), "Combat bonus fixture")
+	strip_flagship_except("port")
 	var ship: HangarShip = state.fleet[0]
-	var weapon := SlotCatalog.stats_for("mini_turret").weapons[0]
+	var weapon := SlotCatalog.stats_for(ship.mounts.port.equipment_id).weapons[0]
 	var stats := ship.get_stats()
 	check(is_equal_approx(stats.weapons[0].fire_interval_seconds, weapon.fire_interval_seconds / 1.15)
 		and stats.weapons[0].damage_per_shot == weapon.damage_per_shot, "Combat bonus improves rate, not per-shot damage")
@@ -146,6 +158,7 @@ func _test_bonuses() -> void:
 	check(basic.hull_hp == basic.hull_max - 4 and basic.chassis.name == "Defensive Flagship",
 		"Defensive flagship shares one flat hull damage reduction and its new name")
 	check(state.start_new_run(1, 351, true, "flagship_science"), "Research bonus fixture")
+	strip_flagship_except("spine")
 	var snapshot := ScienceRules.snapshot(state.get_deployed_fleet())
 	check(ScienceRules.production_rate(snapshot) == 1.25 and ScienceRules.journey_rp(snapshot, 3) == 3.75,
 		"Research flagship increases host lab output and retains fractions")

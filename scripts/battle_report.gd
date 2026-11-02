@@ -51,7 +51,7 @@ func show_report(
 	else:
 		_add_title(column, outcome, credits_gained)
 	if not equipment_loot.is_empty():
-		var loot_label := ResourceText.create("Loot: " + equipment_loot)
+		var loot_label := ResourceText.create(equipment_loot)
 		column.add_child(loot_label)
 	var deaths := 0
 	var fees := 0

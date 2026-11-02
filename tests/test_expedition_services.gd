@@ -1,13 +1,11 @@
 extends SceneTree
 
 const Travel = preload("res://scripts/expedition_state.gd")
-const Transfer = preload("res://scripts/hangar_equipment_transfer.gd")
 
 var checks := 0
 var failures := 0
 var state: Node
 var screen: Control
-var loose_uid := ""
 var installed_uid := ""
 var flagship_id := 0
 var escort_id := 0
@@ -37,18 +35,14 @@ func denied(command: Callable, label: String) -> void:
 func check_no_shipyard(label: String) -> void:
 	check(not state.can_use_shipyard() and not state.is_shipyard_node(state.current_node_id),
 			label + " does not inherit the starting node's shipyard")
-	denied(func() -> bool: return state.buy_equipment("mini_turret"), label + " equipment purchase")
-	denied(func() -> bool: return state.buy_chassis("drone"), label + " chassis purchase")
-	denied(func() -> bool: return state.fit_equipment(flagship_id, "port", loose_uid), label + " fitting")
+	denied(func() -> bool: return state.swap_part(flagship_id, "fore", "laser"), label + " part swap")
+	denied(func() -> bool: return state.refit_ship(escort_id, "striker"), label + " loadout refit")
+	denied(func() -> bool: return state.buy_ship("drone"), label + " ship purchase")
 	denied(func() -> bool: return state.fit_equipment(flagship_id, "port", ""), label + " unequipping")
 	denied(func() -> bool: return state.fit_equipment(escort_id, "port", installed_uid), label + " transfer")
-	denied(func() -> bool: return state.sell_equipment(loose_uid), label + " stock sale")
 	denied(func() -> bool: return state.salvage_hangar_ship(escort_id), label + " salvage")
 	denied(func() -> bool: return state.repair_ship(state.owned_ship(flagship_id)), label + " repair")
 	denied(func() -> bool: return state.repair_all_ships(), label + " fleet repair")
-	check(not Transfer.can_fit(flagship_id, "port", Transfer.payload(loose_uid))
-			and not Transfer.can_store(Transfer.payload(installed_uid)),
-			label + " has no fitting or unequip drop targets")
 
 func run() -> void:
 	root.size = Vector2i(1280, 720)
@@ -68,8 +62,6 @@ func run() -> void:
 	escort_id = state.fleet[2].id
 	installed_uid = state.owned_ship(flagship_id).mounts.port.uid
 	check(state.can_use_shipyard(), "Starting station exposes its declared shipyard")
-	check(state.buy_equipment("mini_turret"), "Buy loose physical equipment while docked")
-	loose_uid = str(state.next_equipment_id - 1)
 	state.owned_ship(flagship_id).hull_hp -= 12
 	check(state.save_run_checkpoint(), "Persist damaged repair fixture")
 
@@ -80,31 +72,22 @@ func run() -> void:
 	current_scene = screen
 	screen.set_process(false)
 	await settle()
-	screen._open_shop("EQUIPMENT")
+	screen._open_shop("SHIPS")
 	await settle()
-	check(screen.buy_open and screen.shop != null, "Docked shop uses the existing embedded panel")
-	var stock: Control = screen.stock
-	stock._set_pending_sale(loose_uid)
-	check(stock.pending_sale == loose_uid, "Docked stock retains the existing inline sale interaction")
-	var row: Button = stock.row_buttons[loose_uid]
-	row.force_drag(Transfer.payload(loose_uid), Control.new())
-	check(root.gui_is_dragging(), "A docked stock drag can begin")
+	check(screen.buy_open and screen.shop != null, "Docked ship shop uses the existing embedded panel")
+	check(not screen.details.find_child("Loadout_gunline", true, false).disabled, "Docked refit panel is usable")
 	screen._apply_expedition_action(func() -> bool:
 		return state.expedition_simulation.request_destination("refuel_station_1"))
-	check(not root.gui_is_dragging(), "Undocking cancels an active fitting drag")
 	await settle()
 	check(not screen.buy_open and screen.shop == null, "Undocking closes the embedded shop")
-	check(screen.stock.pending_sale.is_empty()
-			and screen.stock.sale_controls[loose_uid].sell.disabled,
-			"Undocking cancels sale confirmation and disables selling")
-	check(screen.roster.find_child("BuyEquipment", true, false).disabled
+	check(screen.roster.find_child("BuyShips", true, false).disabled
 			and screen.roster.find_child("StationServiceReason", true, false) != null,
 			"Ships retains its layout with a disabled purchase action and service reason")
-	check(screen.canvas.slot_buttons.port._get_drag_data(Vector2.ZERO) == null
-			and screen.stock.row_buttons[loose_uid]._get_drag_data(Vector2.ZERO) == null,
-			"Installed and loose equipment remain visible but cannot start flight-time drags")
-	screen._inspect_equipment("mini_turret", 1, loose_uid)
-	check(screen.inspection != null, "Equipment inspection remains available in flight")
+	check(screen.details.find_child("Loadout_gunline", true, false).disabled
+			and screen.details.find_child("RefitServiceReason", true, false) != null,
+			"Refits stay visible but disabled in flight, with a reason")
+	screen._inspect_chassis("fighter")
+	check(screen.inspection != null, "Ship inspection remains available in flight")
 	check_no_shipyard("Cruising")
 	denied(func() -> bool: return state.refuel_expedition(), "Cruising refuel")
 	check(state.set_research_focus("applied_energy"), "Research focus remains available in flight")
@@ -134,16 +117,15 @@ func run() -> void:
 			and simulation.advance(10), "Travel to an actual shipyard")
 	screen._refresh_expedition_controls()
 	await settle()
-	check(state.can_use_shipyard() and not screen.roster.find_child("BuyEquipment", true, false).disabled
-			and not screen.stock.sale_controls[loose_uid].sell.disabled,
-			"Shipyard arrival restores existing management actions automatically")
+	check(state.can_use_shipyard() and not screen.roster.find_child("BuyShips", true, false).disabled
+			and not screen.details.find_child("Loadout_gunline", true, false).disabled,
+			"Shipyard arrival restores management actions automatically")
 	check(simulation.set_pause(Travel.PauseReason.USER, true) and state.can_use_shipyard(),
 			"User pause does not block docked management")
-	check(state.fit_equipment(flagship_id, "port", loose_uid), "Shipyard fitting moves the owned instance")
-	check(state.fit_equipment(flagship_id, "port", ""), "Shipyard unequipping returns the same instance")
-	check(state.sell_equipment(loose_uid), "Shipyard stock sale succeeds")
+	check(state.swap_part(flagship_id, "fore", "laser"), "Shipyard part swap succeeds")
+	check(state.refit_ship(escort_id, "striker"), "Shipyard loadout refit succeeds")
 	check(state.repair_all_ships(), "Shipyard fleet repair succeeds")
-	check(state.buy_chassis("drone"), "Shipyard chassis purchase succeeds")
+	check(state.buy_ship("drone"), "Shipyard ship purchase succeeds")
 	check(state.salvage_hangar_ship(state.fleet[-1].id), "Shipyard salvage succeeds")
 
 	screen._confirm_salvage(escort_id)
