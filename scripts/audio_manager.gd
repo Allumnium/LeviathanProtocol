@@ -20,6 +20,18 @@ const UI_SFX: Dictionary[StringName, AudioStream] = {
 	&"question": preload("res://assets/audio/sfx/question.wav"),
 	&"select_tab": preload("res://assets/audio/sfx/select_tab.wav"),
 	&"animate_ui": preload("res://assets/audio/sfx/animate_ui.wav"),
+	&"notification": preload("res://assets/audio/sfx/notification.mp3"),
+	&"warp": preload("res://assets/audio/sfx/warp.mp3"),
+}
+# Gameplay cues without dedicated audio yet; they play Placeholders.SFX_PATH.
+const PLACEHOLDER_SFX: Array[StringName] = [&"dock", &"depart", &"refuel", &"research_complete",
+	&"repair", &"loot", &"alarm", &"sell", &"demo_complete"]
+const PlaceholderAssets = preload("res://scripts/placeholders.gd")
+const CONTEXT_MUSIC := {
+	&"expedition": "res://assets/audio/music/Drift Under Glass.mp3",
+	&"docked": "res://assets/audio/music/Quantum Wrench Bay.mp3",
+	&"boss": "res://assets/audio/music/boss_music.mp3",
+	&"finale": "res://assets/audio/music/Dark Side of the Orbit.mp3",
 }
 const DEFAULT_VOLUME_PERCENT := 50.0
 const OUTPUT_GAIN_DB := -6.0
@@ -165,6 +177,9 @@ func play_sfx(
 
 
 func play_ui_sfx(effect: StringName) -> void:
+	if effect in PLACEHOLDER_SFX:
+		play_sfx(PlaceholderAssets.sfx(), 1.0, -4.0, 40)
+		return
 	if not UI_SFX.has(effect):
 		push_error("Unknown UI sound effect '%s'." % effect)
 		return
@@ -172,10 +187,19 @@ func play_ui_sfx(effect: StringName) -> void:
 
 
 func connect_ui_button(button: BaseButton, effect: StringName = &"accept") -> void:
-	if not UI_SFX.has(effect):
+	if not UI_SFX.has(effect) and effect not in PLACEHOLDER_SFX:
 		push_error("Unknown UI sound effect '%s'." % effect)
 		return
 	button.pressed.connect(play_ui_sfx.bind(effect))
+
+
+func play_context_music(context: StringName) -> void:
+	if not CONTEXT_MUSIC.has(context):
+		push_error("Unknown music context '%s'." % context)
+		return
+	if _current_music_track == context and is_instance_valid(_music_player) and _music_player.playing:
+		return
+	_play_music(load(CONTEXT_MUSIC[context]), context)
 
 
 func play_menu_music() -> void:

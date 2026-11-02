@@ -140,6 +140,7 @@ func _refresh_summary() -> void:
 		return
 	summary_host.add_child(_label(row.name))
 	var scroll := ScrollContainer.new()
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	summary_host.add_child(scroll)

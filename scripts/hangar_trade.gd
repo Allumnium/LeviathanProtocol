@@ -17,7 +17,7 @@ static func depart(data: Dictionary, source: Dictionary, target: Dictionary) -> 
 			elif instance.equipment_id == "cargo_hold" and source.inhabited:
 				instance["load"] = {"kind": "cargo", "quantity": CARGO_CAPACITY, "unit_value": int(source.goods_unit_value), "origin": int(source.id)}
 
-static func arrive(data: Dictionary, node: Dictionary) -> void:
+static func arrive(data: Dictionary, node: Dictionary, skip_origin := -1) -> void:
 	if not node.inhabited:
 		return
 	for ship: Dictionary in data.ships:
@@ -25,6 +25,9 @@ static func arrive(data: Dictionary, node: Dictionary) -> void:
 			var instance: Dictionary = data.equipment[uid]
 			var contents: Dictionary = instance.get("load", {})
 			if contents.is_empty() or ship.hull_hp < 0:
+				continue
+			# Loads returning to their origin stay aboard for a different port.
+			if skip_origin >= 0 and int(contents.get("origin", -1)) == skip_origin:
 				continue
 			var chassis := SlotCatalog.find_chassis(ship.chassis)
 			RunScore.earn_credits(data, roundi(int(contents.quantity) * int(contents.unit_value)

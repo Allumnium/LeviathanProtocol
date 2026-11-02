@@ -6,6 +6,17 @@ This replaces the previous V1-V6/node-route backlog. The immediate target is a c
 
 The story specification is [docs/STORY_SPEC.md](docs/STORY_SPEC.md). Do not implement its plot, dialogue, act encounters, branches, bosses or endings in this work. Provide the mechanical event/location/gate hooks that a later story pass can populate. Existing campaign content is not the specification for the new story.
 
+## Demo vertical slice status (2026-11-02)
+
+A playable Act I demo now runs end to end; see "Demo vertical slice" in [docs/HANGAR.md](docs/HANGAR.md) and [tests/test_expedition_demo.gd](tests/test_expedition_demo.gd). Owner decisions for this slice, overriding the items below where they conflict:
+
+- Combat uses a Dragon Warrior-style transition into the existing battle scene and returns to the expedition at the same position (instead of E11's in-world combat). E11's runtime combat codec is therefore not needed for the demo; Continue mid-battle restarts that encounter.
+- Light Act I flavor from the story spec (charter briefing, alien contacts, Leviathan Protocol broadcast, Bastion Warden finale). No branches or endings.
+- Missing art is a pink square and missing SFX play `dialogue_type.mp3` (see Placeholder assets in HANGAR.md).
+- No scrollbars: shops offer a seeded subset of each shipyard's own stock that fits on screen; the Ships roster is ship sprites; docked arrivals can dismiss the destination chooser to keep using services.
+
+Partially delivered from the plan: authored distance/zone/arrival events with effects (E06/E07), the expedition Map overlay (E08), docked trade/refuel (E09), distance research and self-repair (E10), and combat admission/settlement keyed by event ID (E11). Still open: procedural POIs/cells, rescue/tow, refuel quotes, the expedition checkpoint format, and the E12-E14 pacing/performance work.
+
 ## 1. Confirmed owner decisions
 
 1. One continuous expedition world. Flagship and escorts remain visible; travel, hazards, combat, regrouping and docking never replace the gameplay scene. Cruise reads as upward flight with scenery scrolling downward.

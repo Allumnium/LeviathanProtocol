@@ -1,8 +1,11 @@
 extends Control
 
 signal ship_selected(id: int)
+signal ship_opened(id: int)
 const GLOW = preload("res://shaders/ship_selection.gdshader")
 const Exhaust = preload("res://scripts/ship_exhaust.gd")
+const PlaceholderAssets = preload("res://scripts/placeholders.gd")
+const STATION_TEXTURE: Texture2D = preload("res://assets/space_station.png")
 var exhaust_elapsed := 0.0
 var selected_id := 0
 var selected_ids: Array[int] = []
@@ -88,6 +91,9 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			var hit := _hit(event.position)
+			if hit > 0 and event.double_click:
+				ship_opened.emit(hit)
+				return
 			if hit > 0:
 				AudioManager.play_ui_sfx(&"select_tab")
 				if hit not in selected_ids:
@@ -145,7 +151,28 @@ func _process(delta: float) -> void:
 			_last_travel_distance_nu = travel_distance_nu
 		queue_redraw()
 
+func _draw_location() -> void:
+	var simulation = GameState.expedition_simulation
+	if simulation == null or simulation.state == null:
+		return
+	var state = simulation.state
+	var texture: Texture2D
+	if not state.docked_location_id.is_empty():
+		texture = STATION_TEXTURE
+	elif state.destination_location_id.is_empty() and not state.visited_location_ids.is_empty():
+		var here: Dictionary = simulation.locations.get(state.visited_location_ids.back(), {})
+		if not here.is_empty() and state.position_nu.distance_to(Vector2(here.position[0], here.position[1])) < 0.01:
+			texture = PlaceholderAssets.art()
+	if texture == null:
+		return
+	# Small pixel art: keep an integer scale and sit it beside, not over, the fleet.
+	var pixel := maxf(1.0, roundf(2.0 * zoom))
+	var extent := texture.get_size() * pixel if texture == STATION_TEXTURE else Vector2.ONE * 40.0 * zoom
+	var center := size * 0.5 + (Vector2(-2.3, -2.3) * 52 - camera) * zoom
+	draw_texture_rect(texture, Rect2((center - extent * 0.5).round(), extent), false, Color(1, 1, 1, 0.85))
+
 func _draw() -> void:
+	_draw_location()
 	for owned: HangarShip in GameState.fleet:
 		var rect := ship_rect(owned)
 		Exhaust.draw(self, owned, rect, exhaust_elapsed)

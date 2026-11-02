@@ -3,10 +3,144 @@
   "events": [
     {
       "id": "derelict_signal",
+      "trigger": "distance",
       "distance_nu": 80.0,
       "title": "Derelict signal",
       "text": "Sensors have picked up a navigation beacon in the derelict field. Investigate the field, or continue on your current course. No salvage reward is promised.",
-      "destination_id": "derelict_1"
+      "destination_id": "derelict_1",
+      "art": "",
+      "options": [
+        {"id": "investigate", "label": "INVESTIGATE", "effects": {"detour": true}},
+        {"id": "continue", "label": "CONTINUE COURSE", "effects": {}}
+      ]
+    },
+    {
+      "id": "charter_briefing",
+      "trigger": "start",
+      "title": "Convoy charter",
+      "text": "Captain, the convoy is fueled and the cargo brokers are waiting. The frontier run is routine work: haul goods, carry passengers, and keep the ledger in the black.\n\nBuy a Cargo Hold and drag it onto the Transport to haul goods between ports. When the fleet is ready, press DEPART.",
+      "art": "res://assets/chassis/flagship_basic_d.png",
+      "options": [
+        {"id": "begin", "label": "UNDERSTOOD", "effects": {}}
+      ]
+    },
+    {
+      "id": "first_contact",
+      "trigger": "zone",
+      "position": [165.0, -24.0],
+      "radius": 24.0,
+      "title": "Unidentified contacts",
+      "text": "Small craft are closing fast. They answer no hails, and they are not human. Weapons free.",
+      "art": "res://assets/drone_scout.png",
+      "options": [
+        {"id": "fight", "label": "BATTLE STATIONS", "effects": {"combat": {"template": "patrol", "row": 2, "strength": 2.5}}}
+      ]
+    },
+    {
+      "id": "free_trader",
+      "trigger": "zone",
+      "position": [355.0, -27.0],
+      "radius": 22.0,
+      "title": "Free trader",
+      "text": "A battered independent hauler hails you. \"Spare parts, no questions asked. Sixty credits for the crate.\"",
+      "art": "res://assets/transport.png",
+      "options": [
+        {"id": "buy", "label": "BUY THE CRATE (60)", "effects": {"credits": -60, "loot": 1, "requires_credits": 60}},
+        {"id": "pass", "label": "NO THANKS", "effects": {}}
+      ]
+    },
+    {
+      "id": "drone_vanguard",
+      "trigger": "distance",
+      "distance_nu": 420.0,
+      "title": "Drone vanguard",
+      "text": "More of the alien craft, flying in formation this time. They have been waiting along the lane.",
+      "art": "res://assets/drone_fighter.png",
+      "options": [
+        {"id": "fight", "label": "BATTLE STATIONS", "effects": {"combat": {"template": "patrol", "row": 4, "strength": 3.5}}}
+      ]
+    },
+    {
+      "id": "protocol_broadcast",
+      "trigger": "distance",
+      "distance_nu": 700.0,
+      "title": "Leviathan Protocol",
+      "text": "EMERGENCY BROADCAST. A biological fleet has been detected in the neighboring sector. Leviathan Protocol is in effect: all registered flagships are ordered into service.\n\nAn alien Warden has seized the Bastion Gate. Clear it. Requisition funds have been transferred.",
+      "art": "res://assets/leviathan.png",
+      "options": [
+        {"id": "acknowledge", "label": "ACKNOWLEDGE", "effects": {"flag": "leviathan_protocol", "credits": 150}}
+      ]
+    },
+    {
+      "id": "swarm_scouts",
+      "trigger": "distance",
+      "distance_nu": 1000.0,
+      "title": "Swarm scouts",
+      "text": "A larger pack peels away from the swarm and turns toward the convoy.",
+      "art": "res://assets/drone_sentinel.png",
+      "options": [
+        {"id": "fight", "label": "BATTLE STATIONS", "effects": {"combat": {"template": "elite", "row": 5, "strength": 4.0}}}
+      ]
+    },
+    {
+      "id": "asteroid_corridor",
+      "trigger": "zone",
+      "position": [575.0, -76.0],
+      "radius": 34.0,
+      "title": "Asteroid corridor",
+      "text": "The lane narrows into a drifting rock field. Something is hiding among the rocks.",
+      "art": "res://assets/asteroids_small.png",
+      "options": [
+        {"id": "thread", "label": "THREAD THE ROCKS", "effects": {"hull_damage": 0.1}},
+        {"id": "blast", "label": "FLUSH THEM OUT", "effects": {"combat": {"template": "patrol", "row": 5, "strength": 4.0, "asteroids": 2, "credits": 180}}}
+      ]
+    },
+    {
+      "id": "derelict_salvage",
+      "trigger": "arrival",
+      "location_id": "derelict_1",
+      "title": "Derelict field",
+      "text": "Gutted freighters, scored by something that was not a weapon. Their holds are still sealed, and a few dormant shapes cling to the hulls.",
+      "art": "",
+      "options": [
+        {"id": "careful", "label": "SALVAGE THE EDGES (+80)", "effects": {"credits": 80}},
+        {"id": "strip", "label": "CUT INTO THE HOLDS", "effects": {"combat": {"template": "patrol", "row": 3, "strength": 3.0, "asteroids": 1, "credits": 160}}}
+      ]
+    },
+    {
+      "id": "distress_call",
+      "trigger": "arrival",
+      "location_id": "distress_1",
+      "title": "Distress call",
+      "text": "A merchant hauler is pinned down by alien craft. Its captain begs for cover.",
+      "art": "",
+      "options": [
+        {"id": "defend", "label": "DEFEND THE HAULER", "effects": {"combat": {"template": "relay_defense", "row": 6, "strength": 5.0, "credits": 240}}},
+        {"id": "leave", "label": "LEAVE THEM", "effects": {}}
+      ]
+    },
+    {
+      "id": "nebula_study",
+      "trigger": "arrival",
+      "location_id": "anomaly_1",
+      "title": "Pale nebula",
+      "text": "The cloud is laced with organic filaments. Your labs could learn a great deal, if the hulls can take the radiation.",
+      "art": "",
+      "options": [
+        {"id": "study", "label": "STUDY IT (+10 RP)", "effects": {"research": 10.0, "hull_damage": 0.1}},
+        {"id": "leave", "label": "MOVE ON", "effects": {}}
+      ]
+    },
+    {
+      "id": "bastion_warden",
+      "trigger": "arrival",
+      "location_id": "act_2_gate",
+      "title": "The Warden",
+      "text": "A vast armored organism sits in the gate, shielded by two pylons. Its lance charges. This is what the Protocol sent you to clear.",
+      "art": "res://assets/drone_sentinel.png",
+      "options": [
+        {"id": "engage", "label": "ENGAGE", "effects": {"combat": {"template": "bastion_warden", "row": 10, "strength": 8.0, "credits": 400}, "complete": true}}
+      ]
     }
   ]
 }

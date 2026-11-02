@@ -4,11 +4,33 @@ Current scope is a continuous-expedition vertical slice using the existing physi
 
 New Run and Continue use the existing hangar screen, with Fleet as the continuous travel page. New expedition checkpoints use `user://expedition_run.json`; the temporary payload still embeds expedition state in the physical-hangar-v2 envelope. The previous physical/material runs and blueprint libraries remain separate. There is no active ship-design screen or material wallet.
 
+## Demo vertical slice
+
+The current demo is a 10-15 minute Act I run: Haven Dock -> travel, events and battles -> trade/refuel/refit at stations -> Leviathan Protocol broadcast -> Bastion Warden at the Bastion Gate -> Demo Complete screen with score. [Demo tests](../tests/test_expedition_demo.gd) play the whole route headlessly without injected credits or forced outcomes.
+
+- **Content** lives in [expedition_locations.json](../data/expedition_locations.json) and [expedition_events.json](../data/expedition_events.json). Events trigger by cumulative `distance`, entering a `zone` circle, `arrival` at a location, or `start` (the one-time charter briefing shown by New Run only). Each event has 1-4 options whose `effects` may grant/charge credits, fuel, research RP, fractional hull damage, loot, a detour, a flag that unlocks gated locations (`required_flag`), discoveries, or start a `combat` (`template`, `row`, `strength`, `asteroids`, `credits`). `complete` marks the finale.
+- **Combat** uses the existing battle scene Dragon Warrior-style: the choice is committed with its generated encounter, a shutter/flash transition opens `auto_battle.tscn`, the report returns to the expedition at the same position, and the retained route resumes at 1x. Encounters key on `expedition_event_id`, settle once, pay credits plus one physical loot item on victory, and leave unbeaten arrival encounters at their location for a later attempt. `strength` reuses the Swarm hull/shield/damage scaling; draft values are tuned so early fights scratch the fleet, mid fights need repairs, and the Warden needs a refit. A no-damage stalemate withdraws after 30 seconds so a kiting fight never strands the UI.
+- **Research** accrues continuously from distance travelled (lab RP/day x travel days, 40 NU per day draft), never while stopped, docked or fighting. Completion toasts and drops fast-forward to 1x.
+- **Self-repair** heals living hulls by each chassis' `self_repair_hp_per_second` during unpaused, non-combat simulation time, including while docked. Paid repair stays the instant alternative.
+- **Trade** loads holds/cabins when leaving a trading port and delivers at the next different trading port; loads returning to their origin stay aboard. The briefing teaches buying a Cargo Hold for the Transport.
+- **Docking** opens a dismissable destination chooser (X = stay docked); POI arrivals still require a choice.
+- **Shops** show each shipyard's own `stock`/`chassis_stock` in a seeded order (with `featured` items first), limited to the cards that fit, so they never scroll. Locked items show the research icon.
+- **Ships roster** is a grid of ship sprites with hull bars in the Ships tab; the Fleet tab has no list, and double-clicking a ship sprite opens it in Ships.
+- **Map** is an informational expedition overlay: discovered locations, live fleet position/heading, planned route and detour, fuel range, locked regions, and inspect-only details (distance, fuel, ETA, services).
+
+### Placeholder assets
+
+Missing art renders as a solid pink square and missing sounds play `assets/audio/sfx/dialogue_type.mp3`, both from [placeholders.gd](../scripts/placeholders.gd). Search for them to replace:
+
+- Equipment without catalog `art` (lasers, shields, thrusters, missiles, etc.) shows pink in stock, shops, fitting, fleet and battle views.
+- POIs and the Bastion Gate use pink on the map and as the stopped-location backdrop; encounters with an empty `art` path show a pink portrait.
+- `AudioManager.PLACEHOLDER_SFX` lists cues without dedicated audio: dock, depart, refuel, research_complete, repair, loot, alarm, sell and demo_complete.
+
 ## Expedition station services
 
 Every management tab shares a compact top-row panel with Pause, Play (1x) and Fast Forward (10x) icons beside the existing tabs, research and wallet. There is no Clear button, destination dropdown or travel-control overlay over the Fleet canvas. Fuel, refueling and save retry remain in the footer. Play/fast-forward clear only user pause, never mandatory interruption/save-error pause. Travel remains live when changing management tabs.
 
-At the initial station, Depart opens a story-neutral destination-choice modal. Every arrival opens the same modal automatically, explaining exploration or station services for each onward option. A destination must be chosen before the modal closes; a saved pending-choice flag holds the core simulation, not just the screen. Choosing a destination commits the route before clearing the flag and closing; a failed save keeps the dialog open with error/retry controls. Existing user/event pause reasons remain intact. Continue restores unfinished initial, station and POI choices; a manually stopped route is not treated as an arrival. Continue also checkpoints user pause while retaining position and requested speed, so resuming the game never starts unacknowledged movement. Rich story-specific options are deferred. Map remains an informational visual scaffold, not a free-choice destination picker.
+At the initial station, Depart opens the destination-choice dialog with distance, fuel and services for each option. Every arrival opens the same dialog automatically; at a station its shared X keeps the fleet docked, while POI arrivals require a choice. A saved pending-choice flag holds the core simulation, not just the screen. Choosing a destination commits the route before clearing the flag and closing; a failed save keeps the dialog open with error/retry controls. Existing user/event pause reasons remain intact. Continue restores unfinished initial, station and POI choices; a manually stopped route is not treated as an arrival. Continue also checkpoints user pause while retaining position and requested speed, so resuming the game never starts unacknowledged movement. Map remains an informational overlay, not a destination picker.
 
 Buying chassis/equipment, fitting, transfers, unequipping, selling stock, salvaging chassis and paid repairs require docking at a station whose declared services include `shipyard`. Refueling requires the separate `refuel` service. The actual expedition state and station position determine access, never the old current-node value. A settlement can refuel without offering a shipyard; stopping or pausing in space, reaching a POI or passing a station does not grant docking privileges.
 
@@ -19,13 +41,13 @@ Run [the baseline](../tests/run_baseline.ps1), optionally with `-Native`, using 
 
 ## First travel interruption
 
-The story-neutral [event catalog](../data/expedition_events.json) currently has one derelict signal at 80 cumulative travel NU. It interrupts cruise on any management tab without switching scenes. Movement and fuel clip at the trigger regardless of speed; the simulation returns to 1x and holds an encounter-specific pause until the player chooses Investigate or Continue Course. This required decision has no dismiss button. Existing user and other mandatory pauses remain independent.
+The [event catalog](../data/expedition_events.json) begins with a derelict signal at 80 cumulative travel NU; the demo slice above adds zone, arrival and combat events through the same admission path. It interrupts cruise on any management tab. Movement and fuel clip at the trigger regardless of speed; the simulation returns to 1x and holds an encounter-specific pause until the player chooses. This required decision has no dismiss button. Existing user and other mandatory pauses remain independent.
 
-Continue Course retains the current destination. Investigate routes from the current position to the existing derelict POI and remembers the original destination. At POI arrival, the regular required destination modal labels that original option Resume; the player must select an onward route, and any explicit choice clears the saved return target. This is a navigation fixture, not salvage/story content: no reward or combat is generated.
+Continue Course retains the current destination. Investigate routes from the current position to the derelict POI and remembers the original destination. At POI arrival, the field's own salvage event plays first, then the regular destination dialog labels the original option Resume; any explicit choice clears the saved return target.
 
 The pending decision is committed before the modal appears; the choice and one-time receipt are committed before it closes. Admission or choice save failures roll back or retain the pending decision with explicit retry feedback. Continue restores unfinished decisions and detour return targets. Physical checkpoint validation rejects unknown pending events and unavailable return destinations before applying state.
 
-[Signal tests](../tests/test_expedition_events.gd) cover speed/frame independence, exact distance/fuel clipping, independent pauses, duplicate submissions, fuel priority, combat deferral, failed saves, reloads, ship identity and real pointer choices. The baseline includes headless and optional native coverage at 640x360, 1280x720 and 1920x1080. Random encounters, competing-event priorities, radius/arrival triggers, combat integration and actual detour rewards remain deferred.
+[Signal tests](../tests/test_expedition_events.gd) cover speed/frame independence, exact distance/fuel clipping, independent pauses, duplicate submissions, fuel priority, combat deferral, failed saves, reloads, ship identity and real pointer choices. The baseline includes headless and optional native coverage at 640x360, 1280x720 and 1920x1080.
 
 The Swarm and environment regression suites retain historical campaign transaction/combat coverage without restoring graph-travel or Relay controls to the expedition Map. Map inspection must not mutate expedition routes or present old node conditions as current journey hazards. Combat still validates its frozen environment and physical asteroids. Battle Settings layout coverage includes the existing Tutorials switch and Quit to menu row.
 
@@ -178,7 +200,7 @@ The supplied map sets under `assets/chassis/`, `assets/equipment/`, `assets/envi
 
 Single Plate (S) uses `assets/equipment/plate_small_d.png`; Armor Block (M) uses `assets/equipment/plate_medium_d.png`. Both use the supplied normal, height, specular and occlusion maps through the shared cached renderer in stock, fitting/drag previews, Fleet and battle. Mount fitting preserves their proportions; catalog IDs, stats, costs, health and saves are unchanged.
 
-Research Lab I uses `assets/equipment/research_lab_1_d.png` with its supplied normal, height, specular and occlusion maps through the same renderer. Stock thumbnails, fitted art, drag previews, Fleet and battle preserve its aspect ratio and transparency. Lab II/III retain text fallback; research production, fitting rules and saved instances are unchanged.
+Research Lab I uses `assets/equipment/research_lab_1_d.png` with its supplied normal, height, specular and occlusion maps through the same renderer. Stock thumbnails, fitted art, drag previews, Fleet and battle preserve its aspect ratio and transparency. Lab II/III use the pink placeholder art; research production, fitting rules and saved instances are unchanged.
 
 Lab I's mount-anchor metadata doubles its fitted artwork and snapped drag preview relative to the original fit, without enlarging stock thumbnails or editing source textures. The flagship's medium `spine` mount is centered on the lower central bay at source-art position (256, 324), not the narrow spine above it; mount identity, size and fitting rules are unchanged.
 
@@ -210,7 +232,7 @@ The Shield Generator equipment is the exception: its complete name remains text 
 
 Equipment shop rows are compact display-only cards. Only the 32 x 32 green plus on their right purchases equipment; unavailable items have no plus. Purchases refresh the open shop without changing its scroll position. Chassis purchase behavior is unchanged.
 
-Hovering installed equipment on the ship art shows a white silhouette glow aligned to its fitted sprite, including mount-anchor offsets. Empty mounts and display-only side labels do not show this glow. Equipment without artwork highlights its floating name instead. Sprite glows are hidden during equipment drags so compatible-target highlights remain clear.
+Hovering installed equipment on the ship art shows a white silhouette glow aligned to its fitted sprite, including mount-anchor offsets. Empty mounts and display-only side labels do not show this glow. Equipment without artwork uses the pink placeholder sprite and glows like any other fitted art. Sprite glows are hidden during equipment drags so compatible-target highlights remain clear.
 
 Floating equipment names align toward the ship: right-aligned on the left rail
 and left-aligned on the right rail, keeping each name next to its connector line.

@@ -3,7 +3,7 @@
   "locations": [
     {
       "id": "start_station",
-      "name": "Start Station",
+      "name": "Haven Dock",
       "act": 1,
       "kind": "station",
       "position": [0.0, 0.0],
@@ -12,11 +12,16 @@
       "accessible": true,
       "safe": true,
       "region": "act_1",
-      "station_key": "start"
+      "station_key": "start",
+      "description": "Your charter's home port. Full shipyard, fuel and cargo brokers.",
+      "goods_unit_value": 3,
+      "featured": ["cargo_hold", "mini_turret", "fighter"],
+      "stock": ["mini_turret", "laser", "hull_plate", "armor_block", "thruster", "shield_generator", "research_lab", "cargo_hold", "passenger_cabin", "double_laser", "point_defense_turret", "missile_rack"],
+      "chassis_stock": ["fighter", "drone", "transport", "corsair"]
     },
     {
       "id": "refuel_station_1",
-      "name": "Refueling Post",
+      "name": "Kessler Refuel Post",
       "act": 1,
       "kind": "station",
       "position": [240.0, -35.0],
@@ -25,7 +30,11 @@
       "accessible": true,
       "safe": true,
       "region": "act_1",
-      "station_key": "refueling_post"
+      "station_key": "refueling_post",
+      "description": "A busy fuel depot with a small repair yard.",
+      "goods_unit_value": 6,
+      "stock": ["research_lab", "cargo_hold", "passenger_cabin", "shield_generator", "large_thruster", "repair_drone_bay", "laser", "mini_turret", "armor_block", "hull_plate"],
+      "chassis_stock": ["drone", "transport", "frigate"]
     },
     {
       "id": "derelict_1",
@@ -38,7 +47,36 @@
       "accessible": true,
       "safe": false,
       "region": "act_1",
-      "poi_type": "derelict"
+      "poi_type": "derelict",
+      "description": "Broken hulls drift in silence. Salvage, and maybe something else."
+    },
+    {
+      "id": "distress_1",
+      "name": "Distress Beacon",
+      "act": 1,
+      "kind": "poi",
+      "position": [300.0, -185.0],
+      "services": [],
+      "discovered": true,
+      "accessible": true,
+      "safe": false,
+      "region": "act_1",
+      "poi_type": "distress",
+      "description": "A looping mayday from a merchant hauler."
+    },
+    {
+      "id": "anomaly_1",
+      "name": "Pale Nebula",
+      "act": 1,
+      "kind": "poi",
+      "position": [540.0, 150.0],
+      "services": [],
+      "discovered": true,
+      "accessible": true,
+      "safe": false,
+      "region": "act_1",
+      "poi_type": "anomaly",
+      "description": "A glowing cloud that scrambles long-range sensors."
     },
     {
       "id": "settlement_1",
@@ -51,20 +89,41 @@
       "accessible": true,
       "safe": true,
       "region": "act_1",
-      "station_key": "settlement"
+      "station_key": "settlement",
+      "description": "A frontier colony hungry for goods. Fuel and trade only.",
+      "goods_unit_value": 10
+    },
+    {
+      "id": "meridian_outpost",
+      "name": "Meridian Outpost",
+      "act": 1,
+      "kind": "station",
+      "position": [665.0, -125.0],
+      "services": ["shipyard", "refuel", "trade"],
+      "discovered": true,
+      "accessible": true,
+      "safe": true,
+      "region": "act_1",
+      "station_key": "outpost",
+      "description": "A naval picket station. Military-grade weapons for sale.",
+      "goods_unit_value": 6,
+      "featured": ["laser", "railgun", "corsair"],
+      "stock": ["laser", "double_laser", "missile_rack", "point_defense_turret", "railgun", "ammunition_magazine", "flight_deck", "armor_block", "shield_generator", "command_uplink", "tactical_computer", "large_thruster"],
+      "chassis_stock": ["fighter", "corsair", "frigate", "drone"]
     },
     {
       "id": "act_2_gate",
-      "name": "Act II Region Gate",
+      "name": "Bastion Gate",
       "act": 2,
       "kind": "gate",
-      "position": [820.0, 0.0],
+      "position": [840.0, 0.0],
       "services": [],
       "discovered": false,
       "accessible": false,
       "safe": false,
       "region": "act_2",
-      "required_flag": "act_ii_unlocked"
+      "required_flag": "leviathan_protocol",
+      "description": "The jump lane to the inner sectors. Something is holding it."
     },
     {
       "id": "refuel_station_2",

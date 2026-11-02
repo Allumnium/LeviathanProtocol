@@ -2,6 +2,7 @@ extends Control
 
 const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
+const SceneFadeScript = preload("res://scripts/scene_fade.gd")
 const SHOOT_SOUND: AudioStream = preload("res://assets/audio/sfx/shoot-weapon.wav")
 const SHIELD_HIT_SOUND: AudioStream = preload("res://assets/audio/sfx/shieldHit.wav")
 const ALIEN_EXPLOSION_SOUND: AudioStream = preload("res://assets/audio/sfx/alien_explode.wav")
@@ -57,6 +58,9 @@ var _settlement_error := false
 
 func _ready() -> void:
 	AudioManager.play_battle_music()
+	if GameState.pending_encounter.get("template_id", "") == "bastion_warden":
+		AudioManager.play_context_music(&"boss")
+	SceneFadeScript.reveal(self)
 	if not GameState.battle_pending or not simulation.setup_owned(
 		GameState.get_deployed_fleet(), GameState.battle_aliens,
 		GameState.allied_salvage_chance(), GameState.laser_upgrade_level, GameState.battle_simulation_seed(), GameState.battle_support_context()
@@ -524,9 +528,9 @@ func _finish_battle(won: bool) -> void:
 
 
 func _return_to_map() -> void:
-	var error := get_tree().change_scene_to_file(MAP_SCENE_PATH)
-	if error != OK:
-		push_error("Could not return to the game map. Error code: %s" % error)
+	if not is_inside_tree():
+		return
+	SceneFadeScript.cover_and_change(self, MAP_SCENE_PATH, "", false)
 
 
 func _return_to_main_menu() -> void:

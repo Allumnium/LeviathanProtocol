@@ -59,7 +59,8 @@ func run() -> void:
 		quit(1)
 		return
 	# Keep this service-access fixture independent of the signal decision.
-	state.expedition_simulation.state.event_receipts["derelict_signal"] = true
+	for authored: Dictionary in state.expedition_simulation.events:
+		state.expedition_simulation.state.event_receipts[authored.id] = true
 	var fixture: Dictionary = state.hangar_snapshot()
 	fixture.credits = 5000
 	check(state._commit_hangar(fixture), "Fund service fixture")

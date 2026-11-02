@@ -369,29 +369,32 @@ func run() -> void:
 	screen.formation_view.camera = Vector2(25, -12)
 	screen.formation_view.zoom = 1.3
 	var roster_escort_id: int = state.fleet[1].id
-	var roster_button: Button = screen.roster.find_child("Ship%d" % roster_escort_id, true, false)
-	await drag(roster_button.get_global_rect().get_center(), roster_button.get_global_rect().get_center())
+	var escort: HangarShip = state.owned_ship(roster_escort_id)
+	var escort_point: Vector2 = screen.formation_view.global_position + screen.formation_view.ship_rect(escort).get_center()
+	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false) == null,
+		"Fleet side panel no longer lists ships; the formation sprites are the roster")
+	await drag(escort_point, escort_point)
 	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id,
-		"Single-click Fleet roster selects the escort without opening the editor")
+		"Single-click on a Fleet sprite selects the escort without opening the editor")
 	check(screen.formation_view.find_children("*", "Button", true, false).is_empty(),
 		"Selected formation ships have no floating Equip or Salvage buttons")
-	roster_button = screen.roster.find_child("Ship%d" % roster_escort_id, true, false)
-	var roster_point := roster_button.get_global_rect().get_center()
-	motion(roster_point)
-	button(roster_point, true, true)
+	escort_point = screen.formation_view.global_position + screen.formation_view.ship_rect(escort).get_center()
+	motion(escort_point)
+	button(escort_point, true, true)
 	await process_frame
-	button(roster_point, false)
+	button(escort_point, false)
 	await settle()
 	check(screen.active_tab == "SHIPS" and screen.selected_ship_id == roster_escort_id
 		and screen.canvas.owned_id == roster_escort_id and screen.selected_slot.is_empty(),
-		"Native Fleet roster double-click opens the matching ship editor")
+		"Native Fleet sprite double-click opens the matching ship editor")
 	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false).button_pressed,
-		"Editor roster marks the double-clicked ship")
+		"Editor sprite tile marks the double-clicked ship")
 	screen.tabs.get_child(0).pressed.emit()
 	await settle()
 	check(screen.formation_view.camera == Vector2(25, -12) and is_equal_approx(screen.formation_view.zoom, 1.3),
-		"Returning from roster double-click preserves formation pan and zoom")
-	screen.roster.find_child("Ship%d" % state.fleet[0].id, true, false).pressed.emit()
+		"Returning from sprite double-click preserves formation pan and zoom")
+	screen.selected_ship_id = state.fleet[0].id
+	screen._refresh()
 	await settle()
 	screen.tabs.get_child(1).pressed.emit()
 	await settle()
@@ -404,9 +407,8 @@ func run() -> void:
 	var range_origin: Vector2 = range_control.global_position
 	await drag(range_origin + Vector2(range_control._handle_center(0), 10),
 		range_origin + Vector2(range_control._handle_x(1), 10))
-	check(screen.stock.filters.get_preferences().sizes == ["M", "L", "XL"]
-		and screen.shop_filters.get_preferences() == screen.stock.filters.get_preferences(),
-		"Dragging the lower size handle selects an inclusive range and synchronizes shop")
+	check(screen.stock.filters.get_preferences().sizes == ["M", "L", "XL"],
+		"Dragging the lower size handle selects an inclusive range")
 	await drag(range_origin + Vector2(range_control._handle_center(1), 10),
 		range_origin + Vector2(range_control._handle_x(1), 10))
 	check(screen.stock.filters.get_preferences().sizes == ["M"],
@@ -432,7 +434,8 @@ func run() -> void:
 	screen.stock._change()
 	await settle()
 	var before_purchase: int = state.equipment_inventory.size()
-	for purchase: Button in screen.shop_rows.get_children():
+	for offer: HBoxContainer in screen.shop_rows.get_children():
+		var purchase: Button = offer.get_child(1)
 		if not purchase.disabled:
 			var row_center := purchase.get_global_rect().get_center()
 			await drag(row_center, row_center)

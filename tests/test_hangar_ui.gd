@@ -31,7 +31,7 @@ func check_callouts(board: Control) -> void:
 		var card: Control = board.slot_callouts[id]
 		var rect := card.get_rect()
 		check(Rect2(Vector2.ZERO, board.size).encloses(rect), "Side callout fits canvas")
-		check(not rect.intersects(board.image_rect), "Side text never covers ship or slot art")
+		check(not rect.intersects(board.art_rect()), "Side text never covers ship or slot art")
 		check(not placed.any(func(other: Rect2) -> bool: return rect.intersects(other)), "Side callouts never overlap")
 		placed.append(rect)
 		var label: ResourceText = card.get_node("EquipmentName")
@@ -93,8 +93,8 @@ func run() -> void:
 	check(screen.canvas != null, "Actual game opens physical hangar")
 	var flagship_row: Button = screen.roster.find_child("Ship1", true, false)
 	check(screen.selected_ship_id == state.fleet[0].id and state.fleet[0].flagship, "Ships selects the flagship when no ship is selected")
-	check(flagship_row.text == state.fleet[0].display_name and flagship_row.icon != null and flagship_row.icon.resource_path == "res://assets/flag.png", "Flagship row uses the supplied flag artwork instead of a generated icon")
-	check(flagship_row.get_theme_constant("icon_max_width") == 9, "Flagship flag is one-third of its original width")
+	check(flagship_row != null and flagship_row.text.is_empty() and flagship_row.get_parent().name == "ShipTiles",
+		"Ships roster shows ship sprites instead of a text list")
 	var audio := root.get_node("AudioManager")
 	check(flagship_row.pressed.is_connected(Callable(audio, "play_ui_sfx").bind(&"select_tab")),
 		"Ship roster selection uses the former tab sound")
@@ -143,11 +143,8 @@ func run() -> void:
 		root.size = resolution
 		await settle()
 		var named_row: Button = screen.roster.find_child("Ship1", true, false)
-		var name_width := named_row.get_theme_font("font").get_string_size(
-			named_row.text, HORIZONTAL_ALIGNMENT_LEFT, -1, named_row.get_theme_font_size("font_size")).x
-		check(name_width + named_row.get_theme_stylebox("normal").get_minimum_size().x
-			+ 9 + named_row.get_theme_constant("h_separation") <= named_row.size.x + 1,
-			"Full Defensive Flagship name fits roster without truncation or canvas expansion")
+		check(screen.roster_panel.get_global_rect().encloses(named_row.get_global_rect()),
+			"Flagship sprite tile fits the roster panel without canvas expansion")
 		var buttons: Dictionary = screen.canvas.slot_buttons
 		check_callouts(screen.canvas)
 		check(screen.canvas.exhaust_elapsed > 0, "Ships view continuously animates preview thrust")
@@ -203,23 +200,22 @@ func run() -> void:
 	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
 	await settle()
 	check(screen.shop.visible, "Shop opens")
-	check(screen.shop.find_child("ShopHeading", true, false).text == "Buy Equipment",
-		"Equipment entry point has its own heading")
-	check(screen.researched_filter.get_parent() == screen.shop_filters.get_child(1),
-		"Only researched checkbox shares the size-filter row")
+	check(str(screen.shop.find_child("ShopHeading", true, false).text).ends_with("Equipment"),
+		"Equipment entry point names the station and its equipment shop")
 	check(screen.shop.find_children("*", "Button", true, false).all(
 		func(control: Button) -> bool: return control.text not in ["Equipment", "Ships"]),
 		"Embedded shop has no internal mode buttons")
-	check(screen.researched_filter.button_pressed and screen.only_researched,
-		"Shop defaults to only researched equipment")
+	check(screen.shop.find_children("*", "ScrollContainer", true, false).is_empty(),
+		"Station shop never scrolls")
+	var station: Dictionary = state.expedition_simulation.locations[state.expedition_simulation.state.docked_location_id]
 	var grants: Dictionary = state.research_grants()
-	for purchase: Button in screen.shop_rows.get_children():
-		check(SlotCatalog.unlocked(SlotCatalog.find_equipment(purchase.get_meta("equipment_id"), purchase.get_meta("rank")), grants),
-			"Default shop excludes unresearched equipment")
-	screen.researched_filter.button_pressed = false
-	await settle()
+	var first_row: HBoxContainer = screen.shop_rows.get_child(0)
+	check(first_row.get_child(1).get_meta("equipment_id") == station.featured[0],
+		"Featured station stock is offered first")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
+		await settle()
+		screen._refresh()
 		await settle()
 		check(screen.shop.get_global_rect().is_equal_approx(screen.center.get_global_rect()), "Buy panel covers exactly the center area")
 		var corner_close: TextureButton = screen.shop.find_child("CloseX", true, false)
@@ -229,8 +225,13 @@ func run() -> void:
 		check(screen.find_child("ScienceIcon", true, false) != null
 			and screen.research_status.text == "Choose Research",
 			"Research status remains visible on every tab")
-		for purchase: Button in screen.shop_rows.get_children():
-			check(purchase.size.x <= screen.shop.size.x, "Purchase text fits center panel width")
+		check(screen.shop_rows.get_child_count() > 0, "Shop offers stock at every resolution")
+		for row: HBoxContainer in screen.shop_rows.get_children():
+			var purchase: Button = row.get_child(1)
+			check(screen.shop.get_global_rect().grow(1).encloses(row.get_global_rect()),
+				"Every offered item fits inside the shop without scrolling")
+			check(row.find_child("ItemArt", true, false) != null, "Shop items show artwork or the placeholder")
+			check(purchase.get_meta("equipment_id") in station.stock, "Shop offers only this station's stock")
 			for label: Label in purchase.find_children("*", "Label", true, false):
 				check(purchase.get_global_rect().encloses(label.get_global_rect()),
 					"Purchase labels remain inside their row at every resolution")
@@ -241,31 +242,28 @@ func run() -> void:
 			var unlocked := SlotCatalog.unlocked(SlotCatalog.find_equipment(purchase.get_meta("equipment_id"), purchase.get_meta("rank")), grants)
 			check((purchase.find_child("ResearchRequiredIcon", true, false) != null) == not unlocked,
 				"Locked equipment shows science artwork rather than Research text")
-		for filters: Control in [screen.stock.filters, screen.shop_filters]:
-			for checkbox: CheckBox in filters.find_children("*", "CheckBox", true, false):
-				check(filters.get_global_rect().encloses(checkbox.get_global_rect()), "Filter checkbox fits its panel at each supported resolution")
-				check(checkbox.button_group == null and checkbox.focus_mode == Control.FOCUS_NONE, "Checkboxes are independent and excluded from focus cycling")
+		for checkbox: CheckBox in screen.stock.filters.find_children("*", "CheckBox", true, false):
+			check(screen.stock.filters.get_global_rect().encloses(checkbox.get_global_rect()), "Filter checkbox fits its panel at each supported resolution")
+			check(checkbox.button_group == null and checkbox.focus_mode == Control.FOCUS_NONE, "Checkboxes are independent and excluded from focus cycling")
 		if resolution == Vector2i(640, 360) and "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 			await RenderingServer.frame_post_draw
 			root.get_texture().get_image().save_png("res://.local/hangar/ui-shop-640.png")
+	root.size = Vector2i(1280, 720)
+	await settle()
 	screen.tabs.get_child(0).pressed.emit()
 	await settle()
 	check(screen.roster.find_child("BuyEquipment", true, false) == null, "Fleet offers only chassis buying")
 	screen.roster.find_child("BuyChassis", true, false).pressed.emit()
 	await settle()
-	check(screen.buy_mode == "SHIPS" and screen.shop_rows.get_child_count() == 5, "Center panel lists purchasable chassis")
-	check(screen.shop.find_child("ShopHeading", true, false).text == "Buy Chassis",
+	check(screen.buy_mode == "SHIPS" and screen.shop_rows.get_child_count() > 0, "Center panel lists purchasable chassis")
+	check(str(screen.shop.find_child("ShopHeading", true, false).text).ends_with("Ships"),
 		"Chassis entry point switches the open panel and heading")
-	check(not screen.shop_filters.visible, "Chassis buying has no equipment filters")
-	var previous_chassis_price := -1
 	for row: HBoxContainer in screen.shop_rows.get_children():
 		var purchase: Button = row.get_child(1)
-		var price := int(purchase.get_meta("price"))
 		check((purchase.find_child("BuyIcon", true, false) != null) == not purchase.disabled
 			and purchase.find_child("PriceIcon", true, false) != null,
 			"Chassis price uses artwork and unavailable chassis has no plus")
-		check(price >= previous_chassis_price, "Chassis buying is always ordered by ascending credits")
-		previous_chassis_price = price
+		check(purchase.get_meta("inspect_chassis") in station.chassis_stock, "Chassis offers come from this station")
 	if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-ships.png")
@@ -274,66 +272,19 @@ func run() -> void:
 	check(screen.roster.find_child("BuyChassis", true, false) == null, "Ships offers only equipment buying")
 	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
 	await settle()
-	check(screen.shop_filters.visible and screen.shop_filters.categories.size() == 4
-		and screen.shop_filters.size_range.upper == 3, "Equipment shop has category checkboxes and an inclusive size range")
 	check(screen.shop.find_children("*", "LineEdit", true, false).is_empty()
 		and screen.stock.find_children("*", "LineEdit", true, false).is_empty()
 		and screen.shop.find_children("*", "OptionButton", true, false).is_empty()
 		and screen.stock.find_children("*", "OptionButton", true, false).is_empty(),
 		"Stock and Buy have no search or single-choice controls")
-	var unfiltered_shop_count: int = screen.shop_rows.get_child_count()
-	screen.shop_filters.set_preferences({"categories": ["offense"], "sizes": ["S"]})
-	screen.shop_filters.changed.emit(screen.shop_filters.get_preferences())
-	check(screen.shop_rows.get_child_count() > 0 and screen.shop_rows.get_child_count() < unfiltered_shop_count,
-		"Shop category and size filters narrow equipment")
-	for purchase: Button in screen.shop_rows.get_children():
-		check(purchase.find_child("ItemSummary", true, false).text == "Offense S", "Shop lists only checked categories and sizes")
-	check(screen.stock.filters.get_preferences() == screen.shop_filters.get_preferences(), "Buy checkboxes synchronize visible stock filters")
-	screen.shop_filters.size_range.set_range(0, 1, true)
-	screen.shop_filters.categories.defense.button_pressed = true
-	check(screen.shop_rows.get_child_count() > 1 and screen.shop_rows.get_child_count() < unfiltered_shop_count, "Shop allows multiple categories and sizes at once")
-	screen.stock.filters.categories.civic.button_pressed = true
-	check(screen.stock.filters.get_preferences() == screen.shop_filters.get_preferences(), "Stock checkboxes synchronize visible Buy filters")
-	var preferences: Dictionary = screen.shop_filters.get_preferences()
-	screen.tabs.get_child(0).pressed.emit()
-	await settle()
-	screen.roster.find_child("BuyChassis", true, false).pressed.emit()
-	await settle()
-	check(not screen.shop_filters.visible and screen.shop_rows.get_child_count() == 5, "Equipment checkbox choices never filter chassis")
-	screen._refresh()
-	await settle()
-	check(screen.buy_mode == "SHIPS" and not screen.shop_filters.visible, "Chassis mode keeps equipment filters hidden after refresh")
-	check(not screen.only_researched and not screen.researched_filter.visible,
-		"Research filter preference survives refresh and is hidden for chassis")
-	screen.tabs.get_child(1).pressed.emit()
-	await settle()
-	screen.roster.find_child("BuyEquipment", true, false).pressed.emit()
-	await settle()
-	check(screen.shop_filters.get_preferences() == preferences, "Switching back to equipment restores checkbox selections")
-	screen.shop_filters.set_preferences({"categories": []})
-	screen.shop_filters.changed.emit(screen.shop_filters.get_preferences())
-	check(screen.shop_rows.get_child_count() == 1 and screen.shop_rows.get_child(0) is Label, "Empty checkbox selection shows No matches")
-	screen.shop_filters.set_preferences({})
-	screen.shop_filters.changed.emit(screen.shop_filters.get_preferences())
-	var previous_equipment_price := -1
-	for purchase: Button in screen.shop_rows.get_children():
-		var price := int(purchase.get_meta("price"))
-		check(price >= previous_equipment_price, "Equipment buying is always ordered by ascending credits")
-		previous_equipment_price = price
 	var inventory_before: int = state.equipment_inventory.size()
-	await settle()
-	screen.shop_scroll.scroll_vertical = 120
-	await settle()
-	var purchase_scroll: int = screen.shop_scroll.scroll_vertical
-	check(purchase_scroll > 0, "Equipment purchase fixture has a scrolled shop")
-	for purchase: Button in screen.shop_rows.get_children():
+	for row: HBoxContainer in screen.shop_rows.get_children():
+		var purchase: Button = row.get_child(1)
 		if not purchase.disabled:
 			purchase.find_child("BuyIcon", true, false).pressed.emit()
 			break
 	await settle()
 	check(state.equipment_inventory.size() == inventory_before + 1 and screen.buy_open and screen.shop != null, "Purchase updates stock while center shop stays open")
-	check(screen.shop_filters.is_unfiltered() and screen.stock.filters.is_unfiltered(), "Purchase preserves checkbox selections")
-	check(screen.shop_scroll.scroll_vertical == purchase_scroll, "Equipment purchase preserves shop scroll position")
 	if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-equipment.png")
@@ -384,7 +335,7 @@ func run() -> void:
 			await settle()
 			check(labels_under(screen.details).contains("3 RP/day"), "Native research details show Lab III output")
 		if title == "MAP":
-			check(screen.center.get_child(0).get_script().resource_path == "res://scripts/graph_view.gd", "Pannable campaign map retained")
+			check(screen.center.get_child(0).get_script().resource_path == "res://scripts/expedition_map.gd", "Pannable expedition map shows the live voyage")
 			screen._select_destination(state.get_reachable_nodes(0)[0])
 			await settle()
 		for tab: Button in screen.tabs.get_children():

@@ -108,6 +108,7 @@ func _build_carousel() -> void:
 	previous.pressed.connect(_cycle_flagship.bind(-1))
 	next.pressed.connect(_cycle_flagship.bind(1))
 	var scroll := ScrollContainer.new()
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	scroll.name = "FlagshipDetails"
 	scroll.custom_minimum_size.y = 140
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

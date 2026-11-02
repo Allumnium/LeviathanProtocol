@@ -24,6 +24,10 @@ func settle() -> void:
 func simulation() -> Simulation:
 	var sim := Simulation.new()
 	check(sim.configure(351), "Configure event fixture")
+	# These checks exercise the distance-signal mechanics in isolation.
+	for authored: Dictionary in sim.events:
+		if authored.id != "derelict_signal":
+			sim.state.event_receipts[authored.id] = true
 	return sim
 
 func open_screen(tab := "FLEET") -> void:
@@ -138,6 +142,9 @@ func run() -> void:
 	check(not Events.valid(bad_catalog, clipped.locations), "Reject negative trigger distances")
 
 	check(state.start_new_run(1, 351), "Start integrated signal run")
+	for authored: Dictionary in state.expedition_simulation.events:
+		if authored.id != "derelict_signal":
+			state.expedition_simulation.state.event_receipts[authored.id] = true
 	await open_screen("RESEARCH")
 	screen._on_expedition_destination_selected("refuel_station_1")
 	screen.speed_buttons[10].pressed.emit()

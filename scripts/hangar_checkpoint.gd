@@ -55,16 +55,26 @@ static func valid(value: Variant) -> bool:
 		if not _integer(node, 0) or node >= graph.nodes.size() or seen_nodes.has(int(node)):
 			return false
 		seen_nodes[int(node)] = true
-	if not seen_nodes.has(int(value.current)) or value.pending != (value.destination >= 0) or (not value.pending and value.journey_rp != 0):
+	if not seen_nodes.has(int(value.current)):
 		return false
-	if value.pending and not graph.edges.any(func(edge: Array) -> bool:
+	if value.get("pending_encounter", {}) is Dictionary and value.get("pending_encounter", {}).has("expedition_event_id"):
+		# Expedition encounters belong to travel events, not graph destinations.
+		if not value.has("expedition") or not value.pending or value.destination != -1 or value.journey_rp != 0:
+			return false
+		if not value.pending_encounter.expedition_event_id is String or value.pending_encounter.expedition_event_id == "" \
+				or not value.expedition.get("event_receipts", {}).get(value.pending_encounter.expedition_event_id, false):
+			return false
+	elif value.pending != (value.destination >= 0) or (not value.pending and value.journey_rp != 0):
+		return false
+	var expedition_battle: bool = value.get("pending_encounter", {}) is Dictionary and value.get("pending_encounter", {}).has("expedition_event_id")
+	if value.pending and not expedition_battle and not graph.edges.any(func(edge: Array) -> bool:
 		return (int(edge[0]) == int(value.current) and int(edge[1]) == int(value.destination)) \
 			or (not navigation.is_empty() and int(edge[1]) == int(value.current) and int(edge[0]) == int(value.destination))):
 		return false
 	var encounter: Variant = value.get("pending_encounter", {})
 	if not encounter is Dictionary or (value.pending and not EncounterGenerator.valid(encounter)) or (not value.pending and not encounter.is_empty()):
 		return false
-	if not navigation.is_empty() and value.pending and (seen_nodes.has(int(value.destination)) \
+	if not navigation.is_empty() and value.pending and not expedition_battle and (seen_nodes.has(int(value.destination)) \
 		or not navigation.encounters.has(str(int(value.destination))) \
 		or not SaveValidation.same(encounter, navigation.encounters[str(int(value.destination))]) or encounter.get("node_id") != value.destination):
 		return false

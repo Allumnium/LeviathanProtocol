@@ -111,6 +111,7 @@ func _on_start_run_requested(difficulty: int, flagship_id: String) -> void:
 	if not GameState.start_new_run(difficulty, -1, true, flagship_id):
 		game_setup.show_start_error(GameState.last_save_error)
 		return
+	GameState.pending_intro = true
 
 	_is_starting_run = true
 	game_setup.hide()

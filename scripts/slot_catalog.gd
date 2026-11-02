@@ -5,6 +5,7 @@ const TYPES := ["offense", "defense", "tech", "civic"]
 const SLOT_TYPES := ["general", "engine", "offense", "defense", "tech", "civic", "combat", "utility", "civil"]
 const SIZES := ["S", "M", "L", "XL"]
 const EQUIPMENT_PATH := "res://data/slot_equipment.json"
+const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 static var _chassis: Array[Dictionary] = []
 static var _equipment: Array[Dictionary] = []
 static var _equipment_textures: Dictionary[String, Texture2D] = {}
@@ -66,7 +67,8 @@ static func find_equipment(id: String, rank := 1) -> Dictionary:
 static func equipment_texture(item: Dictionary) -> Texture2D:
 	var path: String = item.get("art", "")
 	if path.is_empty():
-		return null
+		# Missing equipment art is a deliberate, uniform placeholder.
+		return PlaceholderAssets.art()
 	if not _equipment_textures.has(path):
 		_equipment_textures[path] = SurfaceArt.texture(path)
 	return _equipment_textures[path]

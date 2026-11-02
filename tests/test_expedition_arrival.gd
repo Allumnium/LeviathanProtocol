@@ -36,7 +36,8 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://arrival-choice-test.json"
 	check(state.start_new_run(1, 1501), "Start arrival fixture")
-	state.expedition_simulation.state.event_receipts["derelict_signal"] = true
+	for authored: Dictionary in state.expedition_simulation.events:
+		state.expedition_simulation.state.event_receipts[authored.id] = true
 	await open_screen()
 	check(screen.departure_modal == null, "Starting dock allows fleet preparation before Depart")
 	screen.departure_button.pressed.emit()

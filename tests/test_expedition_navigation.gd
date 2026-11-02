@@ -22,7 +22,8 @@ func _simulation():
 	var simulation = ExpeditionSimulationClass.new()
 	check(simulation.configure(81), "Configure deterministic navigation")
 	# Encounter admission is covered separately; these fixtures isolate route physics.
-	simulation.state.event_receipts["derelict_signal"] = true
+	for authored: Dictionary in simulation.events:
+		simulation.state.event_receipts[authored.id] = true
 	return simulation
 
 

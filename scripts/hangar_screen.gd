@@ -1,11 +1,12 @@
 extends Control
 
-const EquipmentFilters = preload("res://scripts/hangar_equipment_filters.gd")
 const StatBars = preload("res://scripts/ship_stat_bars.gd")
 const CREDITS_ICON: Texture2D = preload("res://assets/credits.png")
 const SCIENCE_ICON: Texture2D = preload("res://assets/science.png")
 const BUY_ICON: Texture2D = preload("res://assets/ui/Btn_BuyCoins_n.png")
 const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
+const SceneFadeScript = preload("res://scripts/scene_fade.gd")
+const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 const EXPEDITION_SAVE_INTERVAL := 5.0
 
 var selected_ship_id := -1
@@ -27,8 +28,7 @@ var canvas: Control
 var shop: Control
 var buy_open := false
 var buy_mode := "EQUIPMENT"
-var shop_rows: VBoxContainer
-var shop_scroll: ScrollContainer
+var shop_rows: GridContainer
 var active_tab := "FLEET"
 var formation_view: Control
 var formation_camera := Vector2.ZERO
@@ -40,14 +40,12 @@ var research_panel: Control
 var traveling := false
 var graph: Control
 var map_camera: Dictionary = {}
+var map_selected_id := ""
 var map_details: VBoxContainer
 var flagship_icon: Texture2D
 var refresh_queued := false
 var stock: Control
 var stock_preferences: Dictionary = {}
-var shop_filters: EquipmentFilters
-var only_researched := true
-var researched_filter: CheckBox
 var stats_grid: GridContainer
 var slot_info: ResourceText
 var roster_panel: PanelContainer
@@ -73,12 +71,13 @@ var encounter_event_id := ""
 var expedition_save_elapsed := 0.0
 var expedition_status_override := ""
 var shipyard_access_available := false
+var entering_battle := false
+var toast_host: VBoxContainer
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
 		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 		return
-	AudioManager.play_menu_music()
 	var margin := MarginContainer.new()
 	var background := ColorRect.new()
 	background.color = get_theme_color("background_color", "SlotCanvas")
@@ -241,12 +240,23 @@ func _ready() -> void:
 	GameState.research_changed.connect(_queue_refresh)
 	GameState.credits_changed.connect(_queue_refresh)
 	_refresh()
-	if GameState.expedition_simulation != null:
+	_sync_music()
+	SceneFadeScript.reveal(self)
+	if GameState.battle_pending and GameState.pending_encounter.has("expedition_event_id"):
+		_enter_battle.call_deferred()
+	elif GameState.expedition_simulation != null:
 		if not GameState.expedition_simulation.state.pending_event_id.is_empty():
 			_show_encounter()
 		elif GameState.expedition_simulation.state.departure_choice_pending:
 			_show_departure_choices()
-
+		elif GameState.stranded():
+			_show_rescue()
+		elif GameState.pending_intro:
+			var briefing: Dictionary = GameState.expedition_simulation.Events.start_event(GameState.expedition_simulation.events)
+			if briefing.is_empty():
+				GameState.pending_intro = false
+			else:
+				_show_encounter(briefing)
 func _resize_panels() -> void:
 	if header_wallet != null:
 		_resize_research_label()
@@ -320,35 +330,45 @@ func _shipyard_action(button: Button, eligible := true) -> Button:
 
 func _advance_expedition(delta: float) -> void:
 	var simulation = GameState.expedition_simulation
-	if simulation == null or simulation.state == null or is_instance_valid(departure_modal):
+	if simulation == null or simulation.state == null or is_instance_valid(departure_modal) \
+			or is_instance_valid(encounter_modal) or entering_battle or GameState.completed or GameState.run_ended:
 		return
-	var previous: Dictionary = simulation.state.snapshot()
-	var previous_boundary_sequence: int = simulation.boundary_sequence
-	if not simulation.advance(delta):
-		expedition_status_override = "Navigation error: " + simulation.last_error
-		_restore_expedition(previous)
-		_refresh_expedition_controls()
-		return
+	expedition_save_elapsed += delta
+	var periodic: bool = expedition_save_elapsed >= EXPEDITION_SAVE_INTERVAL
+	var result: Dictionary = GameState.advance_expedition(delta, periodic)
 	if is_instance_valid(formation_view):
 		formation_view.travel_distance_nu = simulation.state.traveled_distance_nu
-	expedition_save_elapsed += delta
-	var boundary_reached: bool = simulation.boundary_sequence != previous_boundary_sequence
-	_update_expedition_readouts()
-	if boundary_reached or expedition_save_elapsed >= EXPEDITION_SAVE_INTERVAL:
-		if not GameState.save_expedition_checkpoint():
-			_restore_expedition(previous)
-			simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
-			expedition_status_override = "Save failed: " + GameState.last_save_error
-			expedition_save_elapsed = 0.0
-		else:
-			expedition_save_elapsed = 0.0
-			if boundary_reached:
-				expedition_status_override = ""
-				if not simulation.state.pending_event_id.is_empty():
-					_show_encounter()
-				elif simulation.state.departure_choice_pending:
-					_show_departure_choices()
+	if not result.ok:
+		simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
+		expedition_status_override = result.error
+		expedition_save_elapsed = 0.0
 		_refresh_expedition_controls()
+		return
+	if result.saved:
+		expedition_save_elapsed = 0.0
+	if int(result.delivered) > 0:
+		_toast("Delivery paid +%d credits" % int(result.delivered), &"purchase")
+	if not str(result.research_done).is_empty():
+		_toast("Research complete: %s" % result.research_done, &"research_complete")
+	if result.repaired:
+		_toast("Fleet hulls fully repaired", &"repair")
+	_update_expedition_readouts()
+	if result.boundary:
+		expedition_status_override = ""
+		var docked: Dictionary = simulation.locations.get(simulation.state.docked_location_id, {})
+		if not docked.is_empty():
+			AudioManager.play_ui_sfx(&"dock")
+			_toast("Docked at %s" % docked.name, &"")
+		_sync_music()
+		if not simulation.state.pending_event_id.is_empty():
+			_show_encounter()
+		elif simulation.state.departure_choice_pending:
+			_show_departure_choices()
+		elif GameState.stranded():
+			_show_rescue()
+		_refresh_expedition_controls()
+		if is_instance_valid(graph):
+			graph.queue_redraw()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not inspected_item.is_empty():
@@ -390,6 +410,7 @@ func _render_inspection() -> void:
 		inspection.queue_free()
 	stock.hide()
 	inspection = ScrollContainer.new()
+	inspection.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	inspection.name = "ItemDetails"
 	inspection.size_flags_vertical = SIZE_EXPAND_FILL
 	inspection.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -573,15 +594,10 @@ func _refresh() -> void:
 	shipyard_access_available = GameState.can_use_shipyard()
 	if not shipyard_access_available:
 		buy_open = false
-	var buy_scroll_position := 0
-	if buy_open and is_instance_valid(shop) and shop.get_parent() == center \
-			and shop.get_meta("buy_mode", "") == buy_mode and is_instance_valid(shop_scroll):
-		buy_scroll_position = shop_scroll.scroll_vertical
-	shop_scroll = null
 	for tab: Button in tabs.get_children():
 		tab.set_pressed_no_signal(tab.text == active_tab)
 	research_button.set_pressed_no_signal(active_tab == "RESEARCH")
-	if is_instance_valid(canvas):
+	if is_instance_valid(canvas) and not canvas.auto_fit:
 		fitting_views[canvas.owned_id] = {"camera": canvas.camera, "zoom": canvas.zoom}
 	if is_instance_valid(formation_view):
 		formation_camera = formation_view.camera
@@ -592,7 +608,7 @@ func _refresh() -> void:
 		research_view = {"selected_id": research_panel.selected_id,
 			"camera_position": research_panel.tree_canvas.camera_position,
 			"camera_zoom": research_panel.tree_canvas.camera_zoom}
-	if is_instance_valid(graph) and graph.is_inside_tree():
+	if is_instance_valid(graph) and graph.is_inside_tree() and graph.get("user_moved") != false:
 		map_camera = {"position": graph.camera_position, "zoom": graph.camera_zoom}
 	graph = null
 	research_panel = null
@@ -639,7 +655,7 @@ func _refresh() -> void:
 		selected_ship_id = GameState.fleet[0].id
 	formation_selection = formation_selection.filter(func(id: int) -> bool: return GameState.owned_ship(id) != null)
 	if GameState.completed or GameState.run_ended:
-		center.add_child(_label("RUN COMPLETE" if GameState.completed else "FLAGSHIP LOST"))
+		_show_run_end()
 		return
 	if active_tab == "RESEARCH":
 		var research: Control = load("res://scripts/research_panel.gd").new()
@@ -655,40 +671,17 @@ func _refresh() -> void:
 		_show_map()
 		_refresh_expedition_controls()
 		return
-	roster.add_child(_label("SHIPS"))
-	var ship_scroll := ScrollContainer.new()
-	ship_scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	ship_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	roster.add_child(ship_scroll)
-	var ship_rows := VBoxContainer.new()
-	ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
-	ship_scroll.add_child(ship_rows)
-	for owned: HangarShip in GameState.fleet:
-		var button := _button_with_sound(owned.display_name, func() -> void:
-			selected_ship_id = owned.id
-			formation_selection.assign([owned.id])
-			selected_slot = ""
-			_refresh(), &"select_tab")
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.icon = flagship_icon if owned.flagship else null
-		if owned.flagship:
-			button.add_theme_constant_override("icon_max_width", 9)
-		button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.name = "Ship%d" % owned.id
-		button.clip_text = true
-		button.resized.connect(_fit_roster_name.bind(button))
-		button.toggle_mode = true
-		button.button_pressed = owned.id == selected_ship_id
-		if active_tab == "FLEET":
-			button.gui_input.connect(func(event: InputEvent) -> void:
-				if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.double_click:
-					selected_ship_id = owned.id
-					formation_selection.assign([owned.id])
-					selected_slot = ""
-					active_tab = "SHIPS"
-					_queue_refresh()
-					button.accept_event())
-		ship_rows.add_child(button)
+	if active_tab == "SHIPS":
+		var ship_rows := GridContainer.new()
+		ship_rows.name = "ShipTiles"
+		ship_rows.columns = 2
+		ship_rows.add_theme_constant_override("h_separation", 4)
+		ship_rows.add_theme_constant_override("v_separation", 4)
+		ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
+		roster.add_child(ship_rows)
+		var tile_size := clampf((roster_panel.custom_minimum_size.x - 40) * 0.5, 40, 72)
+		for owned: HangarShip in GameState.fleet:
+			ship_rows.add_child(_ship_tile(owned, tile_size))
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
 	var mode := "SHIPS" if active_tab == "FLEET" else "EQUIPMENT"
 	var buy := _button_with_sound("Buy Chassis" if mode == "SHIPS" else "Buy Equipment", _open_shop.bind(mode), &"animate_ui")
@@ -715,6 +708,7 @@ func _refresh() -> void:
 		board.ship_selected.connect(func(id: int) -> void:
 			selected_ship_id = id
 			_queue_refresh())
+		board.ship_opened.connect(_open_ship_editor)
 	else:
 		var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 		if owned != null:
@@ -725,6 +719,7 @@ func _refresh() -> void:
 			var view: Dictionary = fitting_views.get(owned.id, {})
 			canvas.camera = view.get("camera", Vector2.ZERO)
 			canvas.zoom = view.get("zoom", 1.0)
+			canvas.auto_fit = view.is_empty()
 			canvas.size_flags_vertical = SIZE_EXPAND_FILL
 			stack.add_child(canvas)
 			canvas.selected_slot = selected_slot
@@ -761,9 +756,68 @@ func _refresh() -> void:
 	if buy_open:
 		if stock == null:
 			_show_stock()
-		_show_buy_panel(buy_scroll_position)
+		_show_buy_panel()
 	_refresh_expedition_controls()
 
+
+func _show_run_end() -> void:
+	if is_instance_valid(get_node_or_null("RunEnd")):
+		return
+	_sync_music()
+	if GameState.completed:
+		AudioManager.play_ui_sfx(&"demo_complete")
+	var overlay := Control.new()
+	overlay.name = "RunEnd"
+	overlay.add_to_group("modal_ui")
+	overlay.z_index = 45
+	add_child(overlay)
+	overlay.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.7)
+	overlay.add_child(shade)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var center_box := CenterContainer.new()
+	overlay.add_child(center_box)
+	center_box.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.theme_type_variation = &"CompactPanel"
+	panel.custom_minimum_size.x = minf(420, size.x - 48)
+	center_box.add_child(panel)
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 6)
+	panel.add_child(column)
+	if GameState.completed:
+		var badge := TextureRect.new()
+		badge.texture = load("res://assets/ui/Victory_Badge.png")
+		badge.custom_minimum_size = Vector2(64, 64) if size.y >= 500 else Vector2(40, 40)
+		badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		column.add_child(badge)
+	var title := _label("DEMO COMPLETE" if GameState.completed else "FLAGSHIP LOST")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	column.add_child(title)
+	var story := _label("The Bastion Gate is open. The Leviathan waits beyond it.\nThanks for playing this slice of Leviathan Protocol."
+		if GameState.completed else "The convoy is scattered without its flagship.")
+	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(story)
+	var data: Dictionary = GameState.hangar_snapshot()
+	var points := RunScore.breakdown(data)
+	if not points.is_empty():
+		var lines: PackedStringArray = [
+			"Research  %d" % int(points.research),
+			"Swarm damage  %d" % int(points.damage),
+			"Credits earned  %d" % int(points.credits)]
+		if int(points.leviathan) > 0:
+			lines.append("Bastion Gate cleared  %d" % int(points.leviathan))
+		lines.append("SCORE  %d" % int(points.total))
+		var score := _label("\n".join(lines))
+		score.name = "RunEndScore"
+		score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(score)
+	column.add_child(_button("MAIN MENU", func() -> void:
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")))
 
 func _refresh_expedition_controls() -> void:
 	_sync_station_services()
@@ -794,13 +848,14 @@ func _refresh_expedition_controls() -> void:
 			and state.travel_state in [ExpeditionStateData.TravelState.DOCKED, ExpeditionStateData.TravelState.STOPPED]
 	_update_expedition_readouts()
 
-func _show_encounter() -> void:
+func _show_encounter(intro: Dictionary = {}) -> void:
 	if is_instance_valid(encounter_modal):
 		return
 	var simulation = GameState.expedition_simulation
-	if simulation == null or simulation.state.pending_event_id.is_empty():
+	if simulation == null or (intro.is_empty() and simulation.state.pending_event_id.is_empty()):
 		return
-	var event: Dictionary = simulation.Events.find(simulation.events, simulation.state.pending_event_id)
+	var event: Dictionary = intro if not intro.is_empty() \
+			else simulation.Events.find(simulation.events, simulation.state.pending_event_id)
 	if event.is_empty():
 		push_error("Cannot show an encounter without its validated event data.")
 		return
@@ -811,6 +866,7 @@ func _show_encounter() -> void:
 		shop = null
 	buy_open = false
 	encounter_event_id = event.id
+	AudioManager.play_ui_sfx(&"question")
 	encounter_modal = Control.new()
 	encounter_modal.name = "ExpeditionEncounter"
 	encounter_modal.add_to_group("modal_ui")
@@ -829,18 +885,40 @@ func _show_encounter() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "EncounterPanel"
 	panel.theme_type_variation = &"CompactPanel"
-	panel.custom_minimum_size.x = minf(440, size.x - 48)
+	panel.custom_minimum_size.x = minf(520, size.x - 48)
 	panel.size_flags_horizontal = SIZE_SHRINK_CENTER
 	panel.size_flags_vertical = SIZE_SHRINK_CENTER
 	margin.add_child(panel)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 12)
+	panel.add_child(body)
+	var portrait := TextureRect.new()
+	portrait.name = "EncounterArt"
+	portrait.texture = _event_art(str(event.get("art", "")))
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.custom_minimum_size = Vector2(72, 72) if size.y >= 500 else Vector2(48, 48)
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.size_flags_vertical = SIZE_SHRINK_BEGIN
+	body.add_child(portrait)
 	var column := VBoxContainer.new()
-	panel.add_child(column)
-	column.add_child(_label(str(event.title).to_upper()))
+	column.size_flags_horizontal = SIZE_EXPAND_FILL
+	body.add_child(column)
+	var title := _label(str(event.title).to_upper())
+	title.theme_type_variation = &"HeaderResearch"
+	column.add_child(title)
 	var text := _label(event.text)
-	text.custom_minimum_size.x = minf(360, size.x - 96)
+	text.custom_minimum_size.x = minf(400, size.x - 160)
 	column.add_child(text)
-	column.add_child(_button("INVESTIGATE", _choose_encounter.bind(event.id, "investigate")))
-	column.add_child(_button("CONTINUE COURSE", _choose_encounter.bind(event.id, "continue")))
+	for option: Dictionary in simulation.Events.options(event):
+		var action := _dismiss_intro if not intro.is_empty() else _choose_encounter.bind(event.id, str(option.id))
+		var choice := _button(str(option.label), action)
+		choice.name = "Choice_" + str(option.id)
+		var needed := int(option.get("effects", {}).get("requires_credits", 0))
+		choice.disabled = GameState.credits < needed
+		if option.get("effects", {}).has("combat"):
+			choice.add_theme_color_override("font_color", Color("ffb0a0"))
+		column.add_child(choice)
 	encounter_error = _label("")
 	column.add_child(encounter_error)
 	encounter_retry = _button("RETRY SAVE", func() -> void:
@@ -849,6 +927,69 @@ func _show_encounter() -> void:
 		encounter_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons)
 	encounter_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
 	column.add_child(encounter_retry)
+
+func _show_rescue() -> void:
+	if is_instance_valid(encounter_modal) or not GameState.stranded():
+		return
+	var quote: Dictionary = GameState.rescue_quote()
+	if quote.is_empty():
+		return
+	AudioManager.play_ui_sfx(&"alarm")
+	encounter_modal = Control.new()
+	encounter_modal.name = "FuelRescue"
+	encounter_modal.add_to_group("modal_ui")
+	encounter_modal.z_index = 40
+	add_child(encounter_modal)
+	encounter_modal.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.65)
+	encounter_modal.add_child(shade)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var center_box := CenterContainer.new()
+	encounter_modal.add_child(center_box)
+	center_box.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.name = "RescuePanel"
+	panel.theme_type_variation = &"CompactPanel"
+	panel.custom_minimum_size.x = minf(420, size.x - 48)
+	center_box.add_child(panel)
+	var column := VBoxContainer.new()
+	panel.add_child(column)
+	var title := _label("OUT OF FUEL")
+	title.theme_type_variation = &"HeaderResearch"
+	column.add_child(title)
+	var debt: int = int(quote.fee) - GameState.credits
+	var text := "The convoy is adrift. A salvage tug can tow you %d NU to %s and fill the tanks for %d credits." % [
+		roundi(quote.distance), quote.name, int(quote.fee)]
+	if debt > 0:
+		text += "\nThis leaves the convoy %d credits in debt." % debt
+	column.add_child(_label(text))
+	encounter_error = _label("")
+	var tow := _button("CALL A TUG (%d)" % int(quote.fee), func() -> void:
+		if not GameState.accept_rescue():
+			encounter_error.text = GameState.last_save_error
+			return
+		encounter_modal.queue_free()
+		encounter_modal = null
+		AudioManager.play_ui_sfx(&"refuel")
+		_toast("Towed to %s" % quote.name, &"dock")
+		_sync_music()
+		_refresh_expedition_controls()
+		_queue_refresh())
+	tow.name = "AcceptRescue"
+	column.add_child(tow)
+	column.add_child(encounter_error)
+
+func _event_art(path: String) -> Texture2D:
+	return PlaceholderAssets.texture(path)
+
+func _dismiss_intro() -> void:
+	GameState.pending_intro = false
+	if is_instance_valid(encounter_modal):
+		encounter_modal.queue_free()
+	encounter_modal = null
+	encounter_error = null
+	encounter_retry = null
 
 func _choose_encounter(event_id: String, choice: String) -> void:
 	if not is_instance_valid(encounter_modal) or encounter_event_id != event_id:
@@ -864,7 +1005,70 @@ func _choose_encounter(event_id: String, choice: String) -> void:
 	encounter_event_id = ""
 	expedition_status_override = ""
 	expedition_save_elapsed = 0.0
+	if GameState.battle_pending:
+		_enter_battle()
+		return
+	if not GameState.last_event_result.is_empty():
+		_toast(GameState.last_event_result, &"loot" if "Found" in GameState.last_event_result else &"notification")
 	_refresh_expedition_controls()
+	if GameState.expedition_simulation.state.departure_choice_pending:
+		_show_departure_choices()
+
+func _enter_battle() -> void:
+	if entering_battle:
+		return
+	entering_battle = true
+	if get_viewport().gui_is_dragging():
+		get_viewport().gui_cancel_drag()
+	AudioManager.play_ui_sfx(&"warp")
+	var boss: bool = GameState.pending_encounter.get("template_id", "") == "bastion_warden"
+	SceneFadeScript.cover_and_change(self, "res://scenes/auto_battle.tscn", "THE WARDEN" if boss else "ENGAGING")
+
+func _toast(text: String, sound: StringName) -> void:
+	if text.is_empty():
+		return
+	if not is_instance_valid(toast_host):
+		toast_host = VBoxContainer.new()
+		toast_host.name = "Toasts"
+		toast_host.mouse_filter = MOUSE_FILTER_IGNORE
+		toast_host.z_index = 35
+		toast_host.alignment = BoxContainer.ALIGNMENT_BEGIN
+		add_child(toast_host)
+		toast_host.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
+		toast_host.offset_top = 52
+		toast_host.grow_horizontal = GROW_DIRECTION_BOTH
+	if not sound.is_empty():
+		AudioManager.play_ui_sfx(sound)
+	var card := PanelContainer.new()
+	card.theme_type_variation = &"CompactPanel"
+	card.mouse_filter = MOUSE_FILTER_IGNORE
+	card.size_flags_horizontal = SIZE_SHRINK_CENTER
+	var label := _label(text)
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.add_child(label)
+	toast_host.add_child(card)
+	while toast_host.get_child_count() > 3:
+		var oldest := toast_host.get_child(0)
+		toast_host.remove_child(oldest)
+		oldest.queue_free()
+	var tween := card.create_tween()
+	card.modulate.a = 0.0
+	tween.tween_property(card, "modulate:a", 1.0, 0.2)
+	tween.tween_interval(3.0)
+	tween.tween_property(card, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(card.queue_free)
+
+func _sync_music() -> void:
+	var simulation = GameState.expedition_simulation
+	if GameState.completed:
+		AudioManager.play_context_music(&"finale")
+	elif simulation == null or simulation.state == null:
+		AudioManager.play_menu_music()
+	elif not simulation.state.docked_location_id.is_empty():
+		AudioManager.play_context_music(&"docked")
+	else:
+		AudioManager.play_context_music(&"expedition")
 
 
 func _update_expedition_readouts() -> void:
@@ -973,41 +1177,67 @@ func _show_departure_choices() -> void:
 	panel.name = "DeparturePanel"
 	panel.theme_type_variation = &"CompactPanel"
 	panel.size_flags_horizontal = SIZE_SHRINK_CENTER
-	panel.custom_minimum_size.x = minf(440, size.x - 48)
+	panel.size_flags_vertical = SIZE_SHRINK_CENTER
+	panel.custom_minimum_size.x = minf(620, size.x - 48)
 	margin.add_child(panel)
 	var column := VBoxContainer.new()
 	panel.add_child(column)
 	column.add_child(_label("NEXT DESTINATION"))
-	column.add_child(_label("Choose where to go next."))
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
-	var choices := VBoxContainer.new()
+	if simulation.state.travel_state == ExpeditionStateData.TravelState.DOCKED:
+		var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
+		close.name = "StayDocked"
+		panel.add_child(close)
+		close.set_anchors_preset(PRESET_TOP_RIGHT)
+		close.size_flags_horizontal = SIZE_SHRINK_END
+		close.size_flags_vertical = SIZE_SHRINK_BEGIN
+		AudioManager.connect_ui_button(close)
+		close.pressed.connect(_stay_docked)
+	var choices := GridContainer.new()
+	choices.name = "DestinationGrid"
+	choices.columns = 2 if size.x >= 560 else 1
+	choices.add_theme_constant_override("h_separation", 10)
+	choices.add_theme_constant_override("v_separation", 4)
 	choices.size_flags_horizontal = SIZE_EXPAND_FILL
-	scroll.add_child(choices)
+	column.add_child(choices)
+	var candidates: Array[Dictionary] = []
 	for id: String in simulation.state.discovered_location_ids:
 		var location: Dictionary = simulation.locations.get(id, {})
-		if location.is_empty() or not location.accessible:
+		if location.is_empty() or not simulation.location_accessible(location):
 			continue
 		var distance: float = simulation.state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
 		if distance <= 0.000001:
 			continue
+		candidates.append({"id": id, "location": location, "distance": distance})
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.distance < b.distance)
+	var fuel_rate := float(simulation.tuning.fuel_per_nav_unit)
+	for candidate: Dictionary in candidates:
+		var id: String = candidate.id
+		var location: Dictionary = candidate.location
+		var distance: float = candidate.distance
 		var option := VBoxContainer.new()
+		option.add_theme_constant_override("separation", 0)
+		option.size_flags_horizontal = SIZE_EXPAND_FILL
 		choices.add_child(option)
 		var choose := _button(location.name, _choose_departure.bind(id))
 		if id == simulation.state.return_destination_id:
 			choose.text = "RESUME: " + location.name
+		if location.kind == "gate":
+			choose.add_theme_color_override("font_color", Color("ffb0a0"))
 		choose.set_meta("expedition_destination", id)
 		option.add_child(choose)
-		var description := "Explore a derelict field. No station services." if location.kind == "poi" \
-				else "Dock at this station."
-		var services: PackedStringArray = []
+		var fuel_needed := distance * fuel_rate
+		var facts: PackedStringArray = ["%d NU" % roundi(distance), "%d fuel" % ceili(fuel_needed)]
 		for service: String in location.services:
-			services.append(service.capitalize())
-		if not services.is_empty():
-			description += " " + ", ".join(services) + "."
-		option.add_child(_label("%s\n%d NU away" % [description, roundi(distance)]))
+			facts.append(service.capitalize())
+		if id in simulation.state.visited_location_ids:
+			facts.append("Visited")
+		var info := _label(" · ".join(facts))
+		if fuel_needed > simulation.state.fuel + 0.000001:
+			info.text += " · LOW FUEL"
+			info.add_theme_color_override("font_color", Color("ffd28a"))
+		info.autowrap_mode = TextServer.AUTOWRAP_OFF
+		info.add_theme_font_size_override("font_size", 12)
+		option.add_child(info)
 	departure_error = _label("")
 	column.add_child(departure_error)
 	departure_retry = _button("RETRY SAVE", func() -> void:
@@ -1017,20 +1247,40 @@ func _show_departure_choices() -> void:
 	departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
 	column.add_child(departure_retry)
 
+func _stay_docked() -> void:
+	if not GameState.stay_docked():
+		if is_instance_valid(departure_error):
+			departure_error.text = GameState.last_save_error
+		return
+	if is_instance_valid(departure_modal):
+		departure_modal.queue_free()
+	departure_modal = null
+	departure_error = null
+	departure_retry = null
+	_refresh_expedition_controls()
+
 func _choose_departure(location_id: String) -> void:
 	var simulation = GameState.expedition_simulation
 	if ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons:
 		departure_error.text = "Retry the failed save before choosing a destination."
 		return
-	_on_expedition_destination_selected(location_id)
-	if simulation.state.destination_location_id != location_id:
+	if not GameState.depart_expedition(location_id):
+		expedition_status_override = GameState.last_save_error
 		departure_error.text = expedition_status_override
 		departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
+		_refresh_expedition_controls()
 		return
-	departure_modal.queue_free()
+	expedition_status_override = ""
+	expedition_save_elapsed = 0.0
+	if is_instance_valid(departure_modal):
+		departure_modal.queue_free()
 	departure_modal = null
 	departure_error = null
 	departure_retry = null
+	AudioManager.play_ui_sfx(&"depart")
+	_toast(GameState.last_event_result, &"")
+	_sync_music()
+	_refresh_expedition_controls()
 
 func _time_button(kind: String, action: Callable) -> Button:
 	var button := _button_with_sound("", action, &"")
@@ -1158,11 +1408,7 @@ func _show_stock() -> void:
 	stock.size_flags_vertical = SIZE_EXPAND_FILL
 	details.add_child(stock)
 	stock.changed_preferences.connect(func(value: Dictionary) -> void:
-		stock_preferences = value
-		if buy_open and is_instance_valid(shop_filters):
-			shop_filters.set_preferences(value)
-			if buy_mode == "EQUIPMENT":
-				_shop_equipment())
+		stock_preferences = value)
 	stock.equipment_stored.connect(_result)
 	stock.equipment_sold.connect(_result)
 	stock.equipment_selected.connect(func(uid: String) -> void:
@@ -1223,13 +1469,14 @@ func _show_details() -> void:
 		return
 	_clear(details)
 	details.add_child(_label(owned.display_name))
-	var stat_scroll := ScrollContainer.new()
-	stat_scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	stat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	details.add_child(stat_scroll)
 	var bars := StatBars.new()
-	stat_scroll.add_child(bars)
+	bars.name = "ShipStatBars"
+	bars.size_flags_vertical = SIZE_SHRINK_BEGIN
+	details.add_child(bars)
 	bars.set_ship(owned)
+	var regen := _label("Self-repair %.2f hull/s" % GameState.self_repair_rate(owned))
+	regen.name = "SelfRepairRate"
+	details.add_child(regen)
 	if not selected_slot.is_empty():
 		for slot: Dictionary in owned.chassis.slots:
 			if slot.id == selected_slot:
@@ -1350,7 +1597,7 @@ func _open_shop(mode := "EQUIPMENT") -> void:
 	buy_mode = mode
 	_refresh()
 
-func _show_buy_panel(scroll_position := 0) -> void:
+func _show_buy_panel(_scroll_position := 0) -> void:
 	var card := PanelContainer.new()
 	card.name = "BuyPanel"
 	card.set_meta("buy_mode", buy_mode)
@@ -1362,69 +1609,92 @@ func _show_buy_panel(scroll_position := 0) -> void:
 	card.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var column := VBoxContainer.new()
 	card.add_child(column)
-	var heading := _label("Buy Chassis" if buy_mode == "SHIPS" else "Buy Equipment")
+	var simulation = GameState.expedition_simulation
+	var station: Dictionary = {} if simulation == null else simulation.locations.get(simulation.state.docked_location_id, {})
+	var heading := _label("%s · %s" % [str(station.get("name", "Shipyard")), "Ships" if buy_mode == "SHIPS" else "Equipment"])
 	heading.name = "ShopHeading"
 	heading.custom_minimum_size.y = 22
 	column.add_child(heading)
 	var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
 	card.add_child(close)
 	close.set_anchors_preset(PRESET_TOP_RIGHT)
+	close.size_flags_horizontal = SIZE_SHRINK_END
+	close.size_flags_vertical = SIZE_SHRINK_BEGIN
 	AudioManager.connect_ui_button(close)
 	close.pressed.connect(func() -> void:
 		buy_open = false
 		_refresh())
-	shop_filters = EquipmentFilters.new()
-	shop_filters.name = "ShopFilters"
-	shop_filters.set_preferences(stock_preferences)
-	column.add_child(shop_filters)
-	shop_filters.changed.connect(_shop_equipment_filters_changed)
-	researched_filter = CheckBox.new()
-	researched_filter.name = "OnlyResearched"
-	researched_filter.text = "Only show researched"
-	researched_filter.button_pressed = only_researched
-	shop_filters.get_child(1).add_child(researched_filter)
-	researched_filter.toggled.connect(func(enabled: bool) -> void:
-		only_researched = enabled
-		_shop_equipment())
-	var scroll := ScrollContainer.new()
-	shop_scroll = scroll
-	scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	column.add_child(scroll)
-	shop_rows = VBoxContainer.new()
+	shop_rows = GridContainer.new()
+	shop_rows.name = "ShopItems"
+	shop_rows.add_theme_constant_override("h_separation", 6)
+	shop_rows.add_theme_constant_override("v_separation", 4)
 	shop_rows.size_flags_horizontal = SIZE_EXPAND_FILL
-	scroll.add_child(shop_rows)
+	column.add_child(shop_rows)
 	if buy_mode == "SHIPS":
 		_shop_ships()
 	else:
 		_shop_equipment()
-	scroll.set_deferred("scroll_vertical", scroll_position)
+
+# Each shipyard sells a fixed, seeded selection of its own stock; only as many
+# cards as fit the panel are offered, so the shop never needs to scroll.
+func _shop_capacity(card_height: float) -> Vector2i:
+	var area := center.size - Vector2(24, 44)
+	var columns := clampi(floori(area.x / 220.0), 1, 3)
+	var rows := maxi(1, floori((area.y + 4) / (card_height + 4)))
+	return Vector2i(columns, rows)
+
+func _station_stock(key: String, all_ids: Array) -> Array:
+	var simulation = GameState.expedition_simulation
+	var station: Dictionary = {} if simulation == null else simulation.locations.get(simulation.state.docked_location_id, {})
+	var ids: Array = station.get(key, all_ids).duplicate()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%d/shop/%s/%s" % [GameState.run_seed, str(station.get("id", "")), key])
+	for index in range(ids.size() - 1, 0, -1):
+		var swap := rng.randi_range(0, index)
+		var held: Variant = ids[index]
+		ids[index] = ids[swap]
+		ids[swap] = held
+	var featured: Array = station.get("featured", [])
+	for index in range(featured.size() - 1, -1, -1):
+		if featured[index] in ids:
+			ids.erase(featured[index])
+			ids.push_front(featured[index])
+	return ids
+
+func _shop_thumbnail(texture: Texture2D, lit: bool) -> TextureRect:
+	var image := TextureRect.new()
+	image.name = "ItemArt"
+	image.texture = texture
+	if lit:
+		SurfaceArt.apply(image)
+	image.custom_minimum_size = Vector2(34, 38)
+	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	return image
 
 func _shop_equipment() -> void:
 	buy_mode = "EQUIPMENT"
-	shop_filters.show()
-	researched_filter.show()
 	_clear(shop_rows)
 	var grants: Dictionary = GameState.research_grants()
-	var candidates: Array[Dictionary] = []
+	var all_ids: Array = []
 	for item in SlotCatalog.equipment():
-		if item.id in HangarResearch.DEFERRED_EQUIPMENT or item.id in HangarResearch.DEFERRED_PURCHASES:
+		if int(item.rank) == 1:
+			all_ids.append(item.id)
+	var capacity := _shop_capacity(40)
+	shop_rows.columns = capacity.x
+	var shown := 0
+	for id: Variant in _station_stock("stock", all_ids):
+		if shown >= capacity.x * capacity.y:
+			break
+		var item := SlotCatalog.find_equipment(str(id), 1)
+		if item.is_empty() or item.id in HangarResearch.DEFERRED_EQUIPMENT or item.id in HangarResearch.DEFERRED_PURCHASES:
 			continue
-		if not shop_filters.matches(item):
-			continue
-		if only_researched and not SlotCatalog.unlocked(item, grants):
-			continue
-		candidates.append(item)
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		if int(a.price) == int(b.price):
-			var a_name := str(a.name).to_lower()
-			var b_name := str(b.name).to_lower()
-			if a_name == b_name:
-				return str(a.id) < str(b.id) if a.id != b.id else int(a.rank) < int(b.rank)
-			return a_name < b_name
-		return int(a.price) < int(b.price))
-	for item: Dictionary in candidates:
 		var unlocked := SlotCatalog.unlocked(item, grants)
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = SIZE_EXPAND_FILL
+		var art_path := str(item.get("art", ""))
+		row.add_child(_shop_thumbnail(SurfaceArt.texture(art_path) if not art_path.is_empty() else PlaceholderAssets.art(), not art_path.is_empty()))
 		var button := _shop_button(
 			item.name, "%s %s" % [item.type.capitalize(), item.size], int(item.price),
 			unlocked, unlocked and GameState.credits >= int(item.price),
@@ -1434,15 +1704,18 @@ func _shop_equipment() -> void:
 					AudioManager.play_ui_sfx(&"purchase")
 				_result(ok),
 			true)
+		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		button.set_meta("equipment_id", item.id)
 		button.set_meta("rank", int(item.rank))
 		button.set_meta("inspect_equipment", item.id)
 		button.gui_input.connect(func(event: InputEvent) -> void:
 			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 				_inspect_equipment(item.id, int(item.rank)))
-		shop_rows.add_child(button)
-	if candidates.is_empty():
-		shop_rows.add_child(_label("No matches"))
+		row.add_child(button)
+		shop_rows.add_child(row)
+		shown += 1
+	if shown == 0:
+		shop_rows.add_child(_label("Nothing for sale"))
 
 func _shop_equipment_filters_changed(value: Dictionary) -> void:
 	stock_preferences = value
@@ -1450,30 +1723,28 @@ func _shop_equipment_filters_changed(value: Dictionary) -> void:
 		stock.preferences = value.duplicate(true)
 		stock.filters.set_preferences(value)
 		stock._render()
-	if buy_mode == "EQUIPMENT":
-		_shop_equipment()
 
 func _shop_ships() -> void:
 	buy_mode = "SHIPS"
-	shop_filters.hide()
-	researched_filter.hide()
 	_clear(shop_rows)
-	var available := SlotCatalog.chassis()
-	available.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		if int(a.price) == int(b.price):
-			return str(a.name) < str(b.name)
-		return int(a.price) < int(b.price))
-	for chassis in available:
-		if int(chassis.command) > 0:
+	var all_ids: Array = []
+	for chassis in SlotCatalog.chassis():
+		if int(chassis.command) <= 0:
+			all_ids.append(chassis.id)
+	var capacity := _shop_capacity(48)
+	shop_rows.columns = capacity.x
+	var shown := 0
+	for id: Variant in _station_stock("chassis_stock", all_ids):
+		if shown >= capacity.x * capacity.y:
+			break
+		var chassis := SlotCatalog.find_chassis(str(id))
+		if chassis.is_empty() or int(chassis.command) > 0:
 			continue
 		var row := HBoxContainer.new()
+		row.size_flags_horizontal = SIZE_EXPAND_FILL
 		shop_rows.add_child(row)
-		var image := TextureRect.new()
-		image.texture = SurfaceArt.texture(chassis.art)
-		SurfaceArt.apply(image)
+		var image := _shop_thumbnail(SurfaceArt.texture(chassis.art), true)
 		image.custom_minimum_size = Vector2(40, 48)
-		image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		row.add_child(image)
 		var available_to_buy := GameState.credits >= int(chassis.price) and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
 		var button := _shop_button(
@@ -1495,18 +1766,52 @@ func _shop_ships() -> void:
 				_inspect_chassis(chassis.id))
 		button.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(button)
+		shown += 1
+	if shown == 0:
+		shop_rows.add_child(_label("No ships for sale"))
 
-func _fit_roster_name(button: Button) -> void:
-	var font := button.get_theme_font("font")
-	var font_size := get_theme_font_size("font_size", "Button")
-	var padding := button.get_theme_stylebox("normal").get_minimum_size().x
-	var icon_width := 9 + button.get_theme_constant("h_separation") if button.icon != null else 0
-	var available := maxf(1, button.size.x - padding - icon_width)
-	while font_size > 1 and font.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > available:
-		font_size -= 1
-	button.add_theme_font_size_override("font_size", font_size)
+func _ship_tile(owned: HangarShip, tile_size: float) -> Button:
+	var button := _button_with_sound("", func() -> void:
+		selected_ship_id = owned.id
+		formation_selection.assign([owned.id])
+		selected_slot = ""
+		_refresh(), &"select_tab")
+	button.name = "Ship%d" % owned.id
+	button.toggle_mode = true
+	button.button_pressed = owned.id == selected_ship_id
+	button.custom_minimum_size = Vector2(tile_size, tile_size)
+	button.size_flags_horizontal = SIZE_EXPAND_FILL
+	button.set_meta("ship_id", owned.id)
+	var texture := SurfaceArt.diffuse(owned.art_texture)
+	button.draw.connect(func() -> void:
+		var inner := Rect2(Vector2(5, 4), button.size - Vector2(10, 14))
+		var art_size := texture.get_size()
+		var fit := minf(inner.size.x / art_size.x, inner.size.y / art_size.y)
+		var drawn := art_size * fit
+		button.draw_texture_rect(texture, Rect2(inner.position + (inner.size - drawn) * 0.5, drawn), false)
+		if owned.flagship and flagship_icon != null:
+			button.draw_texture_rect(flagship_icon, Rect2(Vector2(4, 3), Vector2(9, 9)), false)
+		var bar := Rect2(Vector2(6, button.size.y - 8), Vector2(button.size.x - 12, 3))
+		button.draw_rect(bar, Color(0, 0, 0, 0.6))
+		var ratio := clampf(owned.hull_hp / maxf(1.0, owned.hull_max), 0.0, 1.0)
+		var color := Color("6be38a") if ratio > 0.6 else (Color("ffd28a") if ratio > 0.3 else Color("ff7a6b"))
+		button.draw_rect(Rect2(bar.position, Vector2(bar.size.x * ratio, bar.size.y)), color))
+	return button
+
+func _open_ship_editor(id: int) -> void:
+	if GameState.owned_ship(id) == null:
+		return
+	selected_ship_id = id
+	formation_selection.assign([id])
+	selected_slot = ""
+	active_tab = "SHIPS"
+	buy_open = false
+	_queue_refresh()
 
 func _show_map() -> void:
+	if GameState.expedition_simulation != null:
+		_show_expedition_map()
+		return
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1527,9 +1832,6 @@ func _show_map() -> void:
 		graph.camera_position = map_camera.position
 		graph.camera_zoom = map_camera.zoom
 	graph.destination_selected.connect(_select_destination)
-	if GameState.expedition_simulation != null:
-		map_details.add_child(_label("Choose your onward destination after arrival."))
-		return
 	for id: int in GameState.get_reachable_nodes(GameState.current_node_id):
 		var preview: Dictionary = GameState.node_preview(id)
 		roster.add_child(_button(preview.title, _select_destination.bind(id)))
@@ -1538,6 +1840,78 @@ func _show_map() -> void:
 		map_details.add_child(_label(problem))
 	_map_event_details()
 	map_details.add_child(_label(NodeEnvironment.description(GameState.node_environment(GameState.current_node_id))))
+
+func _show_expedition_map() -> void:
+	map_details = VBoxContainer.new()
+	map_details.name = "MapDetails"
+	map_details.size_flags_vertical = SIZE_EXPAND_FILL
+	details.add_child(map_details)
+	graph = load("res://scripts/expedition_map.gd").new()
+	graph.name = "ExpeditionMap"
+	center.add_child(graph)
+	graph.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if not map_camera.is_empty():
+		graph.camera_position = map_camera.position
+		graph.camera_zoom = map_camera.zoom
+		graph.user_moved = true
+	graph.selected_id = map_selected_id
+	graph.location_selected.connect(func(id: String) -> void:
+		map_selected_id = id
+		_render_map_details())
+	_render_map_details()
+	_render_voyage_summary()
+
+func _render_voyage_summary() -> void:
+	var simulation = GameState.expedition_simulation
+	var state = simulation.state
+	roster.add_child(_label("VOYAGE"))
+	var lines: PackedStringArray = [
+		"Traveled %d NU" % roundi(state.traveled_distance_nu),
+		"Fuel %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)],
+		"Range %d NU" % roundi(state.fuel / float(simulation.tuning.fuel_per_nav_unit)),
+		"Visited %d" % state.visited_location_ids.size()]
+	if state.flags.get("leviathan_protocol", false) and not GameState.completed:
+		lines.append("")
+		lines.append("Orders: clear the Bastion Gate")
+	var summary := _label("\n".join(lines))
+	summary.name = "VoyageSummary"
+	roster.add_child(summary)
+
+func _render_map_details() -> void:
+	if not is_instance_valid(map_details):
+		return
+	_clear(map_details)
+	var simulation = GameState.expedition_simulation
+	var location: Dictionary = simulation.locations.get(map_selected_id, {})
+	if location.is_empty():
+		map_details.add_child(_label("Select a location to inspect it. Choose destinations with DEPART."))
+		return
+	var state = simulation.state
+	var title := _label(str(location.name).to_upper())
+	title.theme_type_variation = &"HeaderResearch"
+	map_details.add_child(title)
+	if not str(location.get("description", "")).is_empty():
+		map_details.add_child(_label(location.description))
+	var distance: float = state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
+	var cruise := float(simulation.tuning.cruise_units_per_sim_second)
+	var lines: PackedStringArray = []
+	if distance > 0.01:
+		var fuel_needed := distance * float(simulation.tuning.fuel_per_nav_unit)
+		lines.append("%d NU away" % roundi(distance))
+		lines.append("%d fuel%s" % [ceili(fuel_needed), " (out of range)" if fuel_needed > state.fuel else ""])
+		lines.append("ETA %ds at 1x · %ds at 10x" % [ceili(distance / cruise), ceili(distance / cruise / 10.0)])
+	else:
+		lines.append("Fleet is here")
+	var services: PackedStringArray = []
+	for service: String in location.services:
+		services.append(service.capitalize())
+	if not services.is_empty():
+		lines.append(", ".join(services))
+	if map_selected_id in state.visited_location_ids:
+		lines.append("Visited")
+	if not simulation.location_accessible(location):
+		lines.append("Locked")
+	map_details.add_child(_label("\n".join(lines)))
 
 func _map_event_details() -> void:
 	if GameState.navigation.is_empty():

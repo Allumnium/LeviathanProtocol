@@ -60,6 +60,8 @@ func run() -> void:
 	_test_stat_ranges()
 	_test_fighter()
 	var scene: Control = load("res://scenes/game_map.tscn").instantiate()
+	# Snapshot comparisons below exclude unrelated docked clock advancement.
+	state.expedition_simulation.set_pause(ExpeditionState.PauseReason.USER, true)
 	root.add_child(scene)
 	current_scene = scene
 	await process_frame
@@ -69,8 +71,9 @@ func run() -> void:
 	await process_frame
 	var equipment_row: Button
 	for row in scene.shop_rows.get_children():
-		if row.get_meta("equipment_id", "") == "mini_turret":
-			equipment_row = row
+		var offer: Button = row.get_child(1)
+		if offer.get_meta("equipment_id", "") == "mini_turret":
+			equipment_row = offer
 	check(equipment_row != null, "Inspectable researched equipment in shop")
 	var credits: int = state.credits
 	_click(equipment_row.get_global_rect().get_center())
@@ -131,15 +134,20 @@ func run() -> void:
 	check(not scene.stock.unequip_mode and scene.stock.filters.visible, "Drag cancellation restores stock controls")
 	check(state.hangar_snapshot() == before_drag, "Cancelled inspected-equipment drag is mutation-free")
 	scene._inspect_chassis("fighter")
+	state.credits = 300
+	scene._refresh()
+	await process_frame
+	await process_frame
+	scene._inspect_chassis("fighter")
 	var unavailable: Button
 	for host in scene.shop_rows.get_children():
 		for child in host.get_children():
-			if child is Button and child.get_meta("inspect_chassis", "") == "frigate":
+			if child is Button and child.get_meta("inspect_chassis", "") == "corsair":
 				unavailable = child
 	check(unavailable.disabled and not unavailable.has_node("BuyIcon"), "Unaffordable chassis has no purchase control")
 	_click(unavailable.get_global_rect().position + Vector2(20, 10))
 	await process_frame
-	check(scene.inspected_item.get("id", "") == "frigate", "Unaffordable chassis remains inspectable")
+	check(scene.inspected_item.get("id", "") == "corsair", "Unaffordable chassis remains inspectable")
 	scene._inspect_chassis("fighter")
 	for viewport_size in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = viewport_size

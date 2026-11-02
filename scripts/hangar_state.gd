@@ -43,6 +43,9 @@ var battle_speed := 1
 var destroy_all_neutral_targets := false
 var run_save_path := "user://expedition_run.json"
 var last_save_error := ""
+var last_event_result := ""
+# Set by the main menu's New Run flow; the game screen shows the charter briefing once.
+var pending_intro := false
 var _checkpoint_store := AtomicRunStore.new()
 
 
@@ -249,7 +252,8 @@ func _apply_hangar(data: Dictionary, restore_expedition := false) -> void:
 	if battle_pending:
 		if navigation.is_empty() and data.has("pending_encounter"):
 			frozen_encounters[str(destination_node_id)] = data.pending_encounter.duplicate(true)
-		battle_aliens = EncounterGenerator.initial_fleet(get_frozen_encounter(destination_node_id))
+		battle_aliens = EncounterGenerator.initial_fleet(pending_encounter if pending_encounter.has("expedition_event_id")
+			else get_frozen_encounter(destination_node_id))
 	if restore_expedition and not data.has("expedition"):
 		expedition_simulation = null
 	elif data.has("expedition") and (restore_expedition or expedition_simulation == null
@@ -353,6 +357,7 @@ func prepare_checkpoint_resume() -> bool:
 	return true
 
 func resolve_expedition_event(event_id: String, choice: String) -> bool:
+	last_event_result = ""
 	if expedition_simulation == null or expedition_simulation.state == null:
 		last_save_error = "No active expedition state."
 		return false
@@ -362,6 +367,12 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	if ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR in expedition_simulation.state.pause_reasons:
 		last_save_error = "Retry the failed save before resolving this encounter."
 		return false
+	var event: Dictionary = ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id)
+	var selected: Dictionary = ExpeditionSimulationScript.Events.option(event, choice)
+	var effects: Dictionary = selected.get("effects", {})
+	if credits < int(effects.get("requires_credits", 0)):
+		last_save_error = "Not enough credits."
+		return false
 	var staged = ExpeditionSimulationScript.new()
 	if not staged.configure(run_seed) or not staged.restore(expedition_simulation.state.snapshot()) \
 			or not staged.resolve_event(event_id, choice):
@@ -369,14 +380,320 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 		return false
 	var proposal := hangar_snapshot()
 	proposal.expedition = staged.state.snapshot()
+	var summary: PackedStringArray = []
+	if effects.has("credits") and int(effects.credits) != 0:
+		if int(effects.credits) > 0:
+			RunScore.earn_credits(proposal, int(effects.credits))
+		else:
+			proposal.credits += int(effects.credits)
+		summary.append("%+d credits" % int(effects.credits))
+	if effects.has("fuel"):
+		summary.append("%+d fuel" % roundi(float(effects.fuel)))
+	if float(effects.get("research", 0.0)) > 0.0:
+		if str(proposal.research.research_focus).is_empty():
+			summary.append("No research focus: data lost")
+		else:
+			_allocate_research(proposal.research, float(effects.research))
+			summary.append("+%s RP" % ScienceRules.format_rp(float(effects.research)))
+	if float(effects.get("hull_damage", 0.0)) > 0.0:
+		for entry: Dictionary in proposal.ships:
+			var owned := owned_ship(int(entry.id))
+			if owned != null and owned.is_alive():
+				entry.hull_hp = maxf(0.0, float(entry.hull_hp) - owned.hull_max * float(effects.hull_damage))
+		summary.append("Hull damage %d%%" % roundi(float(effects.hull_damage) * 100))
+	for index in range(int(effects.get("loot", 0))):
+		var item := _expedition_loot("%s/%s/%d" % [event_id, choice, index])
+		if item.is_empty():
+			continue
+		var uid := str(proposal.next_equipment_id)
+		proposal.equipment[uid] = {"uid": uid, "equipment_id": item.id, "rank": int(item.rank)}
+		proposal.next_equipment_id += 1
+		summary.append("Found " + str(item.name))
+	if effects.has("flag"):
+		summary.append("New destination revealed")
+	if effects.has("combat"):
+		var encounter := _expedition_encounter(event_id, effects)
+		if encounter.is_empty():
+			last_save_error = "Could not generate the encounter."
+			return false
+		proposal.pending = true
+		proposal.pending_encounter = encounter
 	if not _save_hangar(proposal):
 		return false
+	var hangar_changed := false
+	for key in ["credits", "research", "hull_damage", "loot", "combat"]:
+		hangar_changed = hangar_changed or effects.has(key)
+	if hangar_changed:
+		_apply_hangar(proposal)
 	if not expedition_simulation.restore(proposal.expedition):
 		last_save_error = expedition_simulation.last_error
 		push_error("Could not apply the committed encounter choice: " + last_save_error)
 		return false
+	last_event_result = " · ".join(summary)
+	if hangar_changed:
+		_notify_hangar()
+	else:
+		travel_plan_changed.emit()
+	return true
+
+func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
+	var combat: Dictionary = effects.combat
+	var index: int = expedition_simulation.events.find(ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id))
+	var node_id := 1000 + maxi(0, index)
+	var environment := {"version": 1, "asteroid_density": int(combat.get("asteroids", 0)),
+		"solar_intensity": 1.0, "nebula": bool(combat.get("nebula", false))}
+	var encounter := EncounterGenerator.generate(run_seed, node_id, int(combat.row), difficulty,
+		str(combat.template), clampi(int(combat.row), 1, 14), false, environment)
+	if encounter.is_empty():
+		return {}
+	# Hostile strength reuses the Swarm hull/shield/damage scaling.
+	var strength := float(combat.get("strength", 1.0))
+	if strength > 1.0:
+		encounter = SwarmNavigation.encounter(encounter, (strength - 1.0) / SwarmNavigation.STRENGTH_PER_POINT)
+	if combat.has("credits"):
+		encounter.rewards.credits = int(combat.credits)
+	# The arena plan carries waves/objectives into the battle, as for campaign encounters.
+	if not encounter.has("arena_layout"):
+		encounter["arena_layout"] = "open"
+	encounter["expedition_event_id"] = event_id
+	encounter["complete"] = bool(effects.get("complete", false))
+	return encounter
+
+func _expedition_loot(key: String) -> Dictionary:
+	var candidates: Array[Dictionary] = []
+	var grants := research_grants()
+	for item in SlotCatalog.equipment():
+		if item.id in HangarResearch.DEFERRED_PURCHASES or item.id in HangarResearch.DEFERRED_EQUIPMENT \
+				or item.id == "command_center" or not SlotCatalog.unlocked(item, grants):
+			continue
+		if fleet.any(func(owned: FleetShip) -> bool:
+			return (owned as HangarShip).chassis.slots.any(func(slot: Dictionary) -> bool: return SlotCatalog.compatible(slot, item))):
+			candidates.append(item)
+	if candidates.is_empty():
+		return {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%d/loot/%s" % [run_seed, key])
+	return candidates[rng.randi_range(0, candidates.size() - 1)]
+
+func station_trade_node(location_id: String) -> Dictionary:
+	if expedition_simulation == null:
+		return {}
+	var location: Dictionary = expedition_simulation.locations.get(location_id, {})
+	if location.is_empty():
+		return {}
+	var value := int(location.get("goods_unit_value", 6))
+	return {"id": expedition_simulation.locations.keys().find(location_id),
+		"inhabited": location.kind == "station" and "trade" in location.get("services", []),
+		"goods_unit_value": value if value in [3, 6, 10] else 6}
+
+# Commits a course change; leaving a dock loads cargo/passengers atomically.
+func depart_expedition(location_id: String) -> bool:
+	last_event_result = ""
+	if expedition_simulation == null or expedition_simulation.state == null:
+		last_save_error = "No active expedition state."
+		return false
+	if battle_pending or run_ended or completed:
+		last_save_error = "The fleet cannot change course right now."
+		return false
+	var sim_state = expedition_simulation.state
+	var origin: String = sim_state.docked_location_id
+	var staged = ExpeditionSimulationScript.new()
+	if not staged.configure(run_seed) or not staged.restore(sim_state.snapshot()) \
+			or not staged.request_destination(location_id):
+		last_save_error = staged.last_error
+		return false
+	var proposal := hangar_snapshot()
+	proposal.expedition = staged.state.snapshot()
+	var loaded := 0
+	if not origin.is_empty() and staged.state.docked_location_id.is_empty():
+		var before := _load_count(proposal)
+		HangarTrade.depart(proposal, station_trade_node(origin), station_trade_node(location_id))
+		loaded = _load_count(proposal) - before
+	if not _save_hangar(proposal):
+		expedition_simulation.set_pause(ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR, true)
+		return false
+	# Loads live on shared instance dictionaries; update them in place so the
+	# live fleet (and any open view of it) is not rebuilt.
+	for uid: String in proposal.equipment:
+		if equipment_inventory.has(uid):
+			equipment_inventory[uid]["load"] = proposal.equipment[uid].get("load", {}).duplicate(true)
+			if equipment_inventory[uid].load.is_empty():
+				equipment_inventory[uid].erase("load")
+	if not expedition_simulation.restore(proposal.expedition):
+		last_save_error = expedition_simulation.last_error
+		return false
+	if loaded > 0:
+		last_event_result = "Loaded %d cargo/passenger bays" % loaded
 	travel_plan_changed.emit()
 	return true
+
+func _load_count(data: Dictionary) -> int:
+	var total := 0
+	for instance: Dictionary in data.equipment.values():
+		if HangarTrade.has_load(instance):
+			total += 1
+	return total
+
+func stay_docked() -> bool:
+	if expedition_simulation == null or expedition_simulation.state == null:
+		return false
+	var previous: Dictionary = expedition_simulation.state.snapshot()
+	if not expedition_simulation.cancel_departure_choice():
+		last_save_error = expedition_simulation.last_error
+		return false
+	if not save_expedition_checkpoint():
+		expedition_simulation.restore(previous)
+		return false
+	return true
+
+func self_repair_rate(owned: HangarShip) -> float:
+	return float(owned.chassis.get("self_repair_hp_per_second", 0.0))
+
+func stranded() -> bool:
+	var simulation = expedition_simulation
+	return simulation != null and simulation.state != null and not battle_pending and not run_ended \
+		and ExpeditionSimulationScript.State.PauseReason.FUEL in simulation.state.pause_reasons \
+		and simulation.state.fuel <= 0.000001
+
+# Nearest accessible refueling station and the disclosed tow price: the refill
+# plus a base and distance fee. Towing may leave the convoy in credit debt.
+func rescue_quote() -> Dictionary:
+	if not stranded():
+		return {}
+	var simulation = expedition_simulation
+	var best := {}
+	var best_distance := INF
+	for location: Dictionary in simulation.locations.values():
+		if location.kind != "station" or "refuel" not in location.services \
+				or location.id not in simulation.state.discovered_location_ids or not simulation.location_accessible(location):
+			continue
+		var distance: float = simulation.state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
+		if distance < best_distance:
+			best_distance = distance
+			best = location
+	if best.is_empty():
+		return {}
+	var refill: float = simulation.state.fuel_capacity - simulation.state.fuel
+	return {"location_id": best.id, "name": best.name, "distance": best_distance,
+		"fee": int(ceil(refill * 2.0 + 100.0 + best_distance * 0.2))}
+
+func accept_rescue() -> bool:
+	var quote := rescue_quote()
+	if quote.is_empty():
+		last_save_error = "No rescue is needed or available."
+		return false
+	var simulation = expedition_simulation
+	var station: Dictionary = simulation.locations[quote.location_id]
+	var proposal := hangar_snapshot()
+	proposal.credits = credits - int(quote.fee)
+	var travel: Dictionary = proposal.expedition
+	travel.position_nu = [float(station.position[0]), float(station.position[1])]
+	travel.docked_location_id = station.id
+	travel.destination_location_id = ""
+	travel.return_destination_id = ""
+	travel.travel_state = ExpeditionSimulationScript.State.TravelState.DOCKED
+	travel.fuel = travel.fuel_capacity
+	travel.requested_speed = 1
+	travel.departure_choice_pending = false
+	travel.pause_reasons.erase(ExpeditionSimulationScript.State.PauseReason.FUEL)
+	if station.id not in travel.visited_location_ids:
+		travel.visited_location_ids.append(station.id)
+	if not _save_hangar(proposal):
+		return false
+	credits = int(proposal.credits)
+	if not simulation.restore(proposal.expedition):
+		last_save_error = simulation.last_error
+		return false
+	credits_changed.emit()
+	travel_plan_changed.emit()
+	return true
+
+# Advances travel once per frame. Distance funds research; unpaused noncombat
+# simulation time repairs hulls; docking delivers trade loads. Returns facts
+# for the UI. A failed boundary save rolls everything back to `before`.
+func advance_expedition(delta: float, force_save := false) -> Dictionary:
+	var result := {"ok": true, "boundary": false, "saved": false, "research_done": "", "repaired": false,
+		"delivered": 0, "error": ""}
+	var simulation = expedition_simulation
+	if simulation == null or simulation.state == null or battle_pending or run_ended or completed:
+		return result
+	var sim_before: Dictionary = simulation.state.snapshot()
+	var hangar_before := {}
+	var sequence: int = simulation.boundary_sequence
+	var days_before: float = simulation.state.traveled_days
+	var seconds_before: float = simulation.state.simulation_seconds
+	if not simulation.advance(delta):
+		simulation.restore(sim_before)
+		result.ok = false
+		result.error = "Navigation error: " + simulation.last_error
+		return result
+	var days: float = simulation.state.traveled_days - days_before
+	var seconds: float = simulation.state.simulation_seconds - seconds_before
+	result.boundary = simulation.boundary_sequence != sequence
+	if result.boundary or force_save:
+		hangar_before = hangar_snapshot()
+		hangar_before.expedition = sim_before
+	if days > 0.0 and not research_focus.is_empty():
+		var focus := research_focus
+		var progress := {"research_ids": current_research_ids, "research_focus": research_focus,
+			"research_progress": research_progress, "branch_choices": research_branch_choices,
+			"story_flags": story_flags, "research_pricing_version": 1}
+		var known := current_research_ids.size()
+		_allocate_research(progress, ScienceRules.production_rate(ScienceRules.snapshot(get_deployed_fleet())) * days)
+		research_focus = progress.research_focus
+		if current_research_ids.size() > known:
+			result.research_done = str(GameDefinitions.find("research", focus).get("display_name", focus))
+			simulation.state.requested_speed = 1
+			research_changed.emit()
+	if seconds > 0.0:
+		var damaged_before := false
+		var damaged_after := false
+		for owned: HangarShip in fleet:
+			if not owned.is_alive() or not owned.needs_repair():
+				continue
+			damaged_before = true
+			owned.hull_hp = minf(owned.hull_max, owned.hull_hp + self_repair_rate(owned) * seconds)
+			damaged_after = damaged_after or owned.needs_repair()
+		if damaged_before and not damaged_after:
+			result.repaired = true
+			simulation.state.requested_speed = 1
+	if result.boundary:
+		var emitted: Array = simulation.emitted_boundaries
+		var count: int = mini(emitted.size(), simulation.boundary_sequence - sequence)
+		for index in range(emitted.size() - count, emitted.size()):
+			var boundary: Dictionary = emitted[index]
+			if int(boundary.kind) == ExpeditionSimulationScript.State.BoundaryKind.DOCK:
+				result.delivered += _deliver_loads(str(boundary.details.location_id))
+	if result.boundary or force_save or not result.research_done.is_empty():
+		if not save_expedition_checkpoint():
+			if not hangar_before.is_empty():
+				_apply_hangar(hangar_before)
+				simulation.restore(sim_before)
+			result.ok = false
+			result.error = "Save failed: " + last_save_error
+			return result
+		result.saved = true
+		if result.delivered > 0:
+			credits_changed.emit()
+	return result
+
+func _deliver_loads(location_id: String) -> int:
+	var node := station_trade_node(location_id)
+	if node.is_empty() or not node.inhabited:
+		return 0
+	var data := {"ships": [], "equipment": equipment_inventory, "credits": credits}
+	if not run_score.is_empty():
+		data["score"] = run_score
+	for owned: HangarShip in fleet:
+		data.ships.append(owned.to_hangar_data())
+	var before := credits
+	HangarTrade.arrive(data, node, int(node.id))
+	credits = int(data.credits)
+	# Fitted instances share the inventory dictionaries; refresh mounts.
+	for owned: HangarShip in fleet:
+		for slot in owned.mounts:
+			owned.mounts[slot] = equipment_inventory[owned.mounts[slot].uid]
+	return credits - before
 
 func buy_equipment(key: String, rank := 1) -> bool:
 	if not _require_shipyard():
@@ -750,6 +1067,8 @@ func allied_salvage_chance() -> float:
 	return 0.0
 
 func battle_identity() -> String:
+	if pending_encounter.has("expedition_event_id"):
+		return "%s/%s" % [run_id, pending_encounter.expedition_event_id]
 	return "%s/%d" % [run_id, destination_node_id]
 
 func update_battle_support(_simulation: BattleSimulation) -> void:
@@ -758,6 +1077,8 @@ func update_battle_support(_simulation: BattleSimulation) -> void:
 func settle_battle(simulation: BattleSimulation) -> bool:
 	if not battle_pending or simulation.battle_id != battle_identity() or simulation.phase == BattleSimulation.Phase.COMBAT:
 		return false
+	if pending_encounter.has("expedition_event_id"):
+		return _settle_expedition_battle(simulation)
 	var data := hangar_snapshot()
 	var lost: Array[int] = []
 	if data.has("score"):
@@ -805,6 +1126,55 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
 			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
 	_apply_hangar(data)
+	_notify_hangar()
+	return true
+
+func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
+	var data := hangar_snapshot()
+	var lost: Array[int] = []
+	if data.has("score"):
+		data.score.swarm_damage += simulation.swarm_damage_dealt
+	for owned: HangarShip in fleet:
+		if not owned.is_alive():
+			lost.append(owned.id)
+			if owned.flagship:
+				data.ended = true
+	HangarTrade.settle_losses(data, lost)
+	for owned: HangarShip in fleet:
+		if owned.id in lost:
+			for instance: Dictionary in owned.mounts.values():
+				data.equipment.erase(instance.uid)
+	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
+	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
+	var event_id: String = pending_encounter.get("expedition_event_id", "")
+	var loot := {}
+	if won:
+		RunScore.earn_credits(data, int(pending_encounter.rewards.credits))
+		loot = _expedition_loot("battle/" + event_id)
+		if not loot.is_empty():
+			var uid := str(data.next_equipment_id)
+			data.equipment[uid] = {"uid": uid, "equipment_id": loot.id, "rank": int(loot.rank)}
+			data.next_equipment_id += 1
+		if pending_encounter.get("complete", false):
+			data.completed = true
+			data.research.story_flags["boss_i_defeated"] = true
+	elif not data.ended:
+		# Unbeaten arrival encounters remain at their location for a later attempt.
+		var event: Dictionary = ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id)
+		if ExpeditionSimulationScript.Events.trigger(event) == "arrival":
+			data.expedition.event_receipts.erase(event_id)
+	data.expedition.requested_speed = 1
+	data.pending = false
+	data.pending_encounter = {}
+	if not _save_hangar(data):
+		return false
+	last_battle_report.clear()
+	last_equipment_loot = str(loot.get("name", "")) if won else ""
+	for actor in simulation.players:
+		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
+			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
+	_apply_hangar(data)
+	expedition_simulation.restore(data.expedition)
 	_notify_hangar()
 	return true
 
@@ -896,6 +1266,8 @@ func research_travel_distance(from_id: int, to_id: int) -> int:
 
 
 func get_frozen_encounter(node_id: int) -> Dictionary:
+	if battle_pending and pending_encounter.has("expedition_event_id"):
+		return pending_encounter.duplicate(true)
 	if not navigation.is_empty():
 		if battle_pending and node_id == destination_node_id:
 			return pending_encounter.duplicate(true)

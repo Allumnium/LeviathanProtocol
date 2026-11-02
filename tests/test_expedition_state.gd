@@ -24,7 +24,10 @@ func run() -> void:
 	if simulation.state == null:
 		quit(1)
 		return
-	check(simulation.locations.size() == 8, "Fixture includes all three act regions")
+	var acts := {}
+	for location: Dictionary in simulation.locations.values():
+		acts[int(location.act)] = true
+	check(simulation.locations.size() == 11 and acts.size() == 3, "Fixture includes all three act regions")
 	check(simulation.locations.has("start_station") and simulation.locations.start_station.accessible,
 		"Starting station is accessible")
 	check(simulation.locations.refuel_station_1.services.has("shipyard")

@@ -20,6 +20,10 @@ var camera := Vector2.ZERO
 var zoom := 1.0
 var panning := false
 var _base_image_rect := Rect2()
+# Until the player pans or zooms, frame the art's opaque bounds instead of the
+# padded 512px source square.
+var auto_fit := true
+static var _used_rects: Dictionary = {}
 
 const MIN_ZOOM := 0.4
 const MAX_ZOOM := 4.0
@@ -33,6 +37,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion and panning:
+		auto_fit = false
 		camera -= event.relative / zoom
 		_update_view()
 		get_viewport().set_input_as_handled()
@@ -46,6 +51,7 @@ func _input(event: InputEvent) -> void:
 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and event.pressed:
 			var pointer: Vector2 = get_global_transform().affine_inverse() * event.position
 			var world := camera + (pointer - size * 0.5) / zoom
+			auto_fit = false
 			zoom = clampf(zoom * (1.2 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1 / 1.2), MIN_ZOOM, MAX_ZOOM)
 			camera = world - (pointer - size * 0.5) / zoom
 			_update_view()
@@ -167,12 +173,54 @@ func _layout_slots() -> void:
 	var right_width := _rail_width(right)
 	var side := maxf(1, minf(size.x - left_width - right_width - 16, size.y - 16))
 	_base_image_rect = Rect2(Vector2(left_width + (size.x - left_width - right_width - side) * 0.5, (size.y - side) * 0.5), Vector2.ONE * side)
+	if auto_fit and _texture != null:
+		var used := _art_used_rect()
+		if used.size.x > 0.0 and used.size.y > 0.0:
+			var fit_x := side * 0.96 / (used.size.x * side)
+			var fit_y := (size.y - 16) * 0.96 / (used.size.y * side)
+			zoom = clampf(minf(fit_x, fit_y), 1.0, MAX_ZOOM)
+			var art_center := _base_image_rect.position + (used.position + used.size * 0.5) * side
+			var frame_center := _base_image_rect.get_center()
+			camera = art_center - size * 0.5 - (frame_center - size * 0.5) / zoom
 	_layout_rail(left, 0, left_width)
 	_layout_rail(right, size.x - right_width, right_width)
 	_update_view()
 
+static var _obtainable: Dictionary = {}
+
+# Equipment a player can actually own in the active game; retired and deferred
+# items never reach a mount, so they do not reserve callout width.
+static func _obtainable_ids() -> Dictionary:
+	if _obtainable.is_empty():
+		for node: Dictionary in HangarResearch.catalog():
+			for id: String in node.grants.equipment_ids:
+				if id not in HangarResearch.DEFERRED_PURCHASES:
+					_obtainable[id] = true
+	return _obtainable
+
+func _art_used_rect() -> Rect2:
+	if _texture == null:
+		return Rect2(0, 0, 1, 1)
+	var diffuse := SurfaceArt.diffuse(_texture)
+	var key := diffuse.resource_path if not diffuse.resource_path.is_empty() else str(diffuse.get_instance_id())
+	if not _used_rects.has(key):
+		var image := diffuse.get_image()
+		var used := Rect2(image.get_used_rect())
+		_used_rects[key] = Rect2(used.position / Vector2(image.get_size()), used.size / Vector2(image.get_size()))
+	return _used_rects[key]
+
 func _update_view() -> void:
 	image_rect = Rect2(size * 0.5 + (_base_image_rect.position - size * 0.5 - camera) * zoom, _base_image_rect.size * zoom)
+	queue_redraw()
+	_place_slots()
+
+# Opaque chassis art on screen; callouts must stay clear of this, not of the
+# transparent padding around it.
+func art_rect() -> Rect2:
+	var used := _art_used_rect()
+	return Rect2(image_rect.position + used.position * image_rect.size, used.size * image_rect.size)
+
+func _place_slots() -> void:
 	for slot: Dictionary in _slots:
 		var rect := slot_rect(slot)
 		slot_buttons[slot.id].position = rect.position
@@ -180,19 +228,24 @@ func _update_view() -> void:
 		if slot_glows.has(slot.id):
 			var owned: HangarShip = GameState.owned_ship(owned_id)
 			var glow: TextureRect = slot_glows[slot.id]
-			var art_rect := SlotCatalog.fitted_art_rect(slot_buttons[slot.id].equipment_texture, rect,
+			var glow_rect := SlotCatalog.fitted_art_rect(slot_buttons[slot.id].equipment_texture, rect,
 				owned.equipment_art_mounts.get(slot.id, []))
-			glow.position = art_rect.position
-			glow.size = art_rect.size
+			glow.position = glow_rect.position
+			glow.size = glow_rect.size
 	queue_redraw()
 
 func _rail_width(slots: Array[Dictionary]) -> float:
 	var width := 76.0
 	var names := {}
 	var catalog := SlotCatalog.equipment()
+	var obtainable := _obtainable_ids()
+	var owned: HangarShip = GameState.owned_ship(owned_id)
 	for slot: Dictionary in slots:
+		if owned != null and owned.mounts.has(slot.id):
+			var fitted: Dictionary = owned.mounts[slot.id]
+			names[SlotCatalog.find_equipment(fitted.equipment_id, int(fitted.rank)).name] = true
 		for item: Dictionary in catalog:
-			if SlotCatalog.compatible(slot, item):
+			if obtainable.has(item.id) and SlotCatalog.compatible(slot, item):
 				names[item.name] = true
 	# Reserve full-name space for this chassis so fitting never changes ship scale.
 	var label: ResourceText = slot_callouts[slots[0].id].get_node("EquipmentName") if not slots.is_empty() else null

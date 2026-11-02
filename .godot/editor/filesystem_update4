@@ -5,3 +5,14 @@ res://scripts/hangar_state.gd
 res://themes/ui_theme.tres
 res://scripts/hangar_checkpoint.gd
 res://tests/test_expedition_arrival.gd
+res://scripts/expedition_events.gd
+res://scripts/hangar_trade.gd
+res://scripts/battle_simulation.gd
+res://scripts/audio_manager.gd
+res://scripts/auto_battle.gd
+res://scripts/main_menu.gd
+res://tests/test_expedition_events.gd
+res://scripts/battle_report.gd
+res://scripts/game_setup.gd
+res://scripts/research_panel.gd
+res://scripts/slot_catalog.gd

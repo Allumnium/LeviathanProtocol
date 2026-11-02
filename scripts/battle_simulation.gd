@@ -188,6 +188,8 @@ var laser_upgrade_level := 0
 var withdrawing := false
 var retreat_remaining := 10.0
 var inactive_seconds := 0.0
+var undamaged_seconds := 0.0
+const STALEMATE_SECONDS := 30.0
 var _damage_this_step := false
 var _members: Array[Combatant] = []
 var _previous_velocities: Array[Vector2] = []
@@ -238,6 +240,7 @@ func setup(
 	_next_projectile_id = 0
 	retreat_remaining = 10.0
 	inactive_seconds = 0.0
+	undamaged_seconds = 0.0
 	phase = Phase.COMBAT
 	elapsed = 0.0
 	swarm_damage_dealt = 0.0
@@ -904,6 +907,8 @@ func advance(delta: float) -> void:
 			if _members[index].is_alive() and _members[index].velocity.distance_to(_previous_velocities[index]) > 0.01 * delta:
 				accelerating = true
 		inactive_seconds = 0.0 if _damage_this_step or accelerating else inactive_seconds + delta
+		# Kiting with no hits at all is a stalemate even while ships keep moving.
+		undamaged_seconds = 0.0 if _damage_this_step else undamaged_seconds + delta
 		if withdrawing:
 			retreat_remaining -= delta
 		if living_player_count() == 0 or players.any(func(member: Combatant) -> bool: return member.owned_ship != null and member.owned_ship.is_flagship() and not member.is_alive()):
@@ -913,7 +918,7 @@ func advance(delta: float) -> void:
 		elif objective_complete() and not _victory_projectiles_pending():
 			_collect_all_salvage()
 			phase = Phase.VICTORY
-		elif inactive_seconds >= 10.0 and encounter.pending.is_empty():
+		elif (inactive_seconds >= 10.0 or undamaged_seconds >= STALEMATE_SECONDS) and encounter.pending.is_empty():
 			phase = Phase.WITHDRAWN
 		if phase != previous_phase:
 			_record_event("objective", {"phase": phase, "remaining": _remaining_target_ids(),

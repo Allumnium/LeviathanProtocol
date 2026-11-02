@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Transfer = preload("res://scripts/hangar_equipment_transfer.gd")
+const PlaceholderArt = preload("res://scripts/placeholders.gd")
 var checks := 0
 var failures := 0
 var state: Node
@@ -141,13 +142,13 @@ func run() -> void:
 	check(state.owned_ship(ship_id).hangar_summary().shields > 0, "Shields update after fitting")
 	motion(screen.canvas.slot_buttons.port.get_global_rect().get_center(), false)
 	await settle()
-	var fallback_label: ResourceText = screen.canvas.slot_callouts.port.get_node("EquipmentName")
-	check(fallback_label.get_theme_color("font_shadow_color") == Color.WHITE,
-		"Hovering equipment without artwork highlights its floating name")
+	check(screen.canvas.slot_buttons.port.equipment_texture == PlaceholderArt.art()
+		and screen.canvas.slot_glows.port.visible,
+		"Equipment without artwork uses the pink placeholder and highlights on hover")
 	motion(screen.canvas.slot_callouts.port.get_global_rect().get_center(), false)
 	await settle()
-	check(fallback_label.get_theme_color("font_shadow_color").a == 0,
-		"Leaving artwork-free equipment clears its name glow")
+	check(not screen.canvas.slot_glows.port.visible,
+		"Leaving placeholder-art equipment clears its glow")
 	await drag(screen.canvas.slot_buttons.port.get_global_rect().get_center(), screen.stock.scroll.get_global_rect().get_center())
 	check(not state.owned_ship(ship_id).mounts.has("port") and state.equipment_location(items.shield_generator).is_empty(), "Native drag back into stock unequips the instance")
 	check(state.owned_ship(ship_id).hangar_summary().shields == 0, "Unequipping updates shields")
@@ -207,9 +208,11 @@ func camera_checks() -> void:
 	var stars: Control = board.starfield
 	var star_transform := stars.get_global_transform()
 	var star_position: Vector2 = stars._get_star_position(stars._stars[0])
+	var zoom_before: float = board.zoom
 	camera_button(pointer, MOUSE_BUTTON_WHEEL_UP, true)
 	await settle()
-	check(is_equal_approx(board.zoom, 1.2), "Mouse wheel zooms the equipment assignment view")
+	check(is_equal_approx(board.zoom, minf(zoom_before * 1.2, board.MAX_ZOOM)) and not board.auto_fit,
+		"Mouse wheel zooms the equipment assignment view")
 	check(((local_pointer - board.image_rect.position) / board.image_rect.size).is_equal_approx(normalized), "Zoom anchors the ship point under the pointer")
 	check(board.slot_callouts.fore.get_global_rect() == card_rect, "Equipment cards stay fixed and readable while zooming")
 	check(stars.get_global_transform() == star_transform and stars._get_star_position(stars._stars[0]).is_equal_approx(star_position), "Fitting zoom leaves deterministic stars stationary")
@@ -236,7 +239,7 @@ func camera_checks() -> void:
 	screen.selected_ship_id = state.fleet[0].id
 	screen._refresh()
 	await settle()
-	check(screen.canvas.camera == Vector2.ZERO and is_equal_approx(screen.canvas.zoom, 1.0), "Another ship starts with its own fitting camera")
+	check(screen.canvas.auto_fit and screen.canvas.zoom >= 1.0, "Another ship starts framed by its own fitting camera")
 	screen.selected_ship_id = ship_id
 	screen._refresh()
 	await settle()

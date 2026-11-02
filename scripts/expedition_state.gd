@@ -219,7 +219,7 @@ static func valid(value: Variant) -> bool:
 	var pending_event: String = value.get("pending_event_id", "")
 	if pending_event.is_empty() != (not pause_set.has(PauseReason.ENCOUNTER)):
 		return false
-	if not pending_event.is_empty() and (travel_state != TravelState.CRUISING \
+	if not pending_event.is_empty() and (travel_state not in [TravelState.CRUISING, TravelState.DOCKED, TravelState.STOPPED] \
 			or value.get("departure_choice_pending", false) or value.event_receipts.get(pending_event, false)):
 		return false
 	var unique_discovered: Dictionary = {}
