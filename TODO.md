@@ -305,7 +305,10 @@ All proposed paths below are recommendations, not permission to build a generic 
 - [ ] Replace routine `_apply_hangar` reconstruction with validated reconciliation by ID/UID. Preserve runtime actor references and update only affected stats/caches.
 - [x] Save/restore prototype cruise/stopped/docked state, route, clocks and fuel. Focus and pending interruptions remain with later E07/E09/E11 work.
 - [x] Add five-real-second periodic saves plus immediate route, stop, speed, pause, docking and fuel transaction checkpoints; roll back and pause on a failed save, with an explicit retry action.
-- [ ] Add `tests/test_expedition_persistence.gd`: crash-stage recovery, bad payload rejection, generation conflicts, failure rollback and object identity preservation. Current coverage checks a committed midroute restore only.
+- [x] Persist a validated pending-departure-choice flag for initial Depart and every arrival. The core simulation holds while it is pending; committed destination selection clears it. Continue reopens the actual pending choice rather than inferring arrival from visited-location counts.
+- [x] Continue checkpoints user pause before opening the run, preserving exact position and requested speed. A failed Continue save rolls back and reports failure.
+- [x] Add `tests/test_expedition_arrival.gd` to headless/native baseline coverage: unfinished initial choice, station/POI choice reload, paused Continue, failed arrival/choice/Continue commits, retry, and manual Stop not masquerading as arrival.
+- [ ] Add `tests/test_expedition_persistence.gd`: crash-stage recovery, bad payload rejection, generation conflicts and object identity preservation beyond the focused arrival tests.
 
 **Acceptance:** Continue resumes the exact prototype position paused; a focus/credit/save operation does not move or reset the live fleet. Old user files are neither read as expeditions nor rewritten.
 
@@ -316,6 +319,11 @@ All proposed paths below are recommendations, not permission to build a generic 
 - [x] Preserve the existing Hangar/Fleet/Ships/Research/Map UI as the primary interface. The persistent compact header panel contains Pause, Play (1x) and Fast Forward (10x) icons. Fuel/refueling/retry remain in the footer, not over the Fleet canvas.
 - [x] Remove destination dropdown, Clear, Stop and old speed buttons from the visible UI. Keep existing backend navigation commands and old speed snapshots usable.
 - [x] Add a required arrival-choice modal describing story-neutral destinations/services, with no dismiss action. Initial Depart opens the same chooser. Freeze simulation while choosing; retain user/event pauses; only close after a committed route, with in-modal save-error/retry handling. Full strategic visualization remains E08.
+- [x] Validate native UI polish after header/arrival changes. Advance its coordinator explicitly so periodic saves cannot race deliberately invalid save paths. Runtime arrival boundaries use a monotonic sequence, not capped history length, so later journeys still clip/save/show their choice after 64 interruptions.
+- [x] Port the baseline's legacy Swarm map UI fixture: assert that informational Map inspection cannot offer retired Relay/graph-travel actions or change expedition course. Retain historical quest transaction/receipt coverage directly without restoring that UI; guard fixture prerequisites so failures cannot hang on an empty target index. Headless and native checks pass.
+- [x] Update the carrier regression's compact battle Settings expectation for the existing Tutorials row (304x250 with Quit to menu), including content containment; headless and native checks pass.
+- [x] Port the environment view regression: informational expedition Map must not mutate the run or claim legacy graph-node conditions are active journey hazards; actual combat still receives and renders its exact frozen environment/asteroids. Headless and native checks pass.
+- [x] Exercise all 27 headless baseline suites after the navigation/UI conversion. The full run passed through flagship selection before the last stale environment assertion; the corrected environment suite and all six remaining suites then passed in a focused continuation. No production behavior was changed to satisfy retired UI expectations. Existing Godot shutdown resource warnings remain.
 - [x] Add basic docked refueling with a single atomic credits-and-fuel checkpoint. Amount quotes, partial refueling and rescue remain E09.
 - [ ] Keep Ships/Research/Map accessible during travel and add their remaining service/overlay behavior without replacing their current panels.
 - [ ] Remove `traveling` UI lockout and graph Tween authority. Basic map route controls call new commands; final discovery/range map is E08.

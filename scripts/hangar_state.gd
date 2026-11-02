@@ -338,7 +338,19 @@ func refuel_expedition() -> bool:
 	return true
 
 func prepare_checkpoint_resume() -> bool:
-	return not fleet.is_empty() and not run_ended
+	if fleet.is_empty() or run_ended:
+		return false
+	if expedition_simulation == null:
+		return true
+	var previous: Dictionary = expedition_simulation.state.snapshot()
+	if not expedition_simulation.set_pause(ExpeditionSimulationScript.State.PauseReason.USER, true):
+		last_save_error = expedition_simulation.last_error
+		return false
+	if not save_expedition_checkpoint():
+		if not expedition_simulation.restore(previous):
+			push_error("Could not restore the expedition after a failed Continue save.")
+		return false
+	return true
 
 func buy_equipment(key: String, rank := 1) -> bool:
 	if not _require_shipyard():

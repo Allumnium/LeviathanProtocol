@@ -152,5 +152,25 @@ func run() -> void:
 			and engaged.state.travel_state == ExpeditionStateClass.TravelState.ENGAGED
 			and engaged.state.destination_location_id.is_empty(),
 		"Canceling route does not cancel combat")
+	var long_run = _simulation()
+	for index in range(ExpeditionSimulationClass.MAX_BOUNDARY_HISTORY):
+		long_run._emit_boundary(ExpeditionStateClass.BoundaryKind.DISCOVERY, {"index": index})
+	var sequence: int = long_run.boundary_sequence
+	check(long_run.request_destination("refuel_station_1") and long_run.set_speed(10)
+			and long_run.advance(100), "Travel after boundary history reaches its cap")
+	check(long_run.boundary_sequence == sequence + 1
+			and long_run.emitted_boundaries.size() == ExpeditionSimulationClass.MAX_BOUNDARY_HISTORY
+			and long_run.accumulator == 0 and long_run.state.simulation_seconds < 100,
+			"Capped history still clips arrival and discards leftover fast-forward budget")
+	var arrival_tick: int = long_run.state.simulation_tick
+	check(long_run.state.departure_choice_pending and long_run.advance(10)
+			and long_run.state.simulation_tick == arrival_tick,
+			"Arrival holds core simulation until a destination is chosen")
+	var invalid_choice: Dictionary = long_run.state.snapshot()
+	invalid_choice.departure_choice_pending = "yes"
+	check(not long_run.restore(invalid_choice), "Reject malformed pending-choice flag")
+	invalid_choice = long_run.state.snapshot()
+	invalid_choice.destination_location_id = "derelict_1"
+	check(not long_run.restore(invalid_choice), "Reject a pending arrival choice with an active route")
 	print("EXPEDITION_NAVIGATION_CHECKS=%d failures=%d" % [checks, failures])
 	quit(1 if failures > 0 else 0)

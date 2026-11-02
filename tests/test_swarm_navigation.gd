@@ -83,6 +83,7 @@ func run() -> void:
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
 	root.add_child(screen)
 	current_scene = screen
+	screen.set_process(false)
 	for frame in range(4):
 		await process_frame
 	for tab: Button in screen.tabs.get_children():
@@ -97,38 +98,28 @@ func run() -> void:
 		for frame in range(4):
 			await process_frame
 		check(screen.details_panel.get_global_rect().end.y <= screen.size.y
-			and screen.center.size.x > 100, "Event and travel choices preserve usable map layout")
-		for action: Node in screen.map_details.get_children():
-			if action is Button:
-				check(screen.map_details.get_parent().get_global_rect().encloses(action.get_global_rect()),
-					"Single event and travel choices fit without scrolling")
+			and screen.center.size.x > 100, "Informational expedition map preserves usable layout")
+		check(screen.map_details.find_children("*", "Button", true, false).is_empty(),
+			"Expedition map does not expose retired Relay or graph-travel actions")
+		check(state.navigation.quests.is_empty()
+			and state.expedition_simulation.state.destination_location_id.is_empty(),
+			"Inspecting a legacy graph node cannot accept a quest or start an expedition route")
 		if DisplayServer.get_name() != "headless":
 			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://.local/swarm"))
 			await RenderingServer.frame_post_draw
 			root.get_texture().get_image().save_png("res://.local/swarm/event-%d.png" % resolution.x)
-	for action: Node in screen.map_details.get_children():
-		if action is Button and action.text == "Relay data":
-			var click := InputEventMouseButton.new()
-			click.position = action.get_global_rect().get_center()
-			click.global_position = click.position
-			click.button_index = MOUSE_BUTTON_LEFT
-			click.pressed = true
-			root.push_input(click, true)
-			click = click.duplicate()
-			click.pressed = false
-			root.push_input(click, true)
-			break
-	for frame in range(4):
-		await process_frame
-	check(state.navigation.quests.has(str(event_node)) and not state.resolve_map_event("relay"), "Native quest choice accepts once")
-	check(screen.roster.find_child("SwarmIntensity", true, false) != null and state.quest_targets().size() == 1,
-		"Map shows live intensity and accepted quest marker")
-	if DisplayServer.get_name() != "headless":
-		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png("res://.local/swarm/quest-marker.png")
+	# Retain transaction regressions for the old quest DTO without restoring its UI.
+	check(state.resolve_map_event("relay") and not state.resolve_map_event("relay"),
+		"Historical relay transaction accepts once")
+	check(state.navigation.quests.has(str(event_node)) and state.quest_targets().size() == 1,
+		"Historical accepted quest retains its target")
 	screen.queue_free()
 	for frame in range(4):
 		await process_frame
+	if state.quest_targets().is_empty():
+		check(false, "Historical quest fixture must provide an arrival target")
+		quit(1)
+		return
 	var target: int = state.quest_targets()[0]
 	fixture = state.hangar_snapshot()
 	var source := -1

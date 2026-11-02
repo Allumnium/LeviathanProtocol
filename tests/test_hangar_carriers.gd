@@ -271,7 +271,9 @@ func native_checks() -> void:
 	await process_frame
 	check(settings.visible and settings.quit_to_menu_button.visible, "Battle Settings opens with Quit to menu")
 	check(settings.quit_to_menu_button.size.x < settings.get_visible_rect().size.x * 0.7
-		and settings.size == Vector2i(304, 218), "Battle Settings and Quit to menu are compact: %s, button %s, viewport %s" % [settings.size, settings.quit_to_menu_button.size, settings.get_visible_rect().size])
+		and settings.size == Vector2i(304, 250)
+		and settings.get_node("Contents/ContentArea").get_global_rect().encloses(settings.tutorials_button.get_global_rect()),
+		"Battle Settings fits the tutorial switch and Quit to menu in its compact layout: %s, button %s, viewport %s" % [settings.size, settings.quit_to_menu_button.size, settings.get_visible_rect().size])
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/carriers/settings.png")

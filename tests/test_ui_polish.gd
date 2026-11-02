@@ -293,7 +293,7 @@ func run() -> void:
 	screen._process(0.5)
 	check(is_zero_approx(screen.research_pulse.get_shader_parameter("white_mix")),
 		"Research prompt returns to normal once per second")
-	screen.set_process(true)
+	# Advance the screen explicitly so periodic saves cannot race failed-save fixtures.
 	check(state.set_research_focus("applied_energy"), "Set focused research for header")
 	var focused: Dictionary = state.hangar_snapshot()
 	focused.research.research_progress["applied_energy"] = 1.5

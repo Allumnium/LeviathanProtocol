@@ -12,6 +12,7 @@ var locations: Dictionary = {}
 var accumulator := 0.0
 var last_error := ""
 var emitted_boundaries: Array[Dictionary] = []
+var boundary_sequence := 0
 
 
 func configure(seed_value: int) -> bool:
@@ -95,12 +96,22 @@ func request_destination(id: String) -> bool:
 			state.docked_location_id = id
 			state.destination_location_id = ""
 			state.travel_state = State.TravelState.DOCKED
+			state.departure_choice_pending = false
 			_mark_visited(id)
 			return true
 		return _fail("Destination is already at the fleet's position.")
 	state.destination_location_id = id
+	state.departure_choice_pending = false
 	state.docked_location_id = ""
 	state.travel_state = State.TravelState.CRUISING
+	accumulator = 0.0
+	return true
+
+func begin_departure_choice() -> bool:
+	if not _configured() or state.travel_state not in [State.TravelState.DOCKED, State.TravelState.STOPPED] \
+			or not state.destination_location_id.is_empty():
+		return _fail("Choose the next destination after the current journey ends.")
+	state.departure_choice_pending = true
 	accumulator = 0.0
 	return true
 
@@ -162,13 +173,13 @@ func set_pause(reason: int, enabled: bool) -> bool:
 func advance(real_delta: float) -> bool:
 	if not _configured() or not SaveValidation.number(real_delta) or real_delta < 0.0:
 		return _fail("Invalid expedition frame duration.")
-	if _paused() or state.travel_state == State.TravelState.DEFEAT:
+	if _paused() or state.departure_choice_pending or state.travel_state == State.TravelState.DEFEAT:
 		return true
 	var effective_speed := 1 if state.travel_state in [State.TravelState.ENGAGED,
 			State.TravelState.SETTLING, State.TravelState.REGROUPING] else state.requested_speed
 	accumulator += real_delta * float(effective_speed)
 	var tick := float(tuning.fixed_tick_seconds)
-	var prior_boundary_count := emitted_boundaries.size()
+	var prior_boundary_sequence := boundary_sequence
 	while accumulator + 0.000000001 >= tick:
 		accumulator -= tick
 		state.simulation_tick += 1
@@ -176,7 +187,7 @@ func advance(real_delta: float) -> bool:
 		if state.travel_state == State.TravelState.CRUISING:
 			if not _advance_cruise(tick):
 				return false
-			if emitted_boundaries.size() > prior_boundary_count:
+			if boundary_sequence != prior_boundary_sequence:
 				accumulator = 0.0
 				break
 		elif state.travel_state == State.TravelState.STOPPED:
@@ -231,6 +242,7 @@ func _arrive(location: Dictionary) -> void:
 	state.travel_state = State.TravelState.DOCKED if location.kind == "station" else State.TravelState.STOPPED
 	state.stopped_from = State.TravelState.CRUISING
 	state.requested_speed = 1
+	state.departure_choice_pending = true
 	_mark_visited(id)
 	_emit_boundary(kind, {"location_id": id, "position_nu": [state.position_nu.x, state.position_nu.y]})
 
@@ -243,6 +255,7 @@ func _mark_visited(id: String) -> void:
 
 
 func _emit_boundary(kind: int, details: Dictionary) -> void:
+	boundary_sequence += 1
 	var event := {"kind": kind, "tick": state.simulation_tick, "details": details.duplicate(true)}
 	if emitted_boundaries.size() >= MAX_BOUNDARY_HISTORY:
 		emitted_boundaries.pop_front()

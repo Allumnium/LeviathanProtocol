@@ -139,11 +139,13 @@ func _test_views() -> void:
 	screen.active_tab = "MAP"
 	root.add_child(screen)
 	current_scene = screen
+	screen.set_process(false)
 	await settle()
+	var before: Dictionary = state.hangar_snapshot()
 	screen._select_destination(state.destination_node_id)
 	var label: Label = screen.map_details.find_child("NodeConditions", true, false)
-	check(label != null and label.text == NodeEnvironment.description(state.pending_encounter.environment),
-		"Destination panel displays the exact frozen density, solar intensity and nebula")
+	check(label == null and state.hangar_snapshot() == before,
+		"Informational expedition Map does not present legacy node conditions as active journey hazards")
 	screen.queue_free()
 	await settle()
 	var battle: Control = load("res://scenes/auto_battle.tscn").instantiate()
@@ -154,6 +156,8 @@ func _test_views() -> void:
 	battle.set_process(false)
 	check(battle.simulation.asteroid_field.roots.size() == state.pending_encounter.asteroids.roots.size(),
 		"Playable battle scene actually includes every generated asteroid")
+	check(SaveValidation.same(battle.simulation.environment, state.pending_encounter.environment),
+		"Combat retains the exact frozen density, solar intensity and nebula")
 	check(battle.visuals._rock_texture is CanvasTexture, "Visible asteroid atlas uses supplied diffuse, normal and surface maps")
 	if DisplayServer.get_name() != "headless":
 		for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:

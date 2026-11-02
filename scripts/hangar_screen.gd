@@ -238,8 +238,7 @@ func _ready() -> void:
 	GameState.credits_changed.connect(_queue_refresh)
 	_refresh()
 	if GameState.expedition_simulation != null \
-			and GameState.expedition_simulation.state.visited_location_ids.size() > 1 \
-			and GameState.expedition_simulation.state.destination_location_id.is_empty():
+			and GameState.expedition_simulation.state.departure_choice_pending:
 		_show_departure_choices()
 
 func _resize_panels() -> void:
@@ -318,7 +317,7 @@ func _advance_expedition(delta: float) -> void:
 	if simulation == null or simulation.state == null or is_instance_valid(departure_modal):
 		return
 	var previous: Dictionary = simulation.state.snapshot()
-	var previous_boundary_count: int = simulation.emitted_boundaries.size()
+	var previous_boundary_sequence: int = simulation.boundary_sequence
 	if not simulation.advance(delta):
 		expedition_status_override = "Navigation error: " + simulation.last_error
 		_restore_expedition(previous)
@@ -327,7 +326,7 @@ func _advance_expedition(delta: float) -> void:
 	if is_instance_valid(formation_view):
 		formation_view.travel_distance_nu = simulation.state.traveled_distance_nu
 	expedition_save_elapsed += delta
-	var boundary_reached: bool = simulation.emitted_boundaries.size() != previous_boundary_count
+	var boundary_reached: bool = simulation.boundary_sequence != previous_boundary_sequence
 	_update_expedition_readouts()
 	if boundary_reached or expedition_save_elapsed >= EXPEDITION_SAVE_INTERVAL:
 		if not GameState.save_expedition_checkpoint():
@@ -339,8 +338,7 @@ func _advance_expedition(delta: float) -> void:
 			expedition_save_elapsed = 0.0
 			if boundary_reached:
 				expedition_status_override = ""
-				if previous.travel_state == ExpeditionStateData.TravelState.CRUISING \
-						and simulation.state.destination_location_id.is_empty():
+				if simulation.state.departure_choice_pending:
 					_show_departure_choices()
 		_refresh_expedition_controls()
 
@@ -872,6 +870,10 @@ func _show_departure_choices() -> void:
 	var simulation = GameState.expedition_simulation
 	if simulation == null or not simulation.state.destination_location_id.is_empty():
 		return
+	if not simulation.state.departure_choice_pending:
+		_apply_expedition_action(simulation.begin_departure_choice)
+		if not simulation.state.departure_choice_pending:
+			return
 	departure_modal = Control.new()
 	departure_modal.name = "DepartureChoices"
 	departure_modal.add_to_group("modal_ui")

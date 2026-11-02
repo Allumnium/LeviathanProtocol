@@ -31,6 +31,7 @@ var discovered_location_ids: Array[String] = []
 var visited_location_ids: Array[String] = []
 var flags: Dictionary[String, bool] = {}
 var event_receipts: Dictionary[String, bool] = {}
+var departure_choice_pending := false
 
 
 func snapshot() -> Dictionary:
@@ -56,7 +57,8 @@ func snapshot() -> Dictionary:
 		"discovered_location_ids": discovered_location_ids.duplicate(),
 		"visited_location_ids": visited_location_ids.duplicate(),
 		"flags": flags.duplicate(),
-		"event_receipts": event_receipts.duplicate()
+		"event_receipts": event_receipts.duplicate(),
+		"departure_choice_pending": departure_choice_pending
 	}
 
 
@@ -83,6 +85,7 @@ func restore(value: Dictionary) -> bool:
 	visited_location_ids.assign(value.visited_location_ids)
 	flags.assign(value.flags)
 	event_receipts.assign(value.event_receipts)
+	departure_choice_pending = value.get("departure_choice_pending", false)
 	return true
 
 
@@ -172,6 +175,12 @@ static func valid(value: Variant) -> bool:
 		if not SaveValidation.integer(value.get(key)):
 			return false
 	var travel_state := int(value.travel_state)
+	if not value.get("departure_choice_pending", false) is bool:
+		return false
+	if value.get("departure_choice_pending", false) and (
+			travel_state not in [TravelState.DOCKED, TravelState.STOPPED]
+			or not str(value.get("destination_location_id", "")).is_empty()):
+		return false
 	var stopped_from := int(value.stopped_from)
 	if value.simulation_tick < 0 or travel_state < 0 or travel_state >= TravelState.size() \
 			or stopped_from < 0 or stopped_from >= TravelState.size() \
