@@ -26,6 +26,40 @@
 [ext_resource type="Texture2D" path="res://assets/ui/Btn_Rectangle01Red_p.png" id="27_red_pressed"]
 [ext_resource type="Texture2D" path="res://assets/ui/Switch_Off.png" id="28_switch_off"]
 [ext_resource type="Texture2D" path="res://assets/ui/Switch_On.png" id="29_switch_on"]
+[ext_resource type="Texture2D" path="res://assets/ui/panels/metalUI/Create_a_highly_detailed_2D_pixel_art_science-fict/elements/element_1.png" id="30_command_header"]
+
+[sub_resource type="AtlasTexture" id="Atlas_header_left"]
+atlas = ExtResource("30_command_header")
+region = Rect2(0, 0, 204, 50)
+
+[sub_resource type="AtlasTexture" id="Atlas_header_middle"]
+atlas = ExtResource("30_command_header")
+region = Rect2(204, 0, 244, 50)
+
+[sub_resource type="AtlasTexture" id="Atlas_header_right"]
+atlas = ExtResource("30_command_header")
+region = Rect2(448, 0, 204, 50)
+
+[sub_resource type="StyleBoxTexture" id="Style_header_left"]
+texture = SubResource("Atlas_header_left")
+texture_margin_left = 24.0
+texture_margin_right = 80.0
+texture_margin_top = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="Style_header_middle"]
+texture = SubResource("Atlas_header_middle")
+texture_margin_left = 16.0
+texture_margin_right = 16.0
+texture_margin_top = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="Style_header_right"]
+texture = SubResource("Atlas_header_right")
+texture_margin_left = 80.0
+texture_margin_right = 60.0
+texture_margin_top = 8.0
+texture_margin_bottom = 8.0
 
 [sub_resource type="AtlasTexture" id="Atlas_slider_fill"]
 atlas = ExtResource("19_slider_fill")
@@ -763,6 +797,9 @@ border_width_bottom = 1
 border_color = Color(0.2, 0.3, 0.4, 1)
 
 [resource]
+CommandHeader/styles/left = SubResource("Style_header_left")
+CommandHeader/styles/middle = SubResource("Style_header_middle")
+CommandHeader/styles/right = SubResource("Style_header_right")
 VictoryPanel/base_type = &"PanelContainer"
 VictoryPanel/styles/panel = SubResource("Style_victory")
 ReportCard/base_type = &"PanelContainer"

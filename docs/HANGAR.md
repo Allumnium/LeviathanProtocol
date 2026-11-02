@@ -33,7 +33,7 @@ The current demo is a 10-15 minute Act I run: Haven Dock -> travel, events and b
 - **UI building blocks** (buttons, labels, dialogs, toasts) live in [ui_kit.gd](../scripts/ui_kit.gd); encounter, rescue, arrival and run-end dialogs all use it, and the run-end dialog sits above every other layer.
 - **Ship shop** (Buy Ships) shows each shipyard's own `chassis_stock` in a seeded order (with `featured` items first), limited to the cards that fit, so it never scrolls. Ships are sold fully fitted with their default loadout.
 - **Ships roster** is a grid of ship sprites with hull bars in the Ships tab; the Fleet tab has no list, and double-clicking a ship sprite opens it in Ships.
-- **Map** shows discovered locations, live fleet position/heading, planned route and detour, fuel range, locked regions, and details (distance, fuel, ETA, services) for the selected location.
+- **Map** shows discovered locations, live fleet position/heading, planned route and detour, and details (distance, fuel, ETA, services) for the selected location. Players estimate fuel range from fuel levels and trip costs; there is no fuel-range circle or calculated range readout. All act regions share the same space background, without region tinting, shading or boundary lines; destination access restrictions still apply.
 
 ### Placeholder assets
 
@@ -45,7 +45,7 @@ Missing art renders as a solid pink square and missing sounds play `assets/audio
 
 ## Expedition station services
 
-Every management tab shares a compact top-row panel with Pause, Play (1x) and Fast Forward (10x) icons beside the existing tabs, research and wallet. There is no Clear button, destination dropdown or travel-control overlay over the Fleet canvas. Fuel, refueling and save retry remain in the footer. Play/fast-forward clear only user pause, never mandatory interruption/save-error pause. Travel remains live when changing management tabs.
+Every management tab shares the supplied `element_1.png` command-header trial: Map/Fleet/Ships on the left, Pause, Play (1x) and Fast Forward (10x) icons in the center recess, research and wallet/settings on the right. [The header](../scripts/command_header.gd) uses three shared-theme nine-sliced sections so the speed recess stays centered and the artwork's edges remain intact at different widths. Source art is unchanged; `element_3.png` has no assigned placement yet. There is no Clear button, destination dropdown or travel-control overlay over the Fleet canvas. Fuel, refueling and save retry remain in the footer. Play/fast-forward clear only user pause, never mandatory interruption/save-error pause. Travel remains live when changing management tabs.
 
 Courses are set from the Map (see above). Setting a course commits the route, and any departure cargo, atomically; a failed save leaves route, fleet and credits unchanged and offers retry in the footer. Existing user/event pause reasons remain intact. A manually stopped route is not treated as an arrival. Continue checkpoints user pause while retaining position and requested speed, so resuming the game never starts unacknowledged movement. Saves from before this change that still carry a pending destination-choice flag clear it on the next course.
 

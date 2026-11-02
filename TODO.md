@@ -19,9 +19,45 @@ A playable Act I demo now runs end to end; see "Demo vertical slice" in [docs/HA
 
 Partially delivered from the plan: authored distance/zone/arrival events with effects (E06/E07), the expedition Map overlay (E08), docked trade/refuel (E09), distance research and self-repair (E10), and combat admission/settlement keyed by event ID (E11). Still open: procedural POIs/cells, rescue/tow, refuel quotes, the expedition checkpoint format, and the E12-E14 pacing/performance work.
 
+## Next: meaningful text and diegetic UI (owner review 2026-11-02)
+
+Do this UI pass next, before D2-D5 or additional content depth. The world shows what is happening; instruments show how much; text identifies things, explains gameplay effects, gives orders or states decision costs. Remove narration of visible state, not decision-critical information. These tasks supersede older UI descriptions where they conflict, including the routine informational arrival dialog. Preserve the current fleet/loadout flow, gameplay, artwork and atomic saves; no new resource or command systems.
+
+### U1 - Command header and navigation instruments
+
+- [x] Try supplied `element_1.png` as the management-screen top bar: Map/Fleet/Ships on the left, Pause/Play/Fast Forward in its central recess, research/wallet/settings on the right. Preserve source art, use shared theme surfaces and crisp filtering, and keep controls accessible across screen sizes. `element_3.png` is available for later panel experiments; no placement chosen yet.
+- [ ] Visually review the header trial; bring the battle header into the same control/art vocabulary without changing its speed settings.
+- [x] Remove the Map fuel-range circle and calculated range readout; players estimate range from fuel and trip costs. Render all regions with the same space background, without act tinting, locked-region shading or boundary lines. Preserve destination access rules, fuel levels and selected-trip costs.
+- [ ] Reduce Map duplication: one fuel instrument with exact values; existing fleet position, heading and route communicate navigation. Remove VOYAGE heading, routine traveled-distance/visited counts and duplicate fuel readouts from the default view; retain any needed score statistics in the report. Do not restore fuel-range overlays or act-region shading.
+- [ ] Distinguish visited locations by shape/pattern as well as color. Show shipyard/refuel/trade service symbols; keep destination names, selected-trip fuel/ETA and explicit access restrictions. Do not add automatic route-reachability overlays.
+- [ ] Replace persistent map instruction paragraphs with introductory guidance that can disappear after use. Preserve single-click inspection, GO TO/double-click course setting and live rerouting.
+
+### U2 - Docking and routine feedback
+
+- [ ] Replace ordinary informational arrival dialogs with station art in the existing center area, docking feedback and contextual services. Keep exact repair/refuel prices and available actions; preserve docking access, arrival encounters/retries, course setting and pause behavior. Reserve dialogs for decisions, encounters or genuinely new information.
+- [ ] Confirm course changes through route/heading updates, refueling through the fuel instrument, and repair through condition indicators rather than redundant routine toasts.
+- [ ] Show delivery income briefly at the wallet and cargo delivery at its source indicator. Research completion keeps its name/effect plus a completion cue because it changes capabilities. Respect audio settings; do not rely on sound alone.
+- [ ] Keep explicit save failures, retry actions, debt/casualty notices, irreversible-action confirmations and mandatory-interruption reasons. Never disguise failed transactions as successful visual feedback.
+
+### U3 - Battle, ships, research and reports
+
+- [ ] Use transport icons with multiplier numbers in battle. Use existing ability range/validity previews plus distinct target reticles instead of persistent click instructions; cooldown rings may supplement exact seconds.
+- [ ] Lean on existing Warden pylon links, exposure and lance telegraphs. Remove redundant objective prose only once wave timing, protection and special victory conditions remain readable; no new boss mechanics.
+- [ ] Use consistent hull/shield/cargo/passenger instruments with exact values. Keep full equipment/loadout names and selected-part effects/rates; remove duplicated explanations. Move mass/normalized maneuverability out of default details if they do not help purchase/refit decisions; do not change mechanics.
+- [ ] Simplify research production/focus text around the existing tree, connections and checks. Preserve upgrade effects, progress/costs, focus action, missing requirements and exclusive-path consequences. Correct old destination-preview/on-arrival copy to the actual distance-based model, including stopped/combat behavior and no-focus loss.
+- [ ] Make reports prioritize fleet damage/losses, rewards and refit decisions. Replace per-row repeated stat labels with shared headings/visual comparisons while retaining exact inspectable values and passenger fees. Do not introduce squadron systems ahead of D3.
+
+### U4 - Copy correctness and acceptance
+
+- [ ] Correct the charter briefing's retired equipment buying/drag-fitting/DEPART instructions to the current fitted Transport/loadout/Map course flow.
+- [ ] Expose known event costs as clearly as rewards: hull damage, fuel/credit costs, debt and research consequences. Keep intentional uncertainty, but do not hide known penalties behind action verbs.
+- [ ] Replace placeholder POI/equipment art with recognizable supplied/approved art before removing identifying text. Do not expect pink squares or unfamiliar icons to carry meaning.
+- [ ] Keep names, meaningful story orders and short action verbs where useful. No tooltip dependency or cryptic icon-only choices; reuse shared resource icons/theme and avoid decorative text or fictional-console busywork.
+- [ ] Verify 640x360, 1280x720 and 1920x1080: no overlap/clipping, readable exact values, distinguishable cues without color/audio alone, discoverable actions and unchanged geometry/pan/zoom where required. Test the complete course -> event -> station/trade/refuel/refit -> battle -> report loop and failed-save/retry behavior using isolated APPDATA; run `tests/run_baseline.ps1 -Native` before accepting the pass.
+
 ## Fleet-command direction (owner review 2026-11-02)
 
-The player commands fleets, not parts. Cut equipment busywork, make research feel powerful, and scale to fleets of 30-50 ships. Where this conflicts with older sections or AGENTS.md (shared stock, equipment buying/selling, drag-fitting, research-gated equipment, single-ship UI), this section wins. Build in order; each phase ships playable with tests.
+The player commands fleets, not parts. Cut equipment busywork, make research feel powerful, and scale to fleets of 30-50 ships. Where this conflicts with older sections or AGENTS.md (shared stock, equipment buying/selling, drag-fitting, research-gated equipment, single-ship UI), this section wins. D1 is delivered; complete the meaningful-text/diegetic UI pass above next, then resume D2-D5 in order. Each phase ships playable with tests.
 
 ### D1 - Foundation: loadouts instead of stock
 

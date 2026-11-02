@@ -99,8 +99,10 @@ func run() -> void:
 	check(flagship_row.pressed.is_connected(Callable(audio, "play_ui_sfx").bind(&"select_tab")),
 		"Ship roster selection uses the former tab sound")
 	var tabs: HBoxContainer = screen.tabs
-	check(tabs.get_parent() == screen.header_wallet.get_parent() and tabs.get_index() == 0,
-		"Tabs align left in the shared header, with credits on the right")
+	check(tabs.get_parent() == screen.command_header.left
+		and screen.header_wallet.get_parent() == screen.command_header.right
+		and screen.travel_controls.get_parent() == screen.command_header.middle,
+		"Command header puts tabs left, expedition speed controls in the recess and research/wallet right")
 	check(not screen.settings_dialog.visible, "Hangar Settings starts closed")
 	var settings_button: TextureButton = screen.find_child("SettingsButton", true, false)
 	check(settings_button.texture_normal.resource_path == "res://assets/ui/Btn_RandomName_n.png"
@@ -209,7 +211,8 @@ func run() -> void:
 		await settle()
 		screen._refresh()
 		await settle()
-		check(screen.shop.get_global_rect().is_equal_approx(screen.center.get_global_rect()), "Buy panel covers exactly the center area")
+		check(screen.shop.get_global_rect().is_equal_approx(screen.center.get_global_rect()),
+			"Buy panel covers exactly the center area: shop %s, center %s" % [screen.shop.get_global_rect(), screen.center.get_global_rect()])
 		var corner_close: TextureButton = screen.shop.find_child("CloseX", true, false)
 		check(corner_close.position == Vector2(screen.shop.size.x - corner_close.size.x - 1, 1),
 			"Shop close tracks the one-pixel top/right inset at every resolution")

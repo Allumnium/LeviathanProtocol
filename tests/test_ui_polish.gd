@@ -326,11 +326,21 @@ func run() -> void:
 		await settle()
 		var research_column: Control = screen.find_child("HeaderResearch", true, false)
 		var gear: TextureButton = screen.find_child("SettingsButton", true, false)
-		check(screen.tabs.global_position.x == 8
+		check(screen.tabs.global_position.x == 16
 			and screen.tabs.get_global_rect().end.x <= research_column.global_position.x
 			and screen.research_button.get_global_rect().end.x <= screen.header_wallet.global_position.x
 			and gear.get_global_rect().end.x <= screen.size.x,
-			"Left tabs, center research and right wallet fit at every resolution")
+			"Left tabs and right research/wallet fit inside the command header at every resolution")
+		var header_rect: Rect2 = screen.command_header.get_global_rect()
+		var speed_rect: Rect2 = screen.travel_controls.get_global_rect()
+		check(absf(speed_rect.get_center().x - header_rect.get_center().x) <= 1
+			and header_rect.encloses(speed_rect)
+			and screen.tabs.get_global_rect().end.x <= speed_rect.position.x
+			and speed_rect.end.x <= screen.research_button.global_position.x,
+			"Speed controls stay centered and never overlap either header wing")
+		check(screen.command_header.get_theme_stylebox("middle", "CommandHeader").texture.atlas.resource_path.ends_with("/element_1.png")
+			and screen.command_header.texture_filter == Control.TEXTURE_FILTER_NEAREST,
+			"Command header uses original element_1 artwork with crisp filtering")
 		check(absf(screen.research_button.get_global_rect().end.x + 4 - screen.header_wallet.global_position.x) <= 1,
 			"Research is right aligned immediately before credits")
 		check(screen.research_button.get_global_rect().encloses(research_column.get_global_rect())

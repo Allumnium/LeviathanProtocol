@@ -1,7 +1,7 @@
 extends Control
 
 # Strategic map bound to the live expedition: discovered locations, the
-# fleet's real position, its planned route and fuel range. Selecting a
+# fleet's real position and its planned route. Selecting a
 # location offers GO TO beside it; double-clicking sets course immediately.
 signal location_selected(id: String)
 signal go_requested(id: String)
@@ -9,7 +9,6 @@ signal go_requested(id: String)
 const STATION_TEXTURE: Texture2D = preload("res://assets/space_station.png")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 const UiKit = preload("res://scripts/ui_kit.gd")
-const REGIONS := [Vector2(-120.0, 780.0), Vector2(780.0, 1600.0), Vector2(1600.0, 2200.0)]
 
 var camera_position := Vector2(380, 0)
 var camera_zoom := 0.0
@@ -153,22 +152,7 @@ func _draw() -> void:
 	var state = simulation.state
 	var font := get_theme_font("font", "Label")
 	var line := get_theme_color("font_color", "Label")
-	# Act regions: unlocked space is faintly lit, locked space is shaded.
-	var unlocked_acts := 2 if state.flags.get("leviathan_protocol", false) else 1
-	for index in range(REGIONS.size()):
-		var region: Vector2 = REGIONS[index]
-		var left := to_screen(Vector2(region.x, -400)).x
-		var right := to_screen(Vector2(region.y, 400)).x
-		var rect := Rect2(Vector2(left, 0), Vector2(right - left, size.y))
-		if index < unlocked_acts:
-			draw_rect(rect, Color(0.2, 0.55, 0.65, 0.05))
-		else:
-			draw_rect(rect, Color(0, 0, 0, 0.45))
-		draw_line(Vector2(right, 0), Vector2(right, size.y), Color(line, 0.15), 1.0)
-	# Fuel range.
 	var fleet := to_screen(state.position_nu)
-	var range_nu: float = state.fuel / float(simulation.tuning.fuel_per_nav_unit)
-	draw_arc(fleet, range_nu * camera_zoom, 0, TAU, 96, Color(0.45, 0.85, 1.0, 0.25), 1.0)
 	# Planned route and retained detour return.
 	if not state.destination_location_id.is_empty():
 		var target := to_screen(_position(simulation.locations[state.destination_location_id]))

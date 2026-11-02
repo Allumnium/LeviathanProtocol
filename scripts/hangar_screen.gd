@@ -9,6 +9,7 @@ const SceneFadeScript = preload("res://scripts/scene_fade.gd")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 const UiKit = preload("res://scripts/ui_kit.gd")
 const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+const CommandHeader = preload("res://scripts/command_header.gd")
 const EXPEDITION_SAVE_INTERVAL := 5.0
 
 var selected_ship_id := -1
@@ -25,6 +26,7 @@ var research_button: Button
 var research_pulse: ShaderMaterial
 var research_pulse_time := 0.0
 var header_wallet: HBoxContainer
+var command_header: Container
 var feedback: Label
 var canvas: Control
 var shop: Control
@@ -97,15 +99,13 @@ func _ready() -> void:
 		margin.add_theme_constant_override("margin_" + edge, 8)
 	var column := VBoxContainer.new()
 	margin.add_child(column)
-	var top := HBoxContainer.new()
+	var top := CommandHeader.new()
+	command_header = top
 	column.add_child(top)
 	tabs = HBoxContainer.new()
 	tabs.name = "Tabs"
-	tabs.size_flags_vertical = SIZE_SHRINK_BEGIN
-	top.add_child(tabs)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
-	top.add_child(spacer)
+	tabs.size_flags_vertical = SIZE_SHRINK_CENTER
+	top.left.add_child(tabs)
 	research_button = _button_with_sound("", func() -> void:
 		if traveling:
 			return
@@ -120,7 +120,7 @@ func _ready() -> void:
 	research_pulse = ShaderMaterial.new()
 	research_pulse.shader = preload("res://shaders/ui_research_pulse.gdshader")
 	research_button.material = research_pulse
-	top.add_child(research_button)
+	top.right.add_child(research_button)
 	var research_column := VBoxContainer.new()
 	research_column.name = "HeaderResearch"
 	research_column.size_flags_horizontal = SIZE_FILL
@@ -140,8 +140,8 @@ func _ready() -> void:
 	research_column.add_child(research_row)
 	header_wallet = HBoxContainer.new()
 	header_wallet.alignment = BoxContainer.ALIGNMENT_END
-	header_wallet.size_flags_vertical = SIZE_SHRINK_BEGIN
-	top.add_child(header_wallet)
+	header_wallet.size_flags_vertical = SIZE_SHRINK_CENTER
+	top.right.add_child(header_wallet)
 	var credit_icon := TextureRect.new()
 	credit_icon.name = "CreditsIcon"
 	credit_icon.texture = CREDITS_ICON
@@ -278,11 +278,12 @@ func _resize_panels() -> void:
 func _resize_research_label() -> void:
 	var text_width := research_status.get_theme_font("font").get_string_size(
 		research_status.text, HORIZONTAL_ALIGNMENT_LEFT, -1, research_status.get_theme_font_size("font_size")).x
-	var top := tabs.get_parent() as HBoxContainer
-	var available := size.x - 16 - tabs.get_combined_minimum_size().x - header_wallet.get_combined_minimum_size().x
+	var center_width := 0.0
 	if is_instance_valid(travel_controls):
-		available -= travel_controls.get_combined_minimum_size().x + top.get_theme_constant("separation")
-	available -= top.get_theme_constant("separation") * 3 + 36
+		center_width = travel_controls.get_combined_minimum_size().x
+	center_width = maxf(center_width, minf(244, size.x - 32 - 2 * tabs.get_combined_minimum_size().x))
+	var available := floorf((size.x - 16 - center_width) * 0.5) - 8 \
+			- header_wallet.get_combined_minimum_size().x - 4 - 36
 	research_status.custom_minimum_size.x = minf(text_width, maxf(1, available))
 	research_button.custom_minimum_size.x = maxf(120, research_status.custom_minimum_size.x + 36)
 	var text_height := research_status.get_theme_font("font").get_multiline_string_size(
@@ -983,16 +984,16 @@ func _update_expedition_readouts() -> void:
 		feedback.text = _expedition_status_text()
 
 
-func _build_travel_controls(top: HBoxContainer, footer: HBoxContainer) -> void:
+func _build_travel_controls(top: Container, footer: HBoxContainer) -> void:
 	if GameState.expedition_simulation == null or GameState.expedition_simulation.state == null:
 		return
 	travel_controls = PanelContainer.new()
 	travel_controls.name = "ExpeditionTravelControls"
 	travel_controls.theme_type_variation = &"TimeControlsPanel"
+	travel_controls.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	travel_controls.size_flags_vertical = SIZE_SHRINK_CENTER
 	travel_controls.mouse_filter = Control.MOUSE_FILTER_PASS
-	top.add_child(travel_controls)
-	top.move_child(travel_controls, 1)
+	top.middle.add_child(travel_controls)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	travel_controls.add_child(row)
@@ -1581,7 +1582,8 @@ func _show_buy_panel(_scroll_position := 0) -> void:
 # Each shipyard sells a fixed, seeded selection of its own stock; only as many
 # cards as fit the panel are offered, so the shop never needs to scroll.
 func _shop_capacity(card_height: float) -> Vector2i:
-	var area := center.size - Vector2(24, 44)
+	var area := center.size - Vector2(shop.get_theme_stylebox("panel").get_minimum_size().x,
+			shop.get_combined_minimum_size().y)
 	var columns := clampi(floori(area.x / 220.0), 1, 3)
 	var rows := maxi(1, floori((area.y + 4) / (card_height + 4)))
 	return Vector2i(columns, rows)
@@ -1763,7 +1765,6 @@ func _render_voyage_summary() -> void:
 	var lines: PackedStringArray = [
 		"Traveled %d NU" % roundi(state.traveled_distance_nu),
 		"Fuel %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)],
-		"Range %d NU" % roundi(state.fuel / float(simulation.tuning.fuel_per_nav_unit)),
 		"Visited %d" % state.visited_location_ids.size()]
 	if state.flags.get("leviathan_protocol", false) and not GameState.completed:
 		lines.append("")
