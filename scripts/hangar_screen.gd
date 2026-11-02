@@ -66,6 +66,10 @@ var departure_button: Button
 var departure_modal: Control
 var departure_error: Label
 var departure_retry: Button
+var encounter_modal: Control
+var encounter_error: Label
+var encounter_retry: Button
+var encounter_event_id := ""
 var expedition_save_elapsed := 0.0
 var expedition_status_override := ""
 var shipyard_access_available := false
@@ -237,9 +241,11 @@ func _ready() -> void:
 	GameState.research_changed.connect(_queue_refresh)
 	GameState.credits_changed.connect(_queue_refresh)
 	_refresh()
-	if GameState.expedition_simulation != null \
-			and GameState.expedition_simulation.state.departure_choice_pending:
-		_show_departure_choices()
+	if GameState.expedition_simulation != null:
+		if not GameState.expedition_simulation.state.pending_event_id.is_empty():
+			_show_encounter()
+		elif GameState.expedition_simulation.state.departure_choice_pending:
+			_show_departure_choices()
 
 func _resize_panels() -> void:
 	if header_wallet != null:
@@ -338,7 +344,9 @@ func _advance_expedition(delta: float) -> void:
 			expedition_save_elapsed = 0.0
 			if boundary_reached:
 				expedition_status_override = ""
-				if simulation.state.departure_choice_pending:
+				if not simulation.state.pending_event_id.is_empty():
+					_show_encounter()
+				elif simulation.state.departure_choice_pending:
 					_show_departure_choices()
 		_refresh_expedition_controls()
 
@@ -786,6 +794,78 @@ func _refresh_expedition_controls() -> void:
 			and state.travel_state in [ExpeditionStateData.TravelState.DOCKED, ExpeditionStateData.TravelState.STOPPED]
 	_update_expedition_readouts()
 
+func _show_encounter() -> void:
+	if is_instance_valid(encounter_modal):
+		return
+	var simulation = GameState.expedition_simulation
+	if simulation == null or simulation.state.pending_event_id.is_empty():
+		return
+	var event: Dictionary = simulation.Events.find(simulation.events, simulation.state.pending_event_id)
+	if event.is_empty():
+		push_error("Cannot show an encounter without its validated event data.")
+		return
+	if get_viewport().gui_is_dragging():
+		get_viewport().gui_cancel_drag()
+	if is_instance_valid(shop):
+		shop.queue_free()
+		shop = null
+	buy_open = false
+	encounter_event_id = event.id
+	encounter_modal = Control.new()
+	encounter_modal.name = "ExpeditionEncounter"
+	encounter_modal.add_to_group("modal_ui")
+	encounter_modal.z_index = 40
+	add_child(encounter_modal)
+	encounter_modal.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.65)
+	encounter_modal.add_child(shade)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var margin := MarginContainer.new()
+	encounter_modal.add_child(margin)
+	margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	for edge: String in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + edge, 24)
+	var panel := PanelContainer.new()
+	panel.name = "EncounterPanel"
+	panel.theme_type_variation = &"CompactPanel"
+	panel.custom_minimum_size.x = minf(440, size.x - 48)
+	panel.size_flags_horizontal = SIZE_SHRINK_CENTER
+	panel.size_flags_vertical = SIZE_SHRINK_CENTER
+	margin.add_child(panel)
+	var column := VBoxContainer.new()
+	panel.add_child(column)
+	column.add_child(_label(str(event.title).to_upper()))
+	var text := _label(event.text)
+	text.custom_minimum_size.x = minf(360, size.x - 96)
+	column.add_child(text)
+	column.add_child(_button("INVESTIGATE", _choose_encounter.bind(event.id, "investigate")))
+	column.add_child(_button("CONTINUE COURSE", _choose_encounter.bind(event.id, "continue")))
+	encounter_error = _label("")
+	column.add_child(encounter_error)
+	encounter_retry = _button("RETRY SAVE", func() -> void:
+		_on_expedition_retry_pressed()
+		encounter_error.text = expedition_status_override
+		encounter_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons)
+	encounter_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
+	column.add_child(encounter_retry)
+
+func _choose_encounter(event_id: String, choice: String) -> void:
+	if not is_instance_valid(encounter_modal) or encounter_event_id != event_id:
+		return
+	if not GameState.resolve_expedition_event(event_id, choice):
+		encounter_error.text = GameState.last_save_error
+		encounter_retry.show()
+		return
+	encounter_modal.queue_free()
+	encounter_modal = null
+	encounter_error = null
+	encounter_retry = null
+	encounter_event_id = ""
+	expedition_status_override = ""
+	expedition_save_elapsed = 0.0
+	_refresh_expedition_controls()
+
 
 func _update_expedition_readouts() -> void:
 	if not is_instance_valid(travel_controls) or GameState.expedition_simulation == null:
@@ -916,6 +996,8 @@ func _show_departure_choices() -> void:
 		var option := VBoxContainer.new()
 		choices.add_child(option)
 		var choose := _button(location.name, _choose_departure.bind(id))
+		if id == simulation.state.return_destination_id:
+			choose.text = "RESUME: " + location.name
 		choose.set_meta("expedition_destination", id)
 		option.add_child(choose)
 		var description := "Explore a derelict field. No station services." if location.kind == "poi" \

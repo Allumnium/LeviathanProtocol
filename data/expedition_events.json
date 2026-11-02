@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "id": "derelict_signal",
+      "distance_nu": 80.0,
+      "title": "Derelict signal",
+      "text": "Sensors have picked up a navigation beacon in the derelict field. Investigate the field, or continue on your current course. No salvage reward is promised.",
+      "destination_id": "derelict_1"
+    }
+  ]
+}

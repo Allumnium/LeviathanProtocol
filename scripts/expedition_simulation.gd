@@ -3,6 +3,7 @@ extends RefCounted
 
 const State = preload("res://scripts/expedition_state.gd")
 const MAX_BOUNDARY_HISTORY := 64
+const Events = preload("res://scripts/expedition_events.gd")
 
 signal boundary_reached(kind: int, details: Dictionary)
 
@@ -13,6 +14,7 @@ var accumulator := 0.0
 var last_error := ""
 var emitted_boundaries: Array[Dictionary] = []
 var boundary_sequence := 0
+var events: Array = []
 
 
 func configure(seed_value: int) -> bool:
@@ -29,6 +31,11 @@ func configure(seed_value: int) -> bool:
 	locations.clear()
 	for location: Dictionary in locations_json.data.locations:
 		locations[location.id] = location.duplicate(true)
+	var events_json := JSON.new()
+	if events_json.parse(FileAccess.get_file_as_string(Events.DATA_PATH)) != OK \
+			or not Events.valid(events_json.data, locations):
+		return _fail("Invalid expedition event data.")
+	events = events_json.data.events.duplicate(true)
 	var start: Dictionary = locations.get("start_station", {})
 	state = State.new()
 	if not state.initialize(seed_value, start, tuning):
@@ -72,6 +79,15 @@ func restore(snapshot: Dictionary) -> bool:
 		if destination.is_empty() or not destination.accessible \
 				or restored.discovered_location_ids.find(restored.destination_location_id) < 0:
 			return _fail("Saved destination is unavailable.")
+	if not restored.return_destination_id.is_empty():
+		var return_target: Dictionary = locations.get(restored.return_destination_id, {})
+		if return_target.is_empty() or not return_target.accessible \
+				or restored.return_destination_id not in restored.discovered_location_ids:
+			return _fail("Saved return destination is unavailable.")
+	if not restored.pending_event_id.is_empty():
+		var event := Events.find(events, restored.pending_event_id)
+		if event.is_empty() or restored.traveled_distance_nu + 0.000001 < float(event.distance_nu):
+			return _fail("Saved pending encounter is invalid.")
 	state = restored
 	accumulator = 0.0
 	emitted_boundaries.clear()
@@ -79,7 +95,7 @@ func restore(snapshot: Dictionary) -> bool:
 
 
 func request_destination(id: String) -> bool:
-	if not _configured() or state.travel_state in [
+	if not _configured() or not state.pending_event_id.is_empty() or state.travel_state in [
 			State.TravelState.SETTLING, State.TravelState.REGROUPING, State.TravelState.DEFEAT,
 			State.TravelState.TOWING]:
 		return _fail("Cannot change course in the current expedition state.")
@@ -96,11 +112,15 @@ func request_destination(id: String) -> bool:
 			state.docked_location_id = id
 			state.destination_location_id = ""
 			state.travel_state = State.TravelState.DOCKED
+			if state.departure_choice_pending:
+				state.return_destination_id = ""
 			state.departure_choice_pending = false
 			_mark_visited(id)
 			return true
 		return _fail("Destination is already at the fleet's position.")
 	state.destination_location_id = id
+	if state.departure_choice_pending:
+		state.return_destination_id = ""
 	state.departure_choice_pending = false
 	state.docked_location_id = ""
 	state.travel_state = State.TravelState.CRUISING
@@ -117,7 +137,7 @@ func begin_departure_choice() -> bool:
 
 
 func stop() -> bool:
-	if not _configured() or state.travel_state != State.TravelState.CRUISING:
+	if not _configured() or not state.pending_event_id.is_empty() or state.travel_state != State.TravelState.CRUISING:
 		return _fail("The fleet is not underway.")
 	state.stopped_from = state.travel_state
 	state.travel_state = State.TravelState.STOPPED
@@ -135,11 +155,12 @@ func resume() -> bool:
 
 
 func cancel_destination() -> bool:
-	if not _configured() or state.travel_state not in [State.TravelState.CRUISING, State.TravelState.STOPPED,
+	if not _configured() or not state.pending_event_id.is_empty() or state.travel_state not in [State.TravelState.CRUISING, State.TravelState.STOPPED,
 			State.TravelState.ENGAGED] \
 			or state.destination_location_id.is_empty():
 		return _fail("There is no cancellable destination.")
 	state.destination_location_id = ""
+	state.return_destination_id = ""
 	if state.travel_state != State.TravelState.ENGAGED:
 		state.docked_location_id = ""
 		state.travel_state = State.TravelState.STOPPED
@@ -151,6 +172,8 @@ func cancel_destination() -> bool:
 func set_speed(multiplier: int) -> bool:
 	if not _configured() or multiplier not in State.SPEEDS:
 		return _fail("Unsupported expedition speed.")
+	if not state.pending_event_id.is_empty() and multiplier != 1:
+		return _fail("Resolve the encounter before fast-forwarding.")
 	if state.travel_state in [State.TravelState.ENGAGED, State.TravelState.SETTLING,
 			State.TravelState.REGROUPING] and multiplier != 1:
 		return _fail("Threat and regroup phases are limited to 1x.")
@@ -161,6 +184,8 @@ func set_speed(multiplier: int) -> bool:
 func set_pause(reason: int, enabled: bool) -> bool:
 	if not _configured() or reason < 0 or reason >= State.PauseReason.size():
 		return _fail("Invalid pause reason.")
+	if reason == State.PauseReason.ENCOUNTER:
+		return _fail("Resolve the pending encounter to clear its interruption.")
 	if enabled and reason not in state.pause_reasons:
 		state.pause_reasons.append(reason)
 	elif not enabled and reason in state.pause_reasons:
@@ -168,6 +193,31 @@ func set_pause(reason: int, enabled: bool) -> bool:
 	if _paused():
 		accumulator = 0.0
 	return true
+
+func resolve_event(id: String, choice: String) -> bool:
+	if not _configured() or id.is_empty() or state.pending_event_id != id \
+			or state.event_receipts.get(id, false) or choice not in ["investigate", "continue"]:
+		return _fail("This encounter choice is unavailable or has already been resolved.")
+	var event := Events.find(events, id)
+	if event.is_empty():
+		return _fail("Pending encounter data is missing.")
+	if choice == "investigate" and state.destination_location_id != event.destination_id:
+		state.return_destination_id = state.destination_location_id
+		state.destination_location_id = event.destination_id
+	state.pending_event_id = ""
+	state.pause_reasons.erase(State.PauseReason.ENCOUNTER)
+	state.event_receipts[id] = true
+	state.requested_speed = 1
+	accumulator = 0.0
+	return true
+
+func _admit_event(event: Dictionary) -> void:
+	state.pending_event_id = event.id
+	state.requested_speed = 1
+	if event.destination_id not in state.discovered_location_ids:
+		state.discovered_location_ids.append(event.destination_id)
+	state.pause_reasons.append(State.PauseReason.ENCOUNTER)
+	_emit_boundary(State.BoundaryKind.ENCOUNTER, {"event_id": event.id})
 
 
 func advance(real_delta: float) -> bool:
@@ -208,15 +258,18 @@ func _advance_cruise(delta: float) -> bool:
 		_arrive(destination)
 		return true
 	var step_distance := minf(float(tuning.cruise_units_per_sim_second) * delta, distance_remaining)
+	var event := Events.next_event(events, state.event_receipts)
+	var event_distance := INF if event.is_empty() else maxf(0.0,
+			float(event.distance_nu) - state.traveled_distance_nu)
 	var fuel_distance := state.fuel / float(tuning.fuel_per_nav_unit)
-	var distance := minf(step_distance, fuel_distance)
+	var distance := minf(minf(step_distance, fuel_distance), event_distance)
 	if distance > 0.0:
 		var delta_position := to_target.normalized() * distance
 		state.position_nu += delta_position
 		state.fuel = maxf(0.0, state.fuel - distance * float(tuning.fuel_per_nav_unit))
 		state.traveled_distance_nu += distance
 		state.traveled_days += distance / float(tuning.nav_units_per_day)
-	if distance + 0.000001 < step_distance or (state.fuel <= 0.000001 and distance_remaining - distance > 0.000001):
+	if fuel_distance <= distance + 0.000001 and distance_remaining - distance > 0.000001:
 		state.fuel = 0.0
 		state.stopped_from = State.TravelState.CRUISING
 		state.travel_state = State.TravelState.STOPPED
@@ -227,6 +280,9 @@ func _advance_cruise(delta: float) -> bool:
 			"position_nu": [state.position_nu.x, state.position_nu.y],
 			"destination_id": state.destination_location_id
 		})
+		return true
+	if not event.is_empty() and event_distance <= distance + 0.000001:
+		_admit_event(event)
 		return true
 	if distance_remaining - distance <= 0.000001:
 		state.position_nu = target

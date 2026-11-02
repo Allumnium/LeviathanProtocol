@@ -2,6 +2,7 @@ class_name HangarCheckpoint
 extends RefCounted
 
 const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
+const ExpeditionSimulationData = preload("res://scripts/expedition_simulation.gd")
 
 static func valid(value: Variant) -> bool:
 	if not value is Dictionary or value.get("format") != "physical_hangar" or value.get("version") != 2:
@@ -18,6 +19,10 @@ static func valid(value: Variant) -> bool:
 	if value.has("expedition") and (not ExpeditionStateData.valid(value.expedition)
 			or value.expedition.seed != value.seed):
 		return false
+	if value.has("expedition"):
+		var simulation := ExpeditionSimulationData.new()
+		if not simulation.configure(int(value.seed)) or not simulation.restore(value.expedition):
+			return false
 	for key in ["pending", "ended", "completed"]:
 		if not value.get(key) is bool:
 			return false

@@ -35,6 +35,7 @@ func run() -> void:
 	check(true, "Fresh expedition run starts and checkpoints")
 	check(state.checkpoint_summary().get("expedition", false),
 			"Continue summary recognizes the expedition checkpoint")
+	state.expedition_simulation.state.event_receipts["derelict_signal"] = true
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
 	root.add_child(screen)
 	current_scene = screen

@@ -8,8 +8,8 @@ const SERVICES := ["shipyard", "refuel", "trade", "communications"]
 const LOCATION_KINDS := ["station", "poi", "gate"]
 
 enum TravelState { DOCKED, CRUISING, STOPPED, ENGAGED, SETTLING, REGROUPING, TOWING, DEFEAT }
-enum PauseReason { USER, EVENT, FUEL, RESEARCH, SAVE_ERROR }
-enum BoundaryKind { ARRIVAL, DOCK, FUEL_EMPTY, RESEARCH_COMPLETE, THREAT_DETECTED, DISCOVERY, SAVE_FAILURE, FLAGSHIP_DESTROYED }
+enum PauseReason { USER, EVENT, FUEL, RESEARCH, SAVE_ERROR, ENCOUNTER }
+enum BoundaryKind { ARRIVAL, DOCK, FUEL_EMPTY, RESEARCH_COMPLETE, THREAT_DETECTED, DISCOVERY, SAVE_FAILURE, FLAGSHIP_DESTROYED, ENCOUNTER }
 
 var seed := 0
 var simulation_tick := 0
@@ -32,6 +32,8 @@ var visited_location_ids: Array[String] = []
 var flags: Dictionary[String, bool] = {}
 var event_receipts: Dictionary[String, bool] = {}
 var departure_choice_pending := false
+var pending_event_id := ""
+var return_destination_id := ""
 
 
 func snapshot() -> Dictionary:
@@ -58,7 +60,9 @@ func snapshot() -> Dictionary:
 		"visited_location_ids": visited_location_ids.duplicate(),
 		"flags": flags.duplicate(),
 		"event_receipts": event_receipts.duplicate(),
-		"departure_choice_pending": departure_choice_pending
+		"departure_choice_pending": departure_choice_pending,
+		"pending_event_id": pending_event_id,
+		"return_destination_id": return_destination_id
 	}
 
 
@@ -86,6 +90,8 @@ func restore(value: Dictionary) -> bool:
 	flags.assign(value.flags)
 	event_receipts.assign(value.event_receipts)
 	departure_choice_pending = value.get("departure_choice_pending", false)
+	pending_event_id = value.get("pending_event_id", "")
+	return_destination_id = value.get("return_destination_id", "")
 	return true
 
 
@@ -207,6 +213,15 @@ static func valid(value: Variant) -> bool:
 				or pause_set.has(int(reason)):
 			return false
 		pause_set[int(reason)] = true
+	if not value.get("pending_event_id", "") is String \
+			or not value.get("return_destination_id", "") is String:
+		return false
+	var pending_event: String = value.get("pending_event_id", "")
+	if pending_event.is_empty() != (not pause_set.has(PauseReason.ENCOUNTER)):
+		return false
+	if not pending_event.is_empty() and (travel_state != TravelState.CRUISING \
+			or value.get("departure_choice_pending", false) or value.event_receipts.get(pending_event, false)):
+		return false
 	var unique_discovered: Dictionary = {}
 	for id: Variant in value.discovered_location_ids:
 		if not id is String or id.is_empty() or unique_discovered.has(id):

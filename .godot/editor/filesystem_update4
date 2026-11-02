@@ -3,3 +3,5 @@ res://scripts/expedition_state.gd
 res://scripts/hangar_screen.gd
 res://scripts/hangar_state.gd
 res://themes/ui_theme.tres
+res://scripts/hangar_checkpoint.gd
+res://tests/test_expedition_arrival.gd

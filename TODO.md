@@ -339,11 +339,12 @@ All proposed paths below are recommendations, not permission to build a generic 
 
 **Depends on:** E01, E02, E04, E05. **Owner area:** event system.
 
-- [ ] Implement proposed `scripts/expedition_events.gd` for validated trigger conditions, stable instance IDs, ordered admission, decisions and atomic effects.
-- [ ] Add scripted distance/radius/arrival triggers and placeholder communication/choice event; hook combat admission to E11's eventual adapter.
-- [ ] Persist pending events/receipts before presenting decisions; retry/save/load cannot replay the effect.
-- [ ] Handle coincident events, segment sweeps, deferral under combat and interruption of live management without deleting the route.
-- [ ] Add proposed `tests/test_expedition_events.gd`: all speeds, multiple boundaries in one frame, repeated choice submits, failed commits and reload pending decisions.
+- [x] Add `scripts/expedition_events.gd` and a validated, ordered distance-trigger catalog with stable IDs. First fixture: a story-neutral derelict signal at 80 cumulative travel NU.
+- [x] Save the pending signal before presenting a required Investigate / Continue Course decision above the existing UI. Return to 1x, freeze on its own pause reason, preserve other pauses and reject bypasses through route/time controls.
+- [x] Commit choices and receipts atomically without rebuilding ships. Failed saves retain the decision; Continue restores it. Investigate preserves the original destination as an explicit Resume option at detour arrival, without teleporting, auto-departing or granting placeholder salvage.
+- [x] Clip movement/fuel exactly at the distance trigger, discard stale fast-forward budget, prioritize coincident fuel exhaustion and defer travel signals during combat.
+- [x] Add `tests/test_expedition_events.gd` to headless/native baseline: all supported speeds, variable frame sizes, fuel coincidence, duplicate choices, failed admission/resolution saves, pending-decision and detour reloads, real pointer choice, ship identity and modal/error layout at supported resolutions.
+- [ ] Extend the foundation to radius/arrival triggers, general validated effects and multiple encounter priorities/segment sweeps. Hook combat admission to E11's eventual adapter; add multiple-boundary and competing-event coverage. The single signal is not a random encounter/loot system.
 
 **Phase 1 gate:** native demo shows continuous fleet travel, mid-leg course change, Stop versus Pause, all speeds, a scripted interruption, live management and working Continue. No scene swaps. It is a prototype, not the complete feature; fuel, persistent POIs and seamless combat remain mandatory.
 

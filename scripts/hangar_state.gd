@@ -352,6 +352,32 @@ func prepare_checkpoint_resume() -> bool:
 		return false
 	return true
 
+func resolve_expedition_event(event_id: String, choice: String) -> bool:
+	if expedition_simulation == null or expedition_simulation.state == null:
+		last_save_error = "No active expedition state."
+		return false
+	if run_ended or completed or battle_pending:
+		last_save_error = "Encounter choices are unavailable during combat or after the run ends."
+		return false
+	if ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR in expedition_simulation.state.pause_reasons:
+		last_save_error = "Retry the failed save before resolving this encounter."
+		return false
+	var staged = ExpeditionSimulationScript.new()
+	if not staged.configure(run_seed) or not staged.restore(expedition_simulation.state.snapshot()) \
+			or not staged.resolve_event(event_id, choice):
+		last_save_error = staged.last_error
+		return false
+	var proposal := hangar_snapshot()
+	proposal.expedition = staged.state.snapshot()
+	if not _save_hangar(proposal):
+		return false
+	if not expedition_simulation.restore(proposal.expedition):
+		last_save_error = expedition_simulation.last_error
+		push_error("Could not apply the committed encounter choice: " + last_save_error)
+		return false
+	travel_plan_changed.emit()
+	return true
+
 func buy_equipment(key: String, rank := 1) -> bool:
 	if not _require_shipyard():
 		return false

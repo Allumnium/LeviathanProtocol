@@ -17,6 +17,16 @@ The backend validates service access before mutation or saving. Unavailable cont
 Run [the baseline](../tests/run_baseline.ps1), optionally with `-Native`, using its isolated APPDATA. [Station-service tests](../tests/test_expedition_services.gd) cover access, unchanged state on rejection, Continue, refueling-only stations and UI cancellation/restoration.
 [Arrival tests](../tests/test_expedition_arrival.gd) cover required choices, Continue pause, station/POI reloads and failed-save/retry transactions in headless and native runs.
 
+## First travel interruption
+
+The story-neutral [event catalog](../data/expedition_events.json) currently has one derelict signal at 80 cumulative travel NU. It interrupts cruise on any management tab without switching scenes. Movement and fuel clip at the trigger regardless of speed; the simulation returns to 1x and holds an encounter-specific pause until the player chooses Investigate or Continue Course. This required decision has no dismiss button. Existing user and other mandatory pauses remain independent.
+
+Continue Course retains the current destination. Investigate routes from the current position to the existing derelict POI and remembers the original destination. At POI arrival, the regular required destination modal labels that original option Resume; the player must select an onward route, and any explicit choice clears the saved return target. This is a navigation fixture, not salvage/story content: no reward or combat is generated.
+
+The pending decision is committed before the modal appears; the choice and one-time receipt are committed before it closes. Admission or choice save failures roll back or retain the pending decision with explicit retry feedback. Continue restores unfinished decisions and detour return targets. Physical checkpoint validation rejects unknown pending events and unavailable return destinations before applying state.
+
+[Signal tests](../tests/test_expedition_events.gd) cover speed/frame independence, exact distance/fuel clipping, independent pauses, duplicate submissions, fuel priority, combat deferral, failed saves, reloads, ship identity and real pointer choices. The baseline includes headless and optional native coverage at 640x360, 1280x720 and 1920x1080. Random encounters, competing-event priorities, radius/arrival triggers, combat integration and actual detour rewards remain deferred.
+
 The Swarm and environment regression suites retain historical campaign transaction/combat coverage without restoring graph-travel or Relay controls to the expedition Map. Map inspection must not mutate expedition routes or present old node conditions as current journey hazards. Combat still validates its frozen environment and physical asteroids. Battle Settings layout coverage includes the existing Tutorials switch and Quit to menu row.
 
 ## Ownership and transactions
