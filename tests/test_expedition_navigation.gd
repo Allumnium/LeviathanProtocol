@@ -104,7 +104,7 @@ func run() -> void:
 	check(is_equal_approx(boundary.state.fuel, 0.0), "Fuel is clipped at zero")
 	check(ExpeditionStateClass.PauseReason.FUEL in boundary.state.pause_reasons,
 		"Fuel exhaustion pauses explicitly")
-	check(boundary.state.requested_speed == 1, "Fuel interruption reduces requested speed to 1x")
+	check(boundary.state.requested_speed == 20, "Fuel interruption pauses without discarding the chosen speed")
 	check(boundary.state.position_nu.distance_to(Vector2.ZERO) <= 3.5001,
 		"Fast-forward cannot skip fuel boundary")
 	check(not boundary.emitted_boundaries.is_empty()
@@ -166,13 +166,16 @@ func run() -> void:
 			and long_run.accumulator == 0 and long_run.state.simulation_seconds < 100,
 			"Capped history still clips arrival and discards leftover fast-forward budget")
 	var arrival_tick: int = long_run.state.simulation_tick
-	check(long_run.state.departure_choice_pending and long_run.advance(10)
-			and long_run.state.simulation_tick == arrival_tick,
-			"Arrival holds core simulation until a destination is chosen")
+	var arrival_position: Vector2 = long_run.state.position_nu
+	check(not long_run.state.departure_choice_pending and long_run.state.destination_location_id.is_empty()
+			and long_run.advance(10) and long_run.state.simulation_tick > arrival_tick
+			and long_run.state.position_nu.is_equal_approx(arrival_position),
+			"Arrival never forces a destination choice; docked time keeps running in place")
 	var invalid_choice: Dictionary = long_run.state.snapshot()
 	invalid_choice.departure_choice_pending = "yes"
 	check(not long_run.restore(invalid_choice), "Reject malformed pending-choice flag")
 	invalid_choice = long_run.state.snapshot()
+	invalid_choice.departure_choice_pending = true
 	invalid_choice.destination_location_id = "derelict_1"
 	check(not long_run.restore(invalid_choice), "Reject a pending arrival choice with an active route")
 	print("EXPEDITION_NAVIGATION_CHECKS=%d failures=%d" % [checks, failures])

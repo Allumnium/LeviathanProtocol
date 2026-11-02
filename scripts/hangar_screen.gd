@@ -7,6 +7,7 @@ const BUY_ICON: Texture2D = preload("res://assets/ui/Btn_BuyCoins_n.png")
 const ExpeditionStateData = preload("res://scripts/expedition_state.gd")
 const SceneFadeScript = preload("res://scripts/scene_fade.gd")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
+const UiKit = preload("res://scripts/ui_kit.gd")
 const EXPEDITION_SAVE_INTERVAL := 5.0
 
 var selected_ship_id := -1
@@ -61,9 +62,8 @@ var travel_refuel_button: Button
 var travel_retry_button: Button
 var travel_fuel: Label
 var departure_button: Button
-var departure_modal: Control
-var departure_error: Label
-var departure_retry: Button
+var arrival_modal: Control
+var arrival_location_id := ""
 var encounter_modal: Control
 var encounter_error: Label
 var encounter_retry: Button
@@ -72,7 +72,6 @@ var expedition_save_elapsed := 0.0
 var expedition_status_override := ""
 var shipyard_access_available := false
 var entering_battle := false
-var toast_host: VBoxContainer
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
@@ -247,8 +246,9 @@ func _ready() -> void:
 	elif GameState.expedition_simulation != null:
 		if not GameState.expedition_simulation.state.pending_event_id.is_empty():
 			_show_encounter()
-		elif GameState.expedition_simulation.state.departure_choice_pending:
-			_show_departure_choices()
+		elif not GameState.arrival_notice.is_empty():
+			_show_arrival(GameState.arrival_notice)
+			GameState.arrival_notice = ""
 		elif GameState.stranded():
 			_show_rescue()
 		elif GameState.pending_intro:
@@ -330,7 +330,7 @@ func _shipyard_action(button: Button, eligible := true) -> Button:
 
 func _advance_expedition(delta: float) -> void:
 	var simulation = GameState.expedition_simulation
-	if simulation == null or simulation.state == null or is_instance_valid(departure_modal) \
+	if simulation == null or simulation.state == null \
 			or is_instance_valid(encounter_modal) or entering_battle or GameState.completed or GameState.run_ended:
 		return
 	expedition_save_elapsed += delta
@@ -355,15 +355,14 @@ func _advance_expedition(delta: float) -> void:
 	_update_expedition_readouts()
 	if result.boundary:
 		expedition_status_override = ""
-		var docked: Dictionary = simulation.locations.get(simulation.state.docked_location_id, {})
-		if not docked.is_empty():
+		var arrived := _arrived_location()
+		if not simulation.state.docked_location_id.is_empty():
 			AudioManager.play_ui_sfx(&"dock")
-			_toast("Docked at %s" % docked.name, &"")
 		_sync_music()
 		if not simulation.state.pending_event_id.is_empty():
 			_show_encounter()
-		elif simulation.state.departure_choice_pending:
-			_show_departure_choices()
+		elif not arrived.is_empty():
+			_show_arrival(arrived)
 		elif GameState.stranded():
 			_show_rescue()
 		_refresh_expedition_controls()
@@ -456,17 +455,7 @@ func _button(title: String, action: Callable) -> Button:
 	return _button_with_sound(title, action, &"accept")
 
 func _button_with_sound(title: String, action: Callable, sound: StringName) -> Button:
-	var button := Button.new()
-	button.text = "" if ResourceText.has_icons(title) else title
-	button.theme_type_variation = &"TacticalButton"
-	button.focus_mode = FOCUS_NONE
-	button.custom_minimum_size.y = 30
-	if not sound.is_empty():
-		AudioManager.connect_ui_button(button, sound)
-	button.pressed.connect(action)
-	if ResourceText.has_icons(title):
-		ResourceText.button_content(button, title)
-	return button
+	return UiKit.button(title, action, sound)
 
 func _add_buy_icon(button: Button) -> void:
 	var icon := TextureRect.new()
@@ -567,10 +556,7 @@ func _shop_icon(texture: Texture2D, node_name: String) -> TextureRect:
 	return icon
 
 func _label(title: String) -> Label:
-	var label := Label.new()
-	label.text = title
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	return label
+	return UiKit.label(title)
 
 func _resource_label(title: String) -> ResourceText:
 	return ResourceText.create(title)
@@ -763,47 +749,23 @@ func _refresh() -> void:
 func _show_run_end() -> void:
 	if is_instance_valid(get_node_or_null("RunEnd")):
 		return
+	_close_arrival()
+	for blocker: Control in [encounter_modal]:
+		if is_instance_valid(blocker):
+			blocker.queue_free()
+	encounter_modal = null
 	_sync_music()
 	if GameState.completed:
 		AudioManager.play_ui_sfx(&"demo_complete")
-	var overlay := Control.new()
-	overlay.name = "RunEnd"
-	overlay.add_to_group("modal_ui")
-	overlay.z_index = 45
-	add_child(overlay)
-	overlay.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.7)
-	overlay.add_child(shade)
-	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var center_box := CenterContainer.new()
-	overlay.add_child(center_box)
-	center_box.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var panel := PanelContainer.new()
-	panel.theme_type_variation = &"CompactPanel"
-	panel.custom_minimum_size.x = minf(420, size.x - 48)
-	center_box.add_child(panel)
-	var column := VBoxContainer.new()
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 6)
-	panel.add_child(column)
-	if GameState.completed:
-		var badge := TextureRect.new()
-		badge.texture = load("res://assets/ui/Victory_Badge.png")
-		badge.custom_minimum_size = Vector2(64, 64) if size.y >= 500 else Vector2(40, 40)
-		badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		column.add_child(badge)
-	var title := _label("DEMO COMPLETE" if GameState.completed else "FLAGSHIP LOST")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var story := "The Bastion Gate is open. The Leviathan waits beyond it.\nThanks for playing this slice of Leviathan Protocol." \
+			if GameState.completed else "The convoy is scattered without its flagship."
+	var dialog := UiKit.dialog(self, "RunEnd", "", story,
+			load("res://assets/ui/Victory_Badge.png") if GameState.completed else null, Callable(), UiKit.TOP_Z, 440.0)
+	var title := UiKit.label("DEMO COMPLETE" if GameState.completed else "FLAGSHIP LOST")
 	title.add_theme_font_size_override("font_size", 28)
-	column.add_child(title)
-	var story := _label("The Bastion Gate is open. The Leviathan waits beyond it.\nThanks for playing this slice of Leviathan Protocol."
-		if GameState.completed else "The convoy is scattered without its flagship.")
-	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(story)
-	var data: Dictionary = GameState.hangar_snapshot()
-	var points := RunScore.breakdown(data)
+	dialog.column.add_child(title)
+	dialog.column.move_child(title, 0)
+	var points := RunScore.breakdown(GameState.hangar_snapshot())
 	if not points.is_empty():
 		var lines: PackedStringArray = [
 			"Research  %d" % int(points.research),
@@ -812,12 +774,14 @@ func _show_run_end() -> void:
 		if int(points.leviathan) > 0:
 			lines.append("Bastion Gate cleared  %d" % int(points.leviathan))
 		lines.append("SCORE  %d" % int(points.total))
-		var score := _label("\n".join(lines))
+		var score := UiKit.label("\n".join(lines))
 		score.name = "RunEndScore"
-		score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		column.add_child(score)
-	column.add_child(_button("MAIN MENU", func() -> void:
-		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")))
+		dialog.column.add_child(score)
+		dialog.column.move_child(score, dialog.column.get_child_count() - 2)
+	var menu := UiKit.button("MAIN MENU", func() -> void:
+		get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
+	menu.name = "RunEndMainMenu"
+	dialog.actions.add_child(menu)
 
 func _refresh_expedition_controls() -> void:
 	_sync_station_services()
@@ -844,12 +808,12 @@ func _refresh_expedition_controls() -> void:
 	travel_refuel_button.text = "REFUEL %d" % refuel_cost
 	travel_refuel_button.disabled = not GameState.station_service_error("refuel").is_empty() or GameState.credits < refuel_cost
 	travel_retry_button.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in state.pause_reasons
-	departure_button.visible = state.destination_location_id.is_empty() \
-			and state.travel_state in [ExpeditionStateData.TravelState.DOCKED, ExpeditionStateData.TravelState.STOPPED]
+	departure_button.text = "SET COURSE" if state.destination_location_id.is_empty() else "CHANGE COURSE"
+	departure_button.visible = active_tab != "MAP" and state.pending_event_id.is_empty()
 	_update_expedition_readouts()
 
 func _show_encounter(intro: Dictionary = {}) -> void:
-	if is_instance_valid(encounter_modal):
+	if is_instance_valid(encounter_modal) or GameState.completed:
 		return
 	var simulation = GameState.expedition_simulation
 	if simulation == null or (intro.is_empty() and simulation.state.pending_event_id.is_empty()):
@@ -859,6 +823,7 @@ func _show_encounter(intro: Dictionary = {}) -> void:
 	if event.is_empty():
 		push_error("Cannot show an encounter without its validated event data.")
 		return
+	_close_arrival()
 	if get_viewport().gui_is_dragging():
 		get_viewport().gui_cancel_drag()
 	if is_instance_valid(shop):
@@ -867,66 +832,26 @@ func _show_encounter(intro: Dictionary = {}) -> void:
 	buy_open = false
 	encounter_event_id = event.id
 	AudioManager.play_ui_sfx(&"question")
-	encounter_modal = Control.new()
-	encounter_modal.name = "ExpeditionEncounter"
-	encounter_modal.add_to_group("modal_ui")
-	encounter_modal.z_index = 40
-	add_child(encounter_modal)
-	encounter_modal.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.65)
-	encounter_modal.add_child(shade)
-	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var margin := MarginContainer.new()
-	encounter_modal.add_child(margin)
-	margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	for edge: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + edge, 24)
-	var panel := PanelContainer.new()
-	panel.name = "EncounterPanel"
-	panel.theme_type_variation = &"CompactPanel"
-	panel.custom_minimum_size.x = minf(520, size.x - 48)
-	panel.size_flags_horizontal = SIZE_SHRINK_CENTER
-	panel.size_flags_vertical = SIZE_SHRINK_CENTER
-	margin.add_child(panel)
-	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 12)
-	panel.add_child(body)
-	var portrait := TextureRect.new()
-	portrait.name = "EncounterArt"
-	portrait.texture = _event_art(str(event.get("art", "")))
-	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	portrait.custom_minimum_size = Vector2(72, 72) if size.y >= 500 else Vector2(48, 48)
-	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait.size_flags_vertical = SIZE_SHRINK_BEGIN
-	body.add_child(portrait)
-	var column := VBoxContainer.new()
-	column.size_flags_horizontal = SIZE_EXPAND_FILL
-	body.add_child(column)
-	var title := _label(str(event.title).to_upper())
-	title.theme_type_variation = &"HeaderResearch"
-	column.add_child(title)
-	var text := _label(event.text)
-	text.custom_minimum_size.x = minf(400, size.x - 160)
-	column.add_child(text)
+	var dialog := UiKit.dialog(self, "ExpeditionEncounter", str(event.title), str(event.text),
+			str(event.get("art", "")), Callable(), UiKit.DIALOG_Z, 520.0)
+	encounter_modal = dialog.root
+	dialog.panel.name = "EncounterPanel"
 	for option: Dictionary in simulation.Events.options(event):
 		var action := _dismiss_intro if not intro.is_empty() else _choose_encounter.bind(event.id, str(option.id))
-		var choice := _button(str(option.label), action)
+		var choice := UiKit.button(str(option.label), action)
 		choice.name = "Choice_" + str(option.id)
-		var needed := int(option.get("effects", {}).get("requires_credits", 0))
-		choice.disabled = GameState.credits < needed
+		choice.disabled = GameState.credits < int(option.get("effects", {}).get("requires_credits", 0))
 		if option.get("effects", {}).has("combat"):
 			choice.add_theme_color_override("font_color", Color("ffb0a0"))
-		column.add_child(choice)
-	encounter_error = _label("")
-	column.add_child(encounter_error)
-	encounter_retry = _button("RETRY SAVE", func() -> void:
+		dialog.actions.add_child(choice)
+	encounter_error = UiKit.label("")
+	dialog.column.add_child(encounter_error)
+	encounter_retry = UiKit.button("RETRY SAVE", func() -> void:
 		_on_expedition_retry_pressed()
 		encounter_error.text = expedition_status_override
 		encounter_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons)
 	encounter_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
-	column.add_child(encounter_retry)
+	dialog.column.add_child(encounter_retry)
 
 func _show_rescue() -> void:
 	if is_instance_valid(encounter_modal) or not GameState.stranded():
@@ -934,54 +859,30 @@ func _show_rescue() -> void:
 	var quote: Dictionary = GameState.rescue_quote()
 	if quote.is_empty():
 		return
+	_close_arrival()
 	AudioManager.play_ui_sfx(&"alarm")
-	encounter_modal = Control.new()
-	encounter_modal.name = "FuelRescue"
-	encounter_modal.add_to_group("modal_ui")
-	encounter_modal.z_index = 40
-	add_child(encounter_modal)
-	encounter_modal.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.65)
-	encounter_modal.add_child(shade)
-	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var center_box := CenterContainer.new()
-	encounter_modal.add_child(center_box)
-	center_box.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var panel := PanelContainer.new()
-	panel.name = "RescuePanel"
-	panel.theme_type_variation = &"CompactPanel"
-	panel.custom_minimum_size.x = minf(420, size.x - 48)
-	center_box.add_child(panel)
-	var column := VBoxContainer.new()
-	panel.add_child(column)
-	var title := _label("OUT OF FUEL")
-	title.theme_type_variation = &"HeaderResearch"
-	column.add_child(title)
 	var debt: int = int(quote.fee) - GameState.credits
 	var text := "The convoy is adrift. A salvage tug can tow you %d NU to %s and fill the tanks for %d credits." % [
 		roundi(quote.distance), quote.name, int(quote.fee)]
 	if debt > 0:
 		text += "\nThis leaves the convoy %d credits in debt." % debt
-	column.add_child(_label(text))
-	encounter_error = _label("")
-	var tow := _button("CALL A TUG (%d)" % int(quote.fee), func() -> void:
+	var dialog := UiKit.dialog(self, "FuelRescue", "Out of fuel", text)
+	encounter_modal = dialog.root
+	encounter_error = UiKit.label("")
+	var tow := UiKit.button("CALL A TUG %d cr" % int(quote.fee), func() -> void:
 		if not GameState.accept_rescue():
 			encounter_error.text = GameState.last_save_error
 			return
 		encounter_modal.queue_free()
 		encounter_modal = null
 		AudioManager.play_ui_sfx(&"refuel")
-		_toast("Towed to %s" % quote.name, &"dock")
 		_sync_music()
 		_refresh_expedition_controls()
-		_queue_refresh())
+		_queue_refresh()
+		_show_arrival(GameState.expedition_simulation.state.docked_location_id))
 	tow.name = "AcceptRescue"
-	column.add_child(tow)
-	column.add_child(encounter_error)
-
-func _event_art(path: String) -> Texture2D:
-	return PlaceholderAssets.texture(path)
+	dialog.actions.add_child(tow)
+	dialog.column.add_child(encounter_error)
 
 func _dismiss_intro() -> void:
 	GameState.pending_intro = false
@@ -1005,14 +906,33 @@ func _choose_encounter(event_id: String, choice: String) -> void:
 	encounter_event_id = ""
 	expedition_status_override = ""
 	expedition_save_elapsed = 0.0
+	var simulation = GameState.expedition_simulation
+	var event: Dictionary = simulation.Events.find(simulation.events, event_id)
+	var here: String = event.get("location_id", "") if simulation.Events.trigger(event) == "arrival" \
+			and simulation.state.destination_location_id.is_empty() else ""
 	if GameState.battle_pending:
+		GameState.arrival_notice = here
 		_enter_battle()
 		return
 	if not GameState.last_event_result.is_empty():
 		_toast(GameState.last_event_result, &"loot" if "Found" in GameState.last_event_result else &"notification")
 	_refresh_expedition_controls()
-	if GameState.expedition_simulation.state.departure_choice_pending:
-		_show_departure_choices()
+	if not here.is_empty():
+		_show_arrival(here)
+
+# The location the fleet reached in the latest boundary batch, if any.
+func _arrived_location() -> String:
+	var simulation = GameState.expedition_simulation
+	for index in range(simulation.emitted_boundaries.size() - 1, -1, -1):
+		var boundary: Dictionary = simulation.emitted_boundaries[index]
+		if int(boundary.kind) in [ExpeditionStateData.BoundaryKind.DOCK, ExpeditionStateData.BoundaryKind.ARRIVAL]:
+			var id := str(boundary.details.location_id)
+			var location: Dictionary = simulation.locations.get(id, {})
+			var point := Vector2(location.position[0], location.position[1]) if not location.is_empty() else Vector2.INF
+			return id if simulation.state.destination_location_id.is_empty() \
+					and simulation.state.position_nu.distance_to(point) < 0.001 else ""
+		return ""
+	return ""
 
 func _enter_battle() -> void:
 	if entering_battle:
@@ -1025,39 +945,7 @@ func _enter_battle() -> void:
 	SceneFadeScript.cover_and_change(self, "res://scenes/auto_battle.tscn", "THE WARDEN" if boss else "ENGAGING")
 
 func _toast(text: String, sound: StringName) -> void:
-	if text.is_empty():
-		return
-	if not is_instance_valid(toast_host):
-		toast_host = VBoxContainer.new()
-		toast_host.name = "Toasts"
-		toast_host.mouse_filter = MOUSE_FILTER_IGNORE
-		toast_host.z_index = 35
-		toast_host.alignment = BoxContainer.ALIGNMENT_BEGIN
-		add_child(toast_host)
-		toast_host.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
-		toast_host.offset_top = 52
-		toast_host.grow_horizontal = GROW_DIRECTION_BOTH
-	if not sound.is_empty():
-		AudioManager.play_ui_sfx(sound)
-	var card := PanelContainer.new()
-	card.theme_type_variation = &"CompactPanel"
-	card.mouse_filter = MOUSE_FILTER_IGNORE
-	card.size_flags_horizontal = SIZE_SHRINK_CENTER
-	var label := _label(text)
-	label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	card.add_child(label)
-	toast_host.add_child(card)
-	while toast_host.get_child_count() > 3:
-		var oldest := toast_host.get_child(0)
-		toast_host.remove_child(oldest)
-		oldest.queue_free()
-	var tween := card.create_tween()
-	card.modulate.a = 0.0
-	tween.tween_property(card, "modulate:a", 1.0, 0.2)
-	tween.tween_interval(3.0)
-	tween.tween_property(card, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(card.queue_free)
+	UiKit.toast(self, text, sound)
 
 func _sync_music() -> void:
 	var simulation = GameState.expedition_simulation
@@ -1143,144 +1031,127 @@ func _build_travel_controls(top: HBoxContainer, footer: HBoxContainer) -> void:
 	travel_retry_button.name = "ExpeditionRetrySave"
 	travel_retry_button.custom_minimum_size = Vector2(90, 26)
 	footer.add_child(travel_retry_button)
-	departure_button = _button("DEPART", _show_departure_choices)
+	departure_button = _button("SET COURSE", _open_map)
 	departure_button.name = "ExpeditionDepart"
 	footer.add_child(departure_button)
 	_refresh_expedition_controls()
 
-func _show_departure_choices() -> void:
-	if is_instance_valid(departure_modal):
-		return
+# Arrival is informational: where the fleet is and what it can do here. Courses
+# are set from the Map at any time.
+func _show_arrival(location_id: String) -> void:
 	var simulation = GameState.expedition_simulation
-	if simulation == null or not simulation.state.destination_location_id.is_empty():
+	var location: Dictionary = {} if simulation == null else simulation.locations.get(location_id, {})
+	if location.is_empty() or GameState.completed or is_instance_valid(encounter_modal):
 		return
-	if not simulation.state.departure_choice_pending:
-		_apply_expedition_action(simulation.begin_departure_choice)
-		if not simulation.state.departure_choice_pending:
-			return
-	departure_modal = Control.new()
-	departure_modal.name = "DepartureChoices"
-	departure_modal.add_to_group("modal_ui")
-	departure_modal.z_index = 40
-	add_child(departure_modal)
-	departure_modal.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.65)
-	departure_modal.add_child(shade)
-	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var margin := MarginContainer.new()
-	departure_modal.add_child(margin)
-	margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	for edge: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + edge, 24)
-	var panel := PanelContainer.new()
-	panel.name = "DeparturePanel"
-	panel.theme_type_variation = &"CompactPanel"
-	panel.size_flags_horizontal = SIZE_SHRINK_CENTER
-	panel.size_flags_vertical = SIZE_SHRINK_CENTER
-	panel.custom_minimum_size.x = minf(620, size.x - 48)
-	margin.add_child(panel)
-	var column := VBoxContainer.new()
-	panel.add_child(column)
-	column.add_child(_label("NEXT DESTINATION"))
-	if simulation.state.travel_state == ExpeditionStateData.TravelState.DOCKED:
-		var close: TextureButton = load("res://scenes/close_x_button.tscn").instantiate()
-		close.name = "StayDocked"
-		panel.add_child(close)
-		close.set_anchors_preset(PRESET_TOP_RIGHT)
-		close.size_flags_horizontal = SIZE_SHRINK_END
-		close.size_flags_vertical = SIZE_SHRINK_BEGIN
-		AudioManager.connect_ui_button(close)
-		close.pressed.connect(_stay_docked)
-	var choices := GridContainer.new()
-	choices.name = "DestinationGrid"
-	choices.columns = 2 if size.x >= 560 else 1
-	choices.add_theme_constant_override("h_separation", 10)
-	choices.add_theme_constant_override("v_separation", 4)
-	choices.size_flags_horizontal = SIZE_EXPAND_FILL
-	column.add_child(choices)
-	var candidates: Array[Dictionary] = []
-	for id: String in simulation.state.discovered_location_ids:
-		var location: Dictionary = simulation.locations.get(id, {})
-		if location.is_empty() or not simulation.location_accessible(location):
-			continue
-		var distance: float = simulation.state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
-		if distance <= 0.000001:
-			continue
-		candidates.append({"id": id, "location": location, "distance": distance})
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.distance < b.distance)
-	var fuel_rate := float(simulation.tuning.fuel_per_nav_unit)
-	for candidate: Dictionary in candidates:
-		var id: String = candidate.id
-		var location: Dictionary = candidate.location
-		var distance: float = candidate.distance
-		var option := VBoxContainer.new()
-		option.add_theme_constant_override("separation", 0)
-		option.size_flags_horizontal = SIZE_EXPAND_FILL
-		choices.add_child(option)
-		var choose := _button(location.name, _choose_departure.bind(id))
-		if id == simulation.state.return_destination_id:
-			choose.text = "RESUME: " + location.name
-		if location.kind == "gate":
-			choose.add_theme_color_override("font_color", Color("ffb0a0"))
-		choose.set_meta("expedition_destination", id)
-		option.add_child(choose)
-		var fuel_needed := distance * fuel_rate
-		var facts: PackedStringArray = ["%d NU" % roundi(distance), "%d fuel" % ceili(fuel_needed)]
-		for service: String in location.services:
-			facts.append(service.capitalize())
-		if id in simulation.state.visited_location_ids:
-			facts.append("Visited")
-		var info := _label(" · ".join(facts))
-		if fuel_needed > simulation.state.fuel + 0.000001:
-			info.text += " · LOW FUEL"
-			info.add_theme_color_override("font_color", Color("ffd28a"))
-		info.autowrap_mode = TextServer.AUTOWRAP_OFF
-		info.add_theme_font_size_override("font_size", 12)
-		option.add_child(info)
-	departure_error = _label("")
-	column.add_child(departure_error)
-	departure_retry = _button("RETRY SAVE", func() -> void:
-		_on_expedition_retry_pressed()
-		departure_error.text = expedition_status_override
-		departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons)
-	departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
-	column.add_child(departure_retry)
+	_close_arrival()
+	var art: Variant = load("res://assets/space_station.png") if location.kind == "station" else ""
+	var facts: PackedStringArray = []
+	for service: String in location.services:
+		facts.append(service.capitalize())
+	var text := str(location.get("description", ""))
+	if not facts.is_empty():
+		text += "\n" + " · ".join(facts)
+	var dialog := UiKit.dialog(self, "ArrivalDialog", ("Docked at " if location.kind == "station" else "Arrived at ") + str(location.name),
+			text, art, _close_arrival)
+	arrival_modal = dialog.root
+	arrival_location_id = location_id
+	_fill_arrival_actions()
 
-func _stay_docked() -> void:
-	if not GameState.stay_docked():
-		if is_instance_valid(departure_error):
-			departure_error.text = GameState.last_save_error
+func _fill_arrival_actions() -> void:
+	if not is_instance_valid(arrival_modal):
 		return
-	if is_instance_valid(departure_modal):
-		departure_modal.queue_free()
-	departure_modal = null
-	departure_error = null
-	departure_retry = null
-	_refresh_expedition_controls()
-
-func _choose_departure(location_id: String) -> void:
+	var actions: VBoxContainer = arrival_modal.find_child("DialogActions", true, false)
+	_clear(actions)
 	var simulation = GameState.expedition_simulation
+	var location: Dictionary = simulation.locations.get(arrival_location_id, {})
+	var docked: bool = simulation.state.docked_location_id == arrival_location_id
+	var repair_cost: int = GameState.fleet_repair_cost()
+	if docked and "shipyard" in location.services and repair_cost > 0:
+		var repair := UiKit.button("REPAIR ALL SHIPS %d cr" % repair_cost, func() -> void:
+			if GameState.repair_all_ships():
+				AudioManager.play_ui_sfx(&"repair")
+			else:
+				_toast(GameState.last_save_error if not GameState.last_save_error.is_empty() else "Not enough credits", &"")
+			_fill_arrival_actions(), &"")
+		repair.name = "ArrivalRepairAll"
+		repair.disabled = GameState.credits < repair_cost
+		actions.add_child(repair)
+	var state = simulation.state
+	if docked and "refuel" in location.services and state.fuel < state.fuel_capacity - 0.000001:
+		var refuel_cost := int(ceil((state.fuel_capacity - state.fuel) * 2.0))
+		var refuel := UiKit.button("REFUEL %d cr" % refuel_cost, func() -> void:
+			if GameState.refuel_expedition():
+				AudioManager.play_ui_sfx(&"refuel")
+			else:
+				_toast(GameState.last_save_error, &"")
+			_refresh_expedition_controls()
+			_fill_arrival_actions(), &"")
+		refuel.name = "ArrivalRefuel"
+		refuel.disabled = GameState.credits < refuel_cost
+		actions.add_child(refuel)
+	if docked and "shipyard" in location.services:
+		var yard := UiKit.button("VISIT SHIPYARD", func() -> void:
+			_close_arrival()
+			active_tab = "SHIPS"
+			_refresh(), &"animate_ui")
+		yard.name = "ArrivalShipyard"
+		actions.add_child(yard)
+	var retry: Dictionary = simulation.retry_event_here()
+	if not retry.is_empty() and simulation.location_here() == arrival_location_id:
+		var face := UiKit.button("FACE " + str(retry.title).to_upper(), func() -> void:
+			_apply_expedition_action(simulation.readmit_arrival_event)
+			if not simulation.state.pending_event_id.is_empty():
+				_close_arrival()
+				_show_encounter(), &"")
+		face.name = "ArrivalRetryEvent"
+		face.add_theme_color_override("font_color", Color("ffb0a0"))
+		actions.add_child(face)
+	var course := UiKit.button("SET COURSE", func() -> void:
+		_close_arrival()
+		_open_map(), &"select_tab")
+	course.name = "ArrivalSetCourse"
+	actions.add_child(course)
+
+func _close_arrival() -> void:
+	if is_instance_valid(arrival_modal):
+		arrival_modal.queue_free()
+	arrival_modal = null
+	arrival_location_id = ""
+
+func _open_map() -> void:
+	active_tab = "MAP"
+	buy_open = false
+	_refresh()
+
+# The one course command: departing a dock, rerouting mid-flight or leaving a POI.
+func _set_course(location_id: String) -> bool:
+	var simulation = GameState.expedition_simulation
+	if simulation == null:
+		return false
 	if ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons:
-		departure_error.text = "Retry the failed save before choosing a destination."
-		return
+		expedition_status_override = "Retry the failed save before setting a course."
+		_refresh_expedition_controls()
+		return false
+	var was_docked: bool = not simulation.state.docked_location_id.is_empty()
 	if not GameState.depart_expedition(location_id):
 		expedition_status_override = GameState.last_save_error
-		departure_error.text = expedition_status_override
-		departure_retry.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in simulation.state.pause_reasons
 		_refresh_expedition_controls()
-		return
+		return false
 	expedition_status_override = ""
 	expedition_save_elapsed = 0.0
-	if is_instance_valid(departure_modal):
-		departure_modal.queue_free()
-	departure_modal = null
-	departure_error = null
-	departure_retry = null
+	_close_arrival()
 	AudioManager.play_ui_sfx(&"depart")
-	_toast(GameState.last_event_result, &"")
+	var location: Dictionary = simulation.locations.get(location_id, {})
+	var note := ("Departing for " if was_docked else "Course set: ") + str(location.get("name", location_id))
+	if not GameState.last_event_result.is_empty():
+		note += " · " + GameState.last_event_result
+	_toast(note, &"")
 	_sync_music()
 	_refresh_expedition_controls()
+	if is_instance_valid(graph):
+		graph.queue_redraw()
+		_render_map_details()
+	return true
 
 func _time_button(kind: String, action: Callable) -> Button:
 	var button := _button_with_sound("", action, &"")
@@ -1328,8 +1199,7 @@ func _expedition_status_text() -> String:
 
 
 func _on_expedition_destination_selected(location_id: String) -> void:
-	_apply_expedition_action(func() -> bool:
-		return GameState.expedition_simulation.request_destination(location_id))
+	_set_course(location_id)
 
 
 func _on_expedition_speed_pressed(speed: int) -> void:
@@ -1858,6 +1728,7 @@ func _show_expedition_map() -> void:
 	graph.location_selected.connect(func(id: String) -> void:
 		map_selected_id = id
 		_render_map_details())
+	graph.go_requested.connect(func(id: String) -> void: _set_course(id))
 	_render_map_details()
 	_render_voyage_summary()
 
@@ -1884,7 +1755,7 @@ func _render_map_details() -> void:
 	var simulation = GameState.expedition_simulation
 	var location: Dictionary = simulation.locations.get(map_selected_id, {})
 	if location.is_empty():
-		map_details.add_child(_label("Select a location to inspect it. Choose destinations with DEPART."))
+		map_details.add_child(_label("Select a location, then GO TO, or double-click it to set course. Courses can change at any time."))
 		return
 	var state = simulation.state
 	var title := _label(str(location.name).to_upper())

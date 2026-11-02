@@ -41,6 +41,10 @@ func run() -> void:
 				var d := Vector2(graph.nodes[second[1]].position[0], graph.nodes[second[1]].position[1])
 				check(Geometry2D.segment_intersects_segment(a, b, c, d) == null, "Routes never intersect")
 	check(state.start_new_run(1, 19), "New network run")
+	# Reward checks below exclude trade income from the starter cargo hold.
+	for owned: HangarShip in state.fleet:
+		if owned.mounts.has("hold"):
+			check(state.fit_equipment(owned.id, "hold", ""), "Store the starter cargo hold")
 	var first: int = state.get_reachable_nodes(0)[0]
 	var base: Dictionary = state.frozen_encounters[str(first)].duplicate(true)
 	var boss_base: Dictionary = state.frozen_encounters[str(state.campaign_dag.bosses[0])]

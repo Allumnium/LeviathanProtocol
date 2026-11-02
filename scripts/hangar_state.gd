@@ -46,6 +46,8 @@ var last_save_error := ""
 var last_event_result := ""
 # Set by the main menu's New Run flow; the game screen shows the charter briefing once.
 var pending_intro := false
+# UI-only: an arrival dialog to show when the screen returns from an arrival battle.
+var arrival_notice := ""
 var _checkpoint_store := AtomicRunStore.new()
 
 
@@ -123,6 +125,9 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	_give_starter_equipment(lead, "research_lab", "spine")
 	var transport := _add_chassis("transport")
 	transport.formation = Vector2(0, 1.1)
+	# The convoy starts ready to trade, with armor on every mount a plate fits.
+	_give_starter_equipment(transport, "cargo_hold", "hold")
+	_fit_starter_armor(transport)
 	for index in range(2):
 		var fighter := _add_chassis("fighter")
 		fighter.formation = Vector2(-1.25 if index == 0 else 1.25, -1.25)
@@ -155,6 +160,15 @@ func _give_starter_equipment(owned: HangarShip, key: String, preferred: String) 
 			owned.mounts[slot.id] = instance
 			owned.rebuild_units()
 			return
+
+func _fit_starter_armor(owned: HangarShip) -> void:
+	for slot: Dictionary in owned.chassis.slots:
+		if owned.mounts.has(slot.id):
+			continue
+		for key in ["hull_plate", "armor_block"]:
+			if SlotCatalog.compatible(slot, SlotCatalog.find_equipment(key)):
+				_give_starter_equipment(owned, key, slot.id)
+				break
 
 func _build_campaign() -> void:
 	campaign_active = true
@@ -534,18 +548,6 @@ func _load_count(data: Dictionary) -> int:
 			total += 1
 	return total
 
-func stay_docked() -> bool:
-	if expedition_simulation == null or expedition_simulation.state == null:
-		return false
-	var previous: Dictionary = expedition_simulation.state.snapshot()
-	if not expedition_simulation.cancel_departure_choice():
-		last_save_error = expedition_simulation.last_error
-		return false
-	if not save_expedition_checkpoint():
-		expedition_simulation.restore(previous)
-		return false
-	return true
-
 func self_repair_rate(owned: HangarShip) -> float:
 	return float(owned.chassis.get("self_repair_hp_per_second", 0.0))
 
@@ -593,7 +595,6 @@ func accept_rescue() -> bool:
 	travel.return_destination_id = ""
 	travel.travel_state = ExpeditionSimulationScript.State.TravelState.DOCKED
 	travel.fuel = travel.fuel_capacity
-	travel.requested_speed = 1
 	travel.departure_choice_pending = false
 	travel.pause_reasons.erase(ExpeditionSimulationScript.State.PauseReason.FUEL)
 	if station.id not in travel.visited_location_ids:
@@ -643,7 +644,6 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 		research_focus = progress.research_focus
 		if current_research_ids.size() > known:
 			result.research_done = str(GameDefinitions.find("research", focus).get("display_name", focus))
-			simulation.state.requested_speed = 1
 			research_changed.emit()
 	if seconds > 0.0:
 		var damaged_before := false
@@ -656,7 +656,6 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 			damaged_after = damaged_after or owned.needs_repair()
 		if damaged_before and not damaged_after:
 			result.repaired = true
-			simulation.state.requested_speed = 1
 	if result.boundary:
 		var emitted: Array = simulation.emitted_boundaries
 		var count: int = mini(emitted.size(), simulation.boundary_sequence - sequence)
@@ -1163,7 +1162,6 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 		var event: Dictionary = ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id)
 		if ExpeditionSimulationScript.Events.trigger(event) == "arrival":
 			data.expedition.event_receipts.erase(event_id)
-	data.expedition.requested_speed = 1
 	data.pending = false
 	data.pending_encounter = {}
 	if not _save_hangar(data):

@@ -72,9 +72,9 @@ func run() -> void:
 	var formation: Control = screen.formation_view
 	var starfield: Control = screen.formation_view.starfield
 	var star_position: Vector2 = starfield._get_star_position(starfield._stars[0])
-	screen.departure_button.pressed.emit()
-	check(is_instance_valid(screen.departure_modal),
-			"Initial departure opens the same destination-choice modal")
+	check(screen.departure_button.visible and screen.departure_button.text == "SET COURSE"
+			and not is_instance_valid(screen.get_node_or_null("DepartureChoices")),
+			"Docked fleets get a Set Course shortcut instead of a forced destination modal")
 	screen._on_expedition_speed_pressed(20)
 	_select_destination(screen, "refuel_station_1")
 	check(expedition.state.travel_state == State.TravelState.CRUISING
@@ -120,19 +120,26 @@ func run() -> void:
 	check(expedition.state.travel_state == State.TravelState.STOPPED
 			and expedition.state.destination_location_id.is_empty(),
 			"POI arrival ends the active leg without swapping scenes")
-	check(is_instance_valid(screen.departure_modal)
-			and screen.departure_modal.find_children("*", "TextureButton", true, false).is_empty(),
-			"Arrival opens a mandatory onward-destination modal without a dismiss action")
+	check(is_instance_valid(screen.arrival_modal) and screen.arrival_location_id == "derelict_1"
+			and screen.arrival_modal.find_child("ArrivalSetCourse", true, false) != null
+			and screen.arrival_modal.find_child("ArrivalRepairAll", true, false) == null,
+			"POI arrival describes the location and offers only applicable actions")
 	var arrival_clock: float = expedition.state.simulation_seconds
+	var arrival_point: Vector2 = expedition.state.position_nu
 	screen._process(2.0)
-	check(expedition.state.simulation_seconds == arrival_clock,
-			"Required destination choice holds simulation while UI remains responsive")
+	check(expedition.state.simulation_seconds > arrival_clock
+			and expedition.state.position_nu.is_equal_approx(arrival_point),
+			"Arrival never holds the simulation for a destination choice")
 	screen._on_expedition_speed_pressed(20)
 	_select_destination(screen, "refuel_station_1")
 	screen._process(4.5)
 	check(expedition.state.travel_state == State.TravelState.DOCKED
 			and expedition.state.docked_location_id == "refuel_station_1",
 			"Station arrival docks the fleet and opens its refueling service")
+	check(is_instance_valid(screen.arrival_modal) and screen.arrival_location_id == "refuel_station_1"
+			and screen.arrival_modal.find_child("ArrivalRefuel", true, false) != null
+			and screen.arrival_modal.find_child("ArrivalShipyard", true, false) != null,
+			"Docking describes the station with Refuel and Shipyard actions")
 	var credits_before_refuel: int = state.credits
 	screen._on_expedition_refuel_pressed()
 	check(is_equal_approx(expedition.state.fuel, expedition.state.fuel_capacity)
@@ -153,9 +160,9 @@ func run() -> void:
 				and screen.travel_controls.get_global_rect().end.x <= screen.research_button.global_position.x
 				and screen.header_wallet.get_global_rect().end.x <= screen.size.x,
 				"Time panel fits beside existing header items at %s" % viewport_size)
-		var departure_panel: Control = screen.departure_modal.find_child("DeparturePanel", true, false)
-		check(screen.get_global_rect().encloses(departure_panel.get_global_rect()),
-				"Arrival options stay within the viewport at %s" % viewport_size)
+		var arrival_panel: Control = screen.arrival_modal.find_child("ArrivalDialogPanel", true, false)
+		check(screen.get_global_rect().encloses(arrival_panel.get_global_rect()),
+				"Arrival dialog stays within the viewport at %s" % viewport_size)
 	check(state.load_run_checkpoint(), "Saved expedition can continue from its committed state")
 	check(state.expedition_simulation.state.position_nu.is_equal_approx(saved_position),
 			"Continue restores the saved continuous position")
@@ -168,9 +175,9 @@ func run() -> void:
 	check(State.PauseReason.SAVE_ERROR in state.expedition_simulation.state.pause_reasons
 			and state.expedition_simulation.state.destination_location_id.is_empty(),
 			"Failed route checkpoint rolls back and pauses on a save error")
-	check(is_instance_valid(screen.departure_modal) and not screen.departure_error.text.is_empty()
-			and screen.departure_retry.visible,
-			"Failed mandatory choice stays open with an error and retry action")
+	screen._refresh_expedition_controls()
+	check(not screen.feedback.text.is_empty() and screen.travel_retry_button.visible,
+			"Failed course change reports the error with a retry action")
 	state.run_save_path = valid_save_path
 	screen._on_expedition_retry_pressed()
 	check(State.PauseReason.SAVE_ERROR not in state.expedition_simulation.state.pause_reasons,
@@ -182,7 +189,4 @@ func run() -> void:
 
 
 func _select_destination(screen: Control, location_id: String) -> void:
-	if is_instance_valid(screen.departure_modal):
-		screen._choose_departure(location_id)
-	else:
-		screen._on_expedition_destination_selected(location_id)
+	screen._set_course(location_id)

@@ -190,6 +190,8 @@ var retreat_remaining := 10.0
 var inactive_seconds := 0.0
 var undamaged_seconds := 0.0
 const STALEMATE_SECONDS := 30.0
+# Long grinds disengage so a demo fight never outlasts a few minutes.
+const MAX_ENGAGEMENT_SECONDS := 180.0
 var _damage_this_step := false
 var _members: Array[Combatant] = []
 var _previous_velocities: Array[Vector2] = []
@@ -918,7 +920,8 @@ func advance(delta: float) -> void:
 		elif objective_complete() and not _victory_projectiles_pending():
 			_collect_all_salvage()
 			phase = Phase.VICTORY
-		elif (inactive_seconds >= 10.0 or undamaged_seconds >= STALEMATE_SECONDS) and encounter.pending.is_empty():
+		elif (inactive_seconds >= 10.0 or undamaged_seconds >= STALEMATE_SECONDS or elapsed >= MAX_ENGAGEMENT_SECONDS) \
+				and encounter.pending.is_empty():
 			phase = Phase.WITHDRAWN
 		if phase != previous_phase:
 			_record_event("objective", {"phase": phase, "remaining": _remaining_target_ids(),

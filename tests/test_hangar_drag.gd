@@ -156,6 +156,9 @@ func run() -> void:
 	screen.selected_ship_id = transport_id
 	screen._queue_refresh()
 	await settle()
+	# The starter Transport arrives plated; clear the mount to measure a fresh fit.
+	check(state.fit_equipment(ship_id, "aft", ""), "Unequip the starter aft plate")
+	await settle()
 	var integrity: float = state.owned_ship(ship_id).hull_max
 	await fit_stock("hull_plate", "aft")
 	check(state.owned_ship(ship_id).hangar_summary().integrity_max > integrity, "Defensive equipment updates integrity")

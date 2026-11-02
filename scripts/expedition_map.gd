@@ -1,12 +1,14 @@
 extends Control
 
-# Informational strategic map bound to the live expedition: discovered
-# locations, the fleet's real position, its planned route and fuel range.
-# Destinations are still chosen through the departure dialog.
+# Strategic map bound to the live expedition: discovered locations, the
+# fleet's real position, its planned route and fuel range. Selecting a
+# location offers GO TO beside it; double-clicking sets course immediately.
 signal location_selected(id: String)
+signal go_requested(id: String)
 
 const STATION_TEXTURE: Texture2D = preload("res://assets/space_station.png")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
+const UiKit = preload("res://scripts/ui_kit.gd")
 const REGIONS := [Vector2(-120.0, 780.0), Vector2(780.0, 1600.0), Vector2(1600.0, 2200.0)]
 
 var camera_position := Vector2(380, 0)
@@ -19,6 +21,7 @@ var _dragging := false
 var _drag_moved := false
 var _pulse := 0.0
 var _flagship_texture: Texture2D
+var go_button: Button
 
 func _ready() -> void:
 	clip_contents = true
@@ -33,6 +36,13 @@ func _ready() -> void:
 	for owned: HangarShip in GameState.fleet:
 		if owned.flagship:
 			_flagship_texture = SurfaceArt.diffuse(owned.art_texture)
+	go_button = UiKit.button("GO TO", func() -> void:
+		if not selected_id.is_empty():
+			go_requested.emit(selected_id), &"")
+	go_button.name = "MapGoTo"
+	go_button.custom_minimum_size = Vector2(56, 22)
+	go_button.hide()
+	add_child(go_button)
 	resized.connect(_fit_default)
 	_fit_default.call_deferred()
 
@@ -59,7 +69,30 @@ func to_screen(point: Vector2) -> Vector2:
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
 		_pulse = fmod(_pulse + delta, 2.0)
+		_place_go_button()
 		queue_redraw()
+
+func can_go(id: String) -> bool:
+	var simulation = GameState.expedition_simulation
+	var location: Dictionary = {} if simulation == null else simulation.locations.get(id, {})
+	if location.is_empty() or not simulation.location_accessible(location) or GameState.battle_pending \
+			or not simulation.state.pending_event_id.is_empty() or GameState.completed or GameState.run_ended:
+		return false
+	return simulation.state.destination_location_id != id \
+			and simulation.state.position_nu.distance_to(_position(location)) > 0.001
+
+func _place_go_button() -> void:
+	if go_button == null:
+		return
+	go_button.visible = can_go(selected_id)
+	if not go_button.visible:
+		return
+	var simulation = GameState.expedition_simulation
+	go_button.text = "RESUME" if selected_id == simulation.state.return_destination_id else "GO TO"
+	var anchor := to_screen(_position(simulation.locations[selected_id])) + Vector2(14, -11)
+	var extent := go_button.get_combined_minimum_size()
+	go_button.size = extent
+	go_button.position = anchor.clamp(Vector2(2, 2), size - extent - Vector2(2, 2)).round()
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -70,6 +103,12 @@ func _gui_input(event: InputEvent) -> void:
 			user_moved = true
 			accept_event()
 		elif event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
+			if event.pressed and event.button_index == MOUSE_BUTTON_LEFT and event.double_click:
+				_select_at(event.position)
+				if can_go(selected_id):
+					go_requested.emit(selected_id)
+				accept_event()
+				return
 			if event.pressed:
 				_dragging = true
 				_drag_moved = false

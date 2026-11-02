@@ -137,8 +137,15 @@ func run() -> void:
 	check(data.equipment[cargo_uid].load.quantity == 10 and data.equipment[cabin_uid].load.quantity == 4, "Substantial host damage including zero hull retains loads")
 	check(state._commit_hangar(data) and state.load_run_checkpoint(), "Damaged loaded ships save and resume atomically")
 	data = state.hangar_snapshot()
+	var expected_delivery := 0
+	for ship: Dictionary in data.ships:
+		for uid: String in ship.mounts.values():
+			var contents: Dictionary = data.equipment[uid].get("load", {})
+			if not contents.is_empty():
+				expected_delivery += roundi(int(contents.quantity) * int(contents.unit_value)
+					* float(SlotCatalog.find_chassis(ship.chassis).get("delivery_income_multiplier", 1.0)))
 	HangarTrade.arrive(data, target)
-	check(data.credits == credits + 30 + 32, "Damaged living hosts deliver cargo and passengers for credits")
+	check(expected_delivery >= 30 + 32 and data.credits == credits + expected_delivery, "Damaged living hosts deliver cargo and passengers for credits")
 	var paid: int = data.credits
 	HangarTrade.arrive(data, target)
 	check(data.credits == paid, "Arrival cannot pay a load twice")

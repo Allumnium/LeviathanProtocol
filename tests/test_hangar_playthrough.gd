@@ -64,6 +64,8 @@ func outfit(ship_id: int, trade: bool) -> void:
 			slot["preference"] = "civic"
 		var owned: HangarShip = state.owned_ship(ship_id)
 		var current: Dictionary = owned.mounts.get(slot.id, {})
+		if HangarTrade.has_load(current):
+			continue # Loaded holds/cabins must deliver before they can be replaced.
 		var score := -1.0 if current.is_empty() else item_score(SlotCatalog.find_equipment(current.equipment_id, int(current.rank)), slot, trade)
 		var best := {}
 		for item in SlotCatalog.equipment():

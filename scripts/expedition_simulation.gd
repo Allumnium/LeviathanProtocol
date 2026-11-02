@@ -113,42 +113,51 @@ func request_destination(id: String) -> bool:
 			state.docked_location_id = id
 			state.destination_location_id = ""
 			state.travel_state = State.TravelState.DOCKED
-			if state.departure_choice_pending:
-				state.return_destination_id = ""
+			state.return_destination_id = ""
 			state.departure_choice_pending = false
 			_mark_visited(id)
 			return true
 		return _fail("Destination is already at the fleet's position.")
+	# Any explicit course replaces a remembered detour return target.
 	state.destination_location_id = id
-	if state.departure_choice_pending:
-		state.return_destination_id = ""
+	state.return_destination_id = ""
 	state.departure_choice_pending = false
 	state.docked_location_id = ""
 	state.travel_state = State.TravelState.CRUISING
 	accumulator = 0.0
 	return true
 
-func begin_departure_choice() -> bool:
-	if not _configured() or state.travel_state not in [State.TravelState.DOCKED, State.TravelState.STOPPED] \
-			or not state.destination_location_id.is_empty():
-		return _fail("Choose the next destination after the current journey ends.")
-	state.departure_choice_pending = true
-	accumulator = 0.0
-	return true
-
-
-# Docked fleets may close the chooser to keep using station services.
-func cancel_departure_choice() -> bool:
-	if not _configured() or not state.departure_choice_pending \
-			or state.travel_state != State.TravelState.DOCKED:
-		return _fail("Only a docked fleet can stay at its station.")
-	state.departure_choice_pending = false
-	accumulator = 0.0
-	return true
-
-
 func location_accessible(location: Dictionary) -> bool:
 	return _accessible_with(location, state.flags if state != null else {})
+
+
+# The location the fleet currently occupies, if any.
+func location_here() -> String:
+	if not _configured() or not state.destination_location_id.is_empty():
+		return ""
+	if not state.docked_location_id.is_empty():
+		return state.docked_location_id
+	for location: Dictionary in locations.values():
+		if state.position_nu.distance_to(Vector2(location.position[0], location.position[1])) <= 0.000001:
+			return location.id
+	return ""
+
+
+# An unresolved arrival event at the fleet's location (e.g. after withdrawing
+# from its battle) can be faced again without leaving.
+func retry_event_here() -> Dictionary:
+	var here := location_here()
+	if here.is_empty() or not state.pending_event_id.is_empty():
+		return {}
+	return Events.arrival_event(events, state.event_receipts, state.flags, here)
+
+
+func readmit_arrival_event() -> bool:
+	var event := retry_event_here()
+	if event.is_empty():
+		return _fail("There is nothing to face here.")
+	_admit_event(event)
+	return true
 
 
 func _accessible_with(location: Dictionary, flags: Dictionary) -> bool:
@@ -246,16 +255,11 @@ func resolve_event(id: String, choice: String) -> bool:
 	state.pending_event_id = ""
 	state.pause_reasons.erase(State.PauseReason.ENCOUNTER)
 	state.event_receipts[id] = true
-	state.requested_speed = 1
-	if Events.trigger(event) == "arrival" and state.destination_location_id.is_empty() \
-			and state.travel_state in [State.TravelState.DOCKED, State.TravelState.STOPPED]:
-		state.departure_choice_pending = true
 	accumulator = 0.0
 	return true
 
 func _admit_event(event: Dictionary) -> void:
 	state.pending_event_id = event.id
-	state.requested_speed = 1
 	if event.has("destination_id") and event.destination_id not in state.discovered_location_ids:
 		state.discovered_location_ids.append(event.destination_id)
 	state.pause_reasons.append(State.PauseReason.ENCOUNTER)
@@ -320,7 +324,6 @@ func _advance_cruise(delta: float) -> bool:
 		state.fuel = 0.0
 		state.stopped_from = State.TravelState.CRUISING
 		state.travel_state = State.TravelState.STOPPED
-		state.requested_speed = 1
 		if State.PauseReason.FUEL not in state.pause_reasons:
 			state.pause_reasons.append(State.PauseReason.FUEL)
 		_emit_boundary(State.BoundaryKind.FUEL_EMPTY, {
@@ -344,11 +347,8 @@ func _arrive(location: Dictionary) -> void:
 	state.docked_location_id = id if location.kind == "station" else ""
 	state.travel_state = State.TravelState.DOCKED if location.kind == "station" else State.TravelState.STOPPED
 	state.stopped_from = State.TravelState.CRUISING
-	state.requested_speed = 1
 	_mark_visited(id)
 	var arrival := Events.arrival_event(events, state.event_receipts, state.flags, id)
-	if arrival.is_empty():
-		state.departure_choice_pending = true
 	_emit_boundary(kind, {"location_id": id, "position_nu": [state.position_nu.x, state.position_nu.y]})
 	if not arrival.is_empty():
 		_admit_event(arrival)

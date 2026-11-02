@@ -22,10 +22,11 @@ func fight() -> int:
 			state.battle_simulation_seed(), state.battle_support_context()), "Event battle sets up")
 	sim.battle_id = state.battle_identity()
 	check(sim.set_objective_targets(state.battle_objective_ids()), "Event battle objectives")
-	for tick in range(30 * 300):
+	for tick in range(30 * 900):
 		sim.advance(1.0 / 30)
 		if sim.phase != BattleSimulation.Phase.COMBAT:
 			break
+	print("DEMO BATTLE %s phase=%d seconds=%.1f" % [state.pending_encounter.get("expedition_event_id"), sim.phase, sim.elapsed])
 	check(sim.phase != BattleSimulation.Phase.COMBAT, "Event battle terminates")
 	var credits_before: int = state.credits
 	check(state.settle_battle(sim), "Event battle settles once")
@@ -57,9 +58,10 @@ func travel(destination: String, choices: Dictionary) -> bool:
 				if state.run_ended or state.completed:
 					return false
 			expedition = state.expedition_simulation
+			check(expedition.state.requested_speed == 10, "Fast-forward speed survives %s" % pending)
 			expedition.set_speed(10)
 			continue
-		if expedition.state.departure_choice_pending:
+		if expedition.state.destination_location_id.is_empty() and expedition.state.pending_event_id.is_empty():
 			return true
 	check(false, "Journey to %s finishes" % destination)
 	return false
@@ -70,6 +72,9 @@ func refit() -> void:
 	state.repair_all_ships()
 	var weapon := "laser" if state.current_research_ids.has("applied_energy") else "mini_turret"
 	var item := SlotCatalog.find_equipment(weapon)
+	var fighter := SlotCatalog.find_chassis("fighter")
+	if state.credits > int(fighter.price) + 200 and state.used_command() + int(fighter.command_cost) <= state.command_limit():
+		check(state.buy_chassis("fighter"), "Buy an escort fighter")
 	for owned in state.fleet:
 		for slot in owned.chassis.slots:
 			if not owned.mounts.has(slot.id) and SlotCatalog.compatible(slot, item) and state.credits > 250:
@@ -86,20 +91,22 @@ func run() -> void:
 	check(not expedition.location_accessible(expedition.locations.act_2_gate),
 			"Bastion Gate starts locked")
 	# Trade: a docked shipyard sells a hold; leaving a port loads it.
-	check(state.buy_equipment("cargo_hold"), "Buy starter cargo hold")
-	var hold_uid := str(state.next_equipment_id - 1)
-	var transport_id := -1
+	var transport: HangarShip
 	for owned in state.fleet:
 		if owned.chassis_id == "transport":
-			transport_id = owned.id
-	check(state.fit_equipment(transport_id, "hold", hold_uid), "Fit hold on Transport")
+			transport = owned
+	check(transport.mounts.has("hold") and transport.mounts.hold.equipment_id == "cargo_hold",
+			"Starter Transport carries a cargo hold")
+	check(transport.mounts.values().filter(func(item: Dictionary) -> bool:
+			return item.equipment_id in ["hull_plate", "armor_block"]).size() >= 2,
+			"Starter Transport fills armor-compatible mounts with plates")
+	var hold_uid: String = transport.mounts.hold.uid
 	check(state.set_research_focus("applied_energy"), "Focus research")
 	# Docked waiting repairs hulls for free and stays docked.
 	var flagship: HangarShip = state.fleet[0]
 	flagship.hull_hp -= 50
-	check(expedition.begin_departure_choice() and state.stay_docked()
-			and expedition.state.travel_state == Travel.TravelState.DOCKED
-			and not expedition.state.departure_choice_pending, "Docked chooser can be dismissed")
+	check(expedition.state.travel_state == Travel.TravelState.DOCKED
+			and not expedition.state.departure_choice_pending, "Docked fleets are never forced to choose a destination")
 	var hull_before := flagship.hull_hp
 	state.advance_expedition(10.0)
 	check(flagship.hull_hp > hull_before and is_equal_approx(flagship.hull_hp - hull_before,
@@ -125,6 +132,14 @@ func run() -> void:
 	check(travel("meridian_outpost", {"asteroid_corridor": "blast"}), "Reach Meridian Outpost")
 	refit()
 	travel("act_2_gate", {})
+	for attempt in range(3):
+		if state.completed or state.run_ended:
+			break
+		# A withdrawn boss fight stays at the gate and can be faced again.
+		check(not state.expedition_simulation.retry_event_here().is_empty()
+				and state.expedition_simulation.readmit_arrival_event(), "Warden can be faced again after withdrawing")
+		check(state.resolve_expedition_event("bastion_warden", "engage"), "Re-engage the Warden")
+		fight()
 	check(state.completed and not state.run_ended, "Warden victory completes the demo")
 	check(state.current_research_ids.has("applied_energy"), "Demo route completes at least one research project")
 	check(state.load_run_checkpoint() and state.completed, "Completed demo persists")

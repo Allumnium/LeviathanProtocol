@@ -13,7 +13,9 @@ A playable Act I demo now runs end to end; see "Demo vertical slice" in [docs/HA
 - Combat uses a Dragon Warrior-style transition into the existing battle scene and returns to the expedition at the same position (instead of E11's in-world combat). E11's runtime combat codec is therefore not needed for the demo; Continue mid-battle restarts that encounter.
 - Light Act I flavor from the story spec (charter briefing, alien contacts, Leviathan Protocol broadcast, Bastion Warden finale). No branches or endings.
 - Missing art is a pink square and missing SFX play `dialogue_type.mp3` (see Placeholder assets in HANGAR.md).
-- No scrollbars: shops offer a seeded subset of each shipyard's own stock that fits on screen; the Ships roster is ship sprites; docked arrivals can dismiss the destination chooser to keep using services.
+- No scrollbars: shops offer a seeded subset of each shipyard's own stock that fits on screen; the Ships roster is ship sprites.
+- No destination modal: arrival shows an informational dialog (repair all, refuel, shipyard, set course); courses are set on the Map (GO TO or double-click) at any time, including mid-flight. This supersedes the "required onward-destination modal" preference in section 3.4.
+- Game speed is retained across interruptions instead of dropping to 1x (supersedes the 1x rules in sections 3.3-3.4).
 
 Partially delivered from the plan: authored distance/zone/arrival events with effects (E06/E07), the expedition Map overlay (E08), docked trade/refuel (E09), distance research and self-repair (E10), and combat admission/settlement keyed by event ID (E11). Still open: procedural POIs/cells, rescue/tow, refuel quotes, the expedition checkpoint format, and the E12-E14 pacing/performance work.
 

@@ -73,7 +73,7 @@ func run() -> void:
 		check(sim.state.pending_event_id == "derelict_signal"
 				and is_equal_approx(sim.state.traveled_distance_nu, 80)
 				and is_equal_approx(sim.state.fuel, 92)
-				and sim.state.requested_speed == 1 and sim.accumulator == 0,
+				and sim.state.requested_speed == speed and sim.accumulator == 0,
 				"Signal clips at exactly 80 NU with speed-independent fuel and no stale budget")
 		check(sim.state.destination_location_id == "refuel_station_1"
 				and sim.state.travel_state == Travel.TravelState.CRUISING
@@ -96,7 +96,8 @@ func run() -> void:
 				"Duplicate or stale choice cannot change the route twice")
 		sim.set_pause(Travel.PauseReason.USER, false)
 		sim.set_pause(Travel.PauseReason.EVENT, false)
-		check(sim.set_speed(10) and sim.advance(100) and sim.state.departure_choice_pending,
+		check(sim.set_speed(10) and sim.advance(100) and sim.state.docked_location_id == "refuel_station_1"
+				and sim.state.pending_event_id.is_empty(),
 				"Resolved event does not recur during the remainder of the journey")
 
 	for frame: float in [0.007, 0.25, 1.0]:
@@ -222,14 +223,16 @@ func run() -> void:
 	check(state.fleet[0] == flagship, "Repeated decisions preserve live ship identity")
 	screen.speed_buttons[10].pressed.emit()
 	screen._process(100)
-	check(is_instance_valid(screen.departure_modal)
+	check(is_instance_valid(screen.arrival_modal)
 			and state.expedition_simulation.state.return_destination_id == "refuel_station_1",
-			"Detour arrival preserves a manual return choice")
-	var resume_button: Button
-	for action: Button in screen.departure_modal.find_children("*", "Button", true, false):
-		if action.get_meta("expedition_destination", "") == "refuel_station_1":
-			resume_button = action
-	check(resume_button != null and resume_button.text.begins_with("RESUME:"),
+			"Detour arrival shows the arrival dialog and preserves the return target")
+	screen._open_map()
+	await settle()
+	screen.graph.selected_id = "refuel_station_1"
+	screen.graph._place_go_button()
+	var resume_button: Button = screen.graph.go_button
+	check(resume_button.visible and resume_button.text == "RESUME"
+			and state.expedition_simulation.state.destination_location_id.is_empty(),
 			"Arrival options clearly identify the original route without auto-departing")
 	screen.queue_free()
 	await settle()
@@ -237,7 +240,7 @@ func run() -> void:
 	await open_screen()
 	check(state.expedition_simulation.state.return_destination_id == "refuel_station_1",
 			"Return destination survives POI Continue")
-	screen._choose_departure("refuel_station_1")
+	screen._set_course("refuel_station_1")
 	check(state.expedition_simulation.state.return_destination_id.is_empty(),
 			"Explicit onward choice clears the detour return target")
 	screen.speed_buttons[10].pressed.emit()

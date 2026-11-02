@@ -16,3 +16,5 @@ res://scripts/battle_report.gd
 res://scripts/game_setup.gd
 res://scripts/research_panel.gd
 res://scripts/slot_catalog.gd
+res://scripts/expedition_map.gd
+res://tests/test_expedition_demo.gd

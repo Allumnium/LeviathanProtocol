@@ -1,10 +1,13 @@
 extends SceneTree
 
+# Arrival dialogs describe where the fleet is and its local actions; courses
+# are set from the Map (GO TO or double-click) at any time, including mid-flight.
 const Travel = preload("res://scripts/expedition_state.gd")
 var checks := 0
 var failures := 0
 var state: Node
 var screen: Control
+var expedition
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -30,101 +33,136 @@ func reopen_checkpoint() -> void:
 	screen.queue_free()
 	await settle()
 	check(state.load_run_checkpoint(), "Reload committed expedition")
+	expedition = state.expedition_simulation
 	await open_screen()
 
+func map_go(id: String) -> void:
+	screen._open_map()
+	await settle()
+	screen.graph.selected_id = id
+	screen.graph._place_go_button()
+	check(screen.graph.go_button.visible, "Map offers GO TO beside " + id)
+	screen.graph.go_button.pressed.emit()
+	await settle()
+
 func run() -> void:
+	root.size = Vector2i(1280, 720)
 	state = root.get_node("GameState")
-	state.run_save_path = "user://arrival-choice-test.json"
+	state.run_save_path = "user://arrival-dialog-test.json"
 	check(state.start_new_run(1, 1501), "Start arrival fixture")
-	for authored: Dictionary in state.expedition_simulation.events:
-		state.expedition_simulation.state.event_receipts[authored.id] = true
+	expedition = state.expedition_simulation
+	for authored: Dictionary in expedition.events:
+		expedition.state.event_receipts[authored.id] = true
 	await open_screen()
-	check(screen.departure_modal == null, "Starting dock allows fleet preparation before Depart")
+	check(screen.arrival_modal == null and not expedition.state.departure_choice_pending,
+			"Starting dock never forces a destination choice")
 	screen.departure_button.pressed.emit()
-	check(state.expedition_simulation.state.departure_choice_pending,
-			"Initial Depart commits its required choice before opening")
-	await reopen_checkpoint()
-	check(is_instance_valid(screen.departure_modal), "Continue restores an unfinished initial choice")
-	screen._choose_departure("refuel_station_1")
-	check(screen.departure_modal == null and not state.expedition_simulation.state.departure_choice_pending,
-			"Committed destination clears the required choice")
+	await settle()
+	check(screen.active_tab == "MAP" and screen.graph != null, "Set Course opens the map")
+	screen.graph.selected_id = "start_station"
+	screen.graph._place_go_button()
+	check(not screen.graph.go_button.visible, "The fleet's own location offers no GO TO")
+	await map_go("refuel_station_1")
+	check(expedition.state.destination_location_id == "refuel_station_1"
+			and expedition.state.travel_state == Travel.TravelState.CRUISING, "GO TO departs immediately")
 	screen.speed_buttons[10].pressed.emit()
 	screen._process(0.5)
+	var midway: Vector2 = expedition.state.position_nu
+	screen.graph.go_requested.emit("settlement_1")
+	await settle()
+	check(expedition.state.destination_location_id == "settlement_1"
+			and expedition.state.position_nu == midway and expedition.state.requested_speed == 10,
+			"Double-click course changes reroute mid-flight from the current position at the same speed")
+	await map_go("refuel_station_1")
 	check(state.save_expedition_checkpoint(), "Save an in-flight checkpoint")
-	var position: Vector2 = state.expedition_simulation.state.position_nu
+	var position: Vector2 = expedition.state.position_nu
 	check(state.load_run_checkpoint() and state.prepare_checkpoint_resume(), "Prepare Continue transaction")
-	check(state.expedition_simulation.state.position_nu == position
-			and state.expedition_simulation.state.requested_speed == 10
-			and Travel.PauseReason.USER in state.expedition_simulation.state.pause_reasons,
+	expedition = state.expedition_simulation
+	check(expedition.state.position_nu == position and expedition.state.requested_speed == 10
+			and Travel.PauseReason.USER in expedition.state.pause_reasons,
 			"Continue preserves exact position and requested speed but starts paused")
-	var tick: int = state.expedition_simulation.state.simulation_tick
-	check(state.expedition_simulation.advance(20)
-			and state.expedition_simulation.state.simulation_tick == tick,
-			"Continue cannot advance before Play")
-	check(state.load_run_checkpoint() and Travel.PauseReason.USER in state.expedition_simulation.state.pause_reasons,
-			"Continue pause is durable")
+	var tick: int = expedition.state.simulation_tick
+	check(expedition.advance(20) and expedition.state.simulation_tick == tick, "Continue cannot advance before Play")
 	var save_path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-save.json"
-	var before: Dictionary = state.expedition_simulation.state.snapshot()
-	check(not state.prepare_checkpoint_resume()
-			and state.expedition_simulation.state.snapshot() == before,
+	var before: Dictionary = expedition.state.snapshot()
+	check(not state.prepare_checkpoint_resume() and expedition.state.snapshot() == before,
 			"Failed Continue checkpoint preserves navigation and reports failure")
 	state.run_save_path = save_path
+	await reopen_checkpoint()
 	screen.speed_buttons[10].pressed.emit()
-	before = state.expedition_simulation.state.snapshot()
+	before = expedition.state.snapshot()
 	state.run_save_path = "res://project.godot/no-save.json"
 	screen._process(100)
-	check(screen.departure_modal == null
-			and not state.expedition_simulation.state.departure_choice_pending
-			and state.expedition_simulation.state.position_nu == Vector2(before.position_nu[0], before.position_nu[1])
-			and Travel.PauseReason.SAVE_ERROR in state.expedition_simulation.state.pause_reasons,
-			"Failed arrival save rolls back before showing a successful arrival")
+	check(screen.arrival_modal == null
+			and expedition.state.position_nu == Vector2(before.position_nu[0], before.position_nu[1])
+			and Travel.PauseReason.SAVE_ERROR in expedition.state.pause_reasons,
+			"Failed arrival save rolls back before showing an arrival")
 	state.run_save_path = save_path
 	screen._on_expedition_retry_pressed()
 	screen._process(100)
-	check(is_instance_valid(screen.departure_modal)
-			and state.expedition_simulation.state.departure_choice_pending,
-			"Retried arrival commits its pending choice and opens the modal")
-	tick = state.expedition_simulation.state.simulation_tick
-	check(state.expedition_simulation.advance(100)
-			and state.expedition_simulation.state.simulation_tick == tick,
-			"Pending choice freezes the authoritative clock even without the screen coordinator")
-	await reopen_checkpoint()
-	check(is_instance_valid(screen.departure_modal), "Continue restores the committed station arrival choice")
-	screen.speed_buttons[1].pressed.emit()
-	tick = state.expedition_simulation.state.simulation_tick
-	check(state.expedition_simulation.advance(100)
-			and state.expedition_simulation.state.simulation_tick == tick,
-			"Play cannot bypass a required destination choice")
+	check(expedition.state.docked_location_id == "refuel_station_1" and is_instance_valid(screen.arrival_modal)
+			and screen.arrival_location_id == "refuel_station_1" and expedition.state.requested_speed == 10,
+			"Retried arrival docks, describes the station and keeps fast-forward")
+	tick = expedition.state.simulation_tick
+	check(expedition.advance(1) and expedition.state.simulation_tick > tick,
+			"Docked time keeps running while the arrival dialog is open")
+	# Arrival actions reflect real station services.
+	state.fleet[0].hull_hp -= 40
+	screen._fill_arrival_actions()
+	var repair: Button = screen.arrival_modal.find_child("ArrivalRepairAll", true, false)
+	var refuel: Button = screen.arrival_modal.find_child("ArrivalRefuel", true, false)
+	check(repair != null and not repair.disabled and refuel != null, "Docked shipyard offers Repair all and Refuel")
+	var credits: int = state.credits
+	repair.pressed.emit()
+	await settle()
+	check(state.fleet[0].hull_hp == state.fleet[0].hull_max and state.credits < credits
+			and screen.arrival_modal.find_child("ArrivalRepairAll", true, false) == null,
+			"Repair all charges once and the action disappears")
+	screen.arrival_modal.find_child("ArrivalRefuel", true, false).pressed.emit()
+	await settle()
+	check(is_equal_approx(expedition.state.fuel, expedition.state.fuel_capacity)
+			and screen.arrival_modal.find_child("ArrivalRefuel", true, false) == null, "Refuel fills the tank")
+	check(screen.get_global_rect().encloses(screen.arrival_modal.find_child("ArrivalDialogPanel", true, false).get_global_rect()),
+			"Arrival dialog fits the viewport")
+	screen.arrival_modal.find_child("ArrivalShipyard", true, false).pressed.emit()
+	await settle()
+	check(screen.arrival_modal == null and screen.active_tab == "SHIPS", "Visit Shipyard opens Ships")
+	# A failed course save changes nothing and offers retry.
 	var before_route: Dictionary = state.hangar_snapshot()
 	state.run_save_path = "res://project.godot/no-save.json"
-	screen._choose_departure("derelict_1")
-	check(is_instance_valid(screen.departure_modal) and not screen.departure_error.text.is_empty()
-			and state.expedition_simulation.state.departure_choice_pending
-			and state.expedition_simulation.state.destination_location_id.is_empty(),
-			"Failed choice save retains the modal and pending choice")
-	check(state.hangar_snapshot().ships == before_route.ships
-			and state.credits == before_route.credits, "Failed choice preserves fleet and credits")
+	check(not screen._set_course("derelict_1") and expedition.state.destination_location_id.is_empty()
+			and state.hangar_snapshot().ships == before_route.ships and state.credits == before_route.credits,
+			"Failed course save preserves route, fleet and credits")
+	screen._refresh_expedition_controls()
+	check(screen.travel_retry_button.visible, "Failed course save offers retry")
 	state.run_save_path = save_path
-	screen.departure_retry.pressed.emit()
-	screen._choose_departure("derelict_1")
-	check(screen.departure_modal == null and not state.expedition_simulation.state.departure_choice_pending,
-			"Retry permits one committed onward route")
-	screen.speed_buttons[10].pressed.emit()
+	screen._on_expedition_retry_pressed()
+	await map_go("derelict_1")
 	screen._process(100)
-	check(state.expedition_simulation.state.travel_state == Travel.TravelState.STOPPED
-			and state.expedition_simulation.state.departure_choice_pending,
-			"POI arrival also commits a required choice")
-	await reopen_checkpoint()
-	check(is_instance_valid(screen.departure_modal), "Continue restores a POI arrival choice")
-	screen._choose_departure("start_station")
+	check(expedition.state.travel_state == Travel.TravelState.STOPPED and is_instance_valid(screen.arrival_modal)
+			and screen.arrival_modal.find_child("ArrivalRepairAll", true, false) == null
+			and screen.arrival_modal.find_child("ArrivalSetCourse", true, false) != null,
+			"POI arrival describes the location without station services")
+	screen.arrival_modal.find_child("ArrivalSetCourse", true, false).pressed.emit()
+	await settle()
+	check(screen.active_tab == "MAP" and screen.arrival_modal == null, "Arrival Set Course opens the map")
+	await map_go("start_station")
 	screen._on_expedition_stop_pressed()
 	check(state.save_expedition_checkpoint(), "Persist manually stopped route")
 	await reopen_checkpoint()
-	check(screen.departure_modal == null
-			and not state.expedition_simulation.state.departure_choice_pending,
+	check(screen.arrival_modal == null and expedition.state.destination_location_id == "start_station",
 			"Stopping a route is not mistaken for an arrival on Continue")
-	print("EXPEDITION_ARRIVAL_CHECKS=%d failures=%d" % [checks, failures])
-	screen.queue_free()
+	# A finished demo always leaves Main Menu reachable above every other dialog.
+	state.completed = true
+	check(state.save_run_checkpoint(), "Persist completed demo")
+	await reopen_checkpoint()
+	var run_end: Control = screen.get_node_or_null("RunEnd")
+	check(run_end != null and screen.arrival_modal == null and screen.encounter_modal == null,
+			"Demo complete is the only dialog")
+	run_end.find_child("RunEndMainMenu", true, false).pressed.emit()
 	await settle()
+	check(current_scene != null and current_scene.scene_file_path == "res://scenes/main_menu.tscn",
+			"Demo complete Main Menu leaves the run")
+	print("EXPEDITION_ARRIVAL_CHECKS=%d failures=%d" % [checks, failures])
 	quit(1 if failures else 0)

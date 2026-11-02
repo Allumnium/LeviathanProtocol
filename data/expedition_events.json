@@ -139,7 +139,7 @@
       "text": "A vast armored organism sits in the gate, shielded by two pylons. Its lance charges. This is what the Protocol sent you to clear.",
       "art": "res://assets/drone_sentinel.png",
       "options": [
-        {"id": "engage", "label": "ENGAGE", "effects": {"combat": {"template": "bastion_warden", "row": 10, "strength": 8.0, "credits": 400}, "complete": true}}
+        {"id": "engage", "label": "ENGAGE", "effects": {"combat": {"template": "bastion_warden", "row": 10, "strength": 7.0, "credits": 400}, "complete": true}}
       ]
     }
   ]

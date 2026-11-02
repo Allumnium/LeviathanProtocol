@@ -35,9 +35,11 @@ func run() -> void:
 		budgets[int(chassis.command)] = true
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.flagship).size() == 1
 			and state.get_deployed_fleet().size() == 4, "Exactly one mandatory flagship and all starter ships deploy")
-		check(state.equipment_inventory.size() == 7 and state.fleet[0].mounts.size() == 3
-			and state.fleet[1].mounts.is_empty() and state.fleet[2].mounts.size() == 2 and state.fleet[3].mounts.size() == 2,
-			"Seven unique starter instances equip flagship and Fighters; Transport is empty")
+		var transport_items: Array = state.fleet[1].mounts.values().map(func(item: Dictionary) -> String: return item.equipment_id)
+		check(state.equipment_inventory.size() == 10 and state.fleet[0].mounts.size() == 3
+			and transport_items.count("cargo_hold") == 1 and transport_items.count("hull_plate") == 2
+			and state.fleet[2].mounts.size() == 2 and state.fleet[3].mounts.size() == 2,
+			"Ten unique starter instances: armed flagship and Fighters, Transport with cargo hold and armor plates")
 		check(state.fleet[0].get_stats().shields == (40 if chassis.id == "flagship_basic" else 20)
 			and state.can_deploy(), "Defensive flagship has doubled shields; other flagships retain one generator")
 		check(HangarCheckpoint.valid(state.hangar_snapshot()) and state.save_run_checkpoint()
