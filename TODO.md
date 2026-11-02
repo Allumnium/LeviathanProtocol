@@ -1,115 +1,510 @@
-# Leviathan TODO
+# Continuous Space Expedition - Implementation Plan
 
-Current target: a medium-sized vertical slice, with UI/UX finalized before deeper content expansion. Keep the physical hangar, existing equipment and enough progression to exercise the whole play loop. Let the story drive later depth. The full-campaign backlog below is deferred, not a prerequisite for this slice.
+Planning baseline: 2026-11-01. **This document is a plan, not an implementation report. All tasks below are unimplemented.**
 
-Current model: owned chassis and individual equipment instances; credits are the only spendable resource. No square/hex building, materials, equipment recipes or construction regions. Preserve implemented content and saves; this scope change does not require deleting working systems. Optional extras remain deferred.
+This replaces the previous V1-V6/node-route backlog. The immediate target is a complete navigation conversion using existing physical ships, equipment, research, trade and autobattle. Deliver a representative mechanical slice before expanding content. The player's job is to choose destinations, manage the expedition and control time, not pilot individual ships.
 
-## Confirmed design
+The story specification is [docs/STORY_SPEC.md](docs/STORY_SPEC.md). Do not implement its plot, dialogue, act encounters, branches, bosses or endings in this work. Provide the mechanical event/location/gate hooks that a later story pass can populate. Existing campaign content is not the specification for the new story.
 
-- Battle outcomes use supplied Victory artwork with compact report rows. Flagship loss goes directly to the black-backed red Game Over popup and Accept Defeat returns to menu. New runs score completed research (100 each, excluding Foundation), Swarm damage (1/10), gross earned credits (1/10, excluding starting credits) and final Leviathan victory (+20,000). Existing runs remain valid but unscored. Score totals settle/save atomically; see docs/HANGAR.md.
+## 1. Confirmed owner decisions
 
-- Nine supplied chassis: selectable Defensive, Civic, Research and Combat flagships, plus Corsair, Fighter, Transport, Frigate and Drone. Owner-confirmed mounts and draft hull/thrust tuning are documented in docs/MOUNT_RULES.md.
-- Slots require exact S/M/L/XL size matches. General mounts accept any matching-size category. Apply the explicit owner-reviewed per-chassis Offense/Defense and Civic/Tech/Defense restrictions, including Transport L utility sides. Defensive/Research/Combat have eight mounts; Civic has ten. All flagships have a built-in Shield Generator I; Fighter has +30% weapon damage and 20% seeded weapon-hit dodge. New flagship mounts are owner-editable catalog drafts.
-- Equip by dragging owned equipment from a visible stock list onto ship mounts, between mounts, or back to stock. Stock/equipment buying use multi-select category checkboxes and an inclusive two-handle size range, no search or ordering controls, and fixed ascending catalog credit prices. Chassis buying has no filters and also uses ascending credit prices. No slot equipment dropdowns. Keep cargo/passenger space, DPS, integrity and shields visible and live. Transfers are free. Buy researched equipment/chassis at shipyards; battles also grant equipment loot. No design drafts, named blueprints or free copies.
-- No functional equipment orientation. Weapons aim automatically; thrusters provide ship-wide thrust.
-- Exactly one flagship, mandatory every battle. Its command budget limits the other ships; no reserves, design-family limits or old act-based deployment capacity. Flagship loss ends the run.
-- Hull is the only ship health pool, alive at zero and destroyed strictly below zero. Engines are implicit and command is covered by hull; neither is described or independently damaged. Shields absorb first; all remaining damage goes to hull without splitting. All fitted/built-in equipment stays active until ship destruction, with no component condition/HP. Repairs restore the whole surviving hull. Physical saves use version 2, rejecting older versions without conversion.
-- Use credits for purchases and repairs; equipment transfers are free. No material inventory, wildcard exchanges, ore/mineral payouts or refinery systems in the replacement model. Cargo goods and passengers remain distinct systems.
-- Research stays one pannable tree with major branches and inline details/Set Focus. No Foundation node or grant modal. Completed nodes have a green check; partial nodes show X / Y. Research output is allocated directly to the focused project at arrival; no RP balance is stored or shown in the header.
-- Travel research: (Lab I + 2 x Lab II + 3 x Lab III) RP/day times travel days, typically 2-4. Freeze departure inputs, retain project fractions/focus, settle once at arrival; discard output with no focus or beyond project completion. Battle time never generates RP.
-- Node conditions are deterministic from campaign seed/node ID: Clear/Sparse/Medium/Dense asteroids (0/3/6/9 roots in battles), solar intensity 50-150% and nebula presence. Map details display conditions; solar/nebula equipment effects remain deferred. Physical battles use the supplied mapped asteroid sprites and existing drift/collision/interception/fracture simulation, without mining or material payouts. Freeze encounter conditions at departure and retain them through Continue/retries. Ports/opening encounters stay clear. See docs/HANGAR.md.
-- Starhull/shared theme, minimal prose, no hover tooltips and no Tab/arrow focus navigation or focus boxes. No Port/Story buttons or duplicate fleet stats in the top bar.
-- Chassis previews and owned-ship Fleet/Ships details use supplied Progress_Cp/Progress_Cp_Bg bars for hull, maneuverability, mass and shields, with integer descriptions. Maneuverability weights speed/acceleration/turning by their chassis-wide means and normalizes average base score to 50; backend physics stay unchanged. Compare all six base chassis per displayed stat, linearly mapping minimum to 10% and maximum to 100%. Equal stat bounds require balancing review, not a silent fallback. No component HP/condition UI or implicit engine/command-center descriptions.
+1. One continuous expedition world. Flagship and escorts remain visible; travel, hazards, combat, regrouping and docking never replace the gameplay scene. Cruise reads as upward flight with scenery scrolling downward.
+2. Free travel between discovered, accessible destinations. Existing beacon edges no longer constrain travel. Rerouting starts at the current physical position, including partway through a journey. Stop and Pause are different actions.
+3. Pause, 1x, 5x and 20x. Threat detection immediately reduces speed to 1x and starts autobattle **without an automatic pause**. Important decisions and fuel exhaustion pause. Optional discoveries reduce fast-forward to 1x.
+4. Management interfaces stay live. Opening Fleet, Ships, Research or Map does not pause. Threats surface immediately even while a panel is open. A player pause or unresolved decision must never be cleared by another event.
+5. Keep a pannable three-act strategic map as an overlay, showing real fleet position, destinations, discoveries and route. Its act regions/layout are navigation scaffolding, not a requirement to retain old story encounters or boss progression.
+6. Fleet-wide fuel is in scope. Fuel is spent by actual distance, not speed multiplier; stations sell refueling for credits. An explicit rescue/tow option prevents an unwinnable empty-tank state.
+7. Ship/equipment purchases, fitting/unequipping/transfers, stock sales, chassis salvage and credit-paid repairs require docking at a shipyard. Ships/equipment remain inspectable while flying. Paid repairs remain instant. Do not add construction or a timed paid-repair queue.
+8. Research progresses continuously as travel distance is covered. Combat, stopped travel and docking generate no research or campaign travel days. No offline progression.
+9. Add slow, free, chassis-specific hull self-repair **whenever unpaused outside combat**, including stopped and docked time. Waiting at 20x to heal is deliberately permitted. Do not substitute travel-only healing.
+10. Combat uses existing automatic AI in the same world. Strategic travel stops during engagements; surviving ships regroup and resume the retained route at 1x. Players can edit/cancel their destination during combat, but orders cannot teleport away or bypass the engagement.
+11. New expedition runs may use a new save format. No migration, old-run compatibility or maintained legacy node-navigation mode is required. Do not spend effort deleting user files. Reliable atomic saves and Continue for the new game remain required.
+12. Story/content expansion, ECM/Phase, new boss phases, mining/materials, designers, recipes and undefined equipment effects remain out of scope.
 
-## Hangar migration
+### Preserve the implemented physical game
 
-- [x] S1/C1: Preserve the supplied art and typed mount catalog; retire hex/square editors and prototypes. The prior standalone slot Designer is now retired too.
-- [x] S2: Replace the actual campaign with a physical hangar, shared instance inventory, free transfers, shipyard purchases, equipment loot, credits-only repairs/sales and salvage (now confirmed in the UI). Start with the supplied flagship; enforce command and no-reserve rules.
-- [x] S3: Render actual chassis in hangar/formation/map/battle. Current owner simplification: persist whole-ship hull only, shield-first full hull damage, zero-HP boundary and mandatory flagship defeat. No component/built-in integrity; defer Nanoforge/Renewal II rather than inventing component-rebuild replacements. Defer undefined slot/adjacency bonuses rather than selling inactive effects.
-- [x] S4: New atomic physical-run checkpoints, unique ownership, backup recovery, save-failure rollback, exactly-once battle settlement, travel research and equipment-instance trade loads. Preserve old save namespaces. The active runtime no longer inherits the material GameState; removed embedded builder/library/free-Designer UI.
-- [x] S5a: Native dropdown/window checks at 640x360, 1280x720 and 1920x1080; all-act travel/settlement traversal; six natural opening fights; load/repair/loss/refit checks and interaction timing. See docs/HANGAR.md for evidence and limits.
-- [x] S5b: Initial catalog/mount opportunity-cost review and nine natural full-route runs (combat, trade, science; three seeds; 126 fights). No free credits/research or forced outcomes. Rank II/III labs now produce 2/3 RP/day, with matching UI and preserved pending yields. Defer the inactive Gravitic Snare ability purchase/focus/loot while keeping older research/items readable and removable. Current content is traversable; broader balance and unfinished bosses remain milestones 60/65/67/70. See docs/HANGAR_PLAYTEST.md.
-- [x] C2: Remove the disconnected material GameState and unused builder/formation/upgrade/window code. Preserve 46 retired test/capture scripts as text outside Godot imports. Isolate historical checkpoint/economy/library schemas under scripts/legacy, remove archive writers and retain read-only square/hex/prototype recovery. Extract shared SaveValidation and skip square catalog/animation initialization for physical previews/battles. Nine baseline suites, 66 archive checks and 289 native UI checks pass. Shared DTOs remain for decoding/combat regressions; see docs/LEGACY_BOUNDARIES.md.
+Use the current executable code/catalogs rather than restoring older descriptions:
 
-The playable entry is NEW RUN -> Fleet; equipment fitting is under Ships. CONTINUE resumes physical hangar checkpoints; old material runs remain separate. Shipyards sell physical ships, not bulk blueprint construction orders. Passenger/cargo trade remains core. RP remains travel-generated progression. Slot bonuses and adjacency equipment stay deferred.
+- The inspected runtime uses whole-ship hull, no component HP, and physical checkpoint version 2. Shields absorb first; hull at exactly zero is alive, below zero is destroyed. Preserve these mechanics; regeneration cannot resurrect a ship or recreate cargo.
+- Preserve current flagship selection, starter fleet, budgets, bonuses, mount restrictions and exact-size matching. Keep one mandatory flagship and all-owned-ship deployment. Flagship loss remains terminal; no story-specific exception in this conversion.
+- Preserve equipment UIDs, research gates, free transfers when service access permits, loaded-equipment restrictions and atomic inventory ownership. No free replacement copies.
+- Preserve current lab rates and flagship research bonus. Current code allocates to focused projects without an unspent RP wallet or fleet baseline. Change allocation timing, not the production formula or research economy.
+- Preserve active weapons/support/carriers, finite allowances, source-loss behavior, supplied artwork/maps, sprite collision and surface lighting. Do not turn active equipment into decorative placeholders.
+- Preserve current shared theme, Starhull, crisp rendering, shared X, direct-art fitting, display-only mount callouts, installed-drag unequip target, inline UID selling, shop modes/filters and pannable management views. No hover tooltips or UI focus cycling.
+- Continue using the existing score rules where applicable. Use event receipts so rewards, damage accounting and research completion cannot duplicate. No new narrative victory bonus trigger in the prototype.
 
-## Completed intermediate batch
+## 2. Existing code: reuse and replacement boundaries
 
-Original milestone IDs are retained for historical cross-reference; all implementations must use slots and credits.
+Paths here exist at planning time. Proposed new files are identified separately in section 5.
 
-- [x] 56a: Magazine/Railgun, Flight Deck/Bomber and Uplink/Computer are physical, research-gated equipment. Magazines/computers support all host weapons and stack as requested. Finite UID-based carrier reserves persist across retries/transfers; craft have payload/lifetime/entity limits, point-defense counters and source-loss handling. Command marks respect visibility. 143 carrier checks, 155 intermediate checks, six natural Act II combat fixtures and the eleven-suite baseline pass. See docs/INTERMEDIATE_EQUIPMENT.md; broad tuning remains 61/67/70.
+| Surface | Current implementation | Required change |
+| --- | --- | --- |
+| Entry and root | [project.godot](project.godot), [scripts/main_menu.gd](scripts/main_menu.gd), [scenes/game_map.tscn](scenes/game_map.tscn) | New Run/Continue enter one expedition root; pending combat no longer routes to another scene. |
+| Authoritative state | [scripts/hangar_state.gd](scripts/hangar_state.gd) | Retain GameState and physical transaction facade. Replace current-node/pending-destination travel with continuous expedition state. |
+| Travel settlement | [scripts/hangar_state.gd](scripts/hangar_state.gd): `travel_to`, `settle_battle`, `set_destination` | Today departure immediately charges days and prepares/settles arrival. Replace this, not just its animation. Combat victory must no longer imply destination arrival. |
+| Save application | [scripts/hangar_state.gd](scripts/hangar_state.gd): `_commit_hangar`, `_apply_hangar` | Current application recreates every ship and inventory dictionary. Routine live commits must instead reconcile stable objects by ship ID/equipment UID, without detaching combat actors. |
+| Storage/validation | [scripts/atomic_run_store.gd](scripts/atomic_run_store.gd), [scripts/hangar_checkpoint.gd](scripts/hangar_checkpoint.gd), [scripts/save_validation.gd](scripts/save_validation.gd) | Reuse atomic envelope/generation semantics and generic checks; introduce an expedition payload validator rather than pretending version-2 node invariants still apply. |
+| Management shell | [scripts/hangar_screen.gd](scripts/hangar_screen.gd) | Split embedding/lifecycle from reusable Fleet/Ships/Research/shop content; remove full-screen replacement and travel-time tab lockout. |
+| Map | [scripts/graph_view.gd](scripts/graph_view.gd), [scripts/campaign_graph.gd](scripts/campaign_graph.gd), [scripts/campaign_content.gd](scripts/campaign_content.gd) | Reuse map geometry, input and icons; replace reachability, node-only marker and 2-3 second `start_travel` tween. Do not bind old encounter/boss rules automatically. |
+| Encounter content | [scripts/encounter_generator.gd](scripts/encounter_generator.gd), [scripts/swarm_navigation.gd](scripts/swarm_navigation.gd) | Reuse combat definitions where appropriate; encounter identity moves from destination node to persistent encounter ID. Old departure-based Swarm pressure is not the new story clock. |
+| Combat lifecycle | [scripts/auto_battle.gd](scripts/auto_battle.gd) | Extract HUD/audio/result orchestration; remove active-run map/battle scene changes and opaque result backdrop. Do not mount this script unchanged as a second game loop. |
+| Combat simulation | [scripts/battle_simulation.gd](scripts/battle_simulation.gd) | Reuse AI, targeting, projectiles, collisions and doctrines. Separate world ticking/actor lifetime from engagement setup/completion. |
+| Combat persistence | [scripts/battle_simulation.gd](scripts/battle_simulation.gd): `authoritative_snapshot` | This is explicitly diagnostic, **not** a restore format. Implement/test an actual runtime codec, including referenced actors, timers and RNG. |
+| Visuals | [scripts/battle_visuals.gd](scripts/battle_visuals.gd), [scripts/fleet_ship_preview.gd](scripts/fleet_ship_preview.gd), [scripts/surface_art.gd](scripts/surface_art.gd), [scripts/ship_exhaust.gd](scripts/ship_exhaust.gd) | One live fleet renderer/camera; keep mounted art, exhaust, silhouettes, lighting and cached textures. Previews remain previews, not duplicate live fleets. |
+| Formation | [scripts/hangar_formation.gd](scripts/hangar_formation.gd) | Reuse selection and atomic group-order semantics; formation orders change desired offsets, not instantaneous live positions. |
+| Environment | [scripts/main_menu_starfield.gd](scripts/main_menu_starfield.gd), [scripts/node_environment.gd](scripts/node_environment.gd), [scripts/asteroid_field.gd](scripts/asteroid_field.gd), [scripts/sprite_collision.gd](scripts/sprite_collision.gd) | Extend seeded identity to spatial cells/locations, stream deterministic scenery, and run real hazards outside dedicated battles. |
+| Activities/economy | [scripts/science_rules.gd](scripts/science_rules.gd), [scripts/hangar_research.gd](scripts/hangar_research.gd), [scripts/hangar_trade.gd](scripts/hangar_trade.gd), [scripts/hangar_carriers.gd](scripts/hangar_carriers.gd) | Distance-based research, genuine dock/undock trade, chassis self-repair, encounter-ID/UID carrier accounting. |
+| Results | [scripts/battle_report.gd](scripts/battle_report.gd), [scripts/defeat_dialog.gd](scripts/defeat_dialog.gd), [scripts/run_score.gd](scripts/run_score.gd) | Nonblocking saved victory summary; terminal defeat still interrupts. No reward claim tied to opening a panel. |
+| Validation | [tests/run_baseline.ps1](tests/run_baseline.ps1) | Current runner has 22 suites plus native variants and isolated APPDATA. Add expedition coverage; deliberately port superseded node assertions instead of silently dropping regression coverage. |
 
-## Active priority: medium vertical slice and UI/UX
+## 3. Runtime contracts
 
-Do these next, in order. Use existing content; add only what is necessary to make the slice understandable and complete. Do not continue filling the equipment tree or all three acts first.
+### 3.1 One owner, one simulation, one fleet
 
-- [x] V1: Current UX audit concluded with the owner (2026-11-01). Native reviews covered the core screens and supported resolutions. Further findings can be raised periodically; do not reopen a broad redesign as a prerequisite for V3.
-- [x] V2: Current owner-directed UX corrections completed: shared pixel-crisp theme/art, fitting callouts and direct-art interactions, shops/stock, sliders/range filters, research camera preservation and combined Research/status tab. Preserve these interactions and handle future UX fixes incrementally.
-- [ ] V3: Shape a coherent representative route using current content: shipyard purchase/refit -> travel/research -> combat -> report/loot/repair -> another meaningful fleet choice -> a clear slice endpoint. Include passenger/cargo usefulness and a small range of encounter roles. Choose route length from playtesting; no new boss phases, full Act II/III expansion or finished story required. Keep existing full-route content/saves intact while the slice route is defined.
-- [ ] V4: Tune only the slice's credits, command/mount choices, travel days and research costs so players can experience a few distinct viable loadouts without excessive grind. Use current labs, weapons, support equipment and trade. Defer exhaustive balance and new research tiers.
-- [ ] V5: Verify the slice's saves/Continue, failed transaction rollback, ownership, travel/reward settlement, flagship defeat and finite resources. Profile purchases, transfers, repairs and battles; eliminate noticeable interaction stalls. Reuse existing coverage and add regressions for discovered issues.
-- [ ] V6: Play the whole slice through the actual UI at supported resolutions, including readable combat/status effects and reduced flashes. Deliver a reviewable build with remaining UX issues recorded. Finalize UI/UX with the owner, then revisit content depth around the story.
+- Keep `GameState` as the autoload API for physical ownership, transactions and save coordination. It owns the expedition runtime for a loaded run; UI reads state and submits commands.
+- Rework [scenes/game_map.tscn](scenes/game_map.tscn) into the persistent expedition shell, retaining this entry path to avoid an unnecessary scene rename. It owns a world view, expedition HUD and overlay host, not a second independent simulation.
+- Initialize player actors once when creating/loading a run. Cruise, docking, combat and regrouping retain those actors and their stable IDs. Purchases add actors; actual destruction/salvage removes them.
+- Extend `BattleSimulation` with an expedition lifecycle using the same actor registry and existing combat functions. Its existing `setup_owned` resets positions, shields, lists and RNG and rejects an empty enemy fleet: it is not a per-encounter entry method.
+- Factor reusable world/actor initialization and noncombat advancement from engagement setup. Preserve the standalone setup path for focused existing battle tests; it is not a second playable navigation mode.
+- One fixed-step owner advances movement, hazards, combat, activities and events. No independent `_process` repair timer, travel Tween, second combat clock or scene-owned reward logic.
+- Save commits serialize authoritative runtime and physical state together. They must not reset actor velocity, shields, weapon cooldowns, active sorties, camera, route or overlay selection.
+- No root/world replacement until explicit return to main menu or new-run creation. Add/remove child encounter entities and UI panels freely.
 
-- [x] V3a: Adapt new runs to a noncrossing bidirectional beacon network while retaining the full three-act campaign. Travel days raise persisted Swarm Intensity and strengthen future hostile encounters, including Leviathan; event choices can reduce pressure. Cleared encounters/rewards are one-time, first-departure enemy strength survives retries/Continue, and small relay quests use inline map choices and destination markers. Existing physical runs retain their original graph/rules. Initial pressure and quest tuning remain drafts for V4; representative-route playtesting remains V3.
+### 3.2 Coordinates, upward presentation and formation
 
-Implemented playtest adjustment: applied the owner's explicit artwork-based six-chassis mount specification, draft hull/thrust tuning, fixed flagship shield and Fighter bonuses. Shop/stock clicks inspect item details in the right panel; only the green plus purchases. Catalog, fitting, saves and loot share mount rules; see docs/MOUNT_RULES.md. V1-V6 remain the active work queue.
+Maintain two explicit spaces:
 
-Implemented flagship choice: New Run carousel previews four supplied flagships with stats, Command Points and bonuses, without mount listings or built-in shield prose. Shield Generator I supplies 20 shields. Budgets: Defensive 16, Civic 20, Research 12, Combat 16. Defensive retains the original chassis ID/art and has 40 shields (two generator equivalents) plus one flat hull damage reduction after shields. Civic grants +20% own delivery income; Research grants +25% own lab output; Combat grants +15% additive cycling and one flat hull damage reduction after shields. Start with 700 credits, chosen flagship, empty Transport and two armed Fighters (seven unique starter equipment instances). Continue preserves saved fleets without creating starter copies; failed starts roll back and keep the modal actionable. Slots remain draft catalog rectangles for owner adjustment. V1-V6 stay the priority.
+1. **Navigation space:** continuous 2D campaign coordinates, measured in navigation units (NU). Location positions, route segments, discovery radii and fuel use this space. These coordinates never depend on viewport size or map zoom.
+2. **Local tactical space:** nearby physical actors, rocks, shots and stations in existing combat world units. Project navigation displacements with one documented scale. Use a floating local origin/rebase before large coordinates degrade precision.
 
-- [x] V2a (owner playtest request): Replace slot equipment dropdowns with visible stock search, type/size filters and Name/Size/Condition/DPS sorting. Native drag fitting, replacement, slot transfers and dragging back to stock use atomic physical transactions. Keep live cargo/passenger space, mounted-weapon DPS, current/max integrity and shields visible. Preserve Manage sell/repair access, theme and focus preferences. Focused native drag checks and the thirteen-suite baseline pass; broader V1/V2 remain open. See docs/HANGAR_DRAG_DROP.md.
+Cruise direction is presented as screen-up, regardless of whether the strategic map course is east, west or returning to a visited port. Smoothly adjust the travel frame on course changes, preserving relative actor positions and scenery continuity. Do not teleport/respawn the fleet or use a fresh scrolling background per leg. Combat ships may turn/maneuver normally; "vertical scroller" is not a prohibition on combat headings.
 
-- [x] V2b (supplied cargo art): Integrate cargo_xl.png as the XL Cargo Hold thumbnail, centered sprite drag preview and snapped fitted-slot art. Keep the entire installed part draggable; preserve aspect ratio/transparency and source PNG. Share mounted sprites across fleet/battle views, cache textures and keep text fallbacks for equipment without art. Native drag/snap/removal/reload checks pass. See docs/HANGAR_DRAG_DROP.md.
+- Camera follows the fleet with an unobscured fleet area when overlays are open. Preserve user camera offset/zoom; do not auto-fit on every commit or panel refresh.
+- During combat, strategic position/route distance is held. Tactical movement does not secretly spend fuel or advance travel research. Engagement bounds are centered on the current encounter, not the old fixed origin/left-versus-right starting formation.
+- Fleet formation stores desired offsets in the existing bounded formation coordinate system. Autopilot maintains/rejoins them with existing ship mobility limits. No individual piloting or automatic changes to saved formation after a loss.
+- Formation editing remains an atomic group order with spacing preserved. Permit it outside combat; reject/cancel edits during an engagement. Other management inspection remains available.
+- Cruise has one fleet speed draft, independent of combat thrust. Do not invent mass-based fuel or slowest-ship travel penalties in this conversion.
+- Rebase all authoritative local coordinates together, including targets, projectiles, asteroid records, spawn anchors and pending event positions. Presentation-only rebasing must not change NU distance, collision results or RNG.
 
-- [x] V2c (owner playtest UI batch): Fleet first/default, Hangar renamed Ships; preserve formation camera, native box selection/group movement and empty-space deselection; white silhouette selection glow; confirmed salvage and atomic Repair All for an empty selection. Dark stationary interactive stars reuse menu art/animations. Restore visible linear map flights (2-3 seconds by distance) and block duplicate departures. Use science.png for header RP and align miniTurret.png by its circular base. See docs/UI_PLAYTEST_POLISH.md. V1/V2 remain open for the wider audit.
+### 3.3 Clock and speed contract
 
-- [x] V2d (node identity): Seed stationary space backgrounds by campaign seed + map-node ID. Use a normalized, viewport-independent star pool rather than copying transient arrays, preserving layouts across actions, tabs, resize history, Continue and future return visits. Keep twinkle/click animations and expose the same area-seed helper for node-specific scenery. No new save data or gameplay RNG consumption.
+| Clock | Advances when | Consumers |
+| --- | --- | --- |
+| Real/UI seconds | Rendering/UI is active | Input, panel animation, cosmetic twinkle; never rewards, healing or movement |
+| Simulation seconds | Unpaused, at effective 1x/5x/20x | Tactical movement, hazards, combat, shield behavior, free self-repair outside combat |
+| Campaign travel days | Actual self-propelled cruise distance is covered | Research and future explicitly travel-based event timers |
 
-- [x] V2e (mount callouts): Organize full mount/equipment labels in aligned columns beside the ship, connected to their actual mounts. No text or opaque controls over chassis/module art; no equipment initials or truncation. Research Lab 1/2/3 use full names. Both side cards and transparent mount targets support fitting and installed-equipment dragging. Native all-chassis layout and drag checks pass.
+- Draft conversion: `travel_days += distance_nu / nu_per_day`. Stops, combat maneuvers, regrouping, docking alignment and towing do not generate travel days/RP.
+- Pause freezes **all authoritative state**, including regeneration and hazards. UI remains usable. No wall-clock catch-up on focus regain, Continue or application restart.
+- Use fixed 1/30-second simulation ticks for existing combat behavior. Multiply budget, not damage/heal/fuel formulas a second time. At 20x, process all required ticks on the reference machine; never silently discard elapsed simulation budget.
+- Current `auto_battle` caps at six steps/frame and discards excess: do not reuse this policy for a nominal 20x expedition.
+- Bound per-frame work and accumulated backlog. Under overload, visibly reduce achievable/effective speed rather than silently losing time, tunneling through encounters or freezing input. Coarse cruise stepping is not required for the initial version.
+- Clamp movement to the earliest arrival, fuel depletion, discovery/event boundary or research completion; handle that boundary before consuming remaining budget. Sweep segments, not just endpoints. Re-evaluate speed/state after every tick/boundary, including events raised by that tick.
+- A hard interruption discards the old fast-forward wall-time budget; it does not carry a 20x backlog into a decision or combat. This is an explicit boundary, not a performance shortcut.
+- Separate requested speed, effective speed and pause reasons. Closing a panel must not clear user pause, decision pause, terminal state or save-error pause. Resume never jumps back to 20x after a threat.
+- Continue restores the exact world state but opens paused, with the last requested speed visible; resuming an active fight is capped at 1x.
 
-- [x] V2f (unequip target): During installed-equipment drags, replace the entire right panel with a centered Drop here to unequip instruction; hide normal content until release/cancel. Include frame/padding in the target, preserve filters and backend restrictions, and keep loose-stock drags unchanged. Native drag checks pass.
+### 3.4 Travel states and interruption policy
 
-- [x] V2g (combined UI correction): One-line mount cards show only a full equipment name when fitted, otherwise slot type. Stable per-chassis rails preserve scale; drag sprites preview actual hovered-slot size/anchor before release. Align RP icon/value as a single line. Buy toggles an embedded center panel with equipment/chassis modes, accessible roster/stock and purchases that keep the shop open; shared X closes it. Add joint layout, shop transaction/toggle and native pre-drop geometry checks.
+Use a typed travel state independent of pause reasons and overlay state:
 
-- [x] V2h (inline stock selling): Replace Manage/Stock modal access with a right-aligned coin icon on each stock card. First click swaps row two to Sell? plus cancel/checkmark, retaining the exact coin position for confirm. Preserve UID ownership, half-catalog proceeds (equipment condition removed), failed-save rollback, filters and drag fitting. Native confirm/cancel/retry/no-double-payment checks pass.
+`DOCKED -> CRUISING -> STOPPED / ENGAGED / DOCKED`
 
-- [x] V2i (art-only equipment interaction/contextual details): Make side labels passive panels and reject drops/drag starts there. Fit/select/transfer and start unequipping directly on ship art. Replace all bottom ship stats with selected-part name/HP/type/effect; blank space, empty mounts or removal restore ship stats. Reserve bottom height to avoid moving art/drop targets. Native direct-art and rejected-label gestures, details switching and carrier/mount regressions pass.
+`ENGAGED -> SETTLING -> REGROUPING -> CRUISING or STOPPED`
 
-## Deferred: story-led depth after UI/UX
+`STOPPED -> TOWING -> DOCKED`
 
+Terminal defeat is a run state, not a route destination. Mandatory event decisions suspend whichever valid travel state was active.
 
-These retain the earlier full-campaign milestone IDs. They are not required for the current slice and must not automatically resume just because an earlier item is implemented. Revisit scope, progression and priorities when the story needs are clearer. The broader versions of 66-70 below extend the slice checks; they do not defer essential slice readability, reliability or performance.
+| Trigger/action | Required behavior |
+| --- | --- |
+| Select map location | Inspect/preview only. Show distance, ETA at selected speed, fuel and service/known-hazard information. |
+| Travel/Change course | Validate discovered/access-permitted target, atomically replace route from current position; explicit action can undock. Never pay fuel/days for the whole leg up front. |
+| Stop | Stop strategic progress immediately at a tick boundary, retain destination for Resume; no docking privileges, fuel use or RP. Free self-repair continues if unpaused. |
+| Cancel destination | Clear active/retained route atomically; remain stopped. |
+| Threat detected | Make approaching enemies visible under normal visibility rules, cap at 1x, stop cruise and engage automatically. Do not unpause a user/decision pause. Surface combat above management. |
+| Optional POI discovered | Record/mark it, reduce fast-forward to 1x, offer Investigate/Continue in a compact notification. Continue does not restore 20x. |
+| Investigate POI | Store the previous destination as a single optional return target; route to POI from current position. No automatic reward or teleport. |
+| Leave investigated POI | Offer Resume previous route; do not silently chain detours. Preserve/cancel the return target explicitly. |
+| Choice/NPC decision | Persist pending decision, stop simulation and show concise options. Resolve once; resume at 1x only after acknowledgment and if no other pause reason remains. |
+| Research completes | Commit project completion and stop fast-forward at that exact threshold; pause with Set Focus/Continue. No RP wallet, auto-focus or excess-project spillover. |
+| Repair completes | Coalesced notification and reduce 5x/20x to 1x once for that completion; no modal per ship and no repeated notification at full health. |
+| Fuel reaches zero | Stop exactly at affordable distance and pause; show rescue/tow and map options. No negative fuel or hidden teleport. |
+| Arrival at chosen station | Commit actual arrival/docking once; travel stops, speed becomes 1x and service interface opens. Docked regeneration continues unless paused. |
+| Victory | Commit outcome, display compact nonblocking report, regroup and resume retained route at 1x. Expanded report does not replace the world. |
+| Save fails | Freeze at last safe tick with explicit error and retry; never show a successful purchase, event choice, reward or departure that did not commit. |
+| Flagship destroyed | Stop navigation/events/healing, atomically settle losses and terminal state, then show existing defeat UI. Menu exit is allowed. |
 
-- [ ] 56b: Finish ECM Suite / Phase Drive using physical ships and credits: bounded lock breaks, target coordination, valid-space/range checks, source loss, research gates and persistent cooldowns. No optional abilities or adjacency bonuses.
-- [ ] 58: Intermediate passenger/science content: Luxury Suites, Analysis Array and bounded support effects. No material refinery requirements.
-- [ ] 59: Act II enemy combinations with readable roles and counters, independent of player fleet strength. Optional cloak/environment variants remain deferred.
-- [ ] 60: Brood Architect: finite hangars, repair without resurrection, clear telegraphs, persistent organ loss and one-time progression rewards. No old capacity unlock.
-- [ ] 61: Research pacing through Act II using planned travel days and ranked lab production. Compare science/tourism/trade routes at equal credit investment; review old costs and rank rewards.
-- [ ] 62: Combat endpoints: Stellar Lance, Singularity, Aegis, Ark Restoration, Siege Mass Driver, Hive Carrier, Admiralty Nexus and Ghost Network, with finite effects, source loss and story/research gates.
-- [ ] 63: Support endpoints: Grand Promenade/Sanctuary, Industrial Foundry/Field Patch and Quantum Observatory/Forecast, adapted to slots/credits. No material/mining endpoint requirement or automatic replacement Planetcracker mechanic.
-- [ ] 64: Act III encounters that teach and combine readable sweeps, charging organs and finite hangars. Optional hazards are not required.
-- [ ] 65: Leviathan phases and ending: persistent organs, bounded interrupts, readable pulse/sweep warnings and exactly-once ending/reward saves.
-- [ ] 66: Essential art/accessibility: supplied chassis, readable equipment/status/targeting effects, reduced flashes and no hidden-information leaks. No grid/recipe art commissioning.
-- [ ] 67: Balance credit economy, command budgets, typed-slot opportunity costs, research/travel and multiple viable fleet doctrines.
-- [ ] 68: Persistence, malformed/legacy data, interruption/retry/duplicate-settlement, resource conservation and exploit regressions for the slot model.
-- [ ] 69: Profile full battles and repeated construction/refits/equipment changes; review all core UI at supported resolutions. No multi-second interaction stalls.
-- [ ] 70: Clean full-campaign playthroughs with several doctrines, recorded core checks and explicit remaining tuning issues. No purchasable stubs. Optional backlog is not required for MVP.
+Priority within the same tick: terminal loss, save failure, mandatory decision/fuel exhaustion, combat threat, research completion, optional discovery, repair notification, ordinary arrival. Collect coincident facts; defer lower-priority UI, never drop its event receipt or reward. Destination arrival cannot dock a fleet still under an unresolved threat.
 
-## Optional / extra: do not activate during core work
+An existing combat withdrawal/stalemate must not masquerade as victory or clear enemies. Leave the route stopped and retain surviving enemies/encounter state, with visible retry/resume information. Automatic ten-second inactivity handling must not award loot, start an endless engagement loop or strand the UI. Manual tactical retreat expansion is not part of this task.
 
-- 34: Cargo-goods freight capacity upgrades, after slot/credit migration. Material pickups/refinery preferences are retired.
-- 37: Additional Sensor Array/Radar Relay range upgrades.
-- 40: Extra attack/defense abilities beyond core requirements. Gravitic Snare / Disruption II stay unavailable until their ability path is adapted to physical ships and credits; preserve old saves without offering an inactive purchase.
-- 47-49: Environment scheduler, storms/currents/nebulae and hazardous travel. Any future scope must use the material-free model; no old ore/mining prerequisites.
-- 57: Additional cloak/decoy content.
-- 51a: Exhaustive objective/arena combinations beyond core campaign variety.
-- 66a: Complete bespoke art/audio replacement pass.
-- 67a: Exhaustive doctrine comparison matrix.
+### 3.5 Live management and station services
 
-Retired rather than optional: grid recipes/assembly, hex regions/bonuses, material/ore collection and trading, refinery/spectroscopy/Planetcracker-as-mining requirements, reserve ships and act-based fleet capacity. Do not add replacements without the owner's direction.
+- Default Fleet view is the live expedition, not a second formation-rendered world. Clicking Fleet closes management overlays and exposes fleet selection/details.
+- Ships, Research and Map are reusable nonmodal panels. Keep a continuously visible, unobscured fleet area and time/threat controls. An opaque full-screen tab with the world merely running underneath does not meet the requirement.
+- Initial responsive layout draft: full world at rest; management occupies the lower/side region and reserves at least one-third of viewport area around the fleet. At 640x360 use compact/scrollable management panes, not unreadably shrunken text. Validate fitting geometry before locking this layout.
+- Reuse fitting/stock/callouts and shop center-panel behavior inside the available management region. Retain selection, scroll, filters, pan/zoom and pending-action cancellation rules. Opening/closing these panels must not rebuild the world.
+- Outside a docked shipyard, allow inspection and research focus changes; show a short reason on unavailable service actions. Enforce all restrictions in GameState, not just disabled buttons.
+- Shipyards provide buying, fitting, stock selling, salvage and paid hull repairs. Other stations expose only their declared services: refuel, automatic trade, communications. Do not turn every inhabited location into a shipyard.
+- Noncombat station arrivals are safe by default in the mechanical fixture. Passing near an unselected station discovers it but does not auto-dock, sell/deliver loads or open its shop.
+- If a threat invalidates service access, close/preempt transient shop/drag interactions and revalidate queued commands before committing. Do not consume a click intended for shop UI as a combat order.
+- Save/economy updates are tick-boundary commands. Instant paid repairs quote current damage after any prior self-repair tick; display changed prices and require reconfirmation for a stale quote rather than overcharge.
+- Settings retains pause behavior; management panels do not inherit settings' pause. Manual target/ability controls that currently work remain optional, never required to navigate.
 
-## Reference
+### 3.6 Fuel and rescue
 
-- Active implementation and validation: docs/HANGAR.md. Earlier SLOT_DESIGNER.md / SLOT_CLEANUP.md are historical snapshots.
-- Chassis art/maps: data/slot_chassis.json. Equipment identity/type/size/stats: data/slot_equipment.json. Original owner artwork stays unchanged.
-- Pre-cleanup milestone history: docs/history/TODO_PRE_SLOT_CLEANUP_2026_10_31.md. Prior checkmarks describe the old game and do not validate slot migration.
-- Older design/hex/recipe documents are historical; they do not override this plan or AGENTS.md.
+- One bounded fractional tank on the expedition, unrelated to equipment cargo UIDs. Start full; capacity and NU consumption are explicit validated tuning, not new equipment.
+- `fuel_used = distance_nu * fuel_per_nu`. Rerouting, discovery, stopping, opening menus and changing speed do not spend fuel independently.
+- Plot routes longer than current range with a clear warning and explicit confirmation. Unreachable/inaccessible locations still cannot be selected. Display reachable range on the map.
+- Refueling is an atomic quoted credit purchase, clamped to tank capacity. Reject invalid/negative/nonfinite amounts, insufficient ordinary funds, duplicate submits and undocked access. No silent partial charge.
+- Emergency rescue is available when stranded outside combat; unresolved threats must be resolved first. Always include a known safe starting/refueling station as a fallback candidate.
+- Show nearest accessible safe refuel station, tow distance, fee, fuel refill and debt before confirmation. Rescue preserves fleet and loads, consumes no tank fuel, and earns no travel RP. It uses the same visible scrolling journey, no random encounters and no scene transition.
+- Draft fee: normal credit cost of the refill plus a base rescue fee and distance fee. It may leave credit debt; this exception is explicit and atomic. Ordinary purchases may not create debt.
+- Tow ends docked with a full tank paid for by that quote. If already at a refueling station, offer emergency refill on the same disclosed debt terms without fake travel. No softlock when credits are zero/negative.
+- Tow cannot be rerouted into free ordinary travel; Stop pauses its progress and Resume continues the contracted tow. This is the one non-self-propelled navigation contract, not a new piloting system.
+- Research and travel-day event pressure do not advance during towing. Self-repair still advances with unpaused simulation seconds. Delivery occurs under the same genuine-arrival/origin rules as ordinary docking.
+
+### 3.7 Research, regeneration and trade
+
+**Research**
+
+- Each moving interval allocates `current_active_lab_rp_per_day * distance_nu / nu_per_day` to the current focus. Preserve Lab I/II/III = 1/2/3 and current chassis modifiers; no added baseline.
+- Focus changes while flying take effect at a committed tick boundary. Allocate prior distance to the old focus first; no retroactive production or duplicated departure/arrival settlement.
+- Preserve fractional progress. Recompute cached production after actual fleet/equipment/research changes, not every draw or every tick. Lost labs cease producing for all subsequent travel.
+- No focus means no allocated RP. Stop precisely on completion before discarding any remaining travel budget; no stockpiled unspent RP.
+
+**Free self-repair**
+
+- Add one explicit nonnegative `self_repair_hp_per_second` tuning field per chassis in [data/slot_chassis.json](data/slot_chassis.json); expose its rate in ship inspection.
+- Heal surviving hull by `rate * unpaused_noncombat_sim_seconds`, clamped to current maximum hull. No credit consumption, paid job, equipment requirement or component rebuilding.
+- Applies during cruise, stopped time, docking and towing. Suspend through ENGAGED/SETTLING and unresolved defeat, including the tick on which a threat is admitted. It resumes after successful settlement.
+- Exactly-zero hull may regenerate; destroyed hull may not. Do not lose fractional healing on save/load. Do not replay regeneration for offline time.
+- Leave working combat repair equipment distinct and unchanged. Do not regenerate its finite reserves. Preserve existing shield recharge behavior and shield state across encounters; no free shield reset caused by reopening a panel or reinitializing battle.
+- Initial rates are balance drafts: derive explicit HP/second from base chassis hull divided by 900 seconds for Defensive/Corsair/Frigate, 1200 seconds for Combat/Fighter/Drone, and 1500 seconds for Civic/Research/Transport. Write numeric values into all nine catalog records; do not hide missing values behind a runtime default. Armor increases repairable HP, not chassis regeneration rate.
+- Document that full recovery by waiting at 20x is allowed and paid repair is the instant alternative. Tune rates through playtesting rather than changing that rule.
+
+**Trade**
+
+- Keep load ownership by equipment UID, capacities 10 goods/4 passengers, existing prices/bonuses and once-only casualty fees.
+- Replace leg-start loading with genuine station undocking. Load cargo from inhabited origins; board passengers at inhabited origins when departing toward an inhabited destination. Never create passengers/cargo at a mid-space reroute or POI.
+- A course change preserves existing loads and origin; it neither duplicates nor refunds them. As in current automatic delivery, the next eligible inhabited arrival can deliver without a load-management modal.
+- Prevent same-origin redocking, zero-length routes and repeated arrival callbacks from minting credits. Loads returning to their origin stay aboard until a different inhabited destination.
+- Noninhabited detours keep loads. Host destruction clears them and charges passenger fees once, even if settlement is retried or continued.
+- Supply explicit departure/arrival transaction IDs. Do not reuse a completed station-visit receipt for every later legitimate visit; do not award a location's one-time salvage on each visit.
+
+### 3.8 Encounters, discovery and persistent space
+
+- Author locations and events as validated data with stable string IDs, positions, region/act, service flags, discovery/access conditions, trigger and effects. UI text may reference existing localization patterns; do not hard-code narrative callbacks into travel.
+- Event triggers needed now: entering a region/radius, crossing a route interval, docking, traveled-day threshold, completion of another encounter, and a seeded optional/random encounter. Choices support flags, credits/fuel, revealing/changing locations and starting an existing combat template.
+- Minimum prototype content: neutral communications decision, derelict salvage, distress POI, ambient anomaly, asteroid corridor, ambient nebula, hostile patrol and two service destinations. Use existing enemies/art and neutral placeholder text, not the incoming storyline.
+- Retain three act regions and gate hooks. Start with public Act-I navigation destinations discovered; later regions require an explicit fixture gate. Do not make inaccessible regions reachable by drawing a straight line across them.
+- Derive optional POIs from seed + generator version + spatial cell + candidate index, not frame rate, the number of reroutes or a new random roll on each selected leg.
+- Use independent deterministic RNG streams for world generation, encounter scheduling/combat, loot and cosmetic effects. Persist authoritative RNG states/cursors as decimal strings where integer precision requires it.
+- Random encounter admission uses traveled distance and persisted pacing/cooldown, never wall-clock time. Do not roll repeatedly while stopped, paused, docked or re-opening the map. Going back and forth cannot reset a cell's cleared enemies or salvage.
+- Discoveries are global world facts. Ignored optional contacts remain discovered on the map and do not repeatedly interrupt until another explicit state change warrants it.
+- Materialize authoritative POIs/enemies/hazards before they affect the fleet. Generate decorative cells lazily, cull them by camera, and unload inactive physical cells only after recording durable mutations.
+- Store visited stations separately from discovery; neither implies all nearby threats/loot are cleared. Location modifications, completed choices, consumed salvage and destroyed enemies survive revisit/Continue.
+- Suspend unloaded areas rather than simulating the whole galaxy. Retain mutable enemy/hazard records and last local state; no offline respawn, regeneration or random reward roll.
+- Seed stationary station scenery by location identity and streamed scenery by cell identity. Preserve the normalized menu-starfield principle: resizing and UI actions do not change layout. Do not copy transient star arrays into saves.
+- Nebulas initially provide visible environmental presentation and map metadata only. Solar/nebula equipment modifiers remain deferred unless already functional; do not invent new debuffs.
+- Asteroids are actual neutral physical hazards during travel and combat: drift, interception, silhouette collision and persistent fracture. No mining/material payouts. Slow to 1x before entering a dangerous field so automatic navigation is readable; no manual dodging requirement.
+
+## 4. Persistence contract
+
+Use a fresh `user://expedition_run.json` namespace with payload `format: "continuous_expedition", version: 1`, wrapped by existing `AtomicRunStore`. No migration or old-run chooser. New Run/Continue use this namespace; old files remain untouched and are not prerequisites.
+
+Do not remove `.next`/`.bak` reliability for new saves merely because old-save compatibility is unwanted.
+
+### Required saved state
+
+| Group | Required authoritative data |
+| --- | --- |
+| Identity | Run ID, seed, difficulty, payload version, world-generator/tuning version |
+| Physical economy | Ship IDs/chassis/hull/formation, equipment UIDs/ranks/mounts/loads, next IDs, credits, research/focus/fractions, score |
+| Navigation | NU position, local origin/frame, travel state, target, route origin/progress, retained detour destination, dock location/visit ID, traveled days/distance |
+| Time/resources | Simulation tick/time, fractional fuel/capacity, requested speed, durable pause/event state; no accumulated offline wall time |
+| World | Discovered/visited IDs, materialized mutable locations/cells, encounter statuses, destroyed entities, claimed salvage, flags/gates, generation/pacing cursors |
+| Events | Stable event instance IDs, pending decisions/options, already-applied effect receipts, admission ordering/cooldowns |
+| Active encounter | Encounter ID/template/version, objectives/waves, engagement-local origin, current phase, enemies and player actors, damage/score deltas, pending settlement/result |
+| Combat runtime | Hull references, shields, poses/velocities/headings, cooldowns, targets/orders by ID, projectile/beam gameplay state, RNG, command sequence/receipts, ability/visibility state, doctrine/carrier timers/sorties/ammo, repair reserves, asteroid records |
+| Rescue | Contract/quote ID, destination, distance/progress, paid fee/refill terms, completion receipt |
+
+Derived caches, textures, masks, UI nodes, cosmetic particles, interpolated poses and star arrays are not saved. Rebuild them without changing simulation facts. Store references by stable IDs and resolve in two passes; no serialized live Godot object references.
+
+### Durability and transactions
+
+- Full validation before applying a loaded payload: finite coordinates/fuel/time/health, bounded arrays/counters, unique IDs, legal mounts, required flagship or terminal-loss invariant, valid graph-independent routes, valid service/dock state, reachable entity references and mutually consistent event/settlement receipts.
+- Factor common physical payload validation for reuse rather than weakening `HangarCheckpoint.valid` to accept contradictory old/new shapes. Move shared scalar validation dependencies in trade/science toward `SaveValidation` where required by the new validator.
+- Routine transactions stage a proposal at a simulation tick boundary, validate/save, then apply only the accepted delta to stable runtime entities. Never recreate the whole fleet on a research-focus or credit update.
+- Periodic autosave: every five **real** seconds of active play when dirty, not five multiplied simulation seconds. Also save on route/stop commands, docking, discovery/decision boundaries, research completion, purchases/refits, encounter admission/settlement, terminal loss and orderly exit.
+- Smooth simulation may have up to five real seconds of crash rollback between autosaves. Gameplay transactions and event receipts are durable immediately; this rollback allowance is not permission to show success before commit.
+- Serialize an immutable snapshot from one tick. Queue input during commit; simulation does not race snapshot mutation. Start with the simplest measured implementation; add a writer thread only if profiling proves it necessary.
+- Failed transactions leave pre-command state and RNG/IDs unchanged. A failed periodic save pauses the current consistent runtime and offers retry; do not quietly continue accumulating uncheckpointed events.
+- Commit outcome, lost equipment/loads, passenger fees, credits, physical loot UID, score, carrier state and encounter/world receipts together. Keep a pending settlement idempotent across retry/crash/Continue.
+- Restore mid-cruise, stopped, docked, mid-choice, mid-tow and mid-combat. Do not reset combat to the encounter start, heal enemies, refill shields or replay the whole journey.
+- Carrier allowances remain per encounter and per equipment UID, matching current semantics. Only a genuinely new encounter initializes a new allowance; revisits/reloads/transfers/re-engagements of the same encounter do not.
+- Main-menu summary must distinguish no save, unsupported expedition version, corrupt save and valid ongoing/terminal run. Never silently turn a failed Continue into New Run.
+
+## 5. Work packages and dependencies
+
+All proposed paths below are recommendations, not permission to build a generic framework. Reuse existing classes where a small extraction suffices. Keep types and module ownership clear; do not create one manager per event type.
+
+**Shared-file rule:** designate one integration owner for [scripts/hangar_state.gd](scripts/hangar_state.gd), [scripts/battle_simulation.gd](scripts/battle_simulation.gd), [scripts/hangar_screen.gd](scripts/hangar_screen.gd) and the baseline runner in each implementation batch. Parallel agents may own isolated modules/tests; they must not independently rewrite these files.
+
+### Phase 1 - Continuous flight prototype
+
+#### E01 - Establish data/command contracts and mechanical fixture
+
+**Depends on:** none. **Owner area:** schema/content foundation.
+
+- [ ] Define typed travel/pause/event enums and a small `scripts/expedition_state.gd` DTO with validation boundaries from sections 3-4.
+- [ ] Add proposed `data/expedition_tuning.json` and `data/expedition_locations.json` plus minimal event fixture data. Validate IDs, services, positions, gates, numeric limits and references on load.
+- [ ] Adapt `CampaignGraph` geometry into NU locations without treating edges as route restrictions. Copy/derive only the required location metadata; old mandatory combat rows and boss flags are not arrival actions.
+- [ ] Define GameState commands: preview/select course, stop/resume/cancel, choose event, dock/undock, quote/buy fuel, quote/accept rescue, and existing physical services. Return repository-standard explicit error information.
+- [ ] Specify one tick-boundary command ordering rule, stable run/location/encounter/visit IDs and save schema before parallel consumers start.
+- [ ] Add malformed-data and fixture-connectivity tests in proposed `tests/test_expedition_state.gd`.
+
+**Acceptance:** one deterministic, story-neutral world fixture has three represented act regions, usable initial service destinations, a gated later region and stable IDs. No old story sequence starts automatically.
+
+#### E02 - Add one fixed-step expedition clock and state machine
+
+**Depends on:** E01. **Owner area:** simulation core.
+
+- [ ] Implement proposed `scripts/expedition_simulation.gd` as the sole tick coordinator, owned by GameState.
+- [ ] Implement speed/pause reasons, the three clocks, route interpolation, stop/resume/cancel, reroute from current NU position and boundary clipping.
+- [ ] Use travel-state transitions/interrupt priority from section 3.4. Remove the six-step time-discard policy from the expedition path.
+- [ ] Implement typed proposal/event output so tick advancement does not emit uncommitted economic UI success.
+- [ ] Add overload handling that preserves input responsiveness and reports reduced effective speed.
+- [ ] Add proposed `tests/test_expedition_navigation.gd`: identical elapsed simulation produces identical distance at 1x/5x/20x; 20x does not skip arrival, interruption or zero-fuel boundaries.
+
+**Acceptance:** a headless route can be stopped/rerouted repeatedly at arbitrary fractions with no teleport, extra days, duplicate arrivals or leftover fast-forward ticks after interruption.
+
+#### E03 - Mount the persistent world and continuous fleet
+
+**Depends on:** E01, E02. **Owner area:** world view plus combat lifecycle integration.
+
+- [ ] Rework `game_map.tscn` into an expedition shell with proposed `scripts/expedition_screen.gd`; leave reusable hangar panel logic available for E05.
+- [ ] Factor player initialization/noncombat movement from `BattleSimulation.setup_owned`; support a valid fleet in an empty world without immediately declaring victory/withdrawal.
+- [ ] Render the same player actors with shared art/collision scale in cruise and stationary states. No map fleet-preview replacement during travel.
+- [ ] Add camera-follow/upward travel projection, smooth reroute frame changes, floating-origin handling and deterministic scrolling star cells.
+- [ ] Handle pause/stop exhaust, resizing and overlay-safe camera framing without regenerating stars or resetting pan/zoom.
+- [ ] Add proposed `tests/test_expedition_world.gd`, including actor/root identity assertions and projection/rebase checks.
+
+**Acceptance:** the flagship and escorts cruise upward, stop and reverse strategic course without scene replacement, actor respawn, background reseeding or formation teleport. No combat AI runs merely because an empty cruise world exists.
+
+#### E04 - Establish fresh expedition saves and stable live commits
+
+**Depends on:** E01, E02, E03. **Owner area:** GameState/persistence.
+
+- [ ] Add proposed `scripts/expedition_checkpoint.gd`; reuse AtomicRunStore and shared physical validation without node-pending constraints.
+- [ ] Make new-run save path/summary/Continue use the expedition namespace. Preserve starter choices and transactional new-run failure handling.
+- [ ] Replace routine `_apply_hangar` reconstruction with validated reconciliation by ID/UID. Preserve runtime actor references and update only affected stats/caches.
+- [ ] Save/restore prototype cruise/stopped/docked state, route, clocks, resources, focus and pending interruptions. Add later-state fields incrementally with E07/E09/E11; do not mark full persistence done here.
+- [ ] Implement periodic/event checkpoint policy and explicit save-error pause/retry.
+- [ ] Add proposed `tests/test_expedition_persistence.gd`: crash-stage recovery, bad payload rejection, generation conflicts, failure rollback and object identity preservation.
+
+**Acceptance:** Continue resumes the exact prototype position paused; a focus/credit/save operation does not move or reset the live fleet. Old user files are neither read as expeditions nor rewritten.
+
+#### E05 - Embed live management, speed HUD and basic map controls
+
+**Depends on:** E03, E04. **Owner area:** UI.
+
+- [ ] Extract/parameterize hangar panel construction so it has no root scene/music ownership or opaque full-screen background.
+- [ ] Implement persistent destination/status, Stop/Resume, Pause/1x/5x/20x and fuel HUD using shared styles. Show actual/effective speed when limited.
+- [ ] Embed Fleet/Ships/Research/Map as live panels with fleet-safe visible area. Preserve direct-art fitting, selection, filters and camera state.
+- [ ] Remove `traveling` UI lockout and graph Tween authority. Basic map route controls call new commands; final discovery/range map is E08.
+- [ ] Apply backend service capability checks immediately; prototype shipyard access must not let an undocked fleet refit.
+- [ ] Wire alert priority/input cancellation so threats and decisions cannot be hidden behind management or inherit stale clicks.
+- [ ] Add proposed `tests/test_expedition_ui.gd` native layout/interaction coverage at 640x360, 1280x720 and 1920x1080.
+
+**Acceptance:** opening and using Research/Map while cruising at 5x keeps simulation live and the actual fleet visible. Pause stops simulation, not UI. No management close action silently resumes a paused game.
+
+#### E06 - Add event admission and interruption plumbing
+
+**Depends on:** E01, E02, E04, E05. **Owner area:** event system.
+
+- [ ] Implement proposed `scripts/expedition_events.gd` for validated trigger conditions, stable instance IDs, ordered admission, decisions and atomic effects.
+- [ ] Add scripted distance/radius/arrival triggers and placeholder communication/choice event; hook combat admission to E11's eventual adapter.
+- [ ] Persist pending events/receipts before presenting decisions; retry/save/load cannot replay the effect.
+- [ ] Handle coincident events, segment sweeps, deferral under combat and interruption of live management without deleting the route.
+- [ ] Add proposed `tests/test_expedition_events.gd`: all speeds, multiple boundaries in one frame, repeated choice submits, failed commits and reload pending decisions.
+
+**Phase 1 gate:** native demo shows continuous fleet travel, mid-leg course change, Stop versus Pause, all speeds, a scripted interruption, live management and working Continue. No scene swaps. It is a prototype, not the complete feature; fuel, persistent POIs and seamless combat remain mandatory.
+
+### Phase 2 - Physical destinations and persistent exploration
+
+#### E07 - Add deterministic world discovery and mutable locations
+
+**Depends on:** E01, E02, E04, E06. **Owner area:** world model.
+
+- [ ] Implement proposed `scripts/expedition_world.gd` for location/cell identity, lazy materialization, discovery, visitation and mutations.
+- [ ] Generate the five requested optional POI classes: derelict, asteroid field, distress signal, anomaly and hidden location, using stable spatial seeds.
+- [ ] Separate discovered/visited/cleared/claimed states and persist them; add detour return-target handling.
+- [ ] Persist materialized hostile/hazard state before unload; reload cannot recreate destroyed entities or loot.
+- [ ] Add fixture gates and reject illegal cross-region segments without reinstating beacon-edge routing.
+- [ ] Extend world/persistence tests for revisits, detour cancellation, seed reproducibility, resize independence, RNG separation and repeated rerouting.
+
+**Acceptance:** the same seed and traveled area give the same contacts regardless of frame rate, overlay use or route replanning. Returning to a derelict does not restore claimed salvage.
+
+#### E08 - Finish the strategic overlay
+
+**Depends on:** E05, E07. **Owner area:** map UI.
+
+- [ ] Bind `GraphView` to expedition locations/position rather than `get_reachable_nodes(current)`. Reuse its pan/zoom/hit testing and station art.
+- [ ] Show three act regions, discovered/public stations, unknown-region treatment, current continuous position, chosen destination and straight planned segment.
+- [ ] Show current range, remaining distance, travel-day ETA, selected-speed ETA and destination services/known conditions; calculations must match actual route physics.
+- [ ] Retain optional-discovery markers, planned detour/return target and visited/cleared distinctions without exposing hidden enemies.
+- [ ] Preserve map pan/zoom on state refresh and while the fleet marker moves. Do not re-run `set_current_node` camera reset for every tick.
+- [ ] Validate hit targets and readable details at all supported sizes; selecting inspects, explicit Travel changes course.
+
+**Acceptance:** at a mid-leg stop the marker and fuel/ETA preview are correct; the player can route to a discovered non-neighbor and a discovered detour, but not a locked region.
+
+#### E09 - Fuel, docking, service access and rescue
+
+**Depends on:** E04, E05, E07, E08. **Owner area:** economy/service integration.
+
+- [ ] Add distance-accounted fractional fuel with exact depletion clipping and speed-independent quotes.
+- [ ] Physically render/approach selected stations, dock once within arrival radius and open only declared services. Do not trigger services on mere proximity.
+- [ ] Gate every buy/refit/unequip/transfer/sale/salvage/repair command at a docked shipyard; preserve atomic drag rollback and quote invalidation.
+- [ ] Implement refuel amount/price/confirm using shared UI; commit tank and credits atomically.
+- [ ] Implement quoted rescue contract, visible tow, emergency station refill, explicit debt and no softlocks. Save/restore mid-tow.
+- [ ] Adapt HangarTrade to undock/dock visit IDs, reroute-safe UID loads, distinct-origin delivery and once-only fees.
+- [ ] Add proposed `tests/test_expedition_services.gd`: 1x/20x same fuel, zero fuel mid-tick, insufficient credits, debt rescue, reload tow, duplicate dock, service rejection and trade exploit cases.
+
+**Phase 2 gate:** depart a shipyard with trade loads, discover/investigate a POI, reroute to a nonadjacent port, dock/refuel/refit, return to a changed location and Continue. Exhaust fuel with no credits and recover through the actual UI. Nothing reloads the gameplay scene.
+
+### Phase 3 - Continuous activities, combat and pacing
+
+#### E10 - Continuous research and chassis self-repair
+
+**Depends on:** E02, E04, E05, E09. **Owner area:** activity/economy integration.
+
+- [ ] Replace `journey_rp` departure/arrival settlement in the expedition path with distance-interval focus allocation.
+- [ ] Preserve fractional project progress and existing rates/bonuses; stop precisely on research completion and persist completion/score once.
+- [ ] Make live focus changes safe while traveling; retain current tree camera/interaction behavior and clear, nonduplicated rate/progress display.
+- [ ] Add explicit catalog regeneration rates, validation and ship inspection text. Advance hull from noncombat simulation seconds, not travel days or real seconds.
+- [ ] Requote instant repair after regeneration, coalesce repair-completion interruption and avoid notifications every tick at max hull.
+- [ ] Test all clock combinations: cruise/stop/dock/tow/combat/pause; 1x/5x/20x; zero hull; destruction; full hull; lost lab; focus switch; failed save/reload.
+
+**Acceptance:** equal traveled distance yields equal research at all speeds. Equal noncombat simulation time yields equal healing whether moving or docked; stopped time earns no RP. No healing occurs during combat or Pause.
+
+#### E11 - Admit and resolve combat without rebuilding the world
+
+**Depends on:** E03, E04, E06, E07, E09, E10. **Owner area:** combat integration.
+
+- [ ] Add encounter admission to the existing long-lived actor registry: stable enemy IDs, nearby entry positions and per-encounter context/objectives. Keep player poses, shields, cooldowns and environment.
+- [ ] Separate engagement phase from persistent-world liveness. No empty-world victory, idle auto-withdrawal or global entity reset.
+- [ ] Center existing AI arena assumptions on encounter position; keep combat bounds/targeting/visibility coherent with upward travel and rebasing.
+- [ ] Freeze cruise, reduce speed to 1x before hostile simulation, preserve user Pause, and immediately surface threats through management.
+- [ ] Reuse audio, radar, ability/target controls, active weapon/support behaviors, finite carriers, asteroid/projectile collisions and visual effects.
+- [ ] Key rewards/reserves/loot by encounter ID, not destination node. Preserve per-UID allowances across reloads/transfers and terminate sorties on source loss.
+- [ ] Implement a real runtime save/restore codec, proposed `scripts/expedition_combat_codec.gd`, covering section 4. Rehydrate references in two passes and restore authoritative RNG/counters before advancing.
+- [ ] Add combat outcome transaction detached from destination arrival; remove dead hosts/equipment/loads and settle credits/loot/score/receipts exactly once.
+- [ ] Keep surviving ships in place, show a compact saved report, regroup by desired offsets and resume retained route at 1x. New destination orders issued during combat apply afterward.
+- [ ] Handle final damaging shots, source loss, pending waves, stalemate/withdrawal, save failure and simultaneous flagship death without accidental reward/resume.
+- [ ] Add proposed `tests/test_expedition_combat.gd`: uninterrupted versus mid-fight restored continuation, active carrier/ability/shot/asteroid state, repeated settlement, phase-boundary crash and live actor identity.
+
+**Acceptance:** travel -> visible enemies -> autobattle -> report -> regroup -> travel uses the same root/world/player actor identities. Continue mid-fight yields the same authoritative outcome as uninterrupted simulation. Victory does not teleport to the destination or settle untraveled research.
+
+#### E12 - Stream physical environments and tune encounter pacing
+
+**Depends on:** E07, E10, E11. **Owner area:** environment/pacing.
+
+- [ ] Integrate real asteroid-field streaming with travel and combat, including offscreen persistence, fracture state and swept high-speed boundary admission.
+- [ ] Add ambient nebula transitions and seeded station/cell scenery using existing art; keep stars/scenery distinct from gameplay RNG.
+- [ ] Add seeded hostile/random event scheduling with travel-distance cooldowns, region eligibility, safe dock zones and no spawn-on-stop/replan farming.
+- [ ] Prevent overlapping incompatible major encounters; queue mandatory triggers and keep optional discoveries available rather than losing them.
+- [ ] Tune fixture journey length, initial known destinations, fuel station spacing, POI offset/density and interrupt rate. No full campaign/story authoring.
+- [ ] Add proposed `tests/test_expedition_pacing.gd`: many-seed bounded travel intervals, no unavoidable fuel dead ends, no repeated cleared spawns and stable 20x interruptions.
+
+**Acceptance:** a representative 10-15 minute UI playthrough includes useful research, regeneration, trade/refit, at least one optional detour, asteroid/nebula traversal and two natural battles, without long empty travel or constant popup spam.
+
+### Phase 4 - Integration, regression and owner review
+
+#### E13 - Complete entry/exit, retire obsolete runtime paths and port tests
+
+**Depends on:** E08, E09, E10, E11, E12. **Owner area:** integration.
+
+- [ ] Ensure New Run and Continue always enter the expedition shell, including active encounters/decisions/tows. Remove runtime dispatch to `auto_battle.tscn`.
+- [ ] Remove old instantaneous travel/research settlement and map flight Tween from active code; do not leave hidden duplicate rewards or a legacy playable mode.
+- [ ] Preserve standalone combat/legacy DTO readers only where existing tests/shared dependencies still need them. No broad unrelated deletion.
+- [ ] Port current node campaign/navigation/playthrough/UI expectations to the new contracts. Retain ownership, mounted art, research rules, equipment, carrier, score, hull, sprite collision and atomic failure coverage.
+- [ ] Extend [tests/run_baseline.ps1](tests/run_baseline.ps1) with expedition suites and native UI/world/combat checks, using its isolated APPDATA. Do not mark required tests skipped to get a green baseline.
+- [ ] Run the complete baseline and native checks after focused suites pass. Explicitly record any unrelated pre-existing diagnostics separately.
+- [ ] Update [docs/HANGAR.md](docs/HANGAR.md), [docs/UI_PLAYTEST_POLISH.md](docs/UI_PLAYTEST_POLISH.md), [docs/HANGAR_DRAG_DROP.md](docs/HANGAR_DRAG_DROP.md), [docs/INTERMEDIATE_EQUIPMENT.md](docs/INTERMEDIATE_EQUIPMENT.md) and [docs/LEGACY_BOUNDARIES.md](docs/LEGACY_BOUNDARIES.md) where behavior/entry boundaries changed. Update other active user-facing help/README only where applicable.
+
+**Acceptance:** no active help/UI claims RP is paid on arrival, that beacon adjacency is required, or that midflight shipyard actions are available. All supported Continue states are demonstrably resumable.
+
+#### E14 - Verify performance, persistence soak and final UX
+
+**Depends on:** E13. **Owner area:** verification and tuning.
+
+- [ ] Add proposed `tests/test_expedition_playthrough.gd` exercising the whole mechanical loop without injected credits/research or forced combat results.
+- [ ] Run deterministic long-route and revisit soak tests across at least ten seeds. Include repeated save/load, mid-combat/tow resumes, destroyed enemies, claimed salvage and late-region fixture gates.
+- [ ] Fault-inject before stage, after stage and during promotion using AtomicRunStore semantics; test command retries and terminal loss settlement.
+- [ ] Native review at 640x360, 1280x720 and 1920x1080: live fleet visibility, no scene flashes, readable alerts, fitting geometry, map pan/zoom, station panel behavior and focus/input safety.
+- [ ] Profile full legal fleet plus current encounter entity caps, dense asteroid fixture and 20x cruise. Preserve existing visual/light/entity limits; no unbounded star/enemy/event node accumulation.
+- [ ] Capture timings using monotonic measurements: average achieved speed within 5% of requested 20x over 60 real seconds of clear cruise on the recorded reference machine; event interruption within one simulation tick; no more than one authoritative tick beyond trigger tolerance.
+- [ ] Target 60 FPS native at 1280x720 (95th-percentile frame <= 16.7 ms, 99th <= 33.3 ms) and no >100 ms UI/save stalls on the reference machine. Report machine/configuration and actual percentiles; if unmet, optimize or explicitly block completion instead of claiming success.
+- [ ] Run a 30-minute accelerated world-streaming soak after warm-up: active cell/entity counts stay within configured caps and memory shows no monotonic growth from cleared encounters/closed panels.
+- [ ] Play the representative slice end-to-end through UI, including empty-tank rescue with debt, waiting docked for free repair, rerouting during combat and once-only report rewards.
+- [ ] Obtain owner review of live management layout, travel readability, interruptions, regen/fuel tuning and overall continuity. Record remaining UX issues here; no new story/content backlog until this gate passes.
+
+**Done means:** requirements in section 7 pass; current baseline/native tests pass; new saved state survives all required resumes; the owner can review the continuous mechanical slice. A scrolling background over the old node/battle scene loop is not completion.
+
+## 6. Draft tuning and delegation guidance
+
+These are implementation starting values, not owner-confirmed balance. Keep them explicit and centralized so later agents do not independently choose incompatible scales.
+
+| Setting | Initial draft |
+| --- | --- |
+| Navigation layout | Existing normalized three-act positions scaled to 7200 x 1200 NU; fixture station placement may be adjusted for refuel reachability |
+| Travel conversion | 100 NU per campaign day |
+| Cruise speed | 4 NU per simulation second; 25 seconds at 1x per traveled day |
+| Presentation conversion | 8 tactical world units per NU; independent of viewport/map zoom |
+| Fuel | Capacity/start 100; consumption 0.1 per NU; refuel 2 credits per unit with total rounded up once per quote |
+| Rescue | Refill price + 100 credits base + 0.2 credits per NU, total rounded up once; disclosed debt allowed |
+| Typical early leg | 200-400 NU / 2-4 travel days / 50-100 seconds at 1x; 2.5-5 seconds at 20x if uninterrupted |
+| Physical location arrival | 4 NU radius; clip to first entry, not node center; quote/pay/travel use the same arrival geometry |
+| Spatial generation cell | 200 NU square, versioned seed/key |
+| Optional POI offsets | 20-60 NU off likely routes; deterministic cell candidates, not per-click random generation |
+| Major pacing | Aim for a meaningful contact/opportunity every 100-200 NU; at least 80 NU between admitted random major interruptions, unless scripted |
+| Regeneration | Per-chassis numeric rates derived from section 3.7; never a uniform hidden fallback |
+| Autosave | Five real seconds while dirty plus durable command/event boundaries |
+
+Pacing bounds apply to the representative fixture, not a promise that every arbitrary free-space course contains a story event. Use seeded supplemental contacts/ambient changes to avoid empty corridors; do not manufacture mandatory combat every fixed interval.
+
+Generation must verify an accessible sequence of refueling stations with legs comfortably inside full-tank range, including after region unlocks. Rescue remains a fallback, not required normal routing. Named narrative locations and branch restrictions can later replace these drafts through data.
+
+### Safe implementation batches
+
+1. E01 first. Agree on command/data contracts before parallel implementation.
+2. E02 -> E03 -> E04 establish the authoritative runtime and identity/save boundary.
+3. E05 -> E06 completes the first playable prototype.
+4. E07 -> E08 -> E09 delivers physical destination navigation.
+5. E10 -> E11 -> E12 delivers activities, seamless combat and pacing.
+6. E13 -> E14 integrates and verifies the whole conversion.
+
+This dependency order intentionally limits parallel work in shared core files. Parallelize fixture authoring, isolated tests and visual assets/layout prototypes only after their required contracts exist. Do not parallelize several incompatible GameState/BattleSimulation refactors.
+
+Every implementation handoff must include: completed task IDs, exact files touched, contract/schema changes, focused test commands/results, failure-injection results where applicable, native evidence when UI changed, and remaining blockers. Keep unchecked work unchecked; a stub/event interface is not its later integration.
+
+## 7. Final requirement checklist
+
+| Requirement | Owning tasks | Required evidence |
+| --- | --- | --- |
+| Continuous upward fleet/world | E02, E03, E05, E11 | Root/world/actor identity tests and native travel-combat-dock capture |
+| Automatic navigation and rerouting | E02, E07, E08 | Mid-leg reroute/stop/resume/cancel; free non-neighbor course; no teleport |
+| Pause/1x/5x/20x and interrupts | E02, E06, E10, E11, E14 | Equal-sim-time state, swept boundaries, effective-speed measurement, no stale 20x continuation |
+| Three-act strategic overlay | E01, E08 | Continuous position, gates, discovered locations, planned route/range and preserved pan/zoom |
+| Detours/exploration | E06, E07, E12 | All five POI types, Investigate/Continue, return target, revisit consistency |
+| Fuel/refueling/rescue | E09 | Same-distance fuel equivalence, zero crossing, atomic quotes and debt recovery |
+| Background activities | E10 | Moving-only research, unpaused noncombat regeneration including docked/stopped, no construction |
+| Seamless autobattle | E03, E11 | In-place enemy admission, unchanged player identities, live equipment, saved result and regroup/resume |
+| Physical station interactions | E05, E09 | Docked service gating, visible approach, real trade arrivals and no midflight refit |
+| Scripted/random event foundation | E06, E07, E12 | Validated triggers/effects, pending choices, deterministic admission and no duplicated effects |
+| Persistent world | E04, E07, E09, E11, E14 | Midroute/midfight/midtow restore, cleared enemies/loot, once-only transactions and failure recovery |
+| Pacing and UX | E05, E12, E14 | Natural representative playthrough, native resolutions, bounded streaming and measured performance |
+
+No new storyline implementation is required to check any row. Story integration starts after these mechanics and UI are reviewed.
