@@ -79,6 +79,8 @@ func set_ship(ship: HangarShip, comparison := true) -> void:
 			numeric = "%d / %d" % [roundi(ship.hull_hp), roundi(ship.hull_max)]
 		var label := ResourceText.create("%s %s" % [TITLES[index], numeric])
 		label.name = "StatValue"
+		if key == "hull" and not comparison:
+			label.add_to_group("hull_readout")
 		label.theme_type_variation = &"ShipStatText"
 		label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		cell.add_child(label)
@@ -101,6 +103,8 @@ func set_ship(ship: HangarShip, comparison := true) -> void:
 			else 100.0 * clampf(ship.hull_hp / maxf(1.0, ship.hull_max), 0.0, 1.0)
 		cell.add_child(bar)
 		bars[key] = bar
+		if not comparison:
+			bar.add_to_group("hull_readout")
 	var stats := ship.get_stats()
 	if stats.dps > 0:
 		_add_readout("DPS %d" % roundi(stats.dps))
@@ -122,6 +126,8 @@ func _add_readout(value: String) -> void:
 	var label := ResourceText.create(value)
 	label.theme_type_variation = &"ShipStatText"
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	if value.begins_with("Cargo") or value.begins_with("Passengers"):
+		label.add_to_group("transport_readout")
 	add_child(label)
 	label.resized.connect(_fit_value.bind(label))
 	label.theme_changed.connect(_fit_value.bind(label))

@@ -118,10 +118,53 @@ func run() -> void:
 	await settle()
 	check(screen.voyage_summary.text.begins_with("Cargo\n10 / 10"), "Continue restores actual carried quantity")
 	check(state.expedition_simulation.set_speed(10), "Speed up delivery fixture")
-	var result: Dictionary = state.advance_expedition(100)
-	check(result.ok and result.delivered > 0, "Arrival delivers physical cargo")
+	var income_before: int = state.credits
+	screen._advance_expedition(100)
+	check(state.credits > income_before, "Arrival delivers physical cargo")
+	check(screen.delivery_readout.visible and screen.delivery_readout.source_text == "+%d cr" % (state.credits - income_before)
+		and screen.instrument_seconds.transport > 0,
+		"Committed delivery shows exact income beside the wallet and cues the transport source")
+	var duplicate_delivery := false
+	var toasts := screen.get_node_or_null("Toasts")
+	if toasts != null:
+		for toast: Node in toasts.get_children():
+			for line: Node in toast.get_children():
+				if line is Label and line.text.contains("Delivery paid"):
+					duplicate_delivery = true
+	check(not duplicate_delivery, "Delivery does not repeat its wallet feedback as a prose toast")
 	screen._refresh_expedition_controls()
 	check(screen.voyage_summary.text.begins_with("Cargo\n0 / 10"), "Delivery clears carried quantity but retains capacity")
+	var feedback_camera: Vector2 = screen.graph.camera_position
+	var feedback_zoom: float = screen.graph.camera_zoom
+	var feedback_state: Dictionary = state.hangar_snapshot()
+	screen._update_instrument_feedback(0.2)
+	check(screen.voyage_summary.self_modulate != Color.WHITE,
+		"Delivery cue is visible on the transport readout without relying on audio")
+	screen._refresh()
+	await settle()
+	check(screen.delivery_readout.visible and screen.delivery_income == state.credits - income_before,
+		"Routine refresh preserves the earned-income cue without replaying delivery")
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		screen._update_instrument_feedback(0)
+		check(screen.get_global_rect().grow(1).encloses(screen.delivery_readout.get_global_rect())
+			and screen.delivery_readout.mouse_filter == Control.MOUSE_FILTER_IGNORE
+			and screen.delivery_readout.size.x >= screen.delivery_readout.get_theme_font("normal_font").get_string_size(
+				"+%d " % screen.delivery_income, HORIZONTAL_ALIGNMENT_LEFT, -1,
+				screen.delivery_readout.get_theme_font_size("normal_font_size")).x
+				+ screen.delivery_readout.get_theme_font_size("normal_font_size"),
+			"Wallet income stays inside the viewport and cannot intercept input at %s" % resolution)
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/checks/instrument-feedback/income-%d.png" % resolution.x)
+	check(screen.graph.camera_position == feedback_camera and screen.graph.camera_zoom == feedback_zoom
+		and state.hangar_snapshot() == feedback_state,
+		"Income and instrument cues preserve map view and saved gameplay state")
+	screen._update_instrument_feedback(2)
+	check(not screen.delivery_readout.visible and screen.voyage_summary.self_modulate == Color.WHITE
+		and screen.delivery_income == 0, "Delivery feedback expires and restores the unmodified instrument")
+	root.size = Vector2i(1280, 720)
 	screen.active_tab = "FLEET"
 	screen._refresh()
 	await settle()
@@ -320,6 +363,41 @@ func run() -> void:
 		if child is ResourceText and child.source_text.contains("10 cargo"):
 			duplicate_effect = true
 	check(not duplicate_effect, "Refit options do not repeat the installed-part effect already shown below the ship")
+	var notice: Control = screen.get_node("ResearchCompletion")
+	notice.set_process(false)
+	state.research_completion_notices.clear()
+	state.research_completion_notices.append("laboratory_ii")
+	notice._process(0)
+	notice._process(0.2)
+	check(notice.visible and notice.title.source_text.contains("Laboratory II")
+		and notice.effect.source_text.contains("2 RP/day"),
+		"Research completion banner identifies the upgrade and its real gameplay effect")
+	check(notice.get_theme_stylebox("panel").texture.resource_path.ends_with("Popup_GameTips.png")
+		and notice.mouse_filter == Control.MOUSE_FILTER_IGNORE and not notice.is_in_group("modal_ui"),
+		"Completion uses supplied popup artwork without blocking input or becoming a modal")
+	var banner_state: Dictionary = state.hangar_snapshot()
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		notice._process(0)
+		check(screen.get_global_rect().grow(1).encloses(notice.get_global_rect())
+			and notice.size.x >= screen.size.x - 17
+			and notice.get_global_rect().grow(1).encloses(notice.effect.get_global_rect()),
+			"Wide completion banner and effect fit at %s" % resolution)
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/checks/research-notice/banner-%d.png" % resolution.x)
+	screen._refresh()
+	await settle()
+	check(notice.visible and notice.remaining > 0 and state.hangar_snapshot() == banner_state,
+		"Ordinary refresh preserves the completion banner without changing speed or saved state")
+	state.research_completion_notices.append("laboratory_iii")
+	notice._process(5)
+	check(notice.visible and notice.title.source_text.contains("Laboratory III"),
+		"Consecutive completions queue instead of overwriting the visible upgrade")
+	notice._process(6)
+	check(not notice.visible and state.research_completion_notices.is_empty(),
+		"Completion banner expires without requiring dismissal")
 	print("EXPEDITION_UI_CLARITY_CHECKS=%d failures=%d" % [checks, failures])
 	screen.queue_free()
 	await settle()

@@ -21,6 +21,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/Victory1_bg.png" id="22_victory"]
 [ext_resource type="Texture2D" path="res://assets/ui/VictoryContent_bg.png" id="23_report_card"]
 [ext_resource type="Texture2D" path="res://assets/ui/Popup_Warning.png" id="24_warning"]
+[ext_resource type="Texture2D" path="res://assets/ui/Popup_GameTips.png" id="34_research_notice"]
 [ext_resource type="Texture2D" path="res://assets/ui/GameOver_bg.png" id="25_game_over"]
 [ext_resource type="Texture2D" path="res://assets/ui/Btn_Rectangle01Red_n.png" id="26_red_button"]
 [ext_resource type="Texture2D" path="res://assets/ui/Btn_Rectangle01Red_p.png" id="27_red_pressed"]
@@ -36,6 +37,17 @@ content_margin_left = 12.0
 content_margin_right = 12.0
 content_margin_top = 2.0
 content_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxTexture" id="Style_research_notice"]
+texture = ExtResource("34_research_notice")
+texture_margin_left = 32.0
+texture_margin_right = 32.0
+texture_margin_top = 32.0
+texture_margin_bottom = 32.0
+content_margin_left = 16.0
+content_margin_right = 16.0
+content_margin_top = 10.0
+content_margin_bottom = 10.0
 
 [sub_resource type="StyleBoxEmpty" id="Style_left_panel"]
 content_margin_left = 36.0
@@ -902,6 +914,12 @@ ResourceText/colors/default_color = Color(0.84, 0.88, 0.9, 1)
 ShipStatText/base_type = &"RichTextLabel"
 ShipStatText/colors/default_color = Color(0.84, 0.88, 0.9, 1)
 ShipStatText/font_sizes/normal_font_size = 10
+InstrumentFeedback/base_type = &"RichTextLabel"
+InstrumentFeedback/colors/default_color = Color(1, 0.85, 0.4, 1)
+InstrumentFeedback/colors/pulse_color = Color(1.8, 1.8, 1.8, 1)
+InstrumentFeedback/font_sizes/normal_font_size = 10
+ResearchNotice/base_type = &"PanelContainer"
+ResearchNotice/styles/panel = SubResource("Style_research_notice")
 EquipmentResourceText/base_type = &"RichTextLabel"
 EquipmentResourceText/colors/default_color = Color(0.84, 0.88, 0.9, 1)
 EquipmentResourceText/font_sizes/normal_font_size = 12

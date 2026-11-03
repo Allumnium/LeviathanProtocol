@@ -166,6 +166,8 @@ func run() -> void:
 	state.run_save_path = "res://project.godot/failed-service.json"
 	repair.pressed.emit()
 	service_snapshot.expedition.pause_reasons = expedition.state.snapshot().pause_reasons
+	check(screen.instrument_seconds.hull == 0,
+			"Failed repair never triggers a success-shaped condition cue")
 	check(state.hangar_snapshot() == service_snapshot and not screen.expedition_status_override.is_empty()
 			and screen.travel_retry_button.visible,
 			"Failed contextual repair preserves hull, loads and credits and exposes save retry")
@@ -173,6 +175,14 @@ func run() -> void:
 	screen._on_expedition_retry_pressed()
 	screen.station_actions.find_child("StationRefuel", true, false).pressed.emit()
 	await settle()
+	check(screen.instrument_seconds.fuel > 0,
+			"Successful refuel triggers a cue at the fuel instrument")
+	screen._update_instrument_feedback(0.2)
+	check(screen.travel_fuel.self_modulate != Color.WHITE,
+			"Refueling is visibly acknowledged without audio or routine text")
+	screen._update_instrument_feedback(1)
+	check(screen.travel_fuel.self_modulate == Color.WHITE,
+			"Fuel cue restores its original appearance after its brief pulse")
 	# Restore a missing-fuel quote to exercise refuel failure independently.
 	expedition.state.fuel -= 10
 	check(state.save_expedition_checkpoint(), "Persist partial fuel service fixture")
@@ -181,6 +191,8 @@ func run() -> void:
 	state.run_save_path = "res://project.godot/failed-service.json"
 	screen.station_actions.find_child("StationRefuel", true, false).pressed.emit()
 	service_snapshot.expedition.pause_reasons = expedition.state.snapshot().pause_reasons
+	check(screen.instrument_seconds.fuel == 0,
+			"Failed refuel cannot pulse the fuel instrument as if it succeeded")
 	check(state.hangar_snapshot() == service_snapshot and screen.travel_retry_button.visible
 			and not screen.expedition_status_override.is_empty(),
 			"Failed contextual refuel preserves fuel and credits with explicit retry")
@@ -206,6 +218,8 @@ func run() -> void:
 	var credits: int = state.credits
 	screen.station_actions.find_child("StationRepairAll", true, false).pressed.emit()
 	await settle()
+	check(screen.instrument_seconds.hull > 0,
+			"Successful paid repair triggers a condition cue after the atomic transaction")
 	check(state.fleet[0].hull_hp == state.fleet[0].hull_max and state.credits < credits
 			and screen.station_actions.find_child("StationRepairAll", true, false) == null,
 			"Repair all charges once and the action disappears")

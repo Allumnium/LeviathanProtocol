@@ -49,6 +49,19 @@ func run() -> void:
 		"Setting focus preserves legacy fractional progress even with an empty bank")
 	check(ScienceRules.format_points(7.99) == "7" and ScienceRules.format_points(8) == "8",
 		"Science displays only spendable integer RP, never rounded-up purchasing power")
+	var completion_fixture: Dictionary = state.hangar_snapshot()
+	completion_fixture.research.research_points = 100
+	check(state._commit_hangar(completion_fixture), "Save focused completion fixture")
+	state.research_completion_notices.clear()
+	state.run_save_path = "res://project.godot/blocked-completion.json"
+	check(not state.set_research_focus("applied_energy") and state.research_completion_notices.is_empty(),
+		"Failed research completion cannot queue a success banner")
+	state.run_save_path = save_path
+	check(state.set_research_focus("applied_energy")
+		and state.research_completion_notices == ["applied_energy"],
+		"Bank-funded completion queues the exact upgrade only after committing")
+	check(state.load_run_checkpoint() and state.research_completion_notices.is_empty(),
+		"Continue does not replay historical completion banners")
 	check(state.start_new_run(1, 42), "Restart rank fixture with empty bank")
 	var overflow_progress: Dictionary = state.hangar_snapshot().research
 	overflow_progress.research_focus = "applied_energy"

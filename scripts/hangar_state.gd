@@ -51,6 +51,7 @@ var last_event_result := ""
 var pending_intro := false
 # UI-only: refresh the arrived location when returning from an arrival battle.
 var arrival_notice := ""
+var research_completion_notices: Array[String] = []
 var _checkpoint_store := AtomicRunStore.new()
 
 
@@ -98,6 +99,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	credits = 700
 	run_score = RunScore.initial()
 	current_research_ids = ["foundation"]
+	research_completion_notices.clear()
 	research_focus = ""
 	research_progress = {}
 	research_points = 0.0
@@ -201,7 +203,11 @@ func hangar_snapshot() -> Dictionary:
 		data.expedition = expedition_simulation.state.snapshot()
 	return data
 
-func _apply_hangar(data: Dictionary, restore_expedition := false) -> void:
+func _apply_hangar(data: Dictionary, restore_expedition := false, announce_research := false) -> void:
+	if announce_research:
+		for id: String in data.research.research_ids:
+			if id != "foundation" and id not in current_research_ids:
+				research_completion_notices.append(id)
 	run_id = data.run_id
 	run_seed = int(data.seed)
 	difficulty = int(data.difficulty) as Difficulty
@@ -268,7 +274,7 @@ func _save_hangar(data: Dictionary) -> bool:
 func _commit_hangar(proposal: Dictionary) -> bool:
 	if not _save_hangar(proposal):
 		return false
-	_apply_hangar(proposal)
+	_apply_hangar(proposal, false, true)
 	_notify_hangar()
 	return true
 
@@ -285,6 +291,7 @@ func load_run_checkpoint() -> bool:
 		last_save_error = "No hangar checkpoint."
 		return false
 	run_seed = int(saved.payload.seed)
+	research_completion_notices.clear()
 	difficulty = int(saved.payload.difficulty) as Difficulty
 	navigation = saved.payload.get("navigation", {}).duplicate(true)
 	_build_campaign()
@@ -403,7 +410,7 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	for key in ["credits", "research", "hull_damage", "combat"]:
 		hangar_changed = hangar_changed or effects.has(key)
 	if hangar_changed:
-		_apply_hangar(proposal)
+		_apply_hangar(proposal, false, true)
 	if not expedition_simulation.restore(proposal.expedition):
 		last_save_error = expedition_simulation.last_error
 		push_error("Could not apply the committed encounter choice: " + last_save_error)
@@ -582,6 +589,7 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 	var days: float = simulation.state.traveled_days - days_before
 	var seconds: float = simulation.state.simulation_seconds - seconds_before
 	var earned_rp := ScienceRules.production_rate(ScienceRules.snapshot(get_deployed_fleet())) * days
+	var previous_focus := research_focus
 	var completes_research := not research_focus.is_empty() and earned_rp > 0 \
 		and research_points + earned_rp + float(research_progress.get(research_focus, 0)) \
 			>= ResearchFocusRules.cost(research_focus, {"research_pricing_version": 1})
@@ -628,6 +636,7 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 			return result
 		result.saved = true
 		if not result.research_done.is_empty():
+			research_completion_notices.append(previous_focus)
 			research_changed.emit()
 		if result.delivered > 0:
 			credits_changed.emit()
@@ -1153,7 +1162,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	for actor in simulation.players:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
 			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
-	_apply_hangar(data)
+	_apply_hangar(data, false, true)
 	_notify_hangar()
 	return true
 
@@ -1199,7 +1208,7 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	for actor in simulation.players:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
 			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})
-	_apply_hangar(data)
+	_apply_hangar(data, false, true)
 	expedition_simulation.restore(data.expedition)
 	_notify_hangar()
 	return true

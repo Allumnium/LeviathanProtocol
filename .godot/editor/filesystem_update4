@@ -27,3 +27,4 @@ res://scripts/ui_art_frame.gd
 res://scripts/settings_dialog.gd
 res://scripts/science_rules.gd
 res://scripts/ship_stat_bars.gd
+res://scripts/research_notice.gd

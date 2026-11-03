@@ -28,6 +28,10 @@ var research_button: Button
 var research_pulse: ShaderMaterial
 var research_pulse_time := 0.0
 var header_wallet: HBoxContainer
+var delivery_readout: ResourceText
+var delivery_seconds := 0.0
+var delivery_income := 0
+var instrument_seconds := {"fuel": 0.0, "hull": 0.0, "transport": 0.0}
 var command_header: Container
 var feedback: Label
 var canvas: Control
@@ -230,6 +234,12 @@ func _ready() -> void:
 	AudioManager.connect_ui_button(settings, &"detail")
 	settings.pressed.connect(func() -> void: settings_dialog.popup_centered())
 	header_wallet.add_child(settings)
+	delivery_readout = ResourceText.create("")
+	delivery_readout.name = "DeliveryIncome"
+	delivery_readout.theme_type_variation = &"InstrumentFeedback"
+	delivery_readout.z_index = UiKit.TOAST_Z
+	delivery_readout.hide()
+	add_child(delivery_readout)
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = SIZE_EXPAND_FILL
 	column.add_child(body)
@@ -257,6 +267,7 @@ func _ready() -> void:
 	feedback.size_flags_horizontal = SIZE_EXPAND_FILL
 	footer.add_child(feedback)
 	_build_travel_controls(top, footer)
+	add_child(load("res://scripts/research_notice.gd").new())
 	GameState.fleet_changed.connect(_queue_refresh)
 	GameState.research_changed.connect(_queue_refresh)
 	GameState.credits_changed.connect(_queue_refresh)
@@ -332,6 +343,58 @@ func _process(delta: float) -> void:
 	_advance_expedition(delta)
 	_sync_station_services()
 	_sync_station_actions()
+	_update_instrument_feedback(delta)
+
+func _update_instrument_feedback(delta: float) -> void:
+	delivery_seconds = maxf(0, delivery_seconds - delta)
+	if delivery_seconds == 0:
+		delivery_income = 0
+	delivery_readout.visible = delivery_seconds > 0
+	if delivery_readout.visible:
+		var font := delivery_readout.get_theme_font("normal_font")
+		var font_size := delivery_readout.get_theme_font_size("normal_font_size")
+		var width := font.get_string_size("+%d " % delivery_income,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + font_size
+		delivery_readout.custom_minimum_size.x = ceilf(width)
+		var extent := delivery_readout.get_combined_minimum_size()
+		delivery_readout.size = extent
+		var wallet := header.get_global_rect()
+		delivery_readout.global_position = Vector2(
+			clampf(wallet.end.x - extent.x, global_position.x, global_position.x + size.x - extent.x),
+			wallet.end.y + 2).round()
+		delivery_readout.self_modulate.a = minf(1, delivery_seconds / 0.3)
+	for key: String in instrument_seconds:
+		if float(instrument_seconds[key]) <= 0:
+			continue
+		instrument_seconds[key] = maxf(0, float(instrument_seconds[key]) - delta)
+		var strength := sin(PI * float(instrument_seconds[key]) / 0.8)
+		var tint := Color.WHITE.lerp(get_theme_color("pulse_color", "InstrumentFeedback"), maxf(0, strength))
+		if key == "fuel":
+			travel_fuel.self_modulate = tint
+		else:
+			for node: Node in get_tree().get_nodes_in_group(key + "_readout"):
+				if is_ancestor_of(node) and node is CanvasItem:
+					node.self_modulate = tint
+
+func _show_delivery_income(amount: int) -> void:
+	delivery_income += amount
+	delivery_seconds = 1.6
+	delivery_readout.set_content("+%d cr" % delivery_income)
+	instrument_seconds.transport = 0.8
+	AudioManager.play_ui_sfx(&"purchase")
+	_update_instrument_feedback(0)
+
+func _repair_selected_ship() -> void:
+	_finish_repair(GameState.repair_ship(GameState.owned_ship(selected_ship_id)))
+
+func _repair_fleet() -> void:
+	_finish_repair(GameState.repair_all_ships())
+
+func _finish_repair(ok: bool) -> void:
+	if ok:
+		instrument_seconds.hull = 0.8
+		AudioManager.play_ui_sfx(&"repair")
+	_result(ok)
 
 func _sync_station_services() -> void:
 	var available: bool = GameState.can_use_shipyard()
@@ -380,11 +443,12 @@ func _advance_expedition(delta: float) -> void:
 	if result.saved:
 		expedition_save_elapsed = 0.0
 	if int(result.delivered) > 0:
-		_toast("Delivery paid +%d credits" % int(result.delivered), &"purchase")
-	if not str(result.research_done).is_empty():
-		_toast("Research complete: %s" % result.research_done, &"research_complete")
+		_show_delivery_income(int(result.delivered))
 	if result.repaired:
+		instrument_seconds.hull = 0.8
 		AudioManager.play_ui_sfx(&"repair")
+		if active_tab in ["FLEET", "SHIPS"]:
+			_show_details()
 	_update_expedition_readouts()
 	if result.boundary:
 		expedition_status_override = ""
@@ -766,7 +830,7 @@ func _refresh() -> void:
 			bottom.add_child(stats_grid)
 			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 			_show_refit_panel()
-			var repair := _button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id))))
+			var repair := _button("REPAIR %d cr" % owned.repair_cost(), _repair_selected_ship)
 			_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
 			roster.add_child(repair)
 			if not owned.flagship:
@@ -1145,6 +1209,7 @@ func _sync_station_actions() -> void:
 				and GameState.credits >= GameState.fleet_repair_cost()
 			if GameState.repair_all_ships():
 				expedition_status_override = ""
+				instrument_seconds.hull = 0.8
 				AudioManager.play_ui_sfx(&"repair")
 			else:
 				expedition_status_override = GameState.last_save_error
@@ -1334,6 +1399,7 @@ func _on_expedition_refuel_pressed() -> void:
 			GameState.expedition_simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
 	else:
 		expedition_status_override = ""
+		instrument_seconds.fuel = 0.8
 		AudioManager.play_ui_sfx(&"refuel")
 	_refresh_expedition_controls()
 
@@ -1466,7 +1532,7 @@ func _show_details() -> void:
 	if owned == null:
 		_clear(details)
 		var cost: int = GameState.fleet_repair_cost()
-		var repair := _button("REPAIR ALL %d cr" % cost, func() -> void: _result(GameState.repair_all_ships()))
+		var repair := _button("REPAIR ALL %d cr" % cost, _repair_fleet)
 		repair.name = "FleetRepairAll"
 		_shipyard_action(repair, cost > 0 and GameState.credits >= cost)
 		if is_instance_valid(station_actions) and station_actions.has_node("FleetRepairAll"):
@@ -1493,6 +1559,8 @@ func _show_details() -> void:
 			lines.append("Passengers %d / %d" % [loads.passengers, totals.passengers])
 		var fleet_stats := _resource_label("\n".join(lines))
 		fleet_stats.name = "FleetTotals"
+		fleet_stats.add_to_group("hull_readout")
+		fleet_stats.add_to_group("transport_readout")
 		details.add_child(fleet_stats)
 		return
 	if active_tab == "SHIPS":
@@ -1542,7 +1610,7 @@ func _show_details() -> void:
 			if HangarTrade.has_load(instance):
 				var contents: Dictionary = instance.load
 				details.add_child(_label("%s %d" % [str(contents.kind).capitalize(), contents.quantity]))
-	details.add_child(_button("REPAIR %d cr" % owned.repair_cost(), func() -> void: _result(GameState.repair_ship(GameState.owned_ship(selected_ship_id)))))
+	details.add_child(_button("REPAIR %d cr" % owned.repair_cost(), _repair_selected_ship))
 	var repair := details.get_child(details.get_child_count() - 1) as Button
 	_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
 	if not owned.flagship and active_tab != "FLEET":
@@ -1863,6 +1931,7 @@ func _show_expedition_map() -> void:
 func _render_voyage_summary() -> void:
 	voyage_summary = _label("")
 	voyage_summary.name = "VoyageSummary"
+	voyage_summary.add_to_group("transport_readout")
 	roster.add_child(voyage_summary)
 	_update_voyage_summary()
 
