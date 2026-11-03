@@ -17,6 +17,8 @@ class SurfaceCanvas extends Node2D:
 
 var checks := 0
 var failures := 0
+# Native captures of unchanged mapped art vary by up to two 8-bit color levels.
+const SNAPSHOT_NOISE := 2.0 / 255.0
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -265,6 +267,8 @@ func bullet_glow_checks() -> void:
 	await rendered(view)
 	var moving := await rendered(view)
 	check(difference(stationary, moving) > 0.00001, "Moving player ship renders a visible thrust plume")
+	check(difference(stationary, moving, false, SNAPSHOT_NOISE) > 0.00001,
+		"Visible thrust exceeds native snapshot quantization noise")
 	var rear_pixels := 0
 	var front_pixels := 0
 	for y in range(128):
@@ -291,23 +295,25 @@ func bullet_glow_checks() -> void:
 	visual.queue_redraw()
 	await rendered(view)
 	var alien := await rendered(view)
-	check(difference(stationary, alien) < 0.00001, "Alien faction receives no thrust particles")
+	check(difference(stationary, alien, false, SNAPSHOT_NOISE) < 0.00001, "Alien faction receives no thrust particles")
 	member.faction = BattleSimulation.Faction.PLAYER
 	member.velocity = Vector2.ZERO
 	visual.queue_redraw()
 	await rendered(view)
 	var stopped := await rendered(view)
-	check(difference(stationary, stopped) < 0.00001, "Stopping movement removes thrust particles")
+	check(difference(stationary, stopped, false, SNAPSHOT_NOISE) < 0.00001, "Stopping movement removes thrust particles")
 	member.shield_flash = 0.2
 	visual.queue_redraw()
 	await rendered(view)
 	var shielded := await rendered(view)
 	check(difference(stopped, shielded) > 0.00001, "Shield hit visibly lights the ship silhouette")
+	check(difference(stopped, shielded, false, SNAPSHOT_NOISE) > 0.00001,
+		"Visible shield hit exceeds native snapshot quantization noise")
 	member.shield_flash = 0
 	visual.queue_redraw()
 	await rendered(view)
 	var recovered := await rendered(view)
-	check(difference(stopped, recovered) < 0.00001, "Shield glow disappears when the hit flash ends")
+	check(difference(stopped, recovered, false, SNAPSHOT_NOISE) < 0.00001, "Shield glow disappears when the hit flash ends")
 	view.queue_free()
 	await process_frame
 
@@ -396,14 +402,16 @@ func projectile_light_checks() -> void:
 	check(material.get_shader_parameter("projectile_light_count") == 0, "Expired bullets leave no lights")
 	visual.free()
 
-func difference(a: Image, b: Image, rotated := false) -> float:
+func difference(a: Image, b: Image, rotated := false, noise_floor := 0.0) -> float:
 	var total := 0.0
 	for y in range(a.get_height()):
 		for x in range(a.get_width()):
 			var other := Vector2i(a.get_width() - 1 - x, a.get_height() - 1 - y) if rotated else Vector2i(x, y)
 			var left := a.get_pixel(x, y)
 			var right := b.get_pixelv(other)
-			total += absf(left.r - right.r) + absf(left.g - right.g) + absf(left.b - right.b)
+			total += maxf(0, absf(left.r - right.r) - noise_floor) \
+				+ maxf(0, absf(left.g - right.g) - noise_floor) \
+				+ maxf(0, absf(left.b - right.b) - noise_floor)
 	return total / (a.get_width() * a.get_height())
 
 func native_checks() -> void:
@@ -422,7 +430,8 @@ func native_checks() -> void:
 	view.add_child(canvas)
 	var lit := await rendered(view)
 	var original_shader := Shader.new()
-	original_shader.code = SurfaceArt.SHADER.code.replace("vec3(0.30, 0.33, 0.375)", "vec3(0.40, 0.44, 0.50)")
+	original_shader.code = SurfaceArt.SHADER.code.replace("vec3(0.12, 0.14, 0.17)", "vec3(0.40, 0.44, 0.50)")
+	check(original_shader.code != SurfaceArt.SHADER.code, "Ambient comparison actually changes the current shader's ambient term")
 	material.shader = original_shader
 	var brighter_ambient := await rendered(view)
 	material.shader = SurfaceArt.SHADER
