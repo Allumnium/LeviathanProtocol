@@ -157,10 +157,13 @@ func hit_cell(_origin: Vector2, _random: RandomNumberGenerator) -> Vector2i:
 	return Vector2i(-1, 0)
 
 func damage_cell(_cell: Vector2i, amount: float) -> Dictionary:
+	return damage_hull(amount)
+
+func damage_hull(amount: float, hit_fraction := 1.0) -> Dictionary:
 	var removed: Array[Vector2i] = []
-	if not is_alive() or not is_finite(amount) or amount <= 0:
+	if not is_alive() or not is_finite(amount) or amount <= 0 or not is_finite(hit_fraction) or hit_fraction <= 0:
 		return {"damage": 0.0, "removed": removed}
-	var damage := maxf(0, amount - float(chassis.get("flat_damage_reduction", 0.0)))
+	var damage := maxf(0, amount - float(chassis.get("flat_damage_reduction", 0.0)) * hit_fraction)
 	hull_hp -= damage
 	visual_revision += 1
 	return {"damage": damage, "removed": removed}

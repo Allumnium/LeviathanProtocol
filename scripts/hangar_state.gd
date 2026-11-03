@@ -1267,6 +1267,11 @@ func battle_support_context() -> Dictionary:
 	# No material drops, extraction, inventory-consuming abilities or grid bonuses.
 	var context := {"credits_only": true, "energy_efficiency": energy_efficiency(), "enemy_roles": encounter.get("enemy_roles", false), "doctrine_pool": battle_reserves.get(str(destination_node_id), {}), "encounter_plan": encounter if encounter.has("arena_layout") else {}}
 	context.missiles = missiles
+	context.research_effects = {}
+	var modifiers: Dictionary = research_grants().modifiers
+	for id: String in ResearchCombat.EFFECTS:
+		if modifiers.get(id, {}).get("value", false):
+			context.research_effects[id] = true
 	for key in ["asteroids", "environment"]:
 		if encounter.has(key):
 			context[key] = encounter[key].duplicate(true)

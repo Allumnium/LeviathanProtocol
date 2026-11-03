@@ -129,6 +129,8 @@ class Projectile:
 	var aim_radius := 18.0
 	var guidance_lost := false
 	var rotation_phase := 0.0
+	var splinter := false
+	var fragment := false
 
 class Beam:
 	var source: Combatant
@@ -136,6 +138,8 @@ class Beam:
 	var target: Combatant
 	var aim_position := Vector2.ZERO
 	var lifetime := 0.16
+	var prismatic := false
+	var intensity := 1.0
 
 class Drop:
 	var entity_id := ""
@@ -165,6 +169,7 @@ var encounter = preload("res://scripts/battle_encounter.gd").new()
 var enemy_roles = preload("res://scripts/enemy_roles.gd").new()
 var ability_commit := Callable()
 var energy_efficiency := 0.0
+var research_combat := ResearchCombat.new()
 var doctrines := CombatDoctrines.new()
 var repair_reserves: Dictionary = {}
 var repair_capacity := 0
@@ -231,6 +236,7 @@ func setup(
 	initial_missiles = -1
 	missile_supply = -1
 	energy_efficiency = 0.0
+	research_combat.configure({})
 	doctrines = CombatDoctrines.new()
 	repair_reserves.clear()
 	repair_capacity = 0
@@ -331,6 +337,9 @@ func _rebuild_member_cache() -> void:
 
 
 func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1, shared_context: Dictionary = {}) -> bool:
+	if not ResearchCombat.valid(shared_context.get("research_effects", {})):
+		push_error("Cannot configure battle with invalid research effects.")
+		return false
 	if shared_context.has("missiles") and (not SaveValidation.integer(shared_context.missiles) \
 			or shared_context.missiles < 0 or shared_context.missiles > 2147483647):
 		push_error("Cannot configure battle with invalid missile supply.")
@@ -369,6 +378,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 	if not setup(bootstrap_stats, fleet, seed_value, ships.size(), HangarCarriers.has_bay(armed)):
 		return false
 	energy_efficiency = requested_energy
+	research_combat.configure(shared_context.get("research_effects", {}))
 	credits_only = shared_context.get("credits_only", false)
 	initial_missiles = int(shared_context.get("missiles", -1))
 	missile_supply = initial_missiles
@@ -762,7 +772,7 @@ func authoritative_snapshot() -> Dictionary:
 		shots.append({"source": shot.source.entity_id if shot.source != null else "",
 			"target": shot.target.entity_id if shot.target != null else "", "damage": shot.damage,
 			"position": [shot.position.x, shot.position.y], "origin": [shot.origin.x, shot.origin.y], "weapon": shot.weapon_name,
-			"interceptable": shot.interceptable, "speed": shot.speed})
+			"interceptable": shot.interceptable, "speed": shot.speed, "splinter": shot.splinter, "fragment": shot.fragment})
 		if visibility_enabled:
 			shots[-1]["aim"] = [shot.aim_position.x, shot.aim_position.y]
 			shots[-1]["guidance_lost"] = shot.guidance_lost
@@ -773,6 +783,7 @@ func authoritative_snapshot() -> Dictionary:
 	var result := {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
 		"swarm_damage": swarm_damage_dealt,
 		"missiles": missile_supply,
+		"research": research_combat.snapshot(),
 		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
 		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
 		"doctrines": doctrines.snapshot(),
@@ -900,6 +911,7 @@ func advance(delta: float) -> void:
 		encounter.warden.advance(self, delta)
 		_rebuild_pending_projectile_damage()
 		_rebuild_spatial_index()
+		research_combat.begin_step(self, delta)
 		for index in range(_members.size()):
 			_previous_velocities[index] = _members[index].velocity
 		var resolving_victory := objective_complete()
@@ -912,6 +924,7 @@ func advance(delta: float) -> void:
 		for entity in other_entities:
 			if entity.is_alive() and entity.has_tag("combatant"):
 				_update_ship(entity, delta, not resolving_victory)
+		research_combat.end_step(self)
 		asteroid_field.advance(self, delta)
 		refresh_visibility()
 		_update_projectiles(delta)
@@ -1297,6 +1310,9 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		var weapon := ship.stats.weapons[index]
 		if ship.owned_ship != null and ship.owned_ship.units[weapon.component_index].hp <= 0.0:
 			continue
+		if research_combat.is_prismatic(ship, weapon):
+			research_combat.fire_laser(self, ship, index, weapon, _get_weapon_origin(ship, weapon), delta)
+			continue
 		ship.cooldowns[index] = maxf(0.0, ship.cooldowns[index] - delta)
 		if ship.cooldowns[index] > 0.0:
 			continue
@@ -1360,6 +1376,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				projectile.is_player = ship.is_player
 				projectile.interceptable = weapon.interceptable
 				projectile.speed = 200.0 if weapon.interceptable else PROJECTILE_SPEED
+				projectile.splinter = research_combat.enabled.get("splinter_missiles", false) \
+					and ship.owned_ship is HangarShip and ship.is_player and weapon.missiles_per_projectile > 0
 				projectiles.append(projectile)
 				_add_pending_damage(projectile.target, projectile.damage)
 
@@ -1523,6 +1541,9 @@ func _update_projectiles(delta: float) -> void:
 	for index in range(projectiles.size() - 1, -1, -1):
 		var projectile := projectiles[index]
 		if projectile.target == null:
+			projectiles.remove_at(index)
+			continue
+		if research_combat.split(self, projectile):
 			projectiles.remove_at(index)
 			continue
 		if visibility_enabled:
@@ -1698,7 +1719,7 @@ func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
 	return 1.0
 
 
-func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false, weapon_hit := false) -> void:
+func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false, weapon_hit := false, hit_fraction := 1.0) -> void:
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
 	if target.owned_ship is HangarShip and (weapon_hit or projectile_hit):
@@ -1730,7 +1751,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 			var cell := owned.hit_cell(local_origin, random)
 			if projectile_hit and owned.cell_units.has(cell) and CombatDoctrines.protected_unit(owned, owned.cell_units[cell]):
 				remaining *= 0.7
-			var result := owned.damage_cell(cell, remaining)
+			var result: Dictionary = owned.damage_hull(remaining, hit_fraction) if owned is HangarShip else owned.damage_cell(cell, remaining)
 			actual += result.damage
 			remaining -= result.damage
 			target.permanent_damage_taken += result.damage if owned is HangarShip else result.removed.size()

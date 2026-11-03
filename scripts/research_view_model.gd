@@ -118,6 +118,9 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 			lines.append(ability.display_name)
 	for modifier: Dictionary in node.grants.modifiers:
 		match modifier.id:
+			"prismatic_lasers": lines.append("Laser / Double Laser: continuous beams\nRamp to 2x DPS over 4s on one target\nChanging targets or losing contact resets the ramp")
+			"splinter_missiles": lines.append("Missile Rack: splits into 3 near target\nEach deals half damage; all interceptable\nOne missile spent per parent, not per fragment")
+			"pulse_shields": lines.append("Shielded ships: restore 25% shields / 8s\nWorks under fire; suppression blocks pulses")
 			"energy_efficiency": lines.append("+%d%% beams / shield recharge" % roundi(modifier.value * 100))
 			"cargo_hold_capacity": lines.append("%d cargo / hold" % int(modifier.value))
 			"scan_spectroscopy": lines.append("Scan: ore details")

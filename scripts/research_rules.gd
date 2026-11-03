@@ -29,6 +29,8 @@ static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool
 				and modifier.get("refill_existing") is bool and not modifier.refill_existing
 		"scan_spectroscopy":
 			return modifier.get("value") is bool
+		"prismatic_lasers", "splinter_missiles", "pulse_shields":
+			return modifier.get("value") is bool
 		"extractable_materials":
 			if not modifier.get("values") is Array or modifier.values.is_empty() or not _unique_strings(modifier.values):
 				return false

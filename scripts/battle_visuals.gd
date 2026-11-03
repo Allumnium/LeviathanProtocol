@@ -149,6 +149,13 @@ func _draw() -> void:
 	_draw_other_entities()
 	_draw_manual_target()
 	draw_set_transform_matrix(world_transform())
+	for pulse: Dictionary in simulation.research_combat.pulse_rings:
+		var source: BattleSimulation.Combatant = simulation.entities.get(pulse.source)
+		if source == null or not source.is_alive() or not simulation.point_visible(BattleSimulation.Faction.PLAYER, source.position):
+			continue
+		var progress := 1 - float(pulse.remaining) / 0.6
+		draw_arc(source.position, source.radius + 6 + progress * 35, 0, TAU, 48,
+			Color(0.2, 0.85, 1, 1 - progress), 2, true)
 	for beam in simulation.beams:
 		var end := beam.target.position if not simulation.visibility_enabled or simulation.team_can_see(BattleSimulation.Faction.PLAYER, beam.target) else beam.aim_position
 		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(end):
@@ -158,7 +165,13 @@ func _draw() -> void:
 			var start := beam.origin_position.lerp(end, float(index) / steps)
 			var finish := beam.origin_position.lerp(end, float(index + 1) / steps)
 			if simulation.point_visible(BattleSimulation.Faction.PLAYER, (start + finish) * 0.5):
-				draw_line(start, finish, Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
+				if beam.prismatic:
+					var normal := start.direction_to(finish).orthogonal() * beam.intensity
+					draw_line(start + normal, finish + normal, Color(0.3, 0.85, 1, 0.8), beam.intensity, true)
+					draw_line(start - normal, finish - normal, Color(0.9, 0.4, 1, 0.8), beam.intensity, true)
+					draw_line(start, finish, Color.WHITE, 1, true)
+				else:
+					draw_line(start, finish, Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
 	for projectile in simulation.projectiles:
 		var projectile_position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
 		if not _visible_world_rect.has_point(projectile_position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, projectile_position):
@@ -186,6 +199,9 @@ func _draw() -> void:
 		if projectile.is_player:
 			trail_color = Color(1.0, 0.03, 0.06, 0.7)
 			projectile_color = Color(1.0, 0.12, 0.16)
+		if projectile.fragment:
+			trail_color = Color(1, 0.65, 0.2, 0.8)
+			projectile_color = Color(1, 0.9, 0.5)
 		draw_line(projectile_position - direction * 12.0, projectile_position,
 			trail_color, 2.0, true)
 		draw_circle(projectile_position, 2.5, projectile_color)

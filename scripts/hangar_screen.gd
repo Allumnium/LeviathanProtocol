@@ -1772,6 +1772,13 @@ func _part_effect(item: Dictionary) -> String:
 		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
 	var values: Dictionary = item.stats
 	var effects: PackedStringArray = []
+	var modifiers: Dictionary = GameState.research_grants().modifiers
+	if item.id in ["laser", "double_laser"] and modifiers.has("prismatic_lasers"):
+		effects.append("Continuous / 1x to 2x DPS over 4s")
+	if item.id == "missile_rack" and modifiers.has("splinter_missiles"):
+		effects.append("Splits: 3 x half damage")
+	if float(values.shields) > 0 and modifiers.has("pulse_shields"):
+		effects.append("Pulse: 25% shields / 8s")
 	if not values.weapons.is_empty():
 		var dps := 0.0
 		var reach := 0.0

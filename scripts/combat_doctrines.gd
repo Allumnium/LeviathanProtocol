@@ -209,6 +209,7 @@ func _synchronize(sim, source, delta: float) -> void:
 		# Do not overwrite a beam already charging.
 		if not charges.has("%s/%d" % [source.entity_id, weapon.component_index]):
 			source.cooldowns[index] = 0.0
+			sim.research_combat.synchronize(source, index, weapon)
 	for instance: Dictionary in source.owned_ship.mounts.values():
 		if instance.equipment_id in HangarCarriers.CAPACITIES:
 			carriers.timers[instance.uid] = 0.0

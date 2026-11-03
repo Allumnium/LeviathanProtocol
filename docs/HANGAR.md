@@ -34,6 +34,18 @@ Defending carriers launch only against nearby threats, and their sorties obey th
 
 Regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd) runs headless and native in the baseline. Its 179 focused checks cover malformed saves, Continue, unique ownership, group rollback, overrides, load retention, aggregate condition/transport readouts, combat targeting/movement/carriers, three-resolution layouts, real pointer group actions, block/box selection and preserved formation camera. Full D3 baseline acceptance is tracked in [TODO.md](../TODO.md).
 
+## Behavioral combat research (fleet-command D4)
+
+Research changes how existing equipment behaves, without new items, artwork or save fields. Earned research IDs, costs, prerequisites and exclusive branch choices remain intact; Continue derives the same battle effects from the saved research. The research tree, completion toast and installed-part inspection disclose the actual effects.
+
+- **Prismatic Lasers** (`energy_manipulation`) replaces the old flat energy-efficiency bonus. Player Laser and Double Laser become continuous beams, ramping from base DPS to twice base DPS over four uninterrupted seconds on the same target. Range/contact loss, changing targets, obstruction or stopping fire resets the lock. Double Laser retains its emitter count; magazines and Tactical Computer synchronization still help. Flat hull armor scales with the fraction of a shot rather than being charged on every simulation tick. Other weapons and enemy lasers are unchanged.
+- **Siege I** (`siege_i`) makes each Missile Rack projectile split into three interceptable half-damage fragments within 100 units of its target: 150% total parent damage if all land. Fragments distribute over up to three visible nearby hostile combatants within 140 units of the original target, or converge when fewer targets exist. The parent alone spends ammunition; fragments cannot split recursively or acquire hidden targets after guidance is lost.
+- **Bastion II** (`bastion_ii`) gives living shielded player ships a pulse restoring up to 25% of shield capacity every eight combat seconds, even under fire. It supplements ordinary recharge, never exceeds capacity and cannot revive a destroyed ship. Suppression blocks a pulse rather than banking it. A cyan expanding ring marks actual restoration.
+
+The beam's widening cyan/magenta bands, amber missile fragments and shield ring communicate effects in the battle world, without added combat labels. Fixed-step replay includes lock duration, pulse clocks, fragmentation flags and ammunition, but excludes visual-only rings. Pending battles already block research mutations, so effects stay tied to the committed deployment.
+
+Regressions: [test_research_combat.gd](../tests/test_research_combat.gd) runs headless and native in the baseline, covering exact damage/intervals, armor, lock resets/occlusion, visibility, stances, interception, finite ammunition, Continue, exclusivity, save rollback, malformed metadata, deterministic replay, three-resolution details/toasts and native effect pixels. Economy/travel nodes, activated abilities and command-limit growth remain separate D4 work.
+
 ## Demo vertical slice
 
 **Expedition rewards**

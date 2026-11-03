@@ -113,7 +113,7 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 
 ### D4 - Research that you can feel
 
-- [ ] Replace flat percentages with noticeable effects, StarCraft-style: e.g. "Prismatic lasers" make lasers continuous beams that ramp damage the longer they stay on target; missiles that split; shields that pulse.
+- [x] Replace flat percentages with noticeable combat effects. Prismatic Lasers replaces the old flat energy bonus with Laser/Double Laser channels ramping from 1x to 2x base DPS over four uninterrupted seconds, resetting on target/contact/fire loss and respecting armor, magazines and synchronization. Siege I splits each Missile Rack parent into three interceptable half-damage fragments near its target (one parent ammunition cost; visible nearby hostiles only). Bastion II restores up to 25% shields every eight combat seconds under fire; suppression skips pulses. Existing research IDs, prices and exclusive branches persist; effects derive from earned research on Continue. Widening prismatic beams, amber fragments and cyan shield rings provide in-world feedback; research details/toasts and fitted inspection disclose mechanics. Focused headless/native coverage is registered in the baseline; see `docs/HANGAR.md`.
 - [ ] Economy/travel nodes: passive income, fuel economy, faster cruise / fewer random encounters.
 - [ ] Activated combat abilities with cooldowns (build on the existing ability bar).
 - [ ] Research raises the command limit as long-term fleet growth. Keep a few exclusive branch choices so runs differ.
