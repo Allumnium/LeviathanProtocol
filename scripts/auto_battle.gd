@@ -56,6 +56,7 @@ var objective_label: Label
 var _settlement_error := false
 var command_header: Container
 var battle_readouts: VBoxContainer
+var missile_readout: Label
 
 
 func _ready() -> void:
@@ -182,6 +183,17 @@ func _build_header() -> void:
 	var transport := preload("res://scripts/battle_transport_readout.gd").new()
 	transport.simulation = simulation
 	command_header.left.add_child(transport)
+	missile_readout = Label.new()
+	missile_readout.name = "BattleMissiles"
+	missile_readout.theme_type_variation = &"HeaderResearch"
+	missile_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	missile_readout.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	missile_readout.text = "MISSILES %d" % simulation.missile_supply
+	var settings_margin := MarginContainer.new()
+	settings_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_margin.add_theme_constant_override("margin_right", 36)
+	settings_margin.add_child(missile_readout)
+	command_header.right.add_child(settings_margin)
 
 func _commit_asteroid_pickup(id: String, materials: Array, field: Dictionary) -> bool:
 	return GameState.commit_asteroid_pickup(simulation, id, materials, field)
@@ -225,6 +237,8 @@ func _physics_process(delta: float) -> void:
 		BattleSimulation.Phase.WITHDRAWN:
 			_finish_battle(false)
 	visuals.queue_redraw()
+	if missile_readout != null:
+		missile_readout.text = "MISSILES %d" % simulation.missile_supply
 	if objective_label != null:
 		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else simulation.encounter.label(simulation)
 	if repair_label != null:

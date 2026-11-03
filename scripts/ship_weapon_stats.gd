@@ -11,6 +11,7 @@ var is_projectile_weapon := false
 var component_index := -1
 var interceptable := false
 var charge_seconds := 0.0
+var missiles_per_projectile := 0
 
 
 func _init(
@@ -57,4 +58,5 @@ func copy() -> ShipWeaponStats:
 	copied_weapon.component_index = component_index
 	copied_weapon.interceptable = interceptable
 	copied_weapon.charge_seconds = charge_seconds
+	copied_weapon.missiles_per_projectile = missiles_per_projectile
 	return copied_weapon

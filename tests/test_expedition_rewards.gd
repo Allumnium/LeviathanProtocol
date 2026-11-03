@@ -50,6 +50,7 @@ func run() -> void:
 	state.run_save_path = path
 	check(state.resolve_expedition_event("derelict_salvage", "careful")
 		and state.credits == int(before.credits) + 80
+		and state.missiles == int(before.missiles) + 6
 		and state.expedition_simulation.state.fuel == 100
 		and state.last_event_result.contains("+2.0 fuel"), "Salvage reports actual capacity-capped fuel recovery")
 	var committed: Dictionary = state.hangar_snapshot()
@@ -64,7 +65,9 @@ func run() -> void:
 	var sim := battle()
 	check(state.pending_encounter.rewards.fuel == 8, "Authored fuel reward frozen into encounter")
 	check(state.settle_battle(sim) and state.expedition_simulation.state.fuel == 100
-		and state.last_equipment_loot.contains("+4.0 fuel"), "Victory reports actual recovered fuel")
+		and state.missiles == state.STARTING_MISSILES + 12
+		and state.last_equipment_loot.contains("+4.0 fuel")
+		and state.last_equipment_loot.contains("+12 missiles"), "Victory reports actual recovered fuel and salvaged missiles")
 
 	admit("distress_call")
 	check(state.resolve_expedition_event("distress_call", "defend"), "Admit rescue battle")

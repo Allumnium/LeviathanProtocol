@@ -124,6 +124,7 @@ static func stats_for(id: String, rank := 1) -> ShipPartStats:
 		copy.is_projectile_weapon = weapon.projectile
 		copy.interceptable = weapon.interceptable
 		copy.charge_seconds = weapon.charge
+		copy.missiles_per_projectile = int(weapon.get("missiles", 0))
 		stats.weapons.append(copy)
 	return stats
 
@@ -163,6 +164,9 @@ static func valid_equipment(data: Variant) -> bool:
 			return false
 		for weapon: Variant in item.stats.weapons:
 			if not weapon is Dictionary or not weapon.get("name") is String or not _integer(weapon.get("count")) or not weapon.get("projectile") is bool or not weapon.get("interceptable") is bool or not weapon.get("mount") is Array or weapon.mount.size() != 2:
+				return false
+			if weapon.has("missiles") and (not _integer(weapon.missiles, 0) \
+					or (weapon.missiles > 0 and (not weapon.projectile or weapon.get("charge", 0) != 0))):
 				return false
 			for field in ["interval", "damage", "range", "charge"]:
 				if not _nonnegative(weapon.get(field)) or (field != "charge" and weapon[field] == 0):

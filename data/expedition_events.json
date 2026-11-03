@@ -103,8 +103,8 @@
       "text": "Gutted freighters, scored by something that was not a weapon. Their holds are still sealed, and a few dormant shapes cling to the hulls.",
       "art": "",
       "options": [
-        {"id": "careful", "label": "SALVAGE / +80 cr / +5 FUEL", "effects": {"credits": 80, "fuel": 5.0}},
-        {"id": "strip", "label": "CUT INTO THE HOLDS", "effects": {"combat": {"template": "patrol", "row": 3, "strength": 3.0, "asteroids": 1, "credits": 160, "fuel": 8.0}}}
+        {"id": "careful", "label": "SALVAGE / +80 cr / +5 FUEL / +6 MISSILES", "effects": {"credits": 80, "fuel": 5.0, "missiles": 6}},
+        {"id": "strip", "label": "CUT INTO THE HOLDS", "effects": {"combat": {"template": "patrol", "row": 3, "strength": 3.0, "asteroids": 1, "credits": 160, "fuel": 8.0, "missiles": 12}}}
       ]
     },
     {

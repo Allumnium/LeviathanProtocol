@@ -72,6 +72,8 @@ var travel_pause_button: Button
 var travel_refuel_button: Button
 var travel_retry_button: Button
 var travel_fuel: Label
+var missile_readout: Label
+var missile_buy_button: Button
 var departure_button: Button
 var course_readout: Label
 var station_actions: VBoxContainer
@@ -906,6 +908,10 @@ func _refresh_expedition_controls() -> void:
 	travel_pause_button.set_pressed_no_signal(
 			ExpeditionStateData.PauseReason.USER in state.pause_reasons)
 	travel_fuel.text = "FUEL %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)]
+	missile_readout.text = "MISSILES %d" % GameState.missiles
+	var ammunition_error: String = GameState.station_service_error("ammunition")
+	missile_buy_button.visible = ammunition_error.is_empty()
+	missile_buy_button.disabled = GameState.credits < GameState.MISSILE_PACK_PRICE
 	var docked: Dictionary = simulation.locations.get(state.docked_location_id, {})
 	travel_refuel_button.visible = not docked.is_empty() \
 			and "refuel" in docked.get("services", []) and state.fuel < state.fuel_capacity \
@@ -1137,6 +1143,16 @@ func _build_travel_controls(top: Container, footer: HBoxContainer) -> void:
 	travel_fuel.size_flags_horizontal = Control.SIZE_SHRINK_END
 	travel_fuel.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	footer.add_child(travel_fuel)
+	missile_readout = _label("")
+	missile_readout.name = "ExpeditionMissiles"
+	missile_readout.autowrap_mode = TextServer.AUTOWRAP_OFF
+	missile_readout.mouse_filter = MOUSE_FILTER_IGNORE
+	missile_readout.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	footer.add_child(missile_readout)
+	missile_buy_button = _button_with_sound("+%d MISSILES / %d cr" % [GameState.MISSILE_PACK, GameState.MISSILE_PACK_PRICE],
+		_on_buy_missiles_pressed, &"")
+	missile_buy_button.name = "BuyMissiles"
+	footer.add_child(missile_buy_button)
 	travel_refuel_button = _button_with_sound("REFUEL",
 			Callable(self, "_on_expedition_refuel_pressed"), &"")
 	travel_refuel_button.name = "ExpeditionRefuel"
@@ -1393,6 +1409,18 @@ func _on_expedition_refuel_pressed() -> void:
 		AudioManager.play_ui_sfx(&"refuel")
 	_refresh_expedition_controls()
 
+func _on_buy_missiles_pressed() -> void:
+	var eligible: bool = GameState.station_service_error("ammunition").is_empty() \
+		and GameState.credits >= GameState.MISSILE_PACK_PRICE
+	if GameState.buy_missiles():
+		expedition_status_override = ""
+		AudioManager.play_ui_sfx(&"loot")
+	else:
+		expedition_status_override = GameState.last_save_error
+		if eligible:
+			GameState.expedition_simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
+	_refresh_expedition_controls()
+
 
 func _on_expedition_retry_pressed() -> void:
 	var simulation = GameState.expedition_simulation
@@ -1634,6 +1662,11 @@ func _part_effect(item: Dictionary) -> String:
 			dps += weapon.get_dps()
 			reach = maxf(reach, weapon.range_units)
 		effects.append("DPS %.1f | Range %.0f" % [dps, reach])
+		var missile_cost := 0
+		for weapon: Dictionary in values.weapons:
+			missile_cost += int(weapon.get("missiles", 0)) * int(weapon.count)
+		if missile_cost > 0:
+			effects.append("%d missiles / salvo" % missile_cost)
 	if values.shields > 0:
 		effects.append("Shields %.0f | %.1f recharge/s after 4s" % [values.shields, values.shields * 0.04])
 	if values.thrust > 0:

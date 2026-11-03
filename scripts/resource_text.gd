@@ -6,6 +6,7 @@ const CREDITS: Texture2D = preload("res://assets/credits.png")
 const REPAIR: Texture2D = preload("res://assets/ui/icons/icon_repair.png")
 const SHIELD: Texture2D = preload("res://assets/ui/icons/icon_shield.png")
 const ICON_PATTERN := "(?i)\\b(RP|CR|repair|shields?(?!\\s+Generator\\b))\\b"
+const ICONS := {"RP": SCIENCE, "CR": CREDITS, "REPAIR": REPAIR, "SHIELD": SHIELD, "SHIELDS": SHIELD}
 
 static func has_icons(value: String) -> bool:
 	var tokens := RegEx.new()
@@ -43,8 +44,7 @@ func _render() -> void:
 	icon_size = get_theme_font_size("normal_font_size")
 	for token: RegExMatch in tokens.search_all(source_text):
 		add_text(source_text.substr(cursor, token.get_start() - cursor))
-		var icons := {"RP": SCIENCE, "CR": CREDITS, "REPAIR": REPAIR, "SHIELD": SHIELD, "SHIELDS": SHIELD}
-		add_image(icons[token.get_string().to_upper()],
+		add_image(ICONS[token.get_string().to_upper()],
 			0, icon_size, Color.WHITE, INLINE_ALIGNMENT_CENTER)
 		cursor = token.get_end()
 	add_text(source_text.substr(cursor))
@@ -53,6 +53,23 @@ static func create(value: String) -> ResourceText:
 	var label := ResourceText.new()
 	label.set_content(value)
 	return label
+
+static func content_width(value: String, font: Font, font_size: int) -> float:
+	var tokens := RegEx.new()
+	tokens.compile(ICON_PATTERN)
+	var widest := 0.0
+	for line: String in value.split("\n"):
+		var width := 0.0
+		var cursor := 0
+		for token: RegExMatch in tokens.search_all(line):
+			width += font.get_string_size(line.substr(cursor, token.get_start() - cursor),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+			var icon: Texture2D = ICONS[token.get_string().to_upper()]
+			width += float(font_size) * icon.get_width() / icon.get_height()
+			cursor = token.get_end()
+		width += font.get_string_size(line.substr(cursor), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		widest = maxf(widest, width)
+	return widest
 
 static func button_content(button: Button, value: String) -> void:
 	button.set_meta("resource_text", value)
@@ -76,7 +93,7 @@ static func button_content(button: Button, value: String) -> void:
 		label.offset_right = -style.content_margin_right
 		label.offset_top = style.content_margin_top
 		label.offset_bottom = -style.content_margin_bottom
-		var width := button.get_theme_font("font").get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var width := content_width(value, button.get_theme_font("font"), font_size)
 		button.custom_minimum_size.x = ceilf(width + style.content_margin_left + style.content_margin_right)
 	button.draw.connect(update)
 	label.add_theme_color_override("default_color", Color.WHITE)

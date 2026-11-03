@@ -158,6 +158,8 @@ var asteroid_field = preload("res://scripts/asteroid_field.gd").new()
 var environment: Dictionary = {}
 var mining_enabled := false
 var credits_only := false
+var initial_missiles := -1
+var missile_supply := -1
 var mining_materials: Array[int] = []
 var encounter = preload("res://scripts/battle_encounter.gd").new()
 var enemy_roles = preload("res://scripts/enemy_roles.gd").new()
@@ -226,6 +228,8 @@ func setup(
 	else:
 		random.randomize()
 	withdrawing = false
+	initial_missiles = -1
+	missile_supply = -1
 	energy_efficiency = 0.0
 	doctrines = CombatDoctrines.new()
 	repair_reserves.clear()
@@ -327,6 +331,10 @@ func _rebuild_member_cache() -> void:
 
 
 func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1, shared_context: Dictionary = {}) -> bool:
+	if shared_context.has("missiles") and (not SaveValidation.integer(shared_context.missiles) \
+			or shared_context.missiles < 0 or shared_context.missiles > 2147483647):
+		push_error("Cannot configure battle with invalid missile supply.")
+		return false
 	if shared_context.has("environment") and not NodeEnvironment.valid(shared_context.environment):
 		push_error("Cannot configure battle with invalid node conditions.")
 		return false
@@ -362,6 +370,8 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		return false
 	energy_efficiency = requested_energy
 	credits_only = shared_context.get("credits_only", false)
+	initial_missiles = int(shared_context.get("missiles", -1))
+	missile_supply = initial_missiles
 	environment = shared_context.get("environment", {}).duplicate(true)
 	repair_reserves = shared_context.get("repair_reserves", {}).duplicate(true)
 	var pool: Dictionary = shared_context.get("repair_pool", {"capacity": 0, "spent": 0.0})
@@ -754,6 +764,7 @@ func authoritative_snapshot() -> Dictionary:
 			"position": [drop.position.x, drop.position.y]})
 	var result := {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
 		"swarm_damage": swarm_damage_dealt,
+		"missiles": missile_supply,
 		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
 		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
 		"doctrines": doctrines.snapshot(),
@@ -1265,6 +1276,9 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		ship.cooldowns[index] = maxf(0.0, ship.cooldowns[index] - delta)
 		if ship.cooldowns[index] > 0.0:
 			continue
+		var missile_cost := weapon.missiles_per_projectile if ship.is_player and missile_supply >= 0 else 0
+		if missile_cost > 0 and missile_supply < missile_cost:
+			continue
 		var weapon_origin := _get_weapon_origin(ship, weapon)
 		if SharedSupport.intercept(self, ship, weapon, weapon_origin):
 			if ship.sortie_ammo > 0:
@@ -1284,9 +1298,14 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 			doctrines.begin_charge(self, ship, weapon, weapon_target, weapon_origin)
 			continue
 		for shot_index in range(weapon.projectiles_per_activation):
+			if missile_cost > 0 and missile_supply < missile_cost:
+				break
 			ship.target = SharedSupport.weapon_target(self, ship, weapon, weapon_origin)
 			if ship.target == null:
 				break
+			if missile_cost > 0:
+				missile_supply -= missile_cost
+				_record_event("missile_spent", {"source": ship.entity_id, "cost": missile_cost, "remaining": missile_supply})
 			if shot_index == 0:
 				weapon_fired.emit()
 			if ship.is_player and not weapon.is_projectile_weapon:

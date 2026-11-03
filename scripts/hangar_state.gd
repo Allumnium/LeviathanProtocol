@@ -8,9 +8,13 @@ signal travel_plan_changed
 enum Difficulty { EASY, MEDIUM, HARD }
 const ExpeditionSimulationScript = preload("res://scripts/expedition_simulation.gd")
 const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+const STARTING_MISSILES := 30
+const MISSILE_PACK := 10
+const MISSILE_PACK_PRICE := 50
 var fleet: Array[FleetShip] = []
 var next_ship_id := 1
 var credits := 600
+var missiles := 0
 var difficulty := Difficulty.MEDIUM
 var run_seed := 1
 var run_id := ""
@@ -97,6 +101,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	difficulty = selected_difficulty as Difficulty
 	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
 	credits = 700
+	missiles = STARTING_MISSILES
 	run_score = RunScore.initial()
 	current_research_ids = ["foundation"]
 	research_completion_notices.clear()
@@ -186,7 +191,7 @@ func hangar_snapshot() -> Dictionary:
 	for owned: HangarShip in fleet:
 		ships.append(owned.to_hangar_data())
 	var data := {"format": "physical_hangar", "version": 2, "run_id": run_id, "seed": str(run_seed),
-		"difficulty": difficulty, "credits": credits, "ships": ships, "equipment": equipment_inventory.duplicate(true),
+		"difficulty": difficulty, "credits": credits, "missiles": missiles, "ships": ships, "equipment": equipment_inventory.duplicate(true),
 		"next_ship_id": next_ship_id, "next_equipment_id": next_equipment_id,
 		"current": current_node_id, "destination": destination_node_id, "planned": planned_destination_node_id,
 		"visited": visited_nodes.duplicate(), "pending": battle_pending, "ended": run_ended, "completed": completed,
@@ -212,6 +217,7 @@ func _apply_hangar(data: Dictionary, restore_expedition := false, announce_resea
 	run_seed = int(data.seed)
 	difficulty = int(data.difficulty) as Difficulty
 	credits = int(data.credits)
+	missiles = int(data.get("missiles", 0))
 	run_score = data.get("score", {}).duplicate(true)
 	next_ship_id = int(data.next_ship_id)
 	next_equipment_id = int(data.next_equipment_id)
@@ -338,6 +344,21 @@ func refuel_expedition() -> bool:
 	credits_changed.emit()
 	return true
 
+func buy_missiles() -> bool:
+	last_save_error = station_service_error("ammunition")
+	if not last_save_error.is_empty():
+		return false
+	if credits < MISSILE_PACK_PRICE:
+		last_save_error = "Not enough credits. Cost: %d." % MISSILE_PACK_PRICE
+		return false
+	if missiles > 2147483647 - MISSILE_PACK:
+		last_save_error = "Missile storage limit reached."
+		return false
+	var proposal := hangar_snapshot()
+	proposal.credits -= MISSILE_PACK_PRICE
+	proposal.missiles += MISSILE_PACK
+	return _commit_hangar(proposal)
+
 func prepare_checkpoint_resume() -> bool:
 	if fleet.is_empty() or run_ended:
 		return false
@@ -388,6 +409,9 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 		summary.append("%+.1f fuel" % (float(proposal.expedition.fuel) - expedition_simulation.state.fuel))
 	if effects.has("rescue_ship"):
 		summary.append(_rescue_ship(proposal, str(effects.rescue_ship)))
+	if effects.has("missiles"):
+		proposal.missiles += int(effects.missiles)
+		summary.append("+%d missiles" % int(effects.missiles))
 	if float(effects.get("research", 0.0)) > 0.0:
 		_allocate_research(proposal.research, float(effects.research))
 		summary.append("+%s RP" % ScienceRules.format_points(float(effects.research)))
@@ -409,7 +433,7 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	if not _save_hangar(proposal):
 		return false
 	var hangar_changed := false
-	for key in ["credits", "research", "hull_damage", "combat", "rescue_ship"]:
+	for key in ["credits", "research", "hull_damage", "combat", "rescue_ship", "missiles"]:
 		hangar_changed = hangar_changed or effects.has(key)
 	if hangar_changed:
 		_apply_hangar(proposal, false, true)
@@ -440,7 +464,7 @@ func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
 		encounter = SwarmNavigation.encounter(encounter, (strength - 1.0) / SwarmNavigation.STRENGTH_PER_POINT)
 	if combat.has("credits"):
 		encounter.rewards.credits = int(combat.credits)
-	for key in ["research", "fuel", "rescue_ship"]:
+	for key in ["research", "fuel", "rescue_ship", "missiles"]:
 		if combat.has(key):
 			encounter.rewards[key] = combat[key]
 	# The arena plan carries waves/objectives into the battle, as for campaign encounters.
@@ -861,13 +885,15 @@ func station_service_error(service: String) -> String:
 	if ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR in state.pause_reasons:
 		return "Retry the failed save before using station services."
 	if state.travel_state != ExpeditionSimulationScript.State.TravelState.DOCKED:
+		if service == "ammunition":
+			return "Dock at a station to buy missiles."
 		return "Dock at a shipyard to refit, sell, salvage or repair." if service == "shipyard" \
 			else "Dock at a refueling station to refuel."
 	var location: Dictionary = expedition_simulation.locations.get(state.docked_location_id, {})
 	if location.is_empty() or location.get("kind") != "station" \
 			or state.position_nu.distance_to(Vector2(location.position[0], location.position[1])) > 0.000001:
 		return "The fleet is not docked at a valid station."
-	if service not in location.get("services", []):
+	if service != "ammunition" and service not in location.get("services", []):
 		return "This station has no shipyard." if service == "shipyard" else "This station does not offer refueling."
 	return ""
 
@@ -1102,6 +1128,7 @@ func battle_support_context() -> Dictionary:
 	var encounter := get_frozen_encounter(destination_node_id)
 	# No material drops, extraction, inventory-consuming abilities or grid bonuses.
 	var context := {"credits_only": true, "energy_efficiency": energy_efficiency(), "enemy_roles": encounter.get("enemy_roles", false), "doctrine_pool": battle_reserves.get(str(destination_node_id), {}), "encounter_plan": encounter if encounter.has("arena_layout") else {}}
+	context.missiles = missiles
 	for key in ["asteroids", "environment"]:
 		if encounter.has(key):
 			context[key] = encounter[key].duplicate(true)
@@ -1127,6 +1154,8 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 	if pending_encounter.has("expedition_event_id"):
 		return _settle_expedition_battle(simulation)
 	var data := hangar_snapshot()
+	if not _stage_battle_missiles(data, simulation):
+		return false
 	var lost: Array[int] = []
 	if data.has("score"):
 		data.score.swarm_damage += simulation.swarm_damage_dealt
@@ -1179,6 +1208,8 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 
 func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	var data := hangar_snapshot()
+	if not _stage_battle_missiles(data, simulation):
+		return false
 	var lost: Array[int] = []
 	if data.has("score"):
 		data.score.swarm_damage += simulation.swarm_damage_dealt
@@ -1209,6 +1240,9 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 			rewards.append("+%.1f fuel" % (float(data.expedition.fuel) - before))
 		if pending_encounter.rewards.has("rescue_ship"):
 			rewards.append(_rescue_ship(data, str(pending_encounter.rewards.rescue_ship)))
+		if pending_encounter.rewards.has("missiles"):
+			data.missiles += int(pending_encounter.rewards.missiles)
+			rewards.append("+%d missiles" % int(pending_encounter.rewards.missiles))
 		if pending_encounter.get("complete", false):
 			data.completed = true
 			data.research.story_flags["boss_i_defeated"] = true
@@ -1229,6 +1263,16 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	_apply_hangar(data, false, true)
 	expedition_simulation.restore(data.expedition)
 	_notify_hangar()
+	return true
+
+func _stage_battle_missiles(data: Dictionary, simulation: BattleSimulation) -> bool:
+	if simulation.initial_missiles < 0:
+		return true
+	if simulation.initial_missiles != missiles or simulation.missile_supply < 0 \
+			or simulation.missile_supply > simulation.initial_missiles:
+		last_save_error = "Battle missile expenditure does not match the saved supply."
+		return false
+	data.missiles = simulation.missile_supply
 	return true
 
 func equipment_loot(node_id: int) -> Dictionary:

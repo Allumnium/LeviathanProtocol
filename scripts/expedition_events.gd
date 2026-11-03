@@ -4,7 +4,7 @@ const DATA_PATH := "res://data/expedition_events.json"
 const TRIGGERS := ["distance", "zone", "arrival", "start"]
 const COMBAT_TEMPLATES := ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]
 const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "combat", "flag",
-	"discover", "requires_credits", "complete", "rescue_ship"]
+	"discover", "requires_credits", "complete", "rescue_ship", "missiles"]
 
 # Older fixtures only declared `distance_nu`; they remain distance triggers with
 # the original Investigate / Continue Course choices.
@@ -125,6 +125,9 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 	return true
 
 static func valid_rewards(rewards: Dictionary, allow_fuel_cost := false) -> bool:
+	if rewards.has("missiles") and (not SaveValidation.integer(rewards.missiles) \
+			or rewards.missiles < 0 or rewards.missiles > 2147483647):
+		return false
 	for key in ["research", "fuel"]:
 		if rewards.has(key) and (not SaveValidation.number(rewards[key]) \
 				or (rewards[key] < 0 and not (key == "fuel" and allow_fuel_cost))):

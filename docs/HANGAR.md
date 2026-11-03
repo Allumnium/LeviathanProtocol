@@ -20,9 +20,9 @@ Tests: [test_ship_refit.gd](../tests/test_ship_refit.gd).
 
 ## Demo vertical slice
 
-### Expedition rewards
+**Expedition rewards**
 
-Event choices and frozen battle rewards support credits, research, fuel and a rescued escort chassis. Existing derelict salvage supplies a small fuel recovery, capped at tank capacity; feedback reports the amount actually recovered. Winning the distress encounter adds a healthy Transport with its default fitted loadout, fresh unique ship/equipment IDs and empty holds/cabins. It does not become a flagship or replace existing ships. If command capacity cannot accommodate it, the crew pays the exact fitted purchase value instead, as disclosed by the encounter. Reports identify the ship or compensation alongside RP/fuel.
+Event choices and frozen battle rewards support credits, research, fuel, missiles and a rescued escort chassis. Existing derelict salvage supplies a small fuel recovery, capped at tank capacity; feedback reports the amount actually recovered. Winning the distress encounter adds a healthy Transport with its default fitted loadout, fresh unique ship/equipment IDs and empty holds/cabins. It does not become a flagship or replace existing ships. If command capacity cannot accommodate it, the crew pays the exact fitted purchase value instead, as disclosed by the encounter. Reports identify the ship or compensation alongside RP/fuel/ammunition.
 
 Rewards commit atomically with event receipts and battle settlement. Failed saves grant nothing; retries/Continue cannot duplicate ships, resources or equipment, and non-victory outcomes grant no rewards. [Reward regressions](../tests/test_expedition_rewards.gd) exercise capacity overflow, partial tank recovery, malformed rewards, rollback, duplicate submissions and Continue. No new encounters or story branches are added.
 
@@ -54,6 +54,14 @@ Missing art renders as a solid pink square and missing sounds play `assets/audio
 - Equipment without catalog `art` (lasers, shields, thrusters, missiles, etc.) shows pink in stock, shops, fitting, fleet and battle views.
 - POIs and the Bastion Gate use pink on the map and as the stopped-location backdrop; encounters with an empty `art` path show a pink portrait.
 - `AudioManager.PLACEHOLDER_SFX` lists cues without dedicated audio: dock, depart, refuel, research_complete, repair, loot, alarm, sell and demo_complete.
+
+### Fleet ammunition
+
+New runs begin with 30 missiles. Any docked station sells packs of 10 for 50 credits, through a quoted footer action available on every management tab. No ammunition can be bought in flight, at POIs, during combat or after the run ends. Existing derelict salvage choices recover 6 missiles directly or 12 after victory. Prices, initial supply and pack size are draft constants in [GameState](../scripts/hangar_state.gd); the weapon cost is explicit `missiles` metadata in [slot_equipment.json](../data/slot_equipment.json).
+
+Every Missile Rack projectile costs one missile from the same fleet pool. If fewer than three remain, a rack fires only the missiles available. Empty racks stop firing; guns, beams, point defense, enemy weapons and finite carrier sortie allowances retain their existing rules. The footer and battle header show the exact remaining supply; fitted-part details show missiles per salvo. The supply is fleet-owned, not tied to equipment UIDs, so refitting or losing a launcher never replenishes it.
+
+Purchases, salvage and battle settlement persist ammunition with credits, hull, loads and rewards in the same atomic checkpoint. Victory, defeat and withdrawal all commit expenditure; a later attempt starts with the reduced supply. Failed saves leave live saved-state ammunition unchanged and expose the existing retry flow. As with hull and encounter progress, Continue during a pending battle restarts the complete encounter from its last committed deployment and ammunition, rather than restoring an in-progress fight. Existing physical checkpoints without the optional `missiles` field remain readable and load zero, without fabricating supplies. [Ammunition tests](../tests/test_fleet_missiles.gd) cover partial salvos, shared consumption, empty launchers, other weapons, deterministic replay, purchase pointer input, three-resolution UI, failure rollback, overflow, Continue and all settlement outcomes.
 
 ## Expedition station services
 
