@@ -18,6 +18,16 @@ The player commands fleets, not parts. This section supersedes the stock, equipm
 
 Tests: [test_ship_refit.gd](../tests/test_ship_refit.gd).
 
+## Squadrons (fleet-command D3)
+
+Squadrons group ships of the same chassis so one default named loadout is meaningful. Each owns a stance, its members' formation centroid, a default loadout and explicit per-ship override IDs. Actual equipment and positions remain on ships; grouping never duplicates parts or rearranges an existing fleet. New purchases and rescues join a compatible squadron; empty groups disappear after salvage or losses.
+
+The optional `squadrons` checkpoint field is validated with the fleet in the existing atomic transaction. Older physical-v2 saves derive deterministic groups without changing health, loads, equipment or formation. Continue restores orders; malformed membership, defaults, stances and anchors are rejected rather than repaired.
+
+Seek & Destroy retains normal automatic combat. Defend Flagship attacks visible threats within 260 units of the flagship and returns to its relative formation anchor otherwise. Evade avoids visible enemies within 360 units, falls back behind the flagship and does not automatically fire. Explicit attack orders override a passive stance until cleared or invalidated. Movement retains forward thrust, turn limits and hazard/boundary avoidance. Default stance is Seek for every existing squadron, preserving prior battle behavior.
+
+Foundation regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd), plus persistence, refit, reward and deterministic replay suites. Group controls/actions are the next D3 increment; this foundation alone does not close D3.
+
 ## Demo vertical slice
 
 **Expedition rewards**

@@ -150,6 +150,8 @@ static func valid(value: Variant) -> bool:
 	for uid: String in equipment:
 		if HangarTrade.has_load(equipment[uid]) and not used.has(uid):
 			return false
+	if not HangarSquadrons.valid(value):
+		return false
 	return (leads == 1 and cost <= command) if not value.ended else leads <= 1
 
 static func _number(value: Variant) -> bool:

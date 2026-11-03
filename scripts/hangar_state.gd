@@ -12,6 +12,7 @@ const STARTING_MISSILES := 30
 const MISSILE_PACK := 10
 const MISSILE_PACK_PRICE := 50
 var fleet: Array[FleetShip] = []
+var squadrons: Array = []
 var next_ship_id := 1
 var credits := 600
 var missiles := 0
@@ -112,6 +113,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	story_flags.clear()
 	research_branch_choices.clear()
 	fleet.clear()
+	squadrons.clear()
 	equipment_inventory.clear()
 	next_ship_id = 1
 	next_equipment_id = 1
@@ -140,6 +142,8 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 		var fighter := _add_chassis("fighter")
 		fighter.formation = Vector2(-1.25 if index == 0 else 1.25, -1.25)
 		_install_loadout(fighter, ShipLoadouts.default_for("fighter"))
+	squadrons = HangarSquadrons.initial(hangar_snapshot())
+	_apply_squadron_orders()
 	hangar_generation = -1
 	if not save_run_checkpoint():
 		if not before.is_empty():
@@ -192,6 +196,7 @@ func hangar_snapshot() -> Dictionary:
 		ships.append(owned.to_hangar_data())
 	var data := {"format": "physical_hangar", "version": 2, "run_id": run_id, "seed": str(run_seed),
 		"difficulty": difficulty, "credits": credits, "missiles": missiles, "ships": ships, "equipment": equipment_inventory.duplicate(true),
+		"squadrons": squadrons.duplicate(true),
 		"next_ship_id": next_ship_id, "next_equipment_id": next_equipment_id,
 		"current": current_node_id, "destination": destination_node_id, "planned": planned_destination_node_id,
 		"visited": visited_nodes.duplicate(), "pending": battle_pending, "ended": run_ended, "completed": completed,
@@ -232,6 +237,8 @@ func _apply_hangar(data: Dictionary, restore_expedition := false, announce_resea
 		owned.rebuild_units()
 		owned.hull_hp = entry.hull_hp
 		fleet.append(owned)
+	squadrons = data.squadrons.duplicate(true) if data.has("squadrons") else HangarSquadrons.initial(data)
+	_apply_squadron_orders()
 	current_node_id = int(data.current)
 	destination_node_id = int(data.destination)
 	planned_destination_node_id = int(data.planned)
@@ -290,6 +297,24 @@ func _notify_hangar() -> void:
 	credits_changed.emit()
 	research_changed.emit()
 	travel_plan_changed.emit()
+
+func _apply_squadron_orders() -> void:
+	for owned: HangarShip in fleet:
+		var group := HangarSquadrons.for_ship(squadrons, owned.id)
+		owned.squadron_id = int(group.get("id", 0))
+		owned.stance = str(group.get("stance", "seek"))
+
+func set_squadron_stance(group_id: int, stance: String) -> bool:
+	if not _can_refit() or stance not in HangarSquadrons.STANCES:
+		last_save_error = "Squadron orders are unavailable."
+		return false
+	var data := hangar_snapshot()
+	var group := HangarSquadrons.find(data.squadrons, group_id)
+	if group.is_empty():
+		last_save_error = "Unknown squadron."
+		return false
+	group.stance = stance
+	return _commit_hangar(data)
 
 func load_run_checkpoint() -> bool:
 	var saved := _checkpoint_store.load_latest(run_save_path, HangarCheckpoint.valid)
@@ -490,6 +515,7 @@ func _rescue_ship(data: Dictionary, chassis_id: String) -> String:
 		RunScore.earn_credits(data, compensation)
 		return "%s rescued / command full: +%d cr" % [chassis.name, compensation]
 	ShipLoadouts.append_ship(data, chassis_id, loadout)
+	HangarSquadrons.add_ship(data, data.ships.back())
 	return "%s joined the fleet" % chassis.name
 
 func station_trade_node(location_id: String) -> Dictionary:
@@ -748,6 +774,7 @@ func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
 		entry.hull_hp += _fitted_integrity(entry, data.equipment) - armor_before
 		if entry.hull_hp < 0:
 			return false
+		HangarSquadrons.update_override(data, int(entry.id))
 	return _commit_hangar(data)
 
 func _fitted_integrity(entry: Dictionary, inventory: Dictionary) -> float:
@@ -830,6 +857,7 @@ func _refit(ship_id: int, target: Dictionary) -> bool:
 			entry.mounts[slot_id] = uid
 	var fitted := _fitted_integrity(entry, data.equipment)
 	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
+	HangarSquadrons.update_override(data, ship_id)
 	return _commit_hangar(data)
 
 # Ships are sold fully fitted with a named loadout (the class default if none).
@@ -849,6 +877,7 @@ func buy_ship(key: String, loadout_id := "") -> bool:
 		return false
 	var data := hangar_snapshot()
 	ShipLoadouts.append_ship(data, key, loadout)
+	HangarSquadrons.add_ship(data, data.ships.back())
 	data.credits -= price
 	return _commit_hangar(data)
 
@@ -861,6 +890,7 @@ func salvage_hangar_ship(ship_id: int) -> bool:
 	var data := hangar_snapshot()
 	HangarTrade.settle_losses(data, [ship_id])
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) != ship_id)
+	HangarSquadrons.sync(data)
 	RunScore.earn_credits(data, floori(float(target.chassis.price) * 0.5 * maxf(0, target.hull_hp) / target.hull_max))
 	# Equipment is returned to stock, retaining its instance identity.
 	return _commit_hangar(data)
@@ -959,9 +989,14 @@ func move_ship(owned: FleetShip, position: Vector2) -> void:
 	if not _can_refit() or not fleet.has(owned) or not position.is_finite():
 		return
 	var old := owned.formation
+	var old_groups := squadrons.duplicate(true)
 	owned.formation = position.clamp(Vector2(-5, -4), Vector2(5, 4))
+	var staged := hangar_snapshot()
+	HangarSquadrons.sync(staged)
+	squadrons = staged.squadrons
 	if not save_run_checkpoint():
 		owned.formation = old
+		squadrons = old_groups
 	fleet_changed.emit()
 
 func move_ships(positions: Dictionary) -> bool:
@@ -977,6 +1012,7 @@ func move_ships(positions: Dictionary) -> bool:
 		for entry: Dictionary in data.ships:
 			if entry.id == id:
 				entry.formation = [position.x, position.y]
+	HangarSquadrons.sync(data)
 	return _commit_hangar(data)
 
 func fleet_repair_cost() -> int:
@@ -1171,6 +1207,7 @@ func settle_battle(simulation: BattleSimulation) -> bool:
 			for instance: Dictionary in owned.mounts.values():
 				data.equipment.erase(instance.uid)
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
+	HangarSquadrons.sync(data)
 	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
 	if won:
 		RunScore.earn_credits(data, int(get_frozen_encounter(destination_node_id).rewards.credits))
@@ -1224,6 +1261,7 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 			for instance: Dictionary in owned.mounts.values():
 				data.equipment.erase(instance.uid)
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
+	HangarSquadrons.sync(data)
 	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
 	var event_id: String = pending_encounter.get("expedition_event_id", "")
 	var rewards: PackedStringArray = []

@@ -105,6 +105,7 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 
 ### D3 - Squadrons and stances
 
+- Foundation increment: saved same-chassis groups, default-loadout overrides, formation anchors and Seek/Defend/Evade targeting/movement are implemented. The focused squadron suite passes 65 checks; persistence (106), refit (189), rewards (48) and deterministic battle replay also pass. Older physical-v2 saves derive groups without rearrangement or equipment changes. Fleet controls and atomic group actions remain open; D3 is not yet accepted.
 - [ ] Ships belong to squadrons, the main unit of command. A squadron owns its stance, formation slot and default loadout, with per-ship overrides.
 - [ ] Stances: Seek & Destroy, Defend Flagship, Evade. Combat AI targeting and movement follow them (Evade keeps transports out of fights).
 - [ ] Group actions: refit, repair, buy N ships into a squadron. The Fleet tab arranges squadrons as blocks.

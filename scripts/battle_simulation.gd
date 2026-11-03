@@ -537,6 +537,11 @@ func _hostile(source: Combatant, target: Combatant) -> bool:
 func _auto_candidate(source: Combatant, target: Combatant) -> bool:
 	if not can_attack(source, target) or not target.automatic_targetable:
 		return false
+	if source.is_player and source.owned_ship is HangarShip and source.commanded_target == null:
+		if source.owned_ship.stance == "evade":
+			return false
+		if source.owned_ship.stance == "defend" and target.position.distance_to(_flagship_position()) > 260.0:
+			return false
 	if mining_enabled and MiningRules.operational(source, MiningRules.TOOLS) and MiningRules.known_eligible(self, source, target):
 		return true
 	if _hostile(source, target):
@@ -737,6 +742,8 @@ func authoritative_snapshot() -> Dictionary:
 				hp.append(unit.hp)
 		actors.append({"id": member.entity_id, "faction": member.faction, "tags": member.tags.duplicate(),
 			"slot_role": member.owned_ship.slot_role if member.owned_ship != null else "",
+			"stance": member.owned_ship.stance if member.owned_ship is HangarShip else "seek",
+			"squadron": member.owned_ship.squadron_id if member.owned_ship is HangarShip else 0,
 			"analysis_target": member.analysis_target_id, "analysis_remaining": member.analysis_remaining, "repaired_hp": member.repaired_hp,
 			"escort_target_id": member.owned_ship.escort_target_id if member.owned_ship != null else 0,
 			"position": [member.position.x, member.position.y] if member.is_alive() else null,
@@ -1153,15 +1160,28 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		ship.velocity = Vector2.ZERO
 		ship.thruster_activation_elapsed = 0
 		return
-	ship.target_refresh_remaining -= delta
 	if ship.commanded_target != null and not can_attack(ship, ship.commanded_target):
 		ship.commanded_target = null
+	var stance: String = ship.owned_ship.stance if ship.is_player and ship.owned_ship is HangarShip else "seek"
+	if stance == "evade" and ship.commanded_target == null and not withdrawing:
+		ship.target = null
+		var escape := Vector2.ZERO
+		for enemy: Combatant in aliens:
+			if not enemy.is_alive() or not can_attack(ship, enemy):
+				continue
+			var offset := ship.position - enemy.position
+			if offset.length_squared() < 360.0 * 360.0:
+				escape += offset.normalized() * (360.0 - offset.length())
+		var destination := ship.position + escape if not escape.is_zero_approx() else _flagship_position() - Vector2(180, 0)
+		_stance_move(ship, destination, delta)
+		return
+	ship.target_refresh_remaining -= delta
 	if ship.commanded_target != null:
 		ship.target = ship.commanded_target
 	elif ship.target != null and not _auto_candidate(ship, ship.target):
 		ship.target = null
 		ship.target_refresh_remaining = random.randf_range(0.0, TARGET_REFRESH_INTERVAL)
-	if mining_enabled and ship.commanded_target == null and ship.target_refresh_remaining <= 0:
+	if mining_enabled and stance == "seek" and ship.commanded_target == null and ship.target_refresh_remaining <= 0:
 		var mining_target: Combatant = MiningRules.target(self, ship)
 		if mining_target != null:
 			ship.target = mining_target
@@ -1172,11 +1192,14 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 			ship.target = role_target
 			ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null and ship.target_refresh_remaining <= 0.0:
-		ship.target = MiningRules.target(self, ship) if mining_enabled else null
+		ship.target = MiningRules.target(self, ship) if mining_enabled and stance == "seek" else null
 		if ship.target == null:
 			ship.target = _choose_target(ship)
 		ship.target_refresh_remaining = TARGET_REFRESH_INTERVAL
 	if ship.target == null:
+		if stance == "defend" and not withdrawing:
+			_stance_move(ship, _flagship_position() + _guard_offset(ship), delta)
+			return
 		if visibility_enabled:
 			_investigate_contacts(ship, delta)
 			return
@@ -1207,8 +1230,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 			steering_direction = ship.position.direction_to(pickup)
 			pickup_approach_speed = minf(ship.speed, maxf(8, ship.position.distance_to(pickup) * 0.6))
 	var escort_distance := INF
-	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty()) and ship.commanded_target == null:
-		var anchor := _escort_anchor(ship)
+	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty() or stance == "defend") and ship.commanded_target == null:
+		var anchor := _flagship_position() + _guard_offset(ship) if stance == "defend" else _escort_anchor(ship)
 		escort_distance = ship.position.distance_to(anchor)
 		steering_direction = ship.position.direction_to(anchor)
 	if ship.retreat_time > 0.0:
@@ -1401,6 +1424,40 @@ func _escort_anchor(ship: Combatant) -> Vector2:
 	if host == null:
 		return PLAYER_FORMATION_CENTER + ship.owned_ship.formation * 65.0
 	return host.position - Vector2.from_angle(host.heading) * 90.0
+
+func _flagship_position() -> Vector2:
+	for member: Combatant in players:
+		if member.owned_ship != null and member.owned_ship.is_flagship() and member.is_alive():
+			return member.position
+	return PLAYER_FORMATION_CENTER
+
+func _guard_offset(ship: Combatant) -> Vector2:
+	for member: Combatant in players:
+		if member.owned_ship != null and member.owned_ship.is_flagship():
+			return (ship.owned_ship.formation - member.owned_ship.formation) * 65.0
+	return Vector2.ZERO
+
+func _stance_move(ship: Combatant, destination: Vector2, delta: float) -> void:
+	var offset := destination - ship.position
+	var desired := offset.limit_length(ship.speed)
+	desired = encounter.steer(ship.position, desired, ship.speed)
+	desired = MiningRules.avoidance(self, ship, desired)
+	desired = encounter.warden.avoidance(self, ship, desired)
+	if ship.position.length() > ARENA_RADIUS - SOFT_BOUNDARY_MARGIN:
+		desired -= ship.position.normalized() * ship.speed
+	var slow := abilities.movement_rate(ship)
+	desired = desired.limit_length(ship.speed * slow)
+	if desired.length_squared() > 1:
+		ship.heading = rotate_toward(ship.heading, desired.angle(), delta * ship.turn_rate * slow)
+	_apply_passive_drag(ship, delta)
+	_apply_limited_reverse_thrust(ship, desired, delta)
+	if offset.length() > 20.0:
+		ship.velocity += Vector2.from_angle(ship.heading) * ship.acceleration * delta * slow
+	ship.velocity = ship.velocity.limit_length(ship.speed * slow)
+	ship.position += ship.velocity * delta
+	ship.thruster_activation_elapsed = ship.thruster_activation_elapsed + delta if desired.length_squared() > 1 else 0
+	for index in range(ship.cooldowns.size()):
+		ship.cooldowns[index] = maxf(0, ship.cooldowns[index] - delta)
 
 
 func _apply_passive_drag(ship: Combatant, delta: float) -> void:
