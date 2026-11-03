@@ -17,6 +17,8 @@ Siege I/II, Carrier I/II and Command I/II are active research nodes with their e
 
 ## Combat and conservation
 
+Missile Racks now draw one missile per projectile from the persistent fleet supply; an empty rack cannot fire. Ammunition Magazines change cycling only and never create or replenish missiles. Tactical Computer salvos still spend the normal projectile cost. Railguns, guns, beams, enemy weapons and carrier craft retain their existing resource rules: bomber/interceptor payloads use their finite sortie allowances, not the fleet missile pool. See [Fleet ammunition](HANGAR.md#fleet-ammunition) for station supply, salvage and battle-settlement persistence.
+
 Craft are targetable combat actors, not owned chassis or inventory rewards. Sorties expire after 25 seconds or when their payload is spent, the craft dies, or the host is destroyed. Source loss prunes craft immediately during the damage/stat update. Point defense prioritizes hostile craft and intercepts bomber torpedoes; interceptors screen hostile missiles without destroying friendly ones. The global 64-live-combatant launch cap also applies. Failed/capped launches spend nothing.
 
 Replacement allowances follow equipment UIDs in the existing per-encounter doctrine pool. Spent sorties survive retreat settlement, atomic save/reload, repairs and transfers. A different encounter starts a fresh allowance. Older pools without carrier fields remain readable. Bad capacities, overspending, invalid identities and future/mismatched UIDs are rejected. Pending battle restarts replay the original departure battle, not a partially damaged enemy roster with a refreshed fleet.
