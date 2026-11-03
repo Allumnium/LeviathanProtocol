@@ -284,6 +284,7 @@ func _test_victory() -> void:
 			root.get_texture().get_image().save_png("res://.local/outcome-victory-%d.png" % resolution.x)
 	report.queue_free()
 	await settle()
+	await _test_report_table(battle)
 	state.completed = true
 	var final_report: Control = load("res://scripts/battle_report.gd").new()
 	battle.add_child(final_report)
@@ -303,6 +304,42 @@ func _test_victory() -> void:
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/outcome-final-victory-640.png")
 	battle.queue_free()
+	await settle()
+
+func _test_report_table(battle: Control) -> void:
+	var entries: Array[Dictionary] = []
+	for index in range(3):
+		entries.append({"ship": state.fleet[index], "destroyed": index == 1,
+			"damage": 123456 + index, "deflected": 321 + index, "repair_damage": 20 * index,
+			"passenger_deaths": 3 if index == 1 else 0, "passenger_fees": 60 if index == 1 else 0})
+	var report: Control = load("res://scripts/battle_report.gd").new()
+	battle.add_child(report)
+	var materials: Array[int] = []
+	report.show_report(entries, "Victory", materials)
+	var grid: GridContainer = report.find_child("FleetTable", true, false)
+	check(grid != null and grid.columns == 4 and grid.get_child_count() == 16,
+		"Reports share four headings instead of repeating labels on every ship")
+	check(grid.get_child(4).get_node("ShipName").source_text.contains("DESTROYED")
+		and grid.get_child(8).get_node("ShipName").source_text.begins_with(state.fleet[2].display_name),
+		"Reports prioritize losses, then greatest repair need")
+	check(grid.get_child(5).text == "123457" and grid.get_child(6).text == "322"
+		and grid.get_child(7).text == "-" and grid.get_child(11).text == "40",
+		"Shared columns retain exact damage, deflection and repair HP without repair offers for wrecks")
+	var fees: ResourceText = report.find_child("PassengerCasualties", true, false)
+	check(fees.source_text.contains("Passengers lost: 3") and fees.source_text.contains("Fees: -60 cr")
+		and fees.source_text.contains("Balance:"), "Passenger losses, fees and resulting balance remain explicit")
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		for cell: Control in grid.get_children():
+			check(grid.get_global_rect().encloses(cell.get_global_rect()),
+				"Report table cells stay aligned and unclipped at %d" % resolution.x)
+		check(root.get_visible_rect().encloses(report.find_child("AcceptButton", true, false).get_global_rect()),
+			"Report acceptance stays discoverable at %d" % resolution.x)
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/report-table-%d.png" % resolution.x)
+	report.queue_free()
 	await settle()
 
 func _test_defeat() -> void:

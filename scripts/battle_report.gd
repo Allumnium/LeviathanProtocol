@@ -77,36 +77,12 @@ func show_report(
 		score.name = "RunScore"
 		rows.add_child(score)
 	var summaries := _summarize_by_slot(entries)
-	summaries.append_array(_summarize_aliens(entries))
-	for summary in summaries:
-		var card := PanelContainer.new()
-		card.theme_type_variation = &"ReportCard"
-		rows.add_child(card)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		card.add_child(row)
-		row.add_child(_create_summary_preview(summary))
-		var details := VBoxContainer.new()
-		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		details.add_theme_constant_override("separation", 2)
-		row.add_child(details)
-		var name_label := ResourceText.create(summary.name + (" · %d DESTROYED" % summary.destroyed if summary.destroyed > 0 else ""))
-		name_label.name = "ShipName"
-		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		details.add_child(name_label)
-		if summary.destroyed > 0:
-			name_label.add_theme_color_override("default_color", DAMAGE_DEALT_COLOR)
-		var stats := GridContainer.new()
-		stats.columns = 2
-		stats.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		stats.add_theme_constant_override("h_separation", 12)
-		details.add_child(stats)
-		_add_stat(stats, "Damage dealt", summary.damage)
-		if summary.deflected > 0.0:
-			_add_stat(stats, "Damage deflected", summary.deflected)
-		if summary.repair_damage > 0.0:
-			_add_stat(stats, "Repair", summary.repair_damage)
+	summaries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.destroyed != b.destroyed:
+			return a.destroyed > b.destroyed
+		return float(a.repair_damage) > float(b.repair_damage))
+	_add_summary_table(rows, summaries, "Fleet")
+	_add_summary_table(rows, _summarize_aliens(entries), "Opposition")
 	var button_center := CenterContainer.new()
 	column.add_child(button_center)
 	var accept_button := Button.new()
@@ -118,15 +94,52 @@ func show_report(
 	accept_button.pressed.connect(func() -> void: closed.emit())
 	button_center.add_child(accept_button)
 
-func _add_stat(parent: GridContainer, title: String, value: float) -> void:
-	var label := ResourceText.create(title)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.custom_minimum_size.y = 20
-	parent.add_child(label)
-	var amount := Label.new()
-	amount.text = str(roundi(value))
-	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	parent.add_child(amount)
+func _add_summary_table(parent: VBoxContainer, summaries: Array[Dictionary], title: String) -> void:
+	if summaries.is_empty():
+		return
+	var grid := GridContainer.new()
+	grid.name = title + "Table"
+	grid.columns = 4
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 4)
+	parent.add_child(grid)
+	for heading: String in [title, "Damage", "Deflected", "Repair HP"]:
+		var label := ResourceText.create(heading)
+		label.name = heading + "Heading"
+		label.custom_minimum_size.y = 20
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		if heading == title:
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		else:
+			label.custom_minimum_size.x = 56
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		grid.add_child(label)
+	for summary: Dictionary in summaries:
+		var row := HBoxContainer.new()
+		row.name = "ShipSummary"
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_constant_override("separation", 8)
+		grid.add_child(row)
+		row.add_child(_create_summary_preview(summary))
+		var suffix := ""
+		if summary.destroyed > 0:
+			suffix = " · DESTROYED" if not summary.get("is_alien", false) else " · %d DESTROYED" % summary.destroyed
+		var name_label := ResourceText.create(summary.name + suffix)
+		name_label.name = "ShipName"
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(name_label)
+		if summary.destroyed > 0:
+			name_label.add_theme_color_override("default_color", DAMAGE_DEALT_COLOR)
+		for key: String in ["damage", "deflected", "repair_damage"]:
+			var amount := Label.new()
+			amount.name = key.capitalize().replace(" ", "") + "Value"
+			amount.text = "-" if key == "repair_damage" and (summary.destroyed > 0 or summary.get("is_alien", false)) else str(roundi(summary[key]))
+			amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			grid.add_child(amount)
 
 func _add_victory_banner(parent: VBoxContainer) -> void:
 	var banner := Control.new()

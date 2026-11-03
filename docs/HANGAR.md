@@ -193,8 +193,11 @@ do not spend cooldowns. This UI pass does not make deferred abilities/equipment
 available in physical runs.
 
 Victory uses the supplied Victory background, badge, rays, light line and title,
-with compact integer-valued ship statistics in themed reward cards. Names have
-the full details-column width; damage is no longer an unbounded segment flow.
+with shared aligned Damage / Deflected / Repair HP columns. Fleet losses appear
+first, followed by greatest hull repair need, before opposition summaries. Full
+names/art and explicit DESTROYED status remain; zero values are shown and wrecks
+have no repair amount. Repair HP is hull damage, not a credit price. Names use
+the flexible first column; damage is no longer an unbounded segment flow.
 Loot/rewards and surviving-hull repair quotes retain their settlement behavior.
 The result overlays a dark backdrop, while the shared top-right Settings remains
 available. Its independent auto-pan and auto-zoom toggles use Switch_Off/Switch_On with preserved aspect;
