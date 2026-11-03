@@ -57,11 +57,42 @@ func _init() -> void:
 	add_theme_constant_override("v_separation", 4)
 
 func set_ship(ship: HangarShip, comparison := true) -> void:
+	var stats := ship.get_stats()
+	var actual := values(ship) if comparison else {"hull": ship.hull_hp, "shields": stats.shields}
+	var equipment := {}
+	for instance: Dictionary in ship.mounts.values():
+		equipment[instance.uid] = instance
+	var loads := {} if comparison else HangarTrade.summary({"ships": [ship.to_hangar_data()], "equipment": equipment})
+	_set_values(actual, ship.hull_max, stats.dps, ship.hangar_summary(), loads, comparison)
+
+func set_squadron(ships: Array[HangarShip]) -> void:
+	var actual := {"hull": 0.0, "shields": 0.0}
+	var hull_max := 0.0
+	var dps := 0.0
+	var summary := {"cargo": 0, "passengers": 0}
+	var data := {"ships": [], "equipment": {}}
+	for ship: HangarShip in ships:
+		if not ship.is_alive():
+			continue
+		var stats := ship.get_stats()
+		actual.hull += ship.hull_hp
+		actual.shields += stats.shields
+		hull_max += ship.hull_max
+		dps += stats.dps
+		var capacity := ship.hangar_summary()
+		summary.cargo += capacity.cargo
+		summary.passengers += capacity.passengers
+		data.ships.append(ship.to_hangar_data())
+		for instance: Dictionary in ship.mounts.values():
+			data.equipment[instance.uid] = instance
+	_set_values(actual, hull_max, dps, summary, HangarTrade.summary(data), false)
+
+func _set_values(actual: Dictionary, hull_max: float, dps: float, summary: Dictionary,
+		loads: Dictionary, comparison: bool) -> void:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
 	bars.clear()
-	var actual := values(ship) if comparison else {"hull": ship.hull_hp, "shields": ship.get_stats().shields}
 	var ranges := comparison_ranges() if comparison else {}
 	for index in range(KEYS.size()):
 		var key: String = KEYS[index]
@@ -76,7 +107,7 @@ func set_ship(ship: HangarShip, comparison := true) -> void:
 		add_child(cell)
 		var numeric := str(roundi(actual[key]))
 		if key == "hull":
-			numeric = "%d / %d" % [roundi(ship.hull_hp), roundi(ship.hull_max)]
+			numeric = "%d / %d" % [roundi(actual.hull), roundi(hull_max)]
 		var label := ResourceText.create("%s %s" % [TITLES[index], numeric])
 		label.name = "StatValue"
 		if key == "hull" and not comparison:
@@ -100,21 +131,13 @@ func set_ship(ship: HangarShip, comparison := true) -> void:
 		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bar.step = 0.0
 		bar.value = percentage(actual[key], ranges[key]) if comparison \
-			else 100.0 * clampf(ship.hull_hp / maxf(1.0, ship.hull_max), 0.0, 1.0)
+			else 100.0 * clampf(actual.hull / maxf(1.0, hull_max), 0.0, 1.0)
 		cell.add_child(bar)
 		bars[key] = bar
 		if not comparison:
 			bar.add_to_group("hull_readout")
-	var stats := ship.get_stats()
-	if stats.dps > 0:
-		_add_readout("DPS %d" % roundi(stats.dps))
-	var summary := ship.hangar_summary()
-	var loads := {}
-	if not comparison:
-		var equipment := {}
-		for instance: Dictionary in ship.mounts.values():
-			equipment[instance.uid] = instance
-		loads = HangarTrade.summary({"ships": [ship.to_hangar_data()], "equipment": equipment})
+	if dps > 0:
+		_add_readout("DPS %d" % roundi(dps))
 	if summary.cargo > 0:
 		_add_readout("Cargo\n%d" % summary.cargo if comparison \
 			else "Cargo %d / %d" % [loads.cargo, summary.cargo])

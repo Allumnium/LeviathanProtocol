@@ -225,6 +225,22 @@ func actions() -> void:
 	before = state.hangar_snapshot()
 	check(not state.refit_squadron(int(group("flagship_basic").id), "gunline", true) and state.last_save_error.contains("Deliver")
 		and SaveValidation.same(before, state.hangar_snapshot()), "Loaded mount rolls back all earlier staged refits")
+	var bars := ShipStatBars.new()
+	root.add_child(bars)
+	var ships: Array[HangarShip] = [state.owned_ship(3), state.owned_ship(4)]
+	ships[0].hull_hp -= 15
+	bars.set_squadron(ships)
+	check(is_equal_approx(bars.bars.hull.value,
+		100 * (ships[0].hull_hp + ships[1].hull_hp) / (ships[0].hull_max + ships[1].hull_max)),
+		"Squadron hull bar uses summed current/max integrity, including partial damage")
+	ships.assign([state.owned_ship(1), state.owned_ship(2)])
+	bars.set_squadron(ships)
+	var readouts: Array[String] = []
+	for label: Node in bars.find_children("*", "RichTextLabel", true, false):
+		readouts.append(label.source_text)
+	check("Cargo 10 / 10" in readouts and "Passengers 4 / 4" in readouts,
+		"Squadron transport readouts sum real loads without losing per-instance ownership")
+	bars.queue_free()
 
 func combat() -> void:
 	var sim := fixture("seek")

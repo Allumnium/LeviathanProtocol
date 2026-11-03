@@ -169,14 +169,19 @@ func run() -> void:
 	scene._refresh()
 	await process_frame
 	await process_frame
-	var fleet_bars: ShipStatBars = scene.details.find_child("ShipStatBars", true, false)
+	var fleet_bars: ShipStatBars = scene.details.find_child("SquadronStatBars", true, false)
 	check(fleet_bars != null and fleet_bars.bars.size() == 1
 		and not _text(fleet_bars).contains("Mass") and not _text(fleet_bars).contains("Maneuverability"),
-		"Fleet single selection shows condition without normalized comparison clutter")
+		"Fleet squadron selection shows condition without normalized comparison clutter")
+	var hull := 0.0
+	var hull_max := 0.0
+	for id: int in HangarSquadrons.for_ship(state.squadrons, ship.id).members:
+		hull += state.owned_ship(id).hull_hp
+		hull_max += state.owned_ship(id).hull_max
 	for key: String in fleet_bars.bars:
 		check(key == "hull" and is_equal_approx(fleet_bars.bars[key].value,
-			100.0 * clampf(ship.hull_hp / ship.hull_max, 0, 1)),
-			"Fleet selected ship uses the same current/max hull condition")
+			100.0 * clampf(hull / hull_max, 0, 1)),
+			"Fleet selected squadron shows summed current/max hull condition")
 	scene.queue_free()
 	await process_frame
 	print("Chassis review: %d checks, %d failures" % [checks, failures])

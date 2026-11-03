@@ -109,7 +109,7 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 - [x] Ships belong to squadrons, the main unit of command. A squadron owns its stance, formation slot and default loadout, with per-ship overrides. Same-chassis groups preserve actual fits/positions; Ships can split a member or join another compatible group.
 - [x] Stances: Seek & Destroy, Defend Flagship, Evade. Combat AI targeting and movement follow them (Evade keeps transports out of fights). Explicit attacks override passive orders; carriers respect stance and retain their finite allowance.
 - [x] Group actions: refit, repair, buy N ships into a squadron. The Fleet tab arranges squadrons as blocks. Refits preserve overrides unless explicitly reset; group purchases/repairs/moves use one quoted atomic transaction. Artwork/count roster cards avoid long repeated names.
-- Focused group acceptance: 177 checks pass in native rendering, including actual pointer orders, refits, buy-N, split/join, box selection, whole-block drags and failed-move feedback; three-resolution geometry and pan/zoom are covered. The new suite is registered for both baseline render modes. Full D3 baseline acceptance remains pending.
+- Focused group acceptance: 179 checks cover actual pointer orders, refits, buy-N, split/join, box selection, whole-block drags, failed-move feedback and aggregate condition/transport readouts; three-resolution geometry and pan/zoom are covered. The new suite is registered for both baseline render modes. Legacy fixture setup now records its intentional custom-loadout override; polish/chassis assertions exercise squadron selection rather than retired single-ship Fleet details. Full D3 baseline acceptance remains pending.
 
 ### D4 - Research that you can feel
 

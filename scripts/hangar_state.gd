@@ -381,8 +381,11 @@ func repair_squadron(group_id: int) -> bool:
 		return false
 	var data := hangar_snapshot()
 	var group := HangarSquadrons.find(data.squadrons, group_id)
+	if group.is_empty():
+		last_save_error = "Unknown squadron."
+		return false
 	var cost := squadron_repair_cost(group_id)
-	if group.is_empty() or cost <= 0 or credits < cost:
+	if cost <= 0 or credits < cost:
 		last_save_error = "No repairs needed." if cost <= 0 else "Not enough credits. Cost: %d." % cost
 		return false
 	for entry: Dictionary in data.ships:

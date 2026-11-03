@@ -487,8 +487,10 @@ func run() -> void:
 	await settle()
 	screen.tabs.get_child(1).pressed.emit()
 	await settle()
-	check(not screen.buy_open and screen.details.get_child(0).text == state.fleet[0].display_name,
-		"Closing the ship shop restores ship details")
+	var selected_squadron := HangarSquadrons.for_ship(state.squadrons, state.fleet[0].id)
+	check(not screen.buy_open and screen.details.get_child(0).text == "%s #%d x%d" % [
+		selected_squadron.name, selected_squadron.id, selected_squadron.members.size()],
+		"Closing the ship shop restores squadron commands in Fleet")
 	await drag(screen.research_status.get_global_rect().get_center(), screen.research_status.get_global_rect().get_center())
 	check(screen.active_tab == "RESEARCH" and screen.research_button.button_pressed,
 		"Clicking embedded research content activates its tab")
@@ -557,9 +559,15 @@ func run() -> void:
 	check(board._hit(second + Vector2(15, 0) * board.zoom) == 0,
 		"Escort hit target no longer covers its old full-size bounds")
 	var origin := board.global_position
+	var expected_selection: Array[int] = []
+	for owned: HangarShip in [state.fleet[0], state.fleet[1]]:
+		for id: int in HangarSquadrons.for_ship(state.squadrons, owned.id).members:
+			if id not in expected_selection:
+				expected_selection.append(id)
 	await drag(origin + first - Vector2(40, 50), origin + second + Vector2(40, 50))
 	board = screen.formation_view
-	check(board.selected_ids.size() == 2 and screen.selected_ship_id == 0, "Native box select selects both ships")
+	check(board.selected_ids == expected_selection and screen.selected_ship_id == 0,
+		"Native box select expands both intersected squadrons, including the member outside its rectangle")
 	check(board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Selection preserves camera")
 	await capture("group-selected")
 	var before_a: Vector2 = state.fleet[0].formation
@@ -571,7 +579,7 @@ func run() -> void:
 	board = screen.formation_view
 	check(not state.fleet[0].formation.is_equal_approx(before_a), "Native group drag moves ships")
 	check((state.fleet[1].formation - state.fleet[0].formation).is_equal_approx(before_b - before_a), "Group drag preserves spacing")
-	check(board.selected_ids.size() == 2 and board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Move retains selection, pan and zoom")
+	check(board.selected_ids == expected_selection and board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Move retains squadron selection, pan and zoom")
 	check(board.starfield._get_star_position(board.starfield._stars[0]).is_equal_approx(background_position), "Moving ships does not reshuffle stationary stars")
 	var saved: Dictionary = state.hangar_snapshot()
 	check(state.load_run_checkpoint(), "Load moved formation")

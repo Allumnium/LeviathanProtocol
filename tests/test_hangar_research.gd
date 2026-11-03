@@ -179,6 +179,7 @@ func run() -> void:
 	fixture.next_equipment_id += 1
 	fixture.equipment[uid] = {"uid": uid, "equipment_id": "gravitic_snare", "rank": 1}
 	fixture.ships[-1].mounts["fore"] = uid
+	HangarSquadrons.update_override(fixture, host_id)
 	check(state._commit_hangar(fixture) and state.load_run_checkpoint(), "Legacy inactive item remains readable")
 	check(state.deployment_error() == "Unequip deferred equipment", "Inactive loadout cannot depart")
 	check(state.fit_equipment(host_id, "fore", "") and not state.equipment_inventory.has(uid), "Legacy inactive item can be removed (and is scrapped)")

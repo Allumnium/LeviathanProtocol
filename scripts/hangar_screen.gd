@@ -1670,6 +1670,13 @@ func _show_squadron_details(group: Dictionary) -> void:
 	if group.is_empty():
 		return
 	details.add_child(_label("%s #%d x%d" % [group.name, group.id, group.members.size()]))
+	var members: Array[HangarShip] = []
+	for id: int in group.members:
+		members.append(GameState.owned_ship(id))
+	var bars := StatBars.new()
+	bars.name = "SquadronStatBars"
+	details.add_child(bars)
+	bars.set_squadron(members)
 	for stance: String in HangarSquadrons.STANCES:
 		var option := _button(HangarSquadrons.LABELS[stance],
 			func() -> void: _result(GameState.set_squadron_stance(int(group.id), stance)))
