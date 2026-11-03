@@ -18,7 +18,7 @@
       "id": "charter_briefing",
       "trigger": "start",
       "title": "Convoy charter",
-      "text": "Captain, the convoy is fueled and the cargo brokers are waiting. The frontier run is routine work: haul goods, carry passengers, and keep the ledger in the black.\n\nBuy a Cargo Hold and drag it onto the Transport to haul goods between ports. When the fleet is ready, press DEPART.",
+      "text": "Captain, keep the convoy solvent. The Transport is fitted for cargo: loads board on departure and pay on delivery at another trading port.\n\nSet your course on the Map. Buy fitted ships and change loadouts at shipyards.",
       "art": "res://assets/chassis/flagship_basic_d.png",
       "options": [
         {"id": "begin", "label": "UNDERSTOOD", "effects": {}}
@@ -45,7 +45,7 @@
       "text": "A battered independent hauler hails you. \"Spare fuel cells, no questions asked. Sixty credits for forty units.\"",
       "art": "res://assets/transport.png",
       "options": [
-        {"id": "buy", "label": "BUY FUEL CELLS (60)", "effects": {"credits": -60, "fuel": 40.0, "requires_credits": 60}},
+        {"id": "buy", "label": "+40 FUEL / 60 cr", "effects": {"credits": -60, "fuel": 40.0, "requires_credits": 60}},
         {"id": "pass", "label": "NO THANKS", "effects": {}}
       ]
     },
@@ -91,7 +91,7 @@
       "text": "The lane narrows into a drifting rock field. Something is hiding among the rocks.",
       "art": "res://assets/asteroids_small.png",
       "options": [
-        {"id": "thread", "label": "THREAD THE ROCKS", "effects": {"hull_damage": 0.1}},
+        {"id": "thread", "label": "PASS THROUGH / -10% MAX HULL", "effects": {"hull_damage": 0.1}},
         {"id": "blast", "label": "FLUSH THEM OUT", "effects": {"combat": {"template": "patrol", "row": 5, "strength": 4.0, "asteroids": 2, "credits": 180}}}
       ]
     },
@@ -103,7 +103,7 @@
       "text": "Gutted freighters, scored by something that was not a weapon. Their holds are still sealed, and a few dormant shapes cling to the hulls.",
       "art": "",
       "options": [
-        {"id": "careful", "label": "SALVAGE THE EDGES (+80)", "effects": {"credits": 80}},
+        {"id": "careful", "label": "SALVAGE THE EDGES (+80 cr)", "effects": {"credits": 80}},
         {"id": "strip", "label": "CUT INTO THE HOLDS", "effects": {"combat": {"template": "patrol", "row": 3, "strength": 3.0, "asteroids": 1, "credits": 160}}}
       ]
     },
@@ -127,7 +127,7 @@
       "text": "The cloud is laced with organic filaments. Your labs could learn a great deal, if the hulls can take the radiation.",
       "art": "",
       "options": [
-        {"id": "study", "label": "STUDY IT (+10 RP)", "effects": {"research": 10.0, "hull_damage": 0.1}},
+        {"id": "study", "label": "STUDY / +10 RP / -10% MAX HULL", "effects": {"research": 10.0, "hull_damage": 0.1}},
         {"id": "leave", "label": "MOVE ON", "effects": {}}
       ]
     },

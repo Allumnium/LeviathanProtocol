@@ -5,6 +5,21 @@ const PASSENGER_DEATH_FEE := 20
 const PASSENGER_CAPACITY := 4
 const CARGO_CAPACITY := 10
 
+static func summary(data: Dictionary) -> Dictionary:
+	var totals := {"cargo": 0, "cargo_capacity": 0, "passengers": 0, "passenger_capacity": 0}
+	for ship: Dictionary in data.ships:
+		if ship.hull_hp < 0:
+			continue
+		for uid: String in ship.mounts.values():
+			var instance: Dictionary = data.equipment[uid]
+			if instance.equipment_id == "cargo_hold":
+				totals.cargo_capacity += CARGO_CAPACITY
+				totals.cargo += int(instance.get("load", {}).get("quantity", 0))
+			elif instance.equipment_id == "passenger_cabin":
+				totals.passenger_capacity += PASSENGER_CAPACITY
+				totals.passengers += int(instance.get("load", {}).get("quantity", 0))
+	return totals
+
 # Loads belong to physical equipment IDs, never slot indices or blueprints.
 static func depart(data: Dictionary, source: Dictionary, target: Dictionary) -> void:
 	for ship: Dictionary in data.ships:

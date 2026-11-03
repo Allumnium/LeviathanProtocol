@@ -62,7 +62,41 @@ func run() -> void:
 	screen.graph.selected_id = "start_station"
 	screen.graph._place_go_button()
 	check(not screen.graph.go_button.visible, "The fleet's own location offers no GO TO")
-	await map_go("refuel_station_1")
+	check(expedition.set_speed(10) and expedition.set_pause(Travel.PauseReason.USER, true),
+		"Remember paused fast-forward speed before selecting a course")
+	var original_position: Vector2 = expedition.state.position_nu
+	screen.graph.location_selected.emit("refuel_station_1")
+	check(expedition.state.destination_location_id.is_empty() and expedition.state.position_nu == original_position
+		and screen.departure_button.text == "ENGAGE", "Map selection prepares Engage without departing")
+	var engage_save_path: String = state.run_save_path
+	state.run_save_path = "res://project.godot/blocked-engage.json"
+	var loads_before: Dictionary = state.equipment_inventory.duplicate(true)
+	screen.departure_button.pressed.emit()
+	check(expedition.state.destination_location_id.is_empty() and expedition.state.position_nu == original_position
+		and Travel.PauseReason.USER in expedition.state.pause_reasons
+		and state.equipment_inventory == loads_before,
+		"Failed Engage save preserves route, user pause and physical loads")
+	state.run_save_path = engage_save_path
+	screen._on_expedition_retry_pressed()
+	screen.departure_button.pressed.emit()
+	await settle()
+	check(expedition.state.requested_speed == 10 and Travel.PauseReason.USER not in expedition.state.pause_reasons,
+		"Engage clears only user pause and starts at the last set speed")
+	check(screen.course_readout.visible and not screen.departure_button.visible
+		and screen.course_readout.text.begins_with(expedition.locations["refuel_station_1"].name),
+		"In flight without selection, the lower recess shows destination and remaining distance")
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		check(screen.command_header.get_global_rect().encloses(screen.course_readout.get_global_rect())
+			and screen.command_header.course.get_global_rect().encloses(screen.course_readout.get_global_rect()),
+			"Destination and remaining-distance readout fit the lower recess at each resolution")
+	root.size = Vector2i(1280, 720)
+	await settle()
+	screen.graph.location_selected.emit("settlement_1")
+	check(screen.departure_button.visible and screen.departure_button.text == "CHANGE COURSE",
+		"Selecting another destination in flight offers Change Course")
+	screen.graph.location_selected.emit("")
 	check(expedition.state.destination_location_id == "refuel_station_1"
 			and expedition.state.travel_state == Travel.TravelState.CRUISING, "GO TO departs immediately")
 	screen.speed_buttons[10].pressed.emit()

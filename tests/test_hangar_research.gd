@@ -19,12 +19,43 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://ranked-research.json"
 	check(state.start_new_run(1, 42), "Start rank fixture")
+	var bank: Dictionary = state.hangar_snapshot()
+	state._allocate_research(bank.research, 2.5)
+	check(state._commit_hangar(bank) and state.load_run_checkpoint() and state.research_points == 2.5,
+		"Fractional unfocused RP persists across Continue")
+	var before_bank: Dictionary = state.hangar_snapshot()
+	var save_path: String = state.run_save_path
+	state.run_save_path = "res://project.godot/blocked-research.json"
+	check(not state.set_research_focus("applied_energy") and state.hangar_snapshot() == before_bank,
+		"Failed focus save leaves bank and project progress unchanged")
+	state.run_save_path = save_path
+	check(state.set_research_focus("applied_energy") and state.research_points == 0.5
+		and state.research_progress.applied_energy == 2, "Setting focus spends only whole RP and retains fractional earnings")
+	var fractional: Dictionary = state.hangar_snapshot().research
+	state._allocate_research(fractional, 0.25)
+	check(fractional.research_progress.applied_energy == 2 and fractional.research_points == 0.75,
+		"Fractional earnings cannot purchase fractional project progress")
+	state._allocate_research(fractional, 0.25)
+	check(fractional.research_progress.applied_energy == 3 and fractional.research_points == 0,
+		"Fractional earnings combine into the next spendable whole RP")
+	fractional.research_progress.applied_energy = 3.5
+	state._allocate_research(fractional, 0.25)
+	check(fractional.research_progress.applied_energy == 3 and fractional.research_points == 0.75,
+		"Historical fractional project progress returns to the bank without losing science")
+	fractional.research_points = 0
+	fractional.research_progress.applied_energy = 3.5
+	state._allocate_research(fractional, 0)
+	check(fractional.research_progress.applied_energy == 3 and fractional.research_points == 0.5,
+		"Setting focus preserves legacy fractional progress even with an empty bank")
+	check(ScienceRules.format_points(7.99) == "7" and ScienceRules.format_points(8) == "8",
+		"Science displays only spendable integer RP, never rounded-up purchasing power")
+	check(state.start_new_run(1, 42), "Restart rank fixture with empty bank")
 	var overflow_progress: Dictionary = state.hangar_snapshot().research
 	overflow_progress.research_focus = "applied_energy"
 	var overflow_cost := float(ResearchFocusRules.cost("applied_energy", overflow_progress))
 	state._allocate_research(overflow_progress, overflow_cost + 10)
 	check("applied_energy" in overflow_progress.research_ids and overflow_progress.research_focus.is_empty()
-		and not overflow_progress.has("research_points"), "Excess output is discarded when a project completes")
+		and overflow_progress.research_points == 10, "Excess output is banked when a project completes")
 	# This explicit late-game fixture tests the public purchase/fitting API for
 	# equipment that cannot be obtained at the starting port in a natural run.
 	var fixture: Dictionary = state.hangar_snapshot()
@@ -75,7 +106,7 @@ func run() -> void:
 	sim.battle_id = state.battle_identity()
 	var research_cost := float(ResearchFocusRules.cost("applied_energy", state.hangar_snapshot().research))
 	var before_progress := float(state.research_progress.get("applied_energy", 0))
-	var expected_progress := minf(research_cost, before_progress + frozen)
+	var expected_progress := minf(research_cost, floorf(before_progress + frozen + state.research_points))
 	for tick in range(90):
 		sim.advance(1.0 / 30)
 	check(is_equal_approx(float(state.research_progress.get("applied_energy", 0)), before_progress), "Battle duration generates no research")
@@ -92,7 +123,7 @@ func run() -> void:
 		check("applied_energy" in state.current_research_ids and state.research_focus.is_empty(), "Arrival completes focused research and discards excess output")
 	else:
 		check(is_equal_approx(float(state.research_progress.get("applied_energy", 0)), expected_progress), "Arrival adds frozen output directly to focused research")
-	check(not state.hangar_snapshot().research.has("research_points"), "New checkpoints do not store a research-point balance")
+	check(state.hangar_snapshot().research.research_points >= 0, "New checkpoints store unspent research")
 	check(not state.settle_battle(sim), "Frozen research cannot settle twice")
 	# Schema 2 pending saves store a numeric yield, not a recomputed rate.
 	check(state.start_new_run(1, 1357), "Historical yield fixture")
@@ -101,7 +132,15 @@ func run() -> void:
 	saved.journey_rp = 1.5
 	saved.research["research_points"] = 6.5
 	check(state._commit_hangar(saved) and state.load_run_checkpoint() and state.journey_rp == 1.5, "Schema 2 pending yields reload without reinterpretation")
-	check(not state.hangar_snapshot().research.has("research_points"), "Legacy unspent research points are discarded on load")
+	check(state.research_points == 6.5, "Legacy unspent research points are preserved on load")
+	saved = state.hangar_snapshot()
+	saved.research.erase("research_points")
+	check(state._commit_hangar(saved) and state.load_run_checkpoint() and state.research_points == 0,
+		"Older checkpoints without a bank load with zero unspent RP")
+	for invalid: Variant in [-1, NAN, INF, "3", null]:
+		var broken: Dictionary = state.hangar_snapshot()
+		broken.research.research_points = invalid
+		check(not HangarCheckpoint.valid(broken), "Malformed RP balances are rejected before mutation")
 	# An undefined old ability must not remain a purchasable, lootable stub.
 	check(state.start_new_run(1, 907), "Deferred purchase fixture")
 	fixture = state.hangar_snapshot()

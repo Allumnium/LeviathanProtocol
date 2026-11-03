@@ -129,7 +129,7 @@ func run() -> void:
 	check(state.start_new_run(1, 151), "Start isolated UI fixture")
 	var settings: PopupPanel = load("res://scenes/settings_dialog.tscn").instantiate()
 	root.add_child(settings)
-	check(settings.battle_auto_camera_button is TextureButton
+	check(settings.battle_auto_pan_button is TextureButton and settings.battle_auto_zoom_button is TextureButton
 		and settings.find_child("ReducedMotionButton", true, false) == null,
 		"Settings uses an artwork switch and does not expose Reduced motion")
 	for slider_type in ["HSlider", "VSlider"]:
@@ -145,14 +145,19 @@ func run() -> void:
 	var handle_image := ui_theme.get_icon("grabber", "HSlider").get_image()
 	check(handle_image.get_pixel(0, 0).a == 1 and handle_image.get_pixel(7, 15).a == 1,
 		"Compact slider handle has crisp opaque edges without baked glow")
-	var camera_preference: bool = state.battle_auto_camera
-	settings.battle_auto_camera_button.button_pressed = not camera_preference
-	check(state.battle_auto_camera == not camera_preference,
+	var camera_preference: bool = state.battle_auto_pan
+	var zoom_preference: bool = state.battle_auto_zoom
+	settings.battle_auto_pan_button.button_pressed = not camera_preference
+	check(state.battle_auto_pan == not camera_preference and state.battle_auto_zoom == zoom_preference,
 		"Settings switch updates and saves boolean preferences")
-	settings.battle_auto_camera_button.button_pressed = camera_preference
+	settings.battle_auto_pan_button.button_pressed = camera_preference
+	settings.battle_auto_zoom_button.button_pressed = not zoom_preference
+	check(state.battle_auto_zoom == not zoom_preference and state.battle_auto_pan == camera_preference,
+		"Auto-zoom preference changes independently from auto-pan")
+	settings.battle_auto_zoom_button.button_pressed = zoom_preference
 	settings.popup_centered()
 	await settle()
-	check(settings.size == Vector2i(304, 218) and settings.content_scale_factor == 1.0
+	check(settings.size == Vector2i(304, 246) and settings.content_scale_factor == 1.0
 		and root.gui_embed_subwindows and settings.get_visible_rect().size == Vector2(settings.size),
 		"Settings uses a compact embedded modal at the same pixel scale as the main UI")
 	check(settings.music_slider.get_parent().get_child(0).get_theme_font("font") == ui_theme.default_font,
@@ -241,8 +246,8 @@ func run() -> void:
 			check(absf(audio_slider.get_global_rect().get_center().y - row_label.get_global_rect().get_center().y) <= 1,
 				"Compact audio slider and row label align vertically")
 		await capture("settings-sliders-%d" % resolution.x)
-	check(settings.battle_auto_camera_button.texture_pressed == ui_theme.get_icon("on", "SettingsSwitch")
-		and settings.battle_auto_camera_button.texture_normal == ui_theme.get_icon("off", "SettingsSwitch"),
+	check(settings.battle_auto_pan_button.texture_pressed == ui_theme.get_icon("on", "SettingsSwitch")
+		and settings.battle_auto_pan_button.texture_normal == ui_theme.get_icon("off", "SettingsSwitch"),
 		"Settings switch inherits the supplied on/off artwork from the shared theme")
 	await capture("settings-switch")
 	var settings_close: TextureButton = settings.get_node("CloseX")
@@ -286,6 +291,10 @@ func run() -> void:
 		"Science icon and research status align vertically")
 	check(screen.tabs.get_index() == 0 and screen.header.get_parent() == screen.header_wallet,
 		"Tabs are left aligned and credits sit in the right-hand wallet")
+	for entry: Array in [[screen.roster_panel, "left_panel_d.png"], [screen.details_panel, "right_panel_d.png"],
+			[screen.find_child("CommandFooter", true, false), "bottom_bar_d.png"]]:
+		check(SurfaceArt.diffuse(entry[0].art).resource_path.ends_with("/" + entry[1]),
+			"Management frame uses supplied " + entry[1])
 	check(not screen.research_progress.visible and screen.research_progress.value == 0,
 		"No focus hides and clears research progress")
 	screen.set_process(false)
@@ -304,9 +313,9 @@ func run() -> void:
 	await settle()
 	var required := ResearchFocusRules.cost("applied_energy", state.run_progress_snapshot())
 	check(screen.research_status.text == GameDefinitions.find("research", "applied_energy").display_name
-		and screen.research_progress.visible and screen.research_progress.value == 1.5
+		and screen.research_progress.visible and screen.research_progress.value == 1
 		and screen.research_progress.max_value == required and not screen.research_progress.show_percentage,
-		"Header shows technology name and actual fractional project progress in a bar")
+		"Header shows technology name and whole-number project progress in a bar")
 	check(screen.research_rate.text == "+1/day" and screen.research_progress.min_value == -1,
 		"Research progress has a UI-only negative minimum and adjacent daily production")
 	var progress_snapshot: Dictionary = state.hangar_snapshot()
@@ -326,7 +335,7 @@ func run() -> void:
 		await settle()
 		var research_column: Control = screen.find_child("HeaderResearch", true, false)
 		var gear: TextureButton = screen.find_child("SettingsButton", true, false)
-		check(screen.tabs.global_position.x == 16
+		check(screen.tabs.global_position.x == 8
 			and screen.tabs.get_global_rect().end.x <= research_column.global_position.x
 			and screen.research_button.get_global_rect().end.x <= screen.header_wallet.global_position.x
 			and gear.get_global_rect().end.x <= screen.size.x,
@@ -338,9 +347,48 @@ func run() -> void:
 			and screen.tabs.get_global_rect().end.x <= speed_rect.position.x
 			and speed_rect.end.x <= screen.research_button.global_position.x,
 			"Speed controls stay centered and never overlap either header wing")
-		check(screen.command_header.get_theme_stylebox("middle", "CommandHeader").texture.atlas.resource_path.ends_with("/element_1.png")
+		var art_scale: float = screen.command_header.background.scale.x
+		var upper_recess := Rect2(header_rect.position + Vector2(244, 6) * art_scale, Vector2(200, 28) * art_scale)
+		check(upper_recess.grow(1).encloses(speed_rect),
+			"Scaled time controls fit inside the topmost center recess")
+		check(screen.tabs.global_position.y <= header_rect.position.y + 14 * art_scale
+			and screen.research_button.global_position.y <= header_rect.position.y + 14 * art_scale,
+			"Compact navigation and research sit close to the top rail")
+		check(screen.departure_button.get_parent() == screen.command_header.course
+			and screen.command_header.course.position.y > screen.command_header.middle.position.y,
+			"Course action occupies the lower center recess instead of the footer")
+		check(SurfaceArt.diffuse(screen.command_header.art).resource_path.ends_with("/top_bar_d.png")
 			and screen.command_header.texture_filter == Control.TEXTURE_FILTER_NEAREST,
-			"Command header uses original element_1 artwork with crisp filtering")
+			"Command header uses supplied top_bar artwork with crisp filtering")
+		for frame: Control in [screen.command_header, screen.roster_panel, screen.details_panel,
+				screen.find_child("CommandFooter", true, false)]:
+			var art: CanvasTexture = frame.art
+			check(art != null and art.normal_texture != null and art.specular_texture != null
+				and frame.background.material.shader == SurfaceArt.SHADER and frame.material == null,
+				"UI frame uses cached mapped lighting without lighting child controls")
+			check(is_equal_approx(frame.background.scale.x, frame.background.scale.y)
+				and (frame.size - art.get_size() * frame.background.scale).abs().x <= 2
+				and (frame.size - art.get_size() * frame.background.scale).abs().y <= 2,
+				"Whole UI frame keeps its original aspect ratio: %s %s source %s" % [frame.name, frame.size, art.get_size()])
+			check(screen.get_global_rect().encloses(frame.get_global_rect()),
+				"Aspect-sized frames never expand beyond the screen")
+		check(is_zero_approx(screen.command_header.global_position.y)
+			and is_zero_approx(screen.roster_panel.global_position.x)
+			and is_equal_approx(screen.details_panel.get_global_rect().end.x, screen.size.x)
+			and is_equal_approx(screen.find_child("CommandFooter", true, false).get_global_rect().end.y, screen.size.y),
+			"Management frames align flush to their nearest viewport edge")
+		check(screen.roster_panel.size.x >= 156 and screen.details_panel.size.x >= 157,
+			"Edge-aligned side panels use the reclaimed space for larger artwork")
+		for frame: Control in [screen.command_header, screen.roster_panel, screen.details_panel,
+				screen.find_child("CommandFooter", true, false)]:
+			var extent: Vector2 = frame.art.get_size() * frame.background.scale
+			var art_rect := Rect2(frame.global_position + frame.background.position - extent * 0.5, extent)
+			var edge: Vector2 = frame.get_parent().edge
+			check((edge == Vector2.UP and is_zero_approx(art_rect.position.y))
+				or (edge == Vector2.DOWN and is_equal_approx(art_rect.end.y, screen.size.y))
+				or (edge == Vector2.LEFT and is_zero_approx(art_rect.position.x))
+				or (edge == Vector2.RIGHT and is_equal_approx(art_rect.end.x, screen.size.x)),
+				"Uniformly scaled artwork itself meets the viewport edge despite pixel rounding")
 		check(absf(screen.research_button.get_global_rect().end.x + 4 - screen.header_wallet.global_position.x) <= 1,
 			"Research is right aligned immediately before credits")
 		check(screen.research_button.get_global_rect().encloses(research_column.get_global_rect())
@@ -352,7 +400,7 @@ func run() -> void:
 			"Progress is left aligned with the daily rate on its right inside the tab")
 		var first_tab: Button = screen.tabs.get_child(0)
 		for tab: Button in screen.tabs.get_children():
-			check(tab.size == first_tab.size and tab.size.x >= 80
+			check(tab.size == first_tab.size and tab.size.x >= 72
 				and absf(tab.size.x / tab.size.y - 353.0 / 134.0) < 0.1,
 				"Every tab shares a natural-aspect wide button size")
 		check(screen.research_status.get_theme_font_size("font_size") == 10 and science_icon.size == Vector2(12, 12)
@@ -367,7 +415,7 @@ func run() -> void:
 	screen.research_status.text = "Advanced Fleet Synchronization"
 	screen._resize_research_label()
 	await settle()
-	check(screen.tabs.size.x == 248 and screen.header_wallet.get_global_rect().end.x <= screen.size.x
+	check(screen.tabs.size.x == 224 and screen.header_wallet.get_global_rect().end.x <= screen.size.x
 		and screen.research_button.get_global_rect().encloses(screen.research_status.get_global_rect())
 		and screen.research_button.size.y <= 48,
 		"Long research titles wrap without narrowing tabs or pushing the wallet offscreen")

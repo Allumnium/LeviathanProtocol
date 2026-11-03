@@ -19,3 +19,10 @@ res://scripts/slot_catalog.gd
 res://scripts/expedition_map.gd
 res://tests/test_expedition_demo.gd
 res://tests/test_ship_refit.gd
+res://shaders/surface_lighting.gdshader
+res://tests/test_expedition_ui_clarity.gd
+res://scripts/command_header.gd
+res://scripts/ship_loadouts.gd
+res://scripts/ui_art_frame.gd
+res://scripts/settings_dialog.gd
+res://scripts/science_rules.gd

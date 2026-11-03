@@ -8,6 +8,8 @@ uniform vec4 flash_lights[8];
 uniform int projectile_light_count = 0;
 uniform vec4 projectile_lights[16];
 uniform vec3 projectile_light_colors[16];
+uniform vec4 station_light = vec4(0.0);
+uniform float emission_energy = 0.0;
 global uniform vec4 cursor_light;
 
 varying vec4 vertex_tint;
@@ -39,9 +41,17 @@ void fragment() {
 		vec4 specular_occlusion = texture(SPECULAR_SHININESS_TEXTURE, uv);
 		vec3 light_direction = normalize(vec3(-0.45, -0.55, 0.85));
 		float lambert = max(dot(normal, light_direction), 0.0);
-		vec3 illumination = vec3(0.30, 0.33, 0.375) + vec3(0.78, 0.75, 0.70) * lambert;
+		vec3 illumination = vec3(0.12, 0.14, 0.17) + vec3(0.78, 0.75, 0.70) * lambert;
 		vec3 halfway = normalize(light_direction + vec3(0.0, 0.0, 1.0));
 		vec3 shine = specular_occlusion.rgb * pow(max(dot(normal, halfway), 0.0), 24.0) * 0.28;
+		if (station_light.w > 0.0) {
+			vec2 delta = station_light.xy - surface_position;
+			float radius = station_light.z;
+			float falloff = pow(max(1.0 - length(delta) / radius, 0.0), 2.0);
+			vec3 direction = normalize(vec3(delta, radius * 0.3));
+			illumination += vec3(1.0, 0.78, 0.48) * max(dot(normal, direction), 0.0)
+				* falloff * station_light.w;
+		}
 		if (cursor_light.w > 0.0) {
 			vec2 delta = (cursor_light.xy - SCREEN_UV) / SCREEN_PIXEL_SIZE;
 			float radius = cursor_light.z / SCREEN_PIXEL_SIZE.x;
@@ -66,7 +76,7 @@ void fragment() {
 			illumination += projectile_light_colors[i] * max(dot(normal, direction), 0.0)
 				* falloff * projectile_lights[i].w;
 		}
-		COLOR = vec4((albedo.rgb * illumination + shine * vertex_tint.rgb)
+		COLOR = vec4((albedo.rgb * (illumination + vec3(emission_energy)) + shine * vertex_tint.rgb)
 			* specular_occlusion.a, albedo.a);
 	}
 }

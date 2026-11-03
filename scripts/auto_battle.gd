@@ -36,8 +36,8 @@ var _dragging := false
 var _left_pressed := false
 var _left_dragged := false
 var _left_press_screen := Vector2.ZERO
-var _auto_camera_active := true
-var _camera_inactive_seconds := 0.0
+var _pan_resume_seconds := 0.0
+var _zoom_resume_seconds := 0.0
 var _finished := false
 var _run_lost := false
 var _report_open := false
@@ -57,9 +57,7 @@ var _settlement_error := false
 
 
 func _ready() -> void:
-	AudioManager.play_battle_music()
-	if GameState.pending_encounter.get("template_id", "") == "bastion_warden":
-		AudioManager.play_context_music(&"boss")
+	AudioManager.play_battle_music(GameState.pending_encounter.get("template_id", "") == "bastion_warden")
 	SceneFadeScript.reveal(self)
 	if not GameState.battle_pending or not simulation.setup_owned(
 		GameState.get_deployed_fleet(), GameState.battle_aliens,
@@ -163,6 +161,7 @@ func _physics_process(delta: float) -> void:
 	# Simulation speed must not depend on the render callback clearing a spent shot.
 	if _cinematic_projectile != null and (not simulation.projectiles.has(_cinematic_projectile) or _cinematic_projectile.guidance_lost):
 		_cinematic_projectile = null
+		_update_camera_recovery(delta)
 	if _cinematic_projectile == null:
 		_try_begin_finishing_shot()
 	var speed_multiplier := float(GameState.battle_speed)
@@ -292,14 +291,11 @@ func _process(delta: float) -> void:
 		float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
 			- float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
 	if not direction.is_zero_approx():
-		_mark_manual_camera_input()
+		_mark_manual_pan_input()
 		visuals.camera_position += direction.normalized() * 400.0 * delta / visuals.camera_zoom
-	elif GameState.battle_auto_camera and not _auto_camera_active:
-		_camera_inactive_seconds += delta
-		if _camera_inactive_seconds >= AUTO_CAMERA_RETURN_DELAY:
-			_auto_camera_active = true
-	if GameState.battle_auto_camera and _auto_camera_active:
-		_update_auto_camera(delta)
+	if _dragging and _pan_resume_seconds > 0:
+		_mark_manual_pan_input()
+	_update_auto_camera(delta)
 	visuals.queue_redraw()
 
 
@@ -359,16 +355,16 @@ func _input(event: InputEvent) -> void:
 			var zoom_factor := 1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15
 			visuals.camera_zoom = clampf(visuals.camera_zoom * zoom_factor, 0.2, 3.0)
 			visuals.camera_position = world_under_cursor - (event.position - visuals.size * 0.5) / visuals.camera_zoom
-			_mark_manual_camera_input()
+			_mark_manual_zoom_input()
 	elif event is InputEventMouseMotion and _dragging:
 		if _left_pressed and _left_press_screen.distance_to(event.position) > 5:
 			_left_dragged = true
 		visuals.camera_position -= event.relative / visuals.camera_zoom
-		_mark_manual_camera_input()
+		if not event.relative.is_zero_approx():
+			_mark_manual_pan_input()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE:
-		if GameState.battle_auto_camera:
-			_auto_camera_active = true
-			_camera_inactive_seconds = AUTO_CAMERA_RETURN_DELAY
+		_pan_resume_seconds = 0.0
+		_zoom_resume_seconds = 0.0
 
 
 func _battlefield_input(point: Vector2) -> bool:
@@ -401,9 +397,15 @@ func _issue_target_at(point: Vector2) -> void:
 			simulation.issue_command("clear_attack", {"source": member.entity_id})
 
 
-func _mark_manual_camera_input() -> void:
-	_auto_camera_active = false
-	_camera_inactive_seconds = 0.0
+func _mark_manual_pan_input() -> void:
+	_pan_resume_seconds = AUTO_CAMERA_RETURN_DELAY
+
+func _mark_manual_zoom_input() -> void:
+	_zoom_resume_seconds = AUTO_CAMERA_RETURN_DELAY
+
+func _update_camera_recovery(delta: float) -> void:
+	_pan_resume_seconds = maxf(0, _pan_resume_seconds - delta)
+	_zoom_resume_seconds = maxf(0, _zoom_resume_seconds - delta)
 
 
 func _commit_battle_ability(proposal: Dictionary) -> bool:
@@ -421,7 +423,8 @@ func _layout_ability_bar() -> void:
 func _ability_targeting_changed(enabled: bool) -> void:
 	_dragging = false
 	if enabled:
-		_mark_manual_camera_input()
+		_mark_manual_pan_input()
+		_mark_manual_zoom_input()
 		_paused_before_aim = pause_button.button_pressed
 		if simulation.abilities.state.pause_aim:
 			pause_button.set_pressed_no_signal(true)
@@ -430,6 +433,10 @@ func _ability_targeting_changed(enabled: bool) -> void:
 
 
 func _update_auto_camera(delta: float) -> void:
+	var auto_pan: bool = GameState.battle_auto_pan and is_zero_approx(_pan_resume_seconds)
+	var auto_zoom: bool = GameState.battle_auto_zoom and is_zero_approx(_zoom_resume_seconds)
+	if not auto_pan and not auto_zoom:
+		return
 	var ship_count := 0
 	var center := Vector2.ZERO
 	for member in simulation.players:
@@ -467,8 +474,10 @@ func _update_auto_camera(delta: float) -> void:
 		3.0
 	)
 	var interpolation := minf(delta * AUTO_CAMERA_SMOOTHING, 1.0)
-	visuals.camera_position = visuals.camera_position.lerp(center, interpolation)
-	visuals.camera_zoom = lerpf(visuals.camera_zoom, target_zoom, interpolation)
+	if auto_pan:
+		visuals.camera_position = visuals.camera_position.lerp(center, interpolation)
+	if auto_zoom:
+		visuals.camera_zoom = lerpf(visuals.camera_zoom, target_zoom, interpolation)
 
 
 func _on_ship_destroyed(is_player: bool) -> void:

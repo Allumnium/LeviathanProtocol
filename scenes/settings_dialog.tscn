@@ -7,7 +7,7 @@
 
 [node name="SettingsDialog" unique_id=1049273288 instance=ExtResource("1_modal")]
 initial_position = 1
-size = Vector2i(304, 218)
+size = Vector2i(304, 246)
 exclusive = true
 content_scale_factor = 1.0
 script = ExtResource("2_script")
@@ -69,19 +69,19 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 value = 50.0
 
-[node name="BattleAutoCameraRow" type="HBoxContainer" parent="Contents/ContentArea" index="3"]
+[node name="BattleAutoPanRow" type="HBoxContainer" parent="Contents/ContentArea" index="3"]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="BattleAutoCameraLabel" type="Label" parent="Contents/ContentArea/BattleAutoCameraRow"]
+[node name="BattleAutoPanLabel" type="Label" parent="Contents/ContentArea/BattleAutoPanRow"]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Battle auto-camera"
+text = "Battle auto-pan"
 vertical_alignment = 1
 
-[node name="BattleAutoCameraButton" type="TextureButton" parent="Contents/ContentArea/BattleAutoCameraRow"]
+[node name="BattleAutoPanButton" type="TextureButton" parent="Contents/ContentArea/BattleAutoPanRow"]
 custom_minimum_size = Vector2(54, 24)
 layout_mode = 2
 size_flags_vertical = 4
@@ -90,7 +90,28 @@ toggle_mode = true
 ignore_texture_size = true
 stretch_mode = 5
 
-[node name="TutorialsRow" type="HBoxContainer" parent="Contents/ContentArea" index="4"]
+[node name="BattleAutoZoomRow" type="HBoxContainer" parent="Contents/ContentArea" index="4"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BattleAutoZoomLabel" type="Label" parent="Contents/ContentArea/BattleAutoZoomRow"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Battle auto-zoom"
+vertical_alignment = 1
+
+[node name="BattleAutoZoomButton" type="TextureButton" parent="Contents/ContentArea/BattleAutoZoomRow"]
+custom_minimum_size = Vector2(54, 24)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"SettingsSwitch"
+toggle_mode = true
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="TutorialsRow" type="HBoxContainer" parent="Contents/ContentArea" index="5"]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -112,7 +133,7 @@ button_pressed = true
 ignore_texture_size = true
 stretch_mode = 5
 
-[node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="5"]
+[node name="QuitToMenuButton" type="Button" parent="Contents/ContentArea" parent_id_path=PackedInt32Array(1989255215) index="6"]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 size_flags_horizontal = 4

@@ -107,9 +107,85 @@ func _battle() -> Control:
 	battle.set_process(false)
 	return battle
 
+func _test_camera(battle: Control) -> void:
+	state.battle_auto_pan = true
+	state.battle_auto_zoom = true
+	battle._pan_resume_seconds = 0
+	battle._zoom_resume_seconds = 0
+	var wheel := InputEventMouseButton.new()
+	wheel.position = battle.visuals.size * 0.5
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	battle._input(wheel)
+	check(is_zero_approx(battle._pan_resume_seconds) and battle._zoom_resume_seconds == 5,
+		"Wheel input interrupts auto-zoom without interrupting auto-pan")
+	battle._zoom_resume_seconds = 0
+	battle._dragging = true
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(10, 0)
+	battle._input(motion)
+	battle._dragging = false
+	check(battle._pan_resume_seconds == 5 and is_zero_approx(battle._zoom_resume_seconds),
+		"Drag input interrupts auto-pan without interrupting auto-zoom")
+	battle.visuals.camera_position = Vector2(10000, 10000)
+	battle.visuals.camera_zoom = 3.0
+	battle._mark_manual_pan_input()
+	var position: Vector2 = battle.visuals.camera_position
+	battle._update_auto_camera(0.25)
+	check(battle.visuals.camera_position == position and battle.visuals.camera_zoom < 3,
+		"Manual pan suspends only auto-pan while auto-zoom keeps fitting combat")
+	battle._update_camera_recovery(4.99)
+	check(battle._pan_resume_seconds > 0, "Auto-pan stays suspended before five real-time seconds")
+	battle._update_auto_camera(0.25)
+	check(battle.visuals.camera_position == position, "Auto-pan does not resume early")
+	battle._update_camera_recovery(0.01)
+	battle._update_auto_camera(0.25)
+	check(battle.visuals.camera_position != position, "Auto-pan resumes after exactly five seconds")
+	battle.visuals.camera_position = position
+	battle.visuals.camera_zoom = 3.0
+	battle._mark_manual_zoom_input()
+	battle._update_auto_camera(0.25)
+	check(battle.visuals.camera_position != position and battle.visuals.camera_zoom == 3,
+		"Manual zoom suspends only auto-zoom while auto-pan continues following")
+	battle._update_camera_recovery(2)
+	battle._mark_manual_pan_input()
+	battle._update_camera_recovery(3)
+	check(is_zero_approx(battle._zoom_resume_seconds) and is_equal_approx(battle._pan_resume_seconds, 2),
+		"Pan and zoom recover on independent timers")
+	battle._mark_manual_pan_input()
+	check(is_equal_approx(battle._pan_resume_seconds, 5), "Repeated input resets only its own five-second delay")
+	battle.visuals.camera_zoom = 3
+	battle._update_auto_camera(0.25)
+	check(battle.visuals.camera_zoom < 3, "Auto-zoom resumes independently while manual pan is still suspended")
+	state.battle_auto_pan = false
+	state.battle_auto_zoom = false
+	battle._update_camera_recovery(5)
+	position = battle.visuals.camera_position
+	var zoom: float = battle.visuals.camera_zoom
+	battle._update_auto_camera(0.25)
+	check(battle.visuals.camera_position == position and battle.visuals.camera_zoom == zoom,
+		"Recovery never overrides explicitly disabled settings")
+	var audio := root.get_node("AudioManager")
+	var legacy := ConfigFile.new()
+	legacy.set_value("battle", "auto_camera", false)
+	check(legacy.save("user://legacy-camera.cfg") == OK, "Write legacy settings fixture")
+	audio.load_settings("user://legacy-camera.cfg")
+	check(not state.battle_auto_pan and not state.battle_auto_zoom,
+		"Legacy auto-camera preference initializes both independent settings")
+	state.battle_auto_pan = true
+	state.battle_auto_zoom = false
+	check(audio.save_settings("user://split-camera.cfg"), "Save independent camera preferences")
+	state.battle_auto_pan = false
+	state.battle_auto_zoom = true
+	audio.load_settings("user://split-camera.cfg")
+	check(state.battle_auto_pan and not state.battle_auto_zoom,
+		"Independent pan and zoom preferences survive reload")
+	state.battle_auto_zoom = true
+
 func _test_victory() -> void:
 	var battle := _battle()
 	await settle()
+	_test_camera(battle)
 	battle.simulation.player.damage_dealt = 98765.5
 	battle.simulation.player.shield_damage_taken = 1234
 	battle.simulation.swarm_damage_dealt = 123.5
@@ -193,12 +269,12 @@ func _test_defeat() -> void:
 	var settings: PopupPanel = load("res://scenes/settings_dialog.tscn").instantiate()
 	root.add_child(settings)
 	await settle()
-	var toggle: TextureButton = settings.battle_auto_camera_button
+	var toggle: TextureButton = settings.battle_auto_pan_button
 	check(toggle.texture_normal == load("res://assets/ui/Switch_Off.png")
 		and toggle.texture_pressed == load("res://assets/ui/Switch_On.png")
 		and toggle.stretch_mode == TextureButton.STRETCH_KEEP_ASPECT_CENTERED, "Boolean setting uses aspect-preserving supplied switches")
-	toggle.button_pressed = not state.battle_auto_camera
-	check(toggle.button_pressed == state.battle_auto_camera, "Switch still changes and saves auto-camera preference")
+	toggle.button_pressed = not state.battle_auto_pan
+	check(toggle.button_pressed == state.battle_auto_pan, "Switch still changes and saves auto-pan preference")
 	settings.popup_centered()
 	await settle()
 	if DisplayServer.get_name() != "headless":

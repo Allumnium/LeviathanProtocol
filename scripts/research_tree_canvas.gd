@@ -128,7 +128,7 @@ func populate(rows: Array[Dictionary], registry: Dictionary, selected: String, f
 			check.points = PackedVector2Array([Vector2(43, 7), Vector2(48, 12), Vector2(57, 2)])
 			marker.add_child(check)
 		elif float(progress.get(row.id, 0)) > 0:
-			marker.text = "%s / %d" % [ScienceRules.format_rp(float(progress[row.id])), int(row.cost)]
+			marker.text = "%s / %d" % [ScienceRules.format_points(float(progress[row.id])), int(row.cost)]
 		var title := ResourceText.create(row.name)
 		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -54,7 +54,8 @@ func run() -> void:
 			"Starting flagship remains the active ship in the world")
 	check(screen.find_children("*", "OptionButton", true, false).is_empty(),
 			"Travel header has no destination dropdown")
-	check(screen.travel_controls.get_parent() == screen.tabs.get_parent()
+	check(screen.travel_controls.get_parent() == screen.command_header.middle
+			and screen.tabs.get_parent() == screen.command_header.left
 			and screen.travel_controls.get_child(0).get_child_count() == 4
 			and screen.find_child("ExpeditionClearRoute", true, false) == null,
 			"Header groups only Pause, Play and 10x icons with the multiplier label")

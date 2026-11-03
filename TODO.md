@@ -25,18 +25,31 @@ Do this UI pass next, before D2-D5 or additional content depth. The world shows 
 
 ### U1 - Command header and navigation instruments
 
+- [x] Display and allocate science in whole RP rounded down. Retain fractional earnings in the saved bank until they combine into a whole spendable point; preserve historical fractional project progress by returning its remainder to the bank on allocation.
+
+- [x] Fit compact time controls into the topmost center recess; use the lower recess for Engage/Change Course or destination/remaining-distance readout. Raise and shrink Map/Fleet/Ships/Research buttons toward the rail. Engage uses a selected valid destination and the last speed, atomically clearing only user pause; without a destination it opens Map. Preserve mandatory pauses, map shortcuts and save rollback.
+
 - [x] Try supplied `element_1.png` as the management-screen top bar: Map/Fleet/Ships on the left, Pause/Play/Fast Forward in its central recess, research/wallet/settings on the right. Preserve source art, use shared theme surfaces and crisp filtering, and keep controls accessible across screen sizes. `element_3.png` is available for later panel experiments; no placement chosen yet.
+- [x] Replace the header trial with new `top_bar.png`; add matching `bottom_bar.png`, `left_panel.png` and `right_panel.png` to all management tabs via dedicated shared-theme surfaces. Preserve controls, source artwork, centered speed controls and crisp rendering; dialogs/shop frames remain separate.
+- [x] Preserve the full frames' original aspect ratios: resize bars/panels around uniformly scaled art instead of stretching/nine-slicing. Use supplied normal, height, specular and occlusion maps through cached surface lighting, without lighting UI text or controls. Longer side content remains reachable by wheel scrolling without visible scrollbars.
+- [x] Slide all four management frames in/out from their nearest screen edge in 0.18 seconds. Visible meaningful information or controls keep a frame present; empty frames leave and stop intercepting input. Keep navigation/time, fuel and save controls available while needed. Play `panel-open.mp3` on entrance through the effects bus, never on routine content refresh; reverse interrupted slides without resetting layout or gameplay state.
+- [x] Align frame artwork flush to its viewport edge, removing outer margins and vertical inter-frame gaps. Use reclaimed space to enlarge both side panels by roughly 8%, preserving uniform scale, edge-aligned entrance/exit and usable Ships/shop layouts.
 - [ ] Visually review the header trial; bring the battle header into the same control/art vocabulary without changing its speed settings.
 - [x] Remove the Map fuel-range circle and calculated range readout; players estimate range from fuel and trip costs. Render all regions with the same space background, without act tinting, locked-region shading or boundary lines. Preserve destination access rules, fuel levels and selected-trip costs.
-- [ ] Reduce Map duplication: one fuel instrument with exact values; existing fleet position, heading and route communicate navigation. Remove VOYAGE heading, routine traveled-distance/visited counts and duplicate fuel readouts from the default view; retain any needed score statistics in the report. Do not restore fuel-range overlays or act-region shading.
+- [x] Reduce Map duplication: one fuel instrument with exact values; existing fleet position, heading and route communicate navigation. Remove VOYAGE heading, routine traveled-distance/visited counts and duplicate fuel readouts from the default view; retain any needed score statistics in the report. Do not restore fuel-range overlays or act-region shading.
 - [ ] Distinguish visited locations by shape/pattern as well as color. Show shipyard/refuel/trade service symbols; keep destination names, selected-trip fuel/ETA and explicit access restrictions. Do not add automatic route-reachability overlays.
-- [ ] Replace persistent map instruction paragraphs with introductory guidance that can disappear after use. Preserve single-click inspection, GO TO/double-click course setting and live rerouting.
+- [x] Replace persistent map instruction paragraphs with introductory guidance that can disappear after use. Preserve single-click inspection, GO TO/double-click course setting and live rerouting. The short hint honors Tutorials and is hidden after a successful course or travel, without new save fields.
+- [x] Use visited checkmarks for stations as well as POIs; remove redundant selected-location "Visited" text. Service symbols remain pending.
 
 ### U2 - Docking and routine feedback
 
+- [x] Docked Fleet backdrop uses supplied mapped `space_station_large` art, rotates once per 30 real-time seconds and emits warm light onto nearby ships. It follows pan/zoom and disappears on departure without blocking ship interactions. Reduce shared mapped-surface ambient light while preserving UI/unmapped-art readability.
+
 - [ ] Replace ordinary informational arrival dialogs with station art in the existing center area, docking feedback and contextual services. Keep exact repair/refuel prices and available actions; preserve docking access, arrival encounters/retries, course setting and pause behavior. Reserve dialogs for decisions, encounters or genuinely new information.
 - [ ] Confirm course changes through route/heading updates, refueling through the fuel instrument, and repair through condition indicators rather than redundant routine toasts.
+- [x] First feedback reduction: remove routine course-set/departure, tanks-refilled and fully-repaired prose. Keep boarding quantities, delivery income, research completion and errors. Additional instrument animations remain pending.
 - [ ] Show delivery income briefly at the wallet and cargo delivery at its source indicator. Research completion keeps its name/effect plus a completion cue because it changes capabilities. Respect audio settings; do not rely on sound alone.
+- [x] Replace "Loaded N cargo/passenger bays" feedback (counts occupied equipment, not goods/people) with separate actual cargo-unit and passenger counts. Keep fleet-wide carried / available-capacity totals visible in the expedition summary; final left/voyage or right-panel placement is deferred to the upcoming UI layout review. Derive quantities from installed equipment-instance loads, not bay count or capacity. Refresh after boarding/loading, delivery, losses and Continue, including partial/empty loads and failed-save rollback; do not add load-management controls.
 - [ ] Keep explicit save failures, retry actions, debt/casualty notices, irreversible-action confirmations and mandatory-interruption reasons. Never disguise failed transactions as successful visual feedback.
 
 ### U3 - Battle, ships, research and reports
@@ -44,16 +57,20 @@ Do this UI pass next, before D2-D5 or additional content depth. The world shows 
 - [ ] Use transport icons with multiplier numbers in battle. Use existing ability range/validity previews plus distinct target reticles instead of persistent click instructions; cooldown rings may supplement exact seconds.
 - [ ] Lean on existing Warden pylon links, exposure and lance telegraphs. Remove redundant objective prose only once wave timing, protection and special victory conditions remain readable; no new boss mechanics.
 - [ ] Use consistent hull/shield/cargo/passenger instruments with exact values. Keep full equipment/loadout names and selected-part effects/rates; remove duplicated explanations. Move mass/normalized maneuverability out of default details if they do not help purchase/refit decisions; do not change mechanics.
-- [ ] Simplify research production/focus text around the existing tree, connections and checks. Preserve upgrade effects, progress/costs, focus action, missing requirements and exclusive-path consequences. Correct old destination-preview/on-arrival copy to the actual distance-based model, including stopped/combat behavior and no-focus loss.
+- [ ] Simplify research production/focus text around the existing tree, connections and checks. Preserve upgrade effects, progress/costs, focus action, missing requirements and exclusive-path consequences. Correct old destination-preview/on-arrival copy to the actual distance-based model, including stopped/combat behavior and stored unfocused RP.
+- [x] Correct the expedition research sidebar to distance-only accrual, actual NU/day and stored unfocused RP; remove PRODUCTION and legacy on-arrival preview instructions. Tree/focus instrumentation remains pending.
+- [x] Bank unfocused RP and completion overflow in game state and atomic checkpoints. Automatically apply the bank when selecting focus, retain fractions, preserve existing balances and load absent balances as zero. Show stored RP in the Research button when unfocused; travel updates it without rebuilding the canvas.
 - [ ] Make reports prioritize fleet damage/losses, rewards and refit decisions. Replace per-row repeated stat labels with shared headings/visual comparisons while retaining exact inspectable values and passenger fees. Do not introduce squadron systems ahead of D3.
 
 ### U4 - Copy correctness and acceptance
 
-- [ ] Correct the charter briefing's retired equipment buying/drag-fitting/DEPART instructions to the current fitted Transport/loadout/Map course flow.
-- [ ] Expose known event costs as clearly as rewards: hull damage, fuel/credit costs, debt and research consequences. Keep intentional uncertainty, but do not hide known penalties behind action verbs.
+- [x] Correct the charter briefing's retired equipment buying/drag-fitting/DEPART instructions to the current fitted Transport/loadout/Map course flow.
+- [x] Expose current demo event costs as clearly as rewards: explicit fuel/credit exchange, max-hull penalties alongside research rewards, and confirmation that unfocused RP is stored. Preserve existing rescue/debt notices and intentional uncertainty; do not hide known penalties behind action verbs.
 - [ ] Replace placeholder POI/equipment art with recognizable supplied/approved art before removing identifying text. Do not expect pink squares or unfamiliar icons to carry meaning.
 - [ ] Keep names, meaningful story orders and short action verbs where useful. No tooltip dependency or cryptic icon-only choices; reuse shared resource icons/theme and avoid decorative text or fictional-console busywork.
 - [ ] Verify 640x360, 1280x720 and 1920x1080: no overlap/clipping, readable exact values, distinguishable cues without color/audio alone, discoverable actions and unchanged geometry/pan/zoom where required. Test the complete course -> event -> station/trade/refuel/refit -> battle -> report loop and failed-save/retry behavior using isolated APPDATA; run `tests/run_baseline.ps1 -Native` before accepting the pass.
+- First tranche regression coverage: [tests/test_expedition_ui_clarity.gd](tests/test_expedition_ui_clarity.gd) covers actual/partial/empty loads, destroyed hosts, boarding/delivery/Continue/failed-save totals, tutorial visibility, research copy and event-cost geometry at all three resolutions; included in the headless/native baseline.
+- First tranche validation: all 30 headless suites passed across the baseline run and focused completion after updating the old shared-parent header assertion. Focused native UI/clarity/event/arrival/service checks passed. Full native acceptance remains open: `test_surface_art.gd` reported three thrust-particle/shield-flash rendering assertions outside this text pass; do not treat the complete native baseline as green.
 
 ## Fleet-command direction (owner review 2026-11-02)
 
@@ -63,12 +80,12 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 
 - [x] Remove the player's equipment stock, equipment buying, inline selling and drag-fitting. Equipment exists only on ships; per-instance IDs remain internal (cargo/passenger loads still follow them).
 - [x] Every ship class has named loadouts in data (e.g. Fighter: Interceptor / Striker / Escort). Ships are bought fully fitted with their default loadout.
-- [x] At a shipyard, a ship can switch loadout, or swap one mount's part by clicking the mount; refits cost a small fee per changed part. Loaded holds/cabins must deliver first.
+- [x] At a shipyard, choose loadouts or swap one mount's part for existing ships for free, including at zero credits or in debt. No refit prices or affordability gates; loaded holds/cabins must deliver first and changes remain atomic.
 - [x] All obtainable equipment is selectable; research no longer gates parts.
 - [x] "Buy Chassis" becomes "Buy Ships".
 - [x] Map is the first, default tab and the home screen; Fleet is for arrangement.
 - [x] Battle rewards stop granting items: credits and research points for now (D2 adds the rest).
-- [x] Pricing: refit fee per changed part = max(5, 25% of part price), removals free; a fitted ship costs its chassis plus half its parts. Data: `data/ship_loadouts.json`, logic: `scripts/ship_loadouts.gd`, tests: `tests/test_ship_refit.gd`.
+- [x] Pricing: loadout changes, part swaps and removals are free at shipyards; buying a fitted ship still costs its chassis plus half its parts. Data: `data/ship_loadouts.json`, logic: `scripts/ship_loadouts.gd`, tests: `tests/test_ship_refit.gd`.
 
 ### D2 - Rewards and resources
 
@@ -115,7 +132,7 @@ Use the current executable code/catalogs rather than restoring older description
 - The inspected runtime uses whole-ship hull, no component HP, and physical checkpoint version 2. Shields absorb first; hull at exactly zero is alive, below zero is destroyed. Preserve these mechanics; regeneration cannot resurrect a ship or recreate cargo.
 - Preserve current flagship selection, starter fleet, budgets, bonuses, mount restrictions and exact-size matching. Keep one mandatory flagship and all-owned-ship deployment. Flagship loss remains terminal; no story-specific exception in this conversion.
 - Preserve equipment UIDs, research gates, free transfers when service access permits, loaded-equipment restrictions and atomic inventory ownership. No free replacement copies.
-- Preserve current lab rates and flagship research bonus. Current code allocates to focused projects without an unspent RP wallet or fleet baseline. Change allocation timing, not the production formula or research economy.
+- Preserve current lab rates and flagship research bonus. Current code allocates to focused projects and banks unfocused/overflow RP, without a fleet baseline. Change allocation timing, not the production formula.
 - Preserve active weapons/support/carriers, finite allowances, source-loss behavior, supplied artwork/maps, sprite collision and surface lighting. Do not turn active equipment into decorative placeholders.
 - Preserve current shared theme, Starhull, crisp rendering, shared X, direct-art fitting, display-only mount callouts, installed-drag unequip target, inline UID selling, shop modes/filters and pannable management views. No hover tooltips or UI focus cycling.
 - Continue using the existing score rules where applicable. Use event receipts so rewards, damage accounting and research completion cannot duplicate. No new narrative victory bonus trigger in the prototype.
@@ -261,7 +278,7 @@ An existing combat withdrawal/stalemate must not masquerade as victory or clear 
 - Each moving interval allocates `current_active_lab_rp_per_day * distance_nu / nu_per_day` to the current focus. Preserve Lab I/II/III = 1/2/3 and current chassis modifiers; no added baseline.
 - Focus changes while flying take effect at a committed tick boundary. Allocate prior distance to the old focus first; no retroactive production or duplicated departure/arrival settlement.
 - Preserve fractional progress. Recompute cached production after actual fleet/equipment/research changes, not every draw or every tick. Lost labs cease producing for all subsequent travel.
-- No focus means no allocated RP. Stop precisely on completion before discarding any remaining travel budget; no stockpiled unspent RP.
+- Unfocused RP and completion overflow accumulate in a persistent research-point balance. Choosing focus automatically allocates the balance to that project; retain any excess for the next focus.
 
 **Free self-repair**
 

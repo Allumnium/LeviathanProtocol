@@ -4,6 +4,9 @@ extends RefCounted
 static func format_rp(value: float) -> String:
 	return str(int(value)) if value == floor(value) else str(value)
 
+static func format_points(value: float) -> String:
+	return str(floori(value))
+
 static func production_rate(science: Dictionary) -> float:
 	var rate := 0.0
 	for lab: Dictionary in science.labs:

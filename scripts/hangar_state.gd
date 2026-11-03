@@ -26,6 +26,7 @@ var visited_nodes: Array[int] = [0]
 var current_research_ids: Array[String] = ["foundation"]
 var research_focus := ""
 var research_progress: Dictionary = {}
+var research_points := 0.0
 var research_pricing_version := 1
 var story_flags: Dictionary[String, bool] = {}
 var research_branch_choices: Dictionary[String, String] = {}
@@ -38,7 +39,8 @@ var GRAPH_EDGES: Array[Vector2i] = []
 var CONVERGENCE_NODE_IDS: Array[int] = []
 var FINAL_NODE_ID := 0
 var laser_upgrade_level := 0
-var battle_auto_camera := true
+var battle_auto_pan := true
+var battle_auto_zoom := true
 var tutorials_enabled := true
 var battle_speed := 1
 var destroy_all_neutral_targets := false
@@ -98,6 +100,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	current_research_ids = ["foundation"]
 	research_focus = ""
 	research_progress = {}
+	research_points = 0.0
 	research_pricing_version = 1
 	story_flags.clear()
 	research_branch_choices.clear()
@@ -188,6 +191,7 @@ func hangar_snapshot() -> Dictionary:
 		"journey_rp": journey_rp, "pending_encounter": get_frozen_encounter(destination_node_id) if battle_pending else {},
 		"battle_reserves": battle_reserves.duplicate(true), "research": {"research_ids": current_research_ids.duplicate(),
 		"research_focus": research_focus, "research_progress": research_progress.duplicate(),
+		"research_points": research_points,
 		"research_pricing_version": 1, "story_flags": story_flags.duplicate(), "branch_choices": research_branch_choices.duplicate()}}
 	if not navigation.is_empty():
 		data.navigation = navigation.duplicate(true)
@@ -230,6 +234,7 @@ func _apply_hangar(data: Dictionary, restore_expedition := false) -> void:
 	current_research_ids.assign(data.research.research_ids)
 	research_focus = data.research.research_focus
 	research_progress = data.research.research_progress.duplicate()
+	research_points = float(data.research.get("research_points", 0.0))
 	story_flags.assign(data.research.story_flags)
 	research_branch_choices.assign(data.research.branch_choices)
 	player_ship_count = fleet.size()
@@ -375,11 +380,8 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	if effects.has("fuel"):
 		summary.append("%+d fuel" % roundi(float(effects.fuel)))
 	if float(effects.get("research", 0.0)) > 0.0:
-		if str(proposal.research.research_focus).is_empty():
-			summary.append("No research focus: data lost")
-		else:
-			_allocate_research(proposal.research, float(effects.research))
-			summary.append("+%s RP" % ScienceRules.format_rp(float(effects.research)))
+		_allocate_research(proposal.research, float(effects.research))
+		summary.append("+%s RP" % ScienceRules.format_points(float(effects.research)))
 	if float(effects.get("hull_damage", 0.0)) > 0.0:
 		for entry: Dictionary in proposal.ships:
 			var owned := owned_ship(int(entry.id))
@@ -448,7 +450,7 @@ func station_trade_node(location_id: String) -> Dictionary:
 		"goods_unit_value": value if value in [3, 6, 10] else 6}
 
 # Commits a course change; leaving a dock loads cargo/passengers atomically.
-func depart_expedition(location_id: String) -> bool:
+func depart_expedition(location_id: String, engage := false) -> bool:
 	last_event_result = ""
 	if expedition_simulation == null or expedition_simulation.state == null:
 		last_save_error = "No active expedition state."
@@ -463,13 +465,18 @@ func depart_expedition(location_id: String) -> bool:
 			or not staged.request_destination(location_id):
 		last_save_error = staged.last_error
 		return false
+	if engage and not staged.set_pause(ExpeditionSimulationScript.State.PauseReason.USER, false):
+		last_save_error = staged.last_error
+		return false
 	var proposal := hangar_snapshot()
 	proposal.expedition = staged.state.snapshot()
-	var loaded := 0
+	var loaded := {"cargo": 0, "passengers": 0}
 	if not origin.is_empty() and staged.state.docked_location_id.is_empty():
-		var before := _load_count(proposal)
+		var before := HangarTrade.summary(proposal)
 		HangarTrade.depart(proposal, station_trade_node(origin), station_trade_node(location_id))
-		loaded = _load_count(proposal) - before
+		var after := HangarTrade.summary(proposal)
+		loaded.cargo = after.cargo - before.cargo
+		loaded.passengers = after.passengers - before.passengers
 	if not _save_hangar(proposal):
 		expedition_simulation.set_pause(ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR, true)
 		return false
@@ -483,17 +490,14 @@ func depart_expedition(location_id: String) -> bool:
 	if not expedition_simulation.restore(proposal.expedition):
 		last_save_error = expedition_simulation.last_error
 		return false
-	if loaded > 0:
-		last_event_result = "Loaded %d cargo/passenger bays" % loaded
+	var boarding: PackedStringArray = []
+	if loaded.cargo > 0:
+		boarding.append("%d cargo loaded" % loaded.cargo)
+	if loaded.passengers > 0:
+		boarding.append("%d passengers boarded" % loaded.passengers)
+	last_event_result = " · ".join(boarding)
 	travel_plan_changed.emit()
 	return true
-
-func _load_count(data: Dictionary) -> int:
-	var total := 0
-	for instance: Dictionary in data.equipment.values():
-		if HangarTrade.has_load(instance):
-			total += 1
-	return total
 
 func self_repair_rate(owned: HangarShip) -> float:
 	return float(owned.chassis.get("self_repair_hp_per_second", 0.0))
@@ -577,21 +581,25 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 		return result
 	var days: float = simulation.state.traveled_days - days_before
 	var seconds: float = simulation.state.simulation_seconds - seconds_before
+	var earned_rp := ScienceRules.production_rate(ScienceRules.snapshot(get_deployed_fleet())) * days
+	var completes_research := not research_focus.is_empty() and earned_rp > 0 \
+		and research_points + earned_rp + float(research_progress.get(research_focus, 0)) \
+			>= ResearchFocusRules.cost(research_focus, {"research_pricing_version": 1})
 	result.boundary = simulation.boundary_sequence != sequence
-	if result.boundary or force_save:
+	if result.boundary or force_save or completes_research:
 		hangar_before = hangar_snapshot()
 		hangar_before.expedition = sim_before
-	if days > 0.0 and not research_focus.is_empty():
+	if days > 0.0:
 		var focus := research_focus
 		var progress := {"research_ids": current_research_ids, "research_focus": research_focus,
 			"research_progress": research_progress, "branch_choices": research_branch_choices,
-			"story_flags": story_flags, "research_pricing_version": 1}
+			"story_flags": story_flags, "research_pricing_version": 1, "research_points": research_points}
 		var known := current_research_ids.size()
-		_allocate_research(progress, ScienceRules.production_rate(ScienceRules.snapshot(get_deployed_fleet())) * days)
+		_allocate_research(progress, earned_rp)
 		research_focus = progress.research_focus
+		research_points = progress.research_points
 		if current_research_ids.size() > known:
 			result.research_done = str(GameDefinitions.find("research", focus).get("display_name", focus))
-			research_changed.emit()
 	if seconds > 0.0:
 		var damaged_before := false
 		var damaged_after := false
@@ -619,6 +627,8 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 			result.error = "Save failed: " + last_save_error
 			return result
 		result.saved = true
+		if not result.research_done.is_empty():
+			research_changed.emit()
 		if result.delivered > 0:
 			credits_changed.emit()
 	return result
@@ -719,7 +729,7 @@ func swap_part(ship_id: int, slot_id: String, key: String) -> bool:
 		target[slot_id] = key
 	return _refit(ship_id, target)
 
-# Atomic shipyard refit to the given mount keys, paying the per-part fee.
+# Atomic, free shipyard refit to the given mount keys.
 func _refit(ship_id: int, target: Dictionary) -> bool:
 	if not _require_shipyard():
 		return false
@@ -735,10 +745,6 @@ func _refit(ship_id: int, target: Dictionary) -> bool:
 	var current := ShipLoadouts.current_keys(owned.mounts)
 	if SaveValidation.same(current, target):
 		last_save_error = "Already fitted."
-		return false
-	var fee := ShipLoadouts.refit_fee(current, target)
-	if credits < fee:
-		last_save_error = "Not enough credits to refit. Cost: %d." % fee
 		return false
 	var data := hangar_snapshot()
 	var entry: Dictionary = {}
@@ -768,7 +774,6 @@ func _refit(ship_id: int, target: Dictionary) -> bool:
 			entry.mounts[slot_id] = uid
 	var fitted := _fitted_integrity(entry, data.equipment)
 	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
-	data.credits -= fee
 	return _commit_hangar(data)
 
 # Ships are sold fully fitted with a named loadout (the class default if none).
@@ -957,16 +962,23 @@ func set_research_focus(key: String) -> bool:
 		return false
 	var data := hangar_snapshot()
 	data.research.research_focus = key
+	_allocate_research(data.research, 0.0)
 	return _commit_hangar(data)
 
 func _allocate_research(progress: Dictionary, amount: float) -> void:
 	var key: String = progress.research_focus
-	if amount <= 0 or key.is_empty() or not HangarResearch.eligible(key, progress, true):
+	var available := float(progress.get("research_points", 0.0)) + amount
+	progress.research_points = available
+	if key.is_empty() or not HangarResearch.eligible(key, progress, true):
 		return
 	var required := ResearchFocusRules.cost(key, progress)
 	var value := float(progress.research_progress.get(key, 0))
+	# Preserve old fractional project progress as unspent earnings.
+	available += value - floorf(value)
+	value = floorf(value)
 	var remaining := required - value
-	var allocated := minf(amount, remaining)
+	var allocated := mini(floori(available), int(remaining))
+	progress.research_points = available - allocated
 	value += allocated
 	if value < required:
 		progress.research_progress[key] = value
@@ -1168,11 +1180,8 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 		RunScore.earn_credits(data, int(pending_encounter.rewards.credits))
 		# Victories yield research data instead of loose equipment.
 		var rp := 2.0 + float(pending_encounter.get("global_row", 1))
-		if str(data.research.research_focus).is_empty():
-			reward = "Research data lost: no focus"
-		else:
-			_allocate_research(data.research, rp)
-			reward = "+%s RP" % ScienceRules.format_rp(rp)
+		_allocate_research(data.research, rp)
+		reward = "+%s RP" % ScienceRules.format_points(rp)
 		if pending_encounter.get("complete", false):
 			data.completed = true
 			data.research.story_flags["boss_i_defeated"] = true

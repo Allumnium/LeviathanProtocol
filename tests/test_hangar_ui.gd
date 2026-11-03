@@ -189,8 +189,21 @@ func run() -> void:
 				check(not rectangles.any(func(other: Rect2) -> bool: return rect.intersects(other)), chassis.name + " mounts do not overlap")
 				rectangles.append(rect)
 			var loadouts: Control = screen.details.find_child("RefitPanel", true, false)
-			check(loadouts != null and screen.details_panel.get_global_rect().grow(1).encloses(loadouts.get_child(loadouts.get_child_count() - 1).get_global_rect()),
-				chassis.name + " loadout choices fit the panel")
+			var scroll: ScrollContainer = screen.details.get_parent()
+			var last_action: Control = loadouts.get_child(loadouts.get_child_count() - 1)
+			scroll.ensure_control_visible(last_action)
+			await settle()
+			check(loadouts != null and scroll.get_global_rect().grow(1).encloses(last_action.get_global_rect()),
+				chassis.name + " refit choices remain reachable inside the aspect-sized panel")
+			check(not scroll.get_v_scroll_bar().visible and not scroll.get_h_scroll_bar().visible,
+				"Aspect-sized side panels have no visible scrollbars")
+			scroll.scroll_vertical = 0
+			await settle()
+			var roster_view: ScrollContainer = screen.roster.get_parent()
+			for tile: Button in screen.roster.get_node("ShipTiles").get_children():
+				check(tile.get_global_rect().position.x >= roster_view.global_position.x
+					and tile.get_global_rect().end.x <= roster_view.get_global_rect().end.x,
+					"Ship tiles fit horizontally inside the proportioned frame")
 		check(state.salvage_hangar_ship(screen.selected_ship_id), "Immediate fixture salvage")
 		await settle()
 	root.size = Vector2i(1280, 720)

@@ -5,7 +5,11 @@ signal ship_opened(id: int)
 const GLOW = preload("res://shaders/ship_selection.gdshader")
 const Exhaust = preload("res://scripts/ship_exhaust.gd")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
-const STATION_TEXTURE: Texture2D = preload("res://assets/space_station.png")
+const STATION_ART := "res://assets/environment/space_station_large_d.png"
+const STATION_REVOLUTION_SECONDS := 30.0
+var station: Sprite2D
+var surface_material: ShaderMaterial
+var station_angle := 0.0
 var exhaust_elapsed := 0.0
 var selected_id := 0
 var selected_ids: Array[int] = []
@@ -25,7 +29,7 @@ var travel_distance_nu := 0.0
 var _last_travel_distance_nu := 0.0
 
 func _ready() -> void:
-	SurfaceArt.apply(self)
+	surface_material = SurfaceArt.apply(self)
 	clip_contents = true
 	focus_mode = FOCUS_NONE
 	starfield = load("res://scripts/main_menu_starfield.gd").new()
@@ -35,6 +39,14 @@ func _ready() -> void:
 	starfield.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(starfield)
 	starfield.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	station = Sprite2D.new()
+	station.name = "DockedStation"
+	station.texture = SurfaceArt.texture(STATION_ART)
+	station.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var station_material := SurfaceArt.apply(station)
+	station_material.set_shader_parameter("emission_energy", 0.25)
+	add_child(station)
+	_update_station()
 	if travel_distance_nu > 0.0:
 		starfield.call("scroll_stationary", travel_distance_nu * 0.002)
 	if selected_ids.is_empty() and selected_id > 0:
@@ -145,11 +157,29 @@ func _gui_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
 		exhaust_elapsed += delta
+		station_angle = fmod(station_angle + TAU * delta / STATION_REVOLUTION_SECONDS, TAU)
+		_update_station()
 		if starfield != null and travel_distance_nu > _last_travel_distance_nu:
 			starfield.call("scroll_stationary",
 					(travel_distance_nu - _last_travel_distance_nu) * 0.002)
 			_last_travel_distance_nu = travel_distance_nu
 		queue_redraw()
+
+func _update_station() -> void:
+	if station == null:
+		return
+	var simulation = GameState.expedition_simulation
+	station.visible = simulation != null and simulation.state != null \
+			and not simulation.state.docked_location_id.is_empty()
+	var light := Vector4.ZERO
+	if station.visible:
+		station.position = size * 0.5 + (Vector2(-2.8, -1.6) * 52 - camera) * zoom
+		station.scale = Vector2.ONE * 220.0 * zoom / station.texture.get_width()
+		station.rotation = station_angle
+		var transform := get_global_transform_with_canvas()
+		var origin := transform * station.position
+		light = Vector4(origin.x, origin.y, 420.0 * zoom * transform.x.length(), 1.2)
+	surface_material.set_shader_parameter("station_light", light)
 
 func _draw_location() -> void:
 	var simulation = GameState.expedition_simulation
@@ -157,17 +187,14 @@ func _draw_location() -> void:
 		return
 	var state = simulation.state
 	var texture: Texture2D
-	if not state.docked_location_id.is_empty():
-		texture = STATION_TEXTURE
-	elif state.destination_location_id.is_empty() and not state.visited_location_ids.is_empty():
+	if state.docked_location_id.is_empty() and state.destination_location_id.is_empty() and not state.visited_location_ids.is_empty():
 		var here: Dictionary = simulation.locations.get(state.visited_location_ids.back(), {})
 		if not here.is_empty() and state.position_nu.distance_to(Vector2(here.position[0], here.position[1])) < 0.01:
 			texture = PlaceholderAssets.art()
 	if texture == null:
 		return
 	# Small pixel art: keep an integer scale and sit it beside, not over, the fleet.
-	var pixel := maxf(1.0, roundf(2.0 * zoom))
-	var extent := texture.get_size() * pixel if texture == STATION_TEXTURE else Vector2.ONE * 40.0 * zoom
+	var extent := Vector2.ONE * 40.0 * zoom
 	var center := size * 0.5 + (Vector2(-2.3, -2.3) * 52 - camera) * zoom
 	draw_texture_rect(texture, Rect2((center - extent * 0.5).round(), extent), false, Color(1, 1, 1, 0.85))
 

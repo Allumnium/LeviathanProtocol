@@ -6,7 +6,8 @@ var settings_status: Label
 @onready var music_slider: HSlider = $Contents/ContentArea/MusicRow/MusicSlider
 @onready var ambience_slider: HSlider = $Contents/ContentArea/AmbienceRow/AmbienceSlider
 @onready var effects_slider: HSlider = $Contents/ContentArea/EffectsRow/EffectsSlider
-@onready var battle_auto_camera_button: TextureButton = $Contents/ContentArea/BattleAutoCameraRow/BattleAutoCameraButton
+@onready var battle_auto_pan_button: TextureButton = $Contents/ContentArea/BattleAutoPanRow/BattleAutoPanButton
+@onready var battle_auto_zoom_button: TextureButton = $Contents/ContentArea/BattleAutoZoomRow/BattleAutoZoomButton
 @onready var tutorials_button: TextureButton = $Contents/ContentArea/TutorialsRow/TutorialsButton
 @onready var quit_to_menu_button: Button = $Contents/ContentArea/QuitToMenuButton
 @onready var quit_confirmation_overlay: Control = $QuitConfirmOverlay
@@ -19,7 +20,7 @@ var settings_status: Label
 
 
 func _ready() -> void:
-	for button: TextureButton in [battle_auto_camera_button, tutorials_button]:
+	for button: TextureButton in [battle_auto_pan_button, battle_auto_zoom_button, tutorials_button]:
 		button.texture_normal = button.get_theme_icon("off", "SettingsSwitch")
 		button.texture_pressed = button.get_theme_icon("on", "SettingsSwitch")
 	tutorials_button.set_pressed_no_signal(GameState.tutorials_enabled)
@@ -27,15 +28,16 @@ func _ready() -> void:
 	music_slider.value = AudioManager.get_bus_volume_percent(AudioManager.MUSIC_BUS)
 	ambience_slider.value = AudioManager.get_bus_volume_percent(AudioManager.AMBIENCE_BUS)
 	effects_slider.value = AudioManager.get_bus_volume_percent(AudioManager.SFX_BUS)
-	_update_battle_auto_camera_button()
+	_update_camera_buttons()
 	for button: BaseButton in [
-		battle_auto_camera_button,
+		battle_auto_pan_button,
+		battle_auto_zoom_button,
 		tutorials_button,
 		quit_to_menu_button,
 		quit_confirmation_button,
 		cancel_quit_button,
 	]:
-		AudioManager.connect_ui_button(button, &"detail" if button in [battle_auto_camera_button, tutorials_button] else &"accept")
+		AudioManager.connect_ui_button(button, &"detail" if button in [battle_auto_pan_button, battle_auto_zoom_button, tutorials_button] else &"accept")
 	settings_status = Label.new()
 	settings_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	settings_status.add_theme_color_override("font_color", Color("ffd28a"))
@@ -50,7 +52,8 @@ func _ready() -> void:
 	music_slider.value_changed.connect(_on_music_volume_changed)
 	ambience_slider.value_changed.connect(_on_ambience_volume_changed)
 	effects_slider.value_changed.connect(_on_effects_volume_changed)
-	battle_auto_camera_button.toggled.connect(_on_battle_auto_camera_toggled)
+	battle_auto_pan_button.toggled.connect(_on_battle_auto_pan_toggled)
+	battle_auto_zoom_button.toggled.connect(_on_battle_auto_zoom_toggled)
 	tutorials_button.toggled.connect(_on_tutorials_toggled)
 	quit_to_menu_button.pressed.connect(_on_quit_to_menu_pressed)
 	quit_confirmation_button.pressed.connect(_on_quit_confirmed)
@@ -72,14 +75,19 @@ func _on_effects_volume_changed(volume_percent: float) -> void:
 	_save_preferences()
 
 
-func _on_battle_auto_camera_toggled(enabled: bool) -> void:
-	GameState.battle_auto_camera = enabled
+func _on_battle_auto_pan_toggled(enabled: bool) -> void:
+	GameState.battle_auto_pan = enabled
 	_save_preferences()
-	_update_battle_auto_camera_button()
+	_update_camera_buttons()
 
+func _on_battle_auto_zoom_toggled(enabled: bool) -> void:
+	GameState.battle_auto_zoom = enabled
+	_save_preferences()
+	_update_camera_buttons()
 
-func _update_battle_auto_camera_button() -> void:
-	battle_auto_camera_button.set_pressed_no_signal(GameState.battle_auto_camera)
+func _update_camera_buttons() -> void:
+	battle_auto_pan_button.set_pressed_no_signal(GameState.battle_auto_pan)
+	battle_auto_zoom_button.set_pressed_no_signal(GameState.battle_auto_zoom)
 
 func _on_tutorials_toggled(enabled: bool) -> void:
 	GameState.tutorials_enabled = enabled
@@ -93,14 +101,14 @@ func _on_quit_to_menu_pressed() -> void:
 
 
 func _refresh_context() -> void:
-	_update_battle_auto_camera_button()
+	_update_camera_buttons()
 	tutorials_button.set_pressed_no_signal(GameState.tutorials_enabled)
 	var scene := get_tree().current_scene
 	quit_to_menu_button.visible = scene != null and scene.scene_file_path != MAIN_MENU_SCENE_PATH
 	quit_confirmation_overlay.hide()
 	content_scale_factor = 1.0
 	content_scale_size = Vector2i.ZERO
-	min_size = Vector2i(304, 250 if quit_to_menu_button.visible else 218)
+	min_size = Vector2i(304, 278 if quit_to_menu_button.visible else 246)
 	size = min_size
 
 

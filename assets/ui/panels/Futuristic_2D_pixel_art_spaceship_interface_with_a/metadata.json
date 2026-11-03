@@ -1,0 +1,76 @@
+{
+  "ui_assets": [
+    {
+      "id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a",
+      "name": null,
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, neon-dominant aesthetic.\n\nSleek, high-tech holographic displays with luminous edges, glowing electronic accents, and sophisticated digital textures. Inspired by advanced spacecraft cockpit interfaces and futuristic tactical HUDs.\n\nUse layered neon illumination, thin glowing borders, subtle reflections, and dark glass-like surfaces to create depth and a sense of advanced technology.\n\nIncorporate delicate circuit patterns, illuminated corner details, and occasional technical embellishments. Add subtle metallic framing for physical structure, but keep neon lighting as the dominant visual feature.\n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nMaintain crisp, detailed pixel art with controlled glow effects and strong contrast.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "template",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a.png",
+      "size": {
+        "width": 688,
+        "height": 384
+      },
+      "group_id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a"
+    },
+    {
+      "id": "18971f49-107d-44e4-a8e9-4a84c7ca4cc1",
+      "name": "element 1",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, neon-dominant aesthetic.\n\nSleek, high-tech holographic displays with luminous edges, glowing electronic accents, and sophisticated digital textures. Inspired by advanced spacecraft cockpit interfaces and futuristic tactical HUDs.\n\nUse layered neon illumination, thin glowing borders, subtle reflections, and dark glass-like surfaces to create depth and a sense of advanced technology.\n\nIncorporate delicate circuit patterns, illuminated corner details, and occasional technical embellishments. Add subtle metallic framing for physical structure, but keep neon lighting as the dominant visual feature.\n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nMaintain crisp, detailed pixel art with controlled glow effects and strong contrast.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_1.png",
+      "size": {
+        "width": 25,
+        "height": 25
+      },
+      "group_id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a"
+    },
+    {
+      "id": "6f3e1987-72f0-49c1-a564-a83ed1499e28",
+      "name": "element 2",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, neon-dominant aesthetic.\n\nSleek, high-tech holographic displays with luminous edges, glowing electronic accents, and sophisticated digital textures. Inspired by advanced spacecraft cockpit interfaces and futuristic tactical HUDs.\n\nUse layered neon illumination, thin glowing borders, subtle reflections, and dark glass-like surfaces to create depth and a sense of advanced technology.\n\nIncorporate delicate circuit patterns, illuminated corner details, and occasional technical embellishments. Add subtle metallic framing for physical structure, but keep neon lighting as the dominant visual feature.\n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nMaintain crisp, detailed pixel art with controlled glow effects and strong contrast.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_2.png",
+      "size": {
+        "width": 688,
+        "height": 89
+      },
+      "group_id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a"
+    },
+    {
+      "id": "0b701b4e-37f2-4352-8ad5-a6e3057a6be1",
+      "name": "element 3",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, neon-dominant aesthetic.\n\nSleek, high-tech holographic displays with luminous edges, glowing electronic accents, and sophisticated digital textures. Inspired by advanced spacecraft cockpit interfaces and futuristic tactical HUDs.\n\nUse layered neon illumination, thin glowing borders, subtle reflections, and dark glass-like surfaces to create depth and a sense of advanced technology.\n\nIncorporate delicate circuit patterns, illuminated corner details, and occasional technical embellishments. Add subtle metallic framing for physical structure, but keep neon lighting as the dominant visual feature.\n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nMaintain crisp, detailed pixel art with controlled glow effects and strong contrast.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_3.png",
+      "size": {
+        "width": 205,
+        "height": 310
+      },
+      "group_id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a"
+    },
+    {
+      "id": "fb53c4e3-d533-49fb-9893-ead07b7d654b",
+      "name": "element 4",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, neon-dominant aesthetic.\n\nSleek, high-tech holographic displays with luminous edges, glowing electronic accents, and sophisticated digital textures. Inspired by advanced spacecraft cockpit interfaces and futuristic tactical HUDs.\n\nUse layered neon illumination, thin glowing borders, subtle reflections, and dark glass-like surfaces to create depth and a sense of advanced technology.\n\nIncorporate delicate circuit patterns, illuminated corner details, and occasional technical embellishments. Add subtle metallic framing for physical structure, but keep neon lighting as the dominant visual feature.\n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nMaintain crisp, detailed pixel art with controlled glow effects and strong contrast.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_4.png",
+      "size": {
+        "width": 204,
+        "height": 309
+      },
+      "group_id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a"
+    },
+    {
+      "id": "c8d4cf64-1ef4-4c13-8c6b-d09009d318d4",
+      "name": "element 5",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, neon-dominant aesthetic.\n\nSleek, high-tech holographic displays with luminous edges, glowing electronic accents, and sophisticated digital textures. Inspired by advanced spacecraft cockpit interfaces and futuristic tactical HUDs.\n\nUse layered neon illumination, thin glowing borders, subtle reflections, and dark glass-like surfaces to create depth and a sense of advanced technology.\n\nIncorporate delicate circuit patterns, illuminated corner details, and occasional technical embellishments. Add subtle metallic framing for physical structure, but keep neon lighting as the dominant visual feature.\n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nMaintain crisp, detailed pixel art with controlled glow effects and strong contrast.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_5.png",
+      "size": {
+        "width": 688,
+        "height": 45
+      },
+      "group_id": "6e25f44d-5a2f-460d-b6aa-2cbb352b7e8a"
+    }
+  ]
+}

@@ -22,6 +22,7 @@ const UI_SFX: Dictionary[StringName, AudioStream] = {
 	&"animate_ui": preload("res://assets/audio/sfx/animate_ui.wav"),
 	&"notification": preload("res://assets/audio/sfx/notification.mp3"),
 	&"warp": preload("res://assets/audio/sfx/warp.mp3"),
+	&"panel_open": preload("res://assets/audio/sfx/panel-open.mp3"),
 }
 # Gameplay cues without dedicated audio yet; they play Placeholders.SFX_PATH.
 const PLACEHOLDER_SFX: Array[StringName] = [&"dock", &"depart", &"refuel", &"research_complete",
@@ -93,9 +94,9 @@ func load_settings(file_path: String = SETTINGS_PATH) -> void:
 	set_bus_volume_percent(MUSIC_BUS, music)
 	set_bus_volume_percent(AMBIENCE_BUS, ambience)
 	set_bus_volume_percent(SFX_BUS, effects)
-	GameState.battle_auto_camera = _validated_bool(
-		config.get_value("battle", "auto_camera", true), true
-	)
+	var old_auto_camera := _validated_bool(config.get_value("battle", "auto_camera", true), true)
+	GameState.battle_auto_pan = _validated_bool(config.get_value("battle", "auto_pan", old_auto_camera), old_auto_camera)
+	GameState.battle_auto_zoom = _validated_bool(config.get_value("battle", "auto_zoom", old_auto_camera), old_auto_camera)
 	var tutorials: Variant = config.get_value("tutorials", "enabled", true)
 	if not tutorials is bool:
 		push_error("Invalid saved tutorial preference; resetting to enabled.")
@@ -115,7 +116,8 @@ func save_settings(file_path: String = SETTINGS_PATH) -> bool:
 	config.set_value("audio", "music", get_bus_volume_percent(MUSIC_BUS))
 	config.set_value("audio", "ambience", get_bus_volume_percent(AMBIENCE_BUS))
 	config.set_value("audio", "effects", get_bus_volume_percent(SFX_BUS))
-	config.set_value("battle", "auto_camera", GameState.battle_auto_camera)
+	config.set_value("battle", "auto_pan", GameState.battle_auto_pan)
+	config.set_value("battle", "auto_zoom", GameState.battle_auto_zoom)
 	config.set_value("tutorials", "enabled", GameState.tutorials_enabled)
 	config.set_value("battle", "speed", GameState.battle_speed)
 	var save_error := config.save(file_path)
@@ -210,8 +212,11 @@ func play_build_music() -> void:
 	_play_music(BUILD_MUSIC, &"build")
 
 
-func play_battle_music() -> void:
-	_play_music(BATTLE_MUSIC, &"battle")
+func play_battle_music(boss := false) -> void:
+	if boss:
+		play_context_music(&"boss")
+	else:
+		_play_music(BATTLE_MUSIC, &"battle")
 
 
 func set_menu_thruster_mode(use_large_thruster: bool) -> void:

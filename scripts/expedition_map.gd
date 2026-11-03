@@ -182,7 +182,7 @@ func _draw() -> void:
 		if location.kind == "gate" and accessible and not GameState.completed:
 			draw_arc(point, icon * (1.0 + 0.3 * absf(_pulse - 1.0)), 0, TAU, 32, Color(1.0, 0.45, 0.4, 0.8), 1.0)
 		var label: String = location.name
-		if id in state.visited_location_ids and location.kind != "station":
+		if id in state.visited_location_ids:
 			var mark := point + Vector2(icon * 0.45, -icon * 0.55)
 			draw_polyline(PackedVector2Array([mark, mark + Vector2(2, 2), mark + Vector2(6, -3)]), Color("6be38a"), 1.0)
 		var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_font_size)

@@ -57,13 +57,14 @@ func run() -> void:
 	check(not state.has_method("buy_equipment") and not state.has_method("sell_equipment") and not state.has_method("buy_chassis"),
 			"Equipment buying/selling and chassis buying are gone")
 
-	# Refit a whole loadout for the quoted fee, atomically.
+	# Refit a whole loadout for free, even in credit debt.
 	var fighter := ship("fighter")
 	var striker: Dictionary = ShipLoadouts.find("fighter", "striker")
 	var fee: int = state.refit_quote(fighter.id, striker.mounts)
+	state.credits = -10
 	var credits: int = state.credits
-	check(fee > 0 and state.refit_ship(fighter.id, "striker") and state.credits == credits - fee
-			and state.ship_loadout_id(fighter.id) == "striker", "Loadout refit charges its quoted fee")
+	check(fee == 0 and state.refit_ship(fighter.id, "striker") and state.credits == credits
+			and state.ship_loadout_id(fighter.id) == "striker", "Loadout refit is free even in credit debt")
 	check(not state.refit_ship(fighter.id, "striker") and state.credits == credits - fee, "Refitting to the fitted loadout is rejected for free")
 	check(loose_equipment() == 0, "Replaced parts are scrapped, not stocked")
 	# Swap one part; removing is free; incompatible parts are rejected.
@@ -71,7 +72,7 @@ func run() -> void:
 	check(state.swap_part(fighter.id, "fore", "hull_plate")
 			and state.credits == credits - ShipLoadouts.part_fee(SlotCatalog.find_equipment("hull_plate"))
 			and ship("fighter").mounts.fore.equipment_id == "hull_plate" and state.ship_loadout_id(fighter.id).is_empty(),
-			"Single-part swap charges that part's fee")
+			"Single-part swap is free even in credit debt")
 	credits = state.credits
 	var hull_max := ship("fighter").hull_max
 	check(state.swap_part(fighter.id, "fore", "") and state.credits == credits, "Removing a part is free")
@@ -89,6 +90,7 @@ func run() -> void:
 	check(state.refit_ship(transport.id, "tender") and HangarTrade.has_load(ship("transport").mounts.hold),
 			"Refits keep an unchanged loaded hold and its cargo")
 	ship("transport").mounts.hold.erase("load")
+	state.credits = 500
 	# Ships are bought fitted.
 	var drone_price := ShipLoadouts.ship_price("drone", ShipLoadouts.default_for("drone"))
 	credits = state.credits
@@ -138,7 +140,9 @@ func run() -> void:
 	check(panel != null and screen.details.find_children("*", "ScrollContainer", true, false).is_empty(),
 			"Ships shows a refit panel without stock or scrolling")
 	check(panel.find_child("Loadout_interceptor", true, false).disabled
-			and not panel.find_child("Loadout_striker", true, false).disabled, "Fitted loadout is marked; others can be bought")
+			and not panel.find_child("Loadout_striker", true, false).disabled, "Fitted loadout is marked; others can be chosen")
+	check(panel.find_child("Loadout_striker", true, false).text == "Striker",
+		"Loadout choice has no refit price")
 	panel.find_child("Loadout_striker", true, false).pressed.emit()
 	await settle()
 	check(state.ship_loadout_id(state.fleet[2].id) == "striker", "Loadout button refits the ship")

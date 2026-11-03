@@ -93,10 +93,15 @@ func _refresh_production() -> void:
 	if groups_host == null:
 		return
 	_clear(groups_host)
-	groups_host.add_child(_label("PRODUCTION"))
 	var science := ScienceRules.snapshot(GameState.get_deployed_fleet())
 	groups_host.add_child(_label(ScienceRules.production_label(science)))
 	groups_host.add_child(_label("%s RP/day" % ScienceRules.format_rp(ScienceRules.production_rate(science))))
+	var simulation = GameState.expedition_simulation
+	if simulation != null:
+		groups_host.add_child(_label("1 day = %d NU\nTravel only" % int(simulation.tuning.nav_units_per_day)))
+		if GameState.research_focus.is_empty():
+			groups_host.add_child(_label("%s RP stored" % ScienceRules.format_points(GameState.research_points)))
+		return
 	var destination := GameState.planned_destination_node_id
 	if destination < 0:
 		groups_host.add_child(_label("Choose a destination to preview research"))
@@ -106,16 +111,17 @@ func _refresh_production() -> void:
 	var output := ScienceRules.journey_rp(science, duration)
 	var focus := GameState.research_focus
 	if focus.is_empty():
-		groups_host.add_child(_label("%s RP discarded: no focus" % ScienceRules.format_rp(output)))
+		groups_host.add_child(_label("%s RP stored on arrival" % ScienceRules.format_points(output)))
 		return
 	var research: Dictionary = GameState.hangar_snapshot().research
 	var required := ResearchFocusRules.cost(focus, research)
 	var current := float(GameState.research_progress.get(focus, 0))
-	var allocated := minf(output, maxf(0, required - current))
+	var available := output + GameState.research_points + current - floorf(current)
+	var allocated := minf(floorf(available), maxf(0, required - floorf(current)))
 	var project_name := str(GameDefinitions.find("research", focus).display_name)
-	groups_host.add_child(_label("%s RP to %s on arrival" % [ScienceRules.format_rp(allocated), project_name]))
-	if output > allocated:
-		groups_host.add_child(_label("%s excess RP discarded" % ScienceRules.format_rp(output - allocated)))
+	groups_host.add_child(_label("%s RP to %s on arrival" % [ScienceRules.format_points(allocated), project_name]))
+	if available > allocated:
+		groups_host.add_child(_label("%s excess RP stored" % ScienceRules.format_points(available - allocated)))
 func _select(id: String) -> void:
 	selected_id = id
 	tree_canvas.select(id)
@@ -163,7 +169,7 @@ func _refresh_summary() -> void:
 	if required.owned:
 		pass
 	else:
-		summary_host.add_child(_label("%s / %d RP" % [ScienceRules.format_rp(float(state.get("research_progress", {}).get(selected_id, 0))), int(row.cost)]))
+		summary_host.add_child(_label("%s / %d RP" % [ScienceRules.format_points(float(state.get("research_progress", {}).get(selected_id, 0))), int(row.cost)]))
 		focus_button = _button("FOCUSED" if focused else "SET FOCUS")
 		focus_button.disabled = focused or not row.nearby or (state_override.is_empty() and (GameState.battle_pending or GameState.run_ended))
 		AudioManager.connect_ui_button(focus_button)

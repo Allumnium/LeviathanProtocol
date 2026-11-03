@@ -104,7 +104,8 @@ func run() -> void:
 		sim.phase = BattleSimulation.Phase.VICTORY
 		check(state.settle_battle(sim), "Settle encounter")
 		check(state.equipment_inventory.size() == before_gear + 1, "One physical loot instance")
-		check(travel_rp > 0 and state.research_focus.is_empty() and state.research_progress.is_empty(), "Travel research is discarded when there is no focus")
+		check(travel_rp > 0 and state.research_focus.is_empty() and state.research_progress.is_empty()
+			and state.research_points >= travel_rp, "Travel research is banked when there is no focus")
 		check(not state.settle_battle(sim), "No duplicate rewards")
 		check(state.load_run_checkpoint() and state.current_node_id == destination, "Settled checkpoint resumes")
 	if "--capture" in OS.get_cmdline_user_args():

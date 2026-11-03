@@ -26,40 +26,28 @@
 [ext_resource type="Texture2D" path="res://assets/ui/Btn_Rectangle01Red_p.png" id="27_red_pressed"]
 [ext_resource type="Texture2D" path="res://assets/ui/Switch_Off.png" id="28_switch_off"]
 [ext_resource type="Texture2D" path="res://assets/ui/Switch_On.png" id="29_switch_on"]
-[ext_resource type="Texture2D" path="res://assets/ui/panels/metalUI/Create_a_highly_detailed_2D_pixel_art_science-fict/elements/element_1.png" id="30_command_header"]
+[ext_resource type="Texture2D" path="res://assets/ui/panels/Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/top_bar_d.png" id="30_command_header"]
+[ext_resource type="Texture2D" path="res://assets/ui/panels/Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/bottom_bar_d.png" id="31_bottom_bar"]
+[ext_resource type="Texture2D" path="res://assets/ui/panels/Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/left_panel_d.png" id="32_left_panel"]
+[ext_resource type="Texture2D" path="res://assets/ui/panels/Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/right_panel_d.png" id="33_right_panel"]
 
-[sub_resource type="AtlasTexture" id="Atlas_header_left"]
-atlas = ExtResource("30_command_header")
-region = Rect2(0, 0, 204, 50)
+[sub_resource type="StyleBoxEmpty" id="Style_bottom_bar"]
+content_margin_left = 12.0
+content_margin_right = 12.0
+content_margin_top = 2.0
+content_margin_bottom = 2.0
 
-[sub_resource type="AtlasTexture" id="Atlas_header_middle"]
-atlas = ExtResource("30_command_header")
-region = Rect2(204, 0, 244, 50)
+[sub_resource type="StyleBoxEmpty" id="Style_left_panel"]
+content_margin_left = 36.0
+content_margin_right = 20.0
+content_margin_top = 40.0
+content_margin_bottom = 32.0
 
-[sub_resource type="AtlasTexture" id="Atlas_header_right"]
-atlas = ExtResource("30_command_header")
-region = Rect2(448, 0, 204, 50)
-
-[sub_resource type="StyleBoxTexture" id="Style_header_left"]
-texture = SubResource("Atlas_header_left")
-texture_margin_left = 24.0
-texture_margin_right = 80.0
-texture_margin_top = 8.0
-texture_margin_bottom = 8.0
-
-[sub_resource type="StyleBoxTexture" id="Style_header_middle"]
-texture = SubResource("Atlas_header_middle")
-texture_margin_left = 16.0
-texture_margin_right = 16.0
-texture_margin_top = 8.0
-texture_margin_bottom = 8.0
-
-[sub_resource type="StyleBoxTexture" id="Style_header_right"]
-texture = SubResource("Atlas_header_right")
-texture_margin_left = 80.0
-texture_margin_right = 60.0
-texture_margin_top = 8.0
-texture_margin_bottom = 8.0
+[sub_resource type="StyleBoxEmpty" id="Style_right_panel"]
+content_margin_left = 20.0
+content_margin_right = 36.0
+content_margin_top = 40.0
+content_margin_bottom = 32.0
 
 [sub_resource type="AtlasTexture" id="Atlas_slider_fill"]
 atlas = ExtResource("19_slider_fill")
@@ -797,9 +785,16 @@ border_width_bottom = 1
 border_color = Color(0.2, 0.3, 0.4, 1)
 
 [resource]
-CommandHeader/styles/left = SubResource("Style_header_left")
-CommandHeader/styles/middle = SubResource("Style_header_middle")
-CommandHeader/styles/right = SubResource("Style_header_right")
+CommandFooter/base_type = &"PanelContainer"
+CommandFooter/icons/frame = ExtResource("31_bottom_bar")
+CommandFooter/styles/panel = SubResource("Style_bottom_bar")
+CommandLeftPanel/base_type = &"PanelContainer"
+CommandLeftPanel/icons/frame = ExtResource("32_left_panel")
+CommandLeftPanel/styles/panel = SubResource("Style_left_panel")
+CommandRightPanel/base_type = &"PanelContainer"
+CommandRightPanel/icons/frame = ExtResource("33_right_panel")
+CommandRightPanel/styles/panel = SubResource("Style_right_panel")
+CommandHeader/icons/frame = ExtResource("30_command_header")
 VictoryPanel/base_type = &"PanelContainer"
 VictoryPanel/styles/panel = SubResource("Style_victory")
 ReportCard/base_type = &"PanelContainer"

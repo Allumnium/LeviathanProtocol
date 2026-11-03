@@ -4,8 +4,6 @@ extends RefCounted
 # first loadout of a class is its default; ships are bought and refitted from
 # these, and single mounts can be swapped for any compatible obtainable part.
 const PATH := "res://data/ship_loadouts.json"
-const PART_FEE_RATE := 0.25
-const MIN_PART_FEE := 5
 const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
 static var _obtainable: Dictionary = {}
@@ -95,8 +93,8 @@ static func part_options(slot: Dictionary) -> Array[Dictionary]:
 		return int(a.price) < int(b.price) if int(a.price) != int(b.price) else str(a.name) < str(b.name))
 	return result
 
-static func part_fee(item: Dictionary) -> int:
-	return 0 if item.is_empty() else maxi(MIN_PART_FEE, ceili(float(item.price) * PART_FEE_RATE))
+static func part_fee(_item: Dictionary) -> int:
+	return 0
 
 static func ship_price(chassis_id: String, loadout: Dictionary) -> int:
 	var parts := 0
@@ -114,14 +112,8 @@ static func current_keys(mounts: Dictionary, inventory: Dictionary = {}) -> Dict
 			result[slot_id] = key_for({"id": instance.equipment_id, "rank": int(instance.rank)})
 	return result
 
-# Fee to move from `current` to `target` mount keys: changed or added parts pay
-# their fee; removals are free.
-static func refit_fee(current: Dictionary, target: Dictionary) -> int:
-	var fee := 0
-	for slot_id: String in target:
-		if str(current.get(slot_id, "")) != str(target[slot_id]):
-			fee += part_fee(item_for(str(target[slot_id])))
-	return fee
+static func refit_fee(_current: Dictionary, _target: Dictionary) -> int:
+	return 0
 
 static func matching(chassis_id: String, mounts: Dictionary, inventory: Dictionary = {}) -> String:
 	var keys := current_keys(mounts, inventory)
