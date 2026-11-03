@@ -13,6 +13,7 @@ func check(value: bool, message: String) -> void:
 		push_error(message)
 
 func run() -> void:
+	root.size = Vector2i(1280, 720)
 	var state := root.get_node("GameState")
 	check(state.start_new_run(1, 64102), "New chassis run saves successfully")
 	var expected := {
@@ -65,22 +66,28 @@ func run() -> void:
 	scene.active_tab = "FLEET"
 	root.add_child(scene)
 	current_scene = scene
-	await process_frame
-	await process_frame
+	await create_timer(0.25).timeout
 	var credits: int = state.credits
 	scene._open_shop("SHIPS")
-	await process_frame
-	await process_frame
+	await create_timer(0.25).timeout
 	var chassis_row: Button
 	for host in scene.shop_rows.get_children():
 		for child in host.get_children():
 			if child is Button and child.get_meta("inspect_chassis", "") == "fighter":
 				chassis_row = child
 	credits = state.credits
-	_click(chassis_row.get_global_rect().get_center())
+	await _click(chassis_row.get_global_rect().get_center())
 	await process_frame
 	check(state.credits == credits and scene.inspected_item.get("id", "") == "fighter", "Chassis row inspects without buying")
+	if scene.inspection == null:
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/chassis-review-failure.png")
+		quit(1)
+		return
 	check(_text(scene.inspection).contains("+30%") and _text(scene.inspection).contains("20%") and _text(scene.inspection).contains("Maneuverability"), "Chassis inspector exposes real bonuses and maneuverability")
+	check(_text(scene.inspection).contains("Fitted price %d cr" % int(chassis_row.get_meta("price"))),
+		"Inspection price matches the fitted ship's actual purchase quote")
 	check(scene.inspection.find_child("ShipStatBars", true, false).bars.size() == 3
 		and not _text(scene.inspection).contains("HP") and not _text(scene.inspection).contains("Command Center")
 		and not _text(scene.inspection).contains("Built-in Engine"), "Unshielded chassis preview omits shield bar and implicit component descriptions")
@@ -91,13 +98,13 @@ func run() -> void:
 		and not _text(scene.inspection).contains("Mounts") and not _text(scene.inspection).contains("HP"),
 		"Chassis descriptions show shield amount without builtin or mounting-point listings")
 	scene._inspect_chassis("fighter")
-	await process_frame
-	await process_frame
-	_click(scene.inspection.get_global_rect().get_center())
+	await create_timer(0.25).timeout
+	check(scene.inspection.size.y > 0, "Inspection content reserves visible height inside the framed scroll panel")
+	await _click(scene.inspection.get_global_rect().get_center())
 	await process_frame
 	check(scene.inspection != null, "Inspector contents and scrollbar remain interactive")
 	scene._inspect_chassis("fighter")
-	state.credits = 300
+	state.credits = 0
 	scene._refresh()
 	await process_frame
 	await process_frame
@@ -105,17 +112,20 @@ func run() -> void:
 	var unavailable: Button
 	for host in scene.shop_rows.get_children():
 		for child in host.get_children():
-			if child is Button and child.get_meta("inspect_chassis", "") == "corsair":
+			if child is Button and child.get_meta("inspect_chassis", "") == "fighter":
 				unavailable = child
+	check(unavailable != null, "Featured Fighter stays in the seeded shop subset")
+	if unavailable == null:
+		quit(1)
+		return
 	check(unavailable.disabled and not unavailable.has_node("BuyIcon"), "Unaffordable chassis has no purchase control")
-	_click(unavailable.get_global_rect().position + Vector2(20, 10))
+	await _click(unavailable.get_global_rect().position + Vector2(20, 10))
 	await process_frame
-	check(scene.inspected_item.get("id", "") == "corsair", "Unaffordable chassis remains inspectable")
+	check(scene.inspected_item.get("id", "") == "fighter", "Unaffordable chassis remains inspectable")
 	scene._inspect_chassis("fighter")
 	for viewport_size in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = viewport_size
-		await process_frame
-		await process_frame
+		await create_timer(0.25).timeout
 		check(scene.inspection.get_global_rect().end.x <= root.get_visible_rect().size.x, "Inspector fits viewport %s" % viewport_size)
 		check(scene.inspection.get_child(0).size.x <= scene.inspection.size.x, "Inspector text stays within scroll panel")
 		var stat_panel: ShipStatBars = scene.inspection.find_child("ShipStatBars", true, false)
@@ -134,10 +144,10 @@ func run() -> void:
 	scene.active_tab = "SHIPS"
 	scene.buy_open = false
 	scene._refresh()
-	await process_frame
-	await process_frame
+	await create_timer(0.25).timeout
 	scene._inspect_chassis("fighter")
-	_click(scene.canvas.slot_buttons.port.get_global_rect().get_center())
+	await create_timer(0.25).timeout
+	await _click(scene.canvas.slot_buttons.port.get_global_rect().get_center())
 	await process_frame
 	check(scene.slot_info.visible and scene.slot_info.source_text.contains("Mini Turret"), "Art selection still updates installed-part details after inspection")
 	check(scene.inspected_item.is_empty() and scene.details.find_child("RefitPanel", true, false).visible,
@@ -145,7 +155,7 @@ func run() -> void:
 	check(state.swap_part(scene.selected_ship_id, "fore", ""), "Empty a mount for the stats check")
 	await process_frame
 	await process_frame
-	_click(scene.canvas.slot_buttons.fore.get_global_rect().get_center())
+	await _click(scene.canvas.slot_buttons.fore.get_global_rect().get_center())
 	await process_frame
 	check(scene.stats_grid.visible and not scene.slot_info.visible, "Empty mount restores ship stats without inspection interference")
 	var ship: HangarShip = state.owned_ship(scene.selected_ship_id)
@@ -224,11 +234,14 @@ func _test_fighter() -> void:
 func _click(position: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.position = position
+	motion.global_position = position
 	root.push_input(motion, true)
+	await process_frame
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.button_index = MOUSE_BUTTON_LEFT
 		event.position = position
+		event.global_position = position
 		event.pressed = pressed
 		root.push_input(event, true)
 

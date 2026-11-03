@@ -152,6 +152,11 @@ shot interception, no material payouts and native mapped rendering.
 
 ## Battle outcomes and run score
 
+Shipyard inspection uses the framed side panel's existing wheel scrolling rather
+than a nested zero-height scroll viewport. Clicking its contents keeps inspection
+open. The fitted purchase price matches the shop quote, rather than displaying
+the bare chassis price as the amount payable.
+
 Battle music starts immediately when entering combat, alongside the opening flash/black-shutter transition, rather than waiting for the battle scene to load. Warden encounters start the boss track at the same point. Scene initialization retains the playing track without restarting it.
 
 Battle controls offer Pause, 2x and 5x speed. Speed toggles are mutually exclusive;

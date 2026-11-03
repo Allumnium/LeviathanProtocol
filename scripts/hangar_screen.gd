@@ -468,6 +468,8 @@ func _advance_expedition(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not inspected_item.is_empty():
+		if is_instance_valid(inspection) and inspection.get_global_rect().has_point(event.position):
+			return
 		var hovered := get_viewport().gui_get_hovered_control()
 		while hovered != null:
 			if hovered == inspection or hovered.has_meta("inspect_equipment") or hovered.has_meta("inspect_chassis"):
@@ -505,7 +507,7 @@ func _render_inspection() -> void:
 			child.set_meta("hidden_by_inspection", true)
 			child.hide()
 	inspection = ScrollContainer.new()
-	inspection.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	inspection.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	inspection.name = "ItemDetails"
 	inspection.size_flags_vertical = SIZE_EXPAND_FILL
 	inspection.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -521,8 +523,9 @@ func _render_inspection() -> void:
 		var bars := StatBars.new()
 		body.add_child(bars)
 		bars.set_ship(ship)
-		body.add_child(_resource_label("Command %d\nPrice %d cr" %
-			[chassis.command if chassis.command > 0 else chassis.command_cost, chassis.price]))
+		var price := int(chassis.price) if chassis.command > 0 else ShipLoadouts.ship_price(chassis.id, ShipLoadouts.default_for(chassis.id))
+		body.add_child(_resource_label("Command %d\nFitted price %d cr" %
+			[chassis.command if chassis.command > 0 else chassis.command_cost, price]))
 		body.add_child(_resource_label(SlotCatalog.chassis_bonuses(chassis)))
 	else:
 		var item := SlotCatalog.find_equipment(inspected_item.id, int(inspected_item.rank))
