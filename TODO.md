@@ -99,7 +99,7 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 
 ### D2 - Rewards and resources
 
-- [ ] Battle/event rewards: credits, research points, occasional rescued ships that join the fleet, rarely fuel.
+- [x] Battle/event rewards: credits, research points, occasional rescued ships that join the fleet, rarely fuel. Existing derelict salvage recovers capacity-capped fuel; the distress victory rescues a fully fitted Transport with unique equipment IDs and no fabricated loads. Rescues respect command capacity; a full fleet receives the fitted ship's credit value instead, disclosed before combat. All rewards, ownership, receipts and IDs commit together; defeat/withdrawal and duplicate settlement grant nothing. Focused reward (48 checks), refit (189), event (81), demo (520), clarity (154) and report (153) regressions pass.
 - [ ] Missiles as a consumable fleet resource (FTL-style): missile weapons spend them; bought at stations and found in salvage.
 
 ### D3 - Squadrons and stances

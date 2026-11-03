@@ -20,6 +20,12 @@ Tests: [test_ship_refit.gd](../tests/test_ship_refit.gd).
 
 ## Demo vertical slice
 
+### Expedition rewards
+
+Event choices and frozen battle rewards support credits, research, fuel and a rescued escort chassis. Existing derelict salvage supplies a small fuel recovery, capped at tank capacity; feedback reports the amount actually recovered. Winning the distress encounter adds a healthy Transport with its default fitted loadout, fresh unique ship/equipment IDs and empty holds/cabins. It does not become a flagship or replace existing ships. If command capacity cannot accommodate it, the crew pays the exact fitted purchase value instead, as disclosed by the encounter. Reports identify the ship or compensation alongside RP/fuel.
+
+Rewards commit atomically with event receipts and battle settlement. Failed saves grant nothing; retries/Continue cannot duplicate ships, resources or equipment, and non-victory outcomes grant no rewards. [Reward regressions](../tests/test_expedition_rewards.gd) exercise capacity overflow, partial tank recovery, malformed rewards, rollback, duplicate submissions and Continue. No new encounters or story branches are added.
+
 The current demo is a 10-15 minute Act I run: Haven Dock -> travel, events and battles -> trade/refuel/refit at stations -> Leviathan Protocol broadcast -> Bastion Warden at the Bastion Gate -> Demo Complete screen with score. [Demo tests](../tests/test_expedition_demo.gd) play the whole route headlessly without injected credits or forced outcomes.
 
 - **Content** lives in [expedition_locations.json](../data/expedition_locations.json) and [expedition_events.json](../data/expedition_events.json). Events trigger by cumulative `distance`, entering a `zone` circle, `arrival` at a location, or `start` (the one-time charter briefing shown by New Run only). Each event has 1-4 options whose `effects` may grant/charge credits, fuel, research RP, fractional hull damage, a detour, a flag that unlocks gated locations (`required_flag`), discoveries, or start a `combat` (`template`, `row`, `strength`, `asteroids`, `credits`). `complete` marks the finale.

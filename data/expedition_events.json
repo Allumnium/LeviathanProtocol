@@ -103,8 +103,8 @@
       "text": "Gutted freighters, scored by something that was not a weapon. Their holds are still sealed, and a few dormant shapes cling to the hulls.",
       "art": "",
       "options": [
-        {"id": "careful", "label": "SALVAGE THE EDGES (+80 cr)", "effects": {"credits": 80}},
-        {"id": "strip", "label": "CUT INTO THE HOLDS", "effects": {"combat": {"template": "patrol", "row": 3, "strength": 3.0, "asteroids": 1, "credits": 160}}}
+        {"id": "careful", "label": "SALVAGE / +80 cr / +5 FUEL", "effects": {"credits": 80, "fuel": 5.0}},
+        {"id": "strip", "label": "CUT INTO THE HOLDS", "effects": {"combat": {"template": "patrol", "row": 3, "strength": 3.0, "asteroids": 1, "credits": 160, "fuel": 8.0}}}
       ]
     },
     {
@@ -112,10 +112,10 @@
       "trigger": "arrival",
       "location_id": "distress_1",
       "title": "Distress call",
-      "text": "A merchant hauler is pinned down by alien craft. Its captain begs for cover.",
+      "text": "A merchant hauler is pinned down by alien craft. Its captain offers to join your fleet if you clear the attackers. If command capacity is full, the crew pays the fitted ship's value instead.",
       "art": "",
       "options": [
-        {"id": "defend", "label": "DEFEND THE HAULER", "effects": {"combat": {"template": "relay_defense", "row": 6, "strength": 5.0, "credits": 240}}},
+        {"id": "defend", "label": "DEFEND THE HAULER", "effects": {"combat": {"template": "relay_defense", "row": 6, "strength": 5.0, "credits": 240, "rescue_ship": "transport"}}},
         {"id": "leave", "label": "LEAVE THEM", "effects": {}}
       ]
     },

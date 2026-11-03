@@ -102,6 +102,34 @@ static func ship_price(chassis_id: String, loadout: Dictionary) -> int:
 		parts += int(item_for(str(key)).get("price", 0))
 	return int(SlotCatalog.find_chassis(chassis_id).get("price", 0)) + ceili(parts * SHIP_PARTS_RATE)
 
+static func append_ship(data: Dictionary, chassis_id: String, loadout: Dictionary) -> void:
+	var ship := HangarShip.new()
+	ship.initialize_chassis(chassis_id, int(data.next_ship_id))
+	var occupied := {}
+	for entry: Dictionary in data.ships:
+		occupied[Vector2(entry.formation[0], entry.formation[1])] = true
+	ship.formation = Vector2(data.ships.size() % 3 - 1, floori(data.ships.size() / 3.0))
+	for y in range(6):
+		if not occupied.has(ship.formation) and ship.formation.y <= 5:
+			break
+		for x in range(-5, 6):
+			var position := Vector2(x, y)
+			if not occupied.has(position):
+				ship.formation = position
+				break
+	var entry := ship.to_hangar_data()
+	for slot_id: String in loadout.mounts:
+		var parsed := parse_key(str(loadout.mounts[slot_id]))
+		var uid := str(data.next_equipment_id)
+		data.next_equipment_id += 1
+		data.equipment[uid] = {"uid": uid, "equipment_id": parsed.id, "rank": int(parsed.rank)}
+		entry.mounts[slot_id] = uid
+		ship.mounts[slot_id] = data.equipment[uid]
+	ship.rebuild_units()
+	entry.hull_hp = ship.hull_max
+	data.ships.append(entry)
+	data.next_ship_id += 1
+
 # Mount key ("id" or "id@rank") per slot for a ship's current fit.
 static func current_keys(mounts: Dictionary, inventory: Dictionary = {}) -> Dictionary:
 	var result := {}

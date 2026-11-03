@@ -347,6 +347,8 @@ static func valid(encounter: Variant) -> bool:
 	var rewards: Variant = encounter.get("rewards")
 	if not rewards is Dictionary or not SaveValidation.integer(rewards.get("credits")) or rewards.credits < 0:
 		return false
+	if not preload("res://scripts/expedition_events.gd").valid_rewards(rewards):
+		return false
 	if not rewards.get("materials") is Array or rewards.materials.size() != 4:
 		return false
 	for amount in rewards.materials:

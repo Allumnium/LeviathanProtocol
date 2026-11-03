@@ -385,7 +385,9 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 			proposal.credits += int(effects.credits)
 		summary.append("%+d credits" % int(effects.credits))
 	if effects.has("fuel"):
-		summary.append("%+d fuel" % roundi(float(effects.fuel)))
+		summary.append("%+.1f fuel" % (float(proposal.expedition.fuel) - expedition_simulation.state.fuel))
+	if effects.has("rescue_ship"):
+		summary.append(_rescue_ship(proposal, str(effects.rescue_ship)))
 	if float(effects.get("research", 0.0)) > 0.0:
 		_allocate_research(proposal.research, float(effects.research))
 		summary.append("+%s RP" % ScienceRules.format_points(float(effects.research)))
@@ -407,7 +409,7 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	if not _save_hangar(proposal):
 		return false
 	var hangar_changed := false
-	for key in ["credits", "research", "hull_damage", "combat"]:
+	for key in ["credits", "research", "hull_damage", "combat", "rescue_ship"]:
 		hangar_changed = hangar_changed or effects.has(key)
 	if hangar_changed:
 		_apply_hangar(proposal, false, true)
@@ -438,12 +440,33 @@ func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
 		encounter = SwarmNavigation.encounter(encounter, (strength - 1.0) / SwarmNavigation.STRENGTH_PER_POINT)
 	if combat.has("credits"):
 		encounter.rewards.credits = int(combat.credits)
+	for key in ["research", "fuel", "rescue_ship"]:
+		if combat.has(key):
+			encounter.rewards[key] = combat[key]
 	# The arena plan carries waves/objectives into the battle, as for campaign encounters.
 	if not encounter.has("arena_layout"):
 		encounter["arena_layout"] = "open"
 	encounter["expedition_event_id"] = event_id
 	encounter["complete"] = bool(effects.get("complete", false))
 	return encounter
+
+func _rescue_ship(data: Dictionary, chassis_id: String) -> String:
+	var chassis := SlotCatalog.find_chassis(chassis_id)
+	var loadout := ShipLoadouts.default_for(chassis_id)
+	var command := 0
+	var used := 0
+	for entry: Dictionary in data.ships:
+		var definition := SlotCatalog.find_chassis(str(entry.chassis))
+		if entry.flagship:
+			command = int(definition.command)
+		else:
+			used += int(definition.command_cost)
+	if used + int(chassis.command_cost) > command:
+		var compensation := ShipLoadouts.ship_price(chassis_id, loadout)
+		RunScore.earn_credits(data, compensation)
+		return "%s rescued / command full: +%d cr" % [chassis.name, compensation]
+	ShipLoadouts.append_ship(data, chassis_id, loadout)
+	return "%s joined the fleet" % chassis.name
 
 func station_trade_node(location_id: String) -> Dictionary:
 	if expedition_simulation == null:
@@ -801,19 +824,7 @@ func buy_ship(key: String, loadout_id := "") -> bool:
 		last_save_error = "Not enough command capacity."
 		return false
 	var data := hangar_snapshot()
-	var candidate := HangarShip.new()
-	candidate.initialize_chassis(key, next_ship_id)
-	candidate.formation = Vector2(fleet.size() % 3 - 1, floori(fleet.size() / 3.0))
-	var entry := candidate.to_hangar_data()
-	for slot_id: String in loadout.mounts:
-		var parsed := ShipLoadouts.parse_key(str(loadout.mounts[slot_id]))
-		var uid := str(data.next_equipment_id)
-		data.next_equipment_id += 1
-		data.equipment[uid] = {"uid": uid, "equipment_id": parsed.id, "rank": int(parsed.rank)}
-		entry.mounts[slot_id] = uid
-	entry.hull_hp = float(chassis.integrity) + _fitted_integrity(entry, data.equipment)
-	data.ships.append(entry)
-	data.next_ship_id += 1
+	ShipLoadouts.append_ship(data, key, loadout)
 	data.credits -= price
 	return _commit_hangar(data)
 
@@ -1184,13 +1195,20 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) not in lost)
 	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
 	var event_id: String = pending_encounter.get("expedition_event_id", "")
-	var reward := ""
+	var rewards: PackedStringArray = []
 	if won:
 		RunScore.earn_credits(data, int(pending_encounter.rewards.credits))
 		# Victories yield research data instead of loose equipment.
-		var rp := 2.0 + float(pending_encounter.get("global_row", 1))
+		var rp := float(pending_encounter.rewards.get("research", 2.0 + float(pending_encounter.get("global_row", 1))))
 		_allocate_research(data.research, rp)
-		reward = "+%s RP" % ScienceRules.format_points(rp)
+		if rp > 0:
+			rewards.append("+%s RP" % ScienceRules.format_points(rp))
+		if pending_encounter.rewards.has("fuel"):
+			var before := float(data.expedition.fuel)
+			data.expedition.fuel = minf(float(data.expedition.fuel_capacity), before + float(pending_encounter.rewards.fuel))
+			rewards.append("+%.1f fuel" % (float(data.expedition.fuel) - before))
+		if pending_encounter.rewards.has("rescue_ship"):
+			rewards.append(_rescue_ship(data, str(pending_encounter.rewards.rescue_ship)))
 		if pending_encounter.get("complete", false):
 			data.completed = true
 			data.research.story_flags["boss_i_defeated"] = true
@@ -1204,7 +1222,7 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	if not _save_hangar(data):
 		return false
 	last_battle_report.clear()
-	last_equipment_loot = reward
+	last_equipment_loot = " · ".join(rewards)
 	for actor in simulation.players:
 		last_battle_report.append({"ship": actor.owned_ship, "damage": actor.damage_dealt, "taken": actor.damage_taken,
 			"repair_damage": actor.owned_ship.repair_cost() if actor.is_alive() else 0, "deflected": actor.damage_deflected(), "weapons": actor.weapon_damage.duplicate(), "destroyed": not actor.is_alive()})

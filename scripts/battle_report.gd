@@ -52,6 +52,7 @@ func show_report(
 		_add_title(column, outcome, credits_gained)
 	if not equipment_loot.is_empty():
 		var loot_label := ResourceText.create(equipment_loot)
+		loot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		column.add_child(loot_label)
 	var deaths := 0
 	var fees := 0

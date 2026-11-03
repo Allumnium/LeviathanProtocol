@@ -4,7 +4,7 @@ const DATA_PATH := "res://data/expedition_events.json"
 const TRIGGERS := ["distance", "zone", "arrival", "start"]
 const COMBAT_TEMPLATES := ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]
 const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "combat", "flag",
-	"discover", "requires_credits", "complete"]
+	"discover", "requires_credits", "complete", "rescue_ship"]
 
 # Older fixtures only declared `distance_nu`; they remain distance triggers with
 # the original Investigate / Continue Course choices.
@@ -96,6 +96,8 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 			return false
 	if effects.get("research", 0.0) < 0 or effects.get("hull_damage", 0.0) < 0 or effects.get("hull_damage", 0.0) > 0.5:
 		return false
+	if not valid_rewards(effects, true):
+		return false
 	for key in ["detour", "complete"]:
 		if effects.has(key) and not effects[key] is bool:
 			return false
@@ -117,6 +119,21 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 		if combat.has("credits") and (not SaveValidation.integer(combat.credits) or combat.credits < 0):
 			return false
 		if combat.has("strength") and (not SaveValidation.number(combat.strength) or combat.strength < 1.0 or combat.strength > 10.0):
+			return false
+		if not valid_rewards(combat):
+			return false
+	return true
+
+static func valid_rewards(rewards: Dictionary, allow_fuel_cost := false) -> bool:
+	for key in ["research", "fuel"]:
+		if rewards.has(key) and (not SaveValidation.number(rewards[key]) \
+				or (rewards[key] < 0 and not (key == "fuel" and allow_fuel_cost))):
+			return false
+	if rewards.has("rescue_ship"):
+		if not rewards.rescue_ship is String:
+			return false
+		var chassis := SlotCatalog.find_chassis(rewards.rescue_ship)
+		if chassis.is_empty() or int(chassis.command) > 0 or preload("res://scripts/ship_loadouts.gd").default_for(rewards.rescue_ship).is_empty():
 			return false
 	return true
 
