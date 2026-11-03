@@ -30,7 +30,7 @@ func run() -> void:
 	check(state.buy_ship("drone"), "Buy fitted ship")
 	var ship_id: int = state.fleet[-1].id
 	credits = state.credits
-	check(state.swap_part(ship_id, "fore", "laser") and state.credits == credits - 10, "Part swap charges its fee once")
+	check(state.swap_part(ship_id, "fore", "laser") and state.credits == credits, "Shipyard part swap is free")
 	var uid: String = state.owned_ship(ship_id).mounts.fore.uid
 	check(state.equipment_location(uid).ship_id == ship_id, "Ownership is unique")
 	credits = state.credits
