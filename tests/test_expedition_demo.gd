@@ -24,6 +24,24 @@ func fight() -> int:
 			state.battle_simulation_seed(), state.battle_support_context()), "Event battle sets up")
 	sim.battle_id = state.battle_identity()
 	check(sim.set_objective_targets(state.battle_objective_ids()), "Event battle objectives")
+	if not sim.encounter.warden.rules.is_empty():
+		var warden = sim.encounter.warden
+		var expected := "Destroy Warden" if warden.rules.lance else "Clear escort fleet"
+		check(warden.label(sim).begins_with(expected), "Special victory order remains explicit")
+		if warden.visible(sim):
+			check(warden.label(sim).contains("Protected") == (warden.live_pylons(sim) > 0),
+				"Protection readout agrees with actual pylon links")
+		var before: Dictionary = warden.snapshot()
+		warden.exposed = 3.2
+		warden.charging = true
+		warden.cycle = 1
+		warden.clock = 10
+		check(not warden.visible(sim) or (warden.label(sim).contains("Exposed 4s")
+			and warden.label(sim).contains("Lance 2s")), "Exact exposure/lance deadlines survive copy reduction")
+		warden.exposed = before.exposed
+		warden.charging = before.charging
+		warden.cycle = before.cycle
+		warden.clock = before.clock
 	for tick in range(30 * 900):
 		sim.advance(1.0 / 30)
 		if sim.phase != BattleSimulation.Phase.COMBAT:

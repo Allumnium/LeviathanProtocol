@@ -180,9 +180,12 @@ func avoidance(sim, member, desired: Vector2) -> Vector2:
 	return (desired + Vector2(-direction.y, direction.x) * side * member.speed * 2).limit_length(member.speed)
 
 func label(sim) -> String:
-	var text := "WARDEN: Destroy body" if rules.get("lance", false) else "PYLON ESCORT: Clear fleet"
+	var text := "Destroy Warden" if rules.get("lance", false) else "Clear escort fleet"
 	if not visible(sim):
 		return text
+	var pylons := live_pylons(sim)
+	if pylons > 0:
+		text += " | Protected"
 	if exposed > 0:
 		text += " | Exposed %ds" % ceili(exposed)
 	if charging:

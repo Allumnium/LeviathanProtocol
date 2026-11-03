@@ -168,6 +168,10 @@ The lower recess holds the full encounter objective, including Warden exposure
 and lance countdowns, with wrapping rather than truncation. Conditional repair,
 rebuild and carrier readouts flow below the frame without fixed-position overlap.
 Header clicks remain UI input, never battlefield targeting or camera gestures.
+Special encounter orders read "Destroy Warden" or "Clear escort fleet"; Protected
+appears while live pylons protect the visible body. Existing pylon links,
+exposure ring and lance corridor carry the spatial cues. Exposure/lance seconds
+and ordinary wave/target timing remain exact; victory rules are unchanged.
 
 The left side of the battle header shows a box and person with exact `xN`
 carried-goods/passenger counts. These use installed equipment-instance loads
