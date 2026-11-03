@@ -49,7 +49,7 @@ var last_save_error := ""
 var last_event_result := ""
 # Set by the main menu's New Run flow; the game screen shows the charter briefing once.
 var pending_intro := false
-# UI-only: an arrival dialog to show when the screen returns from an arrival battle.
+# UI-only: refresh the arrived location when returning from an arrival battle.
 var arrival_notice := ""
 var _checkpoint_store := AtomicRunStore.new()
 

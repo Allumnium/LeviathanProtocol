@@ -591,15 +591,15 @@ func run() -> void:
 	var empty: Vector2 = board.global_position + Vector2(20, 120)
 	await drag(empty, empty)
 	check(screen.selected_ship_id == 0 and screen.formation_view.selected_ids.is_empty(), "Empty-space click deselects")
-	check(screen.details.get_child(1).get_meta("resource_text", "").begins_with("REPAIR ALL"), "Empty selection offers repair all")
+	check(screen.find_child("FleetRepairAll", true, false).get_meta("resource_text", "").begins_with("REPAIR ALL"), "Empty selection offers repair all")
 	var fleet_totals: ResourceText = screen.details.find_child("FleetTotals", true, false)
 	check(not fleet_totals.get_parsed_text().contains("RP") and fleet_totals.icon_size == ui_theme.default_font_size,
 		"Fleet science renders an inline icon at the surrounding font size")
-	var repair_label: ResourceText = screen.details.get_child(1).find_child("ResourceText", true, false)
+	var repair_label: ResourceText = screen.find_child("FleetRepairAll", true, false).find_child("ResourceText", true, false)
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
-		and repair_label.icon_size == screen.details.get_child(1).get_theme_font_size("font_size"),
+		and repair_label.icon_size == screen.find_child("FleetRepairAll", true, false).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo capacity 20",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo 0 / 20",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -615,7 +615,7 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1310 / 1310\n2 RP / day\nCargo capacity 30\nPassenger capacity 4" % [
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1310 / 1310\n2 RP / day\nCargo 0 / 30\nPassengers 0 / 4" % [
 		10.8 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
@@ -629,13 +629,13 @@ func run() -> void:
 	summary_ship.hull_hp -= 15
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1295 / 1310\n2 RP / day\nCargo capacity 30\nPassenger capacity 4" % [
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1295 / 1310\n2 RP / day\nCargo 0 / 30\nPassengers 0 / 4" % [
 		10.8 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo capacity 20",
+	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo 0 / 20",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()
@@ -653,10 +653,10 @@ func run() -> void:
 	state.credits = 0
 	check(not state.repair_all_ships() and state.fleet_repair_cost() == 25, "Unaffordable repair all cannot partially repair")
 	state.credits = credits
-	screen.details.get_child(1).pressed.emit()
+	screen.find_child("FleetRepairAll", true, false).pressed.emit()
 	await settle()
 	check(state.credits == credits - 25 and state.fleet_repair_cost() == 0, "Repair all repairs fleet and charges once")
-	check(screen.details.get_child(1).disabled, "Full fleet disables repair all")
+	check(screen.find_child("FleetRepairAll", true, false).disabled, "Full fleet disables repair all")
 	var escort_id: int = state.fleet[1].id
 	screen._confirm_salvage(escort_id)
 	await settle()

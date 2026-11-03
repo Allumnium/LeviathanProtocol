@@ -74,7 +74,7 @@ func run() -> void:
 	var formation: Control = screen.formation_view
 	var starfield: Control = screen.formation_view.starfield
 	var star_position: Vector2 = starfield._get_star_position(starfield._stars[0])
-	check(screen.departure_button.visible and screen.departure_button.text == "SET COURSE"
+	check(screen.departure_button.visible and screen.departure_button.text == "ENGAGE"
 			and not is_instance_valid(screen.get_node_or_null("DepartureChoices")),
 			"Docked fleets get a Set Course shortcut instead of a forced destination modal")
 	screen._on_expedition_speed_pressed(20)
@@ -90,6 +90,8 @@ func run() -> void:
 	await settle()
 	check(is_instance_valid(formation) and screen.formation_view == formation,
 			"Undocking updates station actions without rebuilding the Fleet view")
+	check(screen.station_actions.get_child_count() == 0,
+			"Departure removes contextual station services without changing the Fleet canvas")
 	check(not starfield._get_star_position(starfield._stars[0]).is_equal_approx(star_position),
 			"Existing Fleet background scrolls with travel distance")
 	check(screen.feedback.text.contains("NU"),
@@ -122,10 +124,9 @@ func run() -> void:
 	check(expedition.state.travel_state == State.TravelState.STOPPED
 			and expedition.state.destination_location_id.is_empty(),
 			"POI arrival ends the active leg without swapping scenes")
-	check(is_instance_valid(screen.arrival_modal) and screen.arrival_location_id == "derelict_1"
-			and screen.arrival_modal.find_child("ArrivalSetCourse", true, false) != null
-			and screen.arrival_modal.find_child("ArrivalRepairAll", true, false) == null,
-			"POI arrival describes the location and offers only applicable actions")
+	check(screen.get_node_or_null("ArrivalDialog") == null
+			and screen.station_actions.get_child_count() == 0 and screen.departure_button.visible,
+			"POI arrival has no station services or popup; Engage remains available")
 	var arrival_clock: float = expedition.state.simulation_seconds
 	var arrival_point: Vector2 = expedition.state.position_nu
 	screen._process(2.0)
@@ -138,10 +139,10 @@ func run() -> void:
 	check(expedition.state.travel_state == State.TravelState.DOCKED
 			and expedition.state.docked_location_id == "refuel_station_1",
 			"Station arrival docks the fleet and opens its refueling service")
-	check(is_instance_valid(screen.arrival_modal) and screen.arrival_location_id == "refuel_station_1"
-			and screen.arrival_modal.find_child("ArrivalRefuel", true, false) != null
-			and screen.arrival_modal.find_child("ArrivalShipyard", true, false) != null,
-			"Docking describes the station with Refuel and Shipyard actions")
+	check(screen.get_node_or_null("ArrivalDialog") == null
+			and screen.station_actions.find_child("StationRefuel", true, false) != null
+			and not screen.roster.find_child("BuyShips", true, false).disabled,
+			"Docking exposes refueling and shipyard access without a popup")
 	var credits_before_refuel: int = state.credits
 	screen._on_expedition_refuel_pressed()
 	check(is_equal_approx(expedition.state.fuel, expedition.state.fuel_capacity)
@@ -158,13 +159,12 @@ func run() -> void:
 		check(screen.travel_controls.is_visible_in_tree() and screen.travel_fuel.is_visible_in_tree(),
 				"Fleet travel controls remain available at %s" % viewport_size)
 		check(screen.travel_controls.size.y <= 32
-				and screen.travel_controls.get_global_rect().position.y >= screen.tabs.global_position.y
+				and screen.command_header.middle.get_global_rect().encloses(screen.travel_controls.get_global_rect())
 				and screen.travel_controls.get_global_rect().end.x <= screen.research_button.global_position.x
 				and screen.header_wallet.get_global_rect().end.x <= screen.size.x,
 				"Time panel fits beside existing header items at %s" % viewport_size)
-		var arrival_panel: Control = screen.arrival_modal.find_child("ArrivalDialogPanel", true, false)
-		check(screen.get_global_rect().encloses(arrival_panel.get_global_rect()),
-				"Arrival dialog stays within the viewport at %s" % viewport_size)
+		check(screen.roster_panel.get_global_rect().encloses(screen.station_actions.get_global_rect()),
+				"Station actions stay within their frame at %s" % viewport_size)
 	check(state.load_run_checkpoint(), "Saved expedition can continue from its committed state")
 	check(state.expedition_simulation.state.position_nu.is_equal_approx(saved_position),
 			"Continue restores the saved continuous position")

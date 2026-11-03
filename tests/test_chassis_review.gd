@@ -149,11 +149,10 @@ func run() -> void:
 	await process_frame
 	check(scene.stats_grid.visible and not scene.slot_info.visible, "Empty mount restores ship stats without inspection interference")
 	var ship: HangarShip = state.owned_ship(scene.selected_ship_id)
-	var values: Dictionary = ShipStatBars.values(ship)
-	var ranges := ShipStatBars.comparison_ranges()
 	for key: String in scene.stats_grid.bars:
-		check(is_equal_approx(scene.stats_grid.bars[key].value, ShipStatBars.percentage(values[key], ranges[key])),
-			"Ships editor uses actual outfitted %s comparison" % key)
+		check(key == "hull" and is_equal_approx(scene.stats_grid.bars[key].value,
+			100.0 * clampf(ship.hull_hp / ship.hull_max, 0, 1)),
+			"Ships editor uses current/max hull condition, not chassis comparison")
 	check(_text(scene.stats_grid).contains("Hull %d / %d" % [roundi(ship.hull_hp), roundi(ship.hull_max)]),
 		"Ships editor displays rounded actual current/max hull")
 	scene.active_tab = "FLEET"
@@ -161,10 +160,13 @@ func run() -> void:
 	await process_frame
 	await process_frame
 	var fleet_bars: ShipStatBars = scene.details.find_child("ShipStatBars", true, false)
-	check(fleet_bars != null and fleet_bars.bars.size() == 4, "Fleet single selection shows shared four-stat bars")
+	check(fleet_bars != null and fleet_bars.bars.size() == 1
+		and not _text(fleet_bars).contains("Mass") and not _text(fleet_bars).contains("Maneuverability"),
+		"Fleet single selection shows condition without normalized comparison clutter")
 	for key: String in fleet_bars.bars:
-		check(is_equal_approx(fleet_bars.bars[key].value, ShipStatBars.percentage(values[key], ranges[key])),
-			"Fleet selected ship uses actual outfitted %s comparison" % key)
+		check(key == "hull" and is_equal_approx(fleet_bars.bars[key].value,
+			100.0 * clampf(ship.hull_hp / ship.hull_max, 0, 1)),
+			"Fleet selected ship uses the same current/max hull condition")
 	scene.queue_free()
 	await process_frame
 	print("Chassis review: %d checks, %d failures" % [checks, failures])
@@ -279,6 +281,30 @@ func _test_stat_ranges() -> void:
 	check(not numeric_panel.bars.has("shields") and _text(numeric_panel).contains("DPS"), "Armed unshielded ship shows DPS but no shield bar")
 	check(_text(numeric_panel).contains("Hull 76 / 100"), "Fractional hull rounds only for display")
 	check(fractional.hull_hp == 75.6, "Integer descriptions never round backend state")
+	numeric_panel.set_ship(fractional, false)
+	check(numeric_panel.bars.size() == 1 and is_equal_approx(numeric_panel.bars.hull.value, 75.6),
+		"Operational hull bar measures exact condition rather than relative chassis strength")
+	check(not _text(numeric_panel).contains("Mass") and not _text(numeric_panel).contains("Maneuverability"),
+		"Operational details omit purchase-only comparison statistics")
+	fractional.hull_hp = 0
+	numeric_panel.set_ship(fractional, false)
+	check(numeric_panel.bars.hull.value == 0 and _text(numeric_panel).contains("Hull 0 / 100"),
+		"Living zero-hull ships show an empty condition instrument")
+	fractional.hull_hp = -1
+	numeric_panel.set_ship(fractional, false)
+	check(numeric_panel.bars.hull.value == 0 and _text(numeric_panel).contains("Hull -1 / 100"),
+		"Destroyed hull keeps its exact negative value with no misleading comparison floor")
+	var transport := HangarShip.new()
+	transport.initialize_chassis("transport", 4)
+	transport.mounts.hold = {"uid": "stat-cargo", "equipment_id": "cargo_hold", "rank": 1,
+		"load": {"kind": "cargo", "quantity": 3, "origin": 0, "unit_value": 3}}
+	transport.rebuild_units()
+	numeric_panel.set_ship(transport, false)
+	check(_text(numeric_panel).contains("Cargo 3 / 10"), "Operational transport instrument shows actual partial loads")
+	transport.mounts.hold.load = {}
+	numeric_panel.set_ship(transport, false)
+	check(_text(numeric_panel).contains("Cargo 0 / 10"), "Delivered cargo clears the value without losing capacity")
+	numeric_panel.set_ship(fractional)
 	var decimal := RegEx.new()
 	decimal.compile("\\d+\\.\\d+")
 	check(decimal.search(_text(numeric_panel)) == null, "Ship descriptions contain no decimal values")

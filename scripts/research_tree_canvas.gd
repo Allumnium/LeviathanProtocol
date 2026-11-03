@@ -138,6 +138,13 @@ func populate(rows: Array[Dictionary], registry: Dictionary, selected: String, f
 		box.add_child(title)
 		if row.id == focus:
 			button.modulate = get_theme_color("focused_color", "ResearchButton")
+			var reticle := Line2D.new()
+			reticle.name = "Focus"
+			reticle.default_color = get_theme_color("focused_color", "ResearchButton")
+			reticle.width = 1
+			reticle.points = PackedVector2Array([Vector2(8, 3), Vector2(13, 8),
+				Vector2(8, 13), Vector2(3, 8), Vector2(8, 3)])
+			button.add_child(reticle)
 		for parent: String in ResearchViewModel.find(registry, "research", row.id).prerequisite_ids:
 			if positions.has(parent):
 				edges.append([parent, row.id])

@@ -70,8 +70,8 @@ var travel_retry_button: Button
 var travel_fuel: Label
 var departure_button: Button
 var course_readout: Label
-var arrival_modal: Control
-var arrival_location_id := ""
+var station_actions: VBoxContainer
+var station_action_signature: Array = []
 var encounter_modal: Control
 var encounter_error: Label
 var encounter_retry: Button
@@ -331,6 +331,7 @@ func _process(delta: float) -> void:
 			research_pulse.set_shader_parameter("white_mix", 0.0)
 	_advance_expedition(delta)
 	_sync_station_services()
+	_sync_station_actions()
 
 func _sync_station_services() -> void:
 	var available: bool = GameState.can_use_shipyard()
@@ -659,6 +660,8 @@ func _refresh() -> void:
 	_resize_research_label.call_deferred()
 	_clear(roster)
 	_clear(details)
+	station_actions = null
+	station_action_signature = []
 	if is_instance_valid(shop) and shop.get_parent() == center:
 		shop = null
 	_clear(center)
@@ -693,6 +696,7 @@ func _refresh() -> void:
 		return
 	if active_tab == "MAP":
 		_show_map()
+		_build_station_actions()
 		_refresh_expedition_controls()
 		return
 	if active_tab == "SHIPS":
@@ -717,6 +721,8 @@ func _refresh() -> void:
 	service_reason.name = "StationServiceReason"
 	service_reason.visible = not shipyard_access_available
 	roster.add_child(service_reason)
+	if active_tab == "FLEET":
+		_build_station_actions()
 	if active_tab == "FLEET":
 		var board: Control = load("res://scripts/hangar_formation.gd").new()
 		board.selected_id = selected_ship_id
@@ -780,7 +786,6 @@ func _refresh() -> void:
 func _show_run_end() -> void:
 	if is_instance_valid(get_node_or_null("RunEnd")):
 		return
-	_close_arrival()
 	for blocker: Control in [encounter_modal]:
 		if is_instance_valid(blocker):
 			blocker.queue_free()
@@ -816,6 +821,7 @@ func _show_run_end() -> void:
 
 func _refresh_expedition_controls() -> void:
 	_sync_station_services()
+	_sync_station_actions()
 	_update_voyage_summary()
 	if not is_instance_valid(travel_controls) or GameState.expedition_simulation == null \
 			or GameState.expedition_simulation.state == null:
@@ -835,7 +841,8 @@ func _refresh_expedition_controls() -> void:
 	travel_fuel.text = "FUEL %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)]
 	var docked: Dictionary = simulation.locations.get(state.docked_location_id, {})
 	travel_refuel_button.visible = not docked.is_empty() \
-			and "refuel" in docked.get("services", []) and state.fuel < state.fuel_capacity
+			and "refuel" in docked.get("services", []) and state.fuel < state.fuel_capacity \
+			and not is_instance_valid(station_actions)
 	var refuel_cost := int(ceil((state.fuel_capacity - state.fuel) * 2.0))
 	travel_refuel_button.text = "REFUEL %d" % refuel_cost
 	travel_refuel_button.disabled = not GameState.station_service_error("refuel").is_empty() or GameState.credits < refuel_cost
@@ -854,7 +861,6 @@ func _show_encounter(intro: Dictionary = {}) -> void:
 	if event.is_empty():
 		push_error("Cannot show an encounter without its validated event data.")
 		return
-	_close_arrival()
 	if get_viewport().gui_is_dragging():
 		get_viewport().gui_cancel_drag()
 	if is_instance_valid(shop):
@@ -893,7 +899,6 @@ func _show_rescue() -> void:
 	var quote: Dictionary = GameState.rescue_quote()
 	if quote.is_empty():
 		return
-	_close_arrival()
 	AudioManager.play_ui_sfx(&"alarm")
 	var debt: int = int(quote.fee) - GameState.credits
 	var text := "The convoy is adrift. A salvage tug can tow you %d NU to %s and fill the tanks for %d credits." % [
@@ -1090,87 +1095,86 @@ func _build_travel_controls(top: Container, footer: HBoxContainer) -> void:
 	top.course.add_child(course_readout)
 	_refresh_expedition_controls()
 
-# Arrival is informational: where the fleet is and what it can do here. Courses
-# are set from the Map at any time.
 func _show_arrival(location_id: String) -> void:
 	var simulation = GameState.expedition_simulation
 	var location: Dictionary = {} if simulation == null else simulation.locations.get(location_id, {})
 	if location.is_empty() or GameState.completed or is_instance_valid(encounter_modal):
 		return
-	_close_arrival()
-	var art: Variant = load("res://assets/space_station.png") if location.kind == "station" else ""
-	var facts: PackedStringArray = []
-	for service: String in location.services:
-		facts.append(service.capitalize())
-	var text := str(location.get("description", ""))
-	if not facts.is_empty():
-		text += "\n" + " · ".join(facts)
-	var dialog := UiKit.dialog(self, "ArrivalDialog", ("Docked at " if location.kind == "station" else "Arrived at ") + str(location.name),
-			text, art, _close_arrival)
-	arrival_modal = dialog.root
-	arrival_location_id = location_id
-	_fill_arrival_actions()
+	if active_tab == "MAP" and map_selected_id.is_empty():
+		map_selected_id = location_id
+		graph.selected_id = location_id
+		_render_map_details()
+	_refresh_expedition_controls()
 
-func _fill_arrival_actions() -> void:
-	if not is_instance_valid(arrival_modal):
+func _build_station_actions() -> void:
+	station_actions = VBoxContainer.new()
+	station_actions.name = "StationActions"
+	roster.add_child(station_actions)
+	_sync_station_actions()
+
+func _sync_station_actions() -> void:
+	if not is_instance_valid(station_actions):
 		return
-	var actions: VBoxContainer = arrival_modal.find_child("DialogActions", true, false)
-	_clear(actions)
 	var simulation = GameState.expedition_simulation
-	var location: Dictionary = simulation.locations.get(arrival_location_id, {})
-	var docked: bool = simulation.state.docked_location_id == arrival_location_id
+	if simulation == null:
+		return
+	var here: String = simulation.location_here()
+	var location: Dictionary = simulation.locations.get(here, {})
+	var docked: bool = not here.is_empty() and simulation.state.docked_location_id == here
 	var repair_cost: int = GameState.fleet_repair_cost()
-	if docked and "shipyard" in location.services and repair_cost > 0:
-		var repair := UiKit.button("REPAIR ALL SHIPS %d cr" % repair_cost, func() -> void:
+	var state = simulation.state
+	var refuel_cost := ceili((state.fuel_capacity - state.fuel) * 2.0)
+	var retry: Dictionary = simulation.retry_event_here()
+	var blocked: bool = not state.pending_event_id.is_empty() or GameState.battle_pending \
+			or GameState.completed or GameState.run_ended
+	var signature: Array = [here, docked, repair_cost, refuel_cost, GameState.credits,
+		retry.get("id", ""), blocked, GameState.station_service_error("shipyard"),
+		GameState.station_service_error("refuel")]
+	if signature == station_action_signature:
+		return
+	station_action_signature = signature
+	_clear(station_actions)
+	if location.is_empty() or blocked:
+		return
+	var actions := station_actions
+	if docked:
+		actions.add_child(_label(str(location.name)))
+	if docked and "shipyard" in location.services and (repair_cost > 0 or active_tab == "FLEET"):
+		var repair := UiKit.button("REPAIR ALL %d cr" % repair_cost, func() -> void:
+			var can_repair: bool = GameState.can_use_shipyard() \
+				and GameState.credits >= GameState.fleet_repair_cost()
 			if GameState.repair_all_ships():
+				expedition_status_override = ""
 				AudioManager.play_ui_sfx(&"repair")
 			else:
-				_toast(GameState.last_save_error if not GameState.last_save_error.is_empty() else "Not enough credits", &"")
-			_fill_arrival_actions(), &"")
-		repair.name = "ArrivalRepairAll"
-		repair.disabled = GameState.credits < repair_cost
+				expedition_status_override = GameState.last_save_error
+				if can_repair:
+					simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
+			_refresh_expedition_controls(), &"")
+		repair.name = "StationRepairAll" if active_tab == "MAP" else "FleetRepairAll"
+		repair.disabled = repair_cost <= 0 or not GameState.can_use_shipyard() or GameState.credits < repair_cost
 		actions.add_child(repair)
-	var state = simulation.state
 	if docked and "refuel" in location.services and state.fuel < state.fuel_capacity - 0.000001:
-		var refuel_cost := int(ceil((state.fuel_capacity - state.fuel) * 2.0))
-		var refuel := UiKit.button("REFUEL %d cr" % refuel_cost, func() -> void:
-			if GameState.refuel_expedition():
-				AudioManager.play_ui_sfx(&"refuel")
-			else:
-				_toast(GameState.last_save_error, &"")
-			_refresh_expedition_controls()
-			_fill_arrival_actions(), &"")
-		refuel.name = "ArrivalRefuel"
-		refuel.disabled = GameState.credits < refuel_cost
+		var refuel := UiKit.button("REFUEL %d cr" % refuel_cost, _on_expedition_refuel_pressed, &"")
+		refuel.name = "StationRefuel"
+		refuel.disabled = not GameState.station_service_error("refuel").is_empty() or GameState.credits < refuel_cost
 		actions.add_child(refuel)
-	if docked and "shipyard" in location.services:
-		var yard := UiKit.button("VISIT SHIPYARD", func() -> void:
-			_close_arrival()
+	if active_tab == "MAP" and docked and "shipyard" in location.services:
+		var yard := UiKit.button("SHIPYARD", func() -> void:
 			active_tab = "SHIPS"
 			_refresh(), &"animate_ui")
-		yard.name = "ArrivalShipyard"
+		yard.name = "StationShipyard"
+		yard.disabled = not GameState.can_use_shipyard()
 		actions.add_child(yard)
-	var retry: Dictionary = simulation.retry_event_here()
-	if not retry.is_empty() and simulation.location_here() == arrival_location_id:
+	if not retry.is_empty():
 		var face := UiKit.button("FACE " + str(retry.title).to_upper(), func() -> void:
 			_apply_expedition_action(simulation.readmit_arrival_event)
 			if not simulation.state.pending_event_id.is_empty():
-				_close_arrival()
 				_show_encounter(), &"")
-		face.name = "ArrivalRetryEvent"
+		face.name = "StationRetryEvent"
+		face.disabled = ExpeditionStateData.PauseReason.SAVE_ERROR in state.pause_reasons
 		face.add_theme_color_override("font_color", Color("ffb0a0"))
 		actions.add_child(face)
-	var course := UiKit.button("SET COURSE", func() -> void:
-		_close_arrival()
-		_open_map(), &"select_tab")
-	course.name = "ArrivalSetCourse"
-	actions.add_child(course)
-
-func _close_arrival() -> void:
-	if is_instance_valid(arrival_modal):
-		arrival_modal.queue_free()
-	arrival_modal = null
-	arrival_location_id = ""
 
 func _open_map() -> void:
 	active_tab = "MAP"
@@ -1192,7 +1196,6 @@ func _set_course(location_id: String, engage := false) -> bool:
 		return false
 	expedition_status_override = ""
 	expedition_save_elapsed = 0.0
-	_close_arrival()
 	AudioManager.play_ui_sfx(&"depart")
 	map_course_used = true
 	if engage:
@@ -1321,8 +1324,14 @@ func _on_expedition_clear_pressed() -> void:
 
 
 func _on_expedition_refuel_pressed() -> void:
+	var state = GameState.expedition_simulation.state
+	var can_refuel: bool = GameState.station_service_error("refuel").is_empty() \
+		and state.fuel_capacity - state.fuel > 0.000001 \
+		and GameState.credits >= ceili((state.fuel_capacity - state.fuel) * 2.0)
 	if not GameState.refuel_expedition():
 		expedition_status_override = GameState.last_save_error
+		if can_refuel:
+			GameState.expedition_simulation.set_pause(ExpeditionStateData.PauseReason.SAVE_ERROR, true)
 	else:
 		expedition_status_override = ""
 		AudioManager.play_ui_sfx(&"refuel")
@@ -1398,14 +1407,10 @@ func _render_refit_panel() -> void:
 			option.clip_text = true
 			option.disabled = fitted or not access
 			refit_panel.add_child(option)
-		refit_panel.add_child(UiKit.label("Select a mount to refit."))
 	else:
 		refit_panel.add_child(UiKit.label(SlotCatalog.slot_label(slot).to_upper(), &"HeaderResearch"))
 		var instance: Dictionary = owned.mounts.get(slot.id, {})
 		var current_key := "" if instance.is_empty() else ShipLoadouts.key_for({"id": instance.equipment_id, "rank": int(instance.rank)})
-		if not instance.is_empty():
-			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-			refit_panel.add_child(_resource_label("%s\n%s" % [item.name, _part_effect(item)]))
 		var grid := GridContainer.new()
 		grid.name = "PartOptions"
 		grid.columns = 1
@@ -1460,11 +1465,14 @@ func _show_details() -> void:
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 	if owned == null:
 		_clear(details)
-		details.add_child(_label("FLEET"))
 		var cost: int = GameState.fleet_repair_cost()
 		var repair := _button("REPAIR ALL %d cr" % cost, func() -> void: _result(GameState.repair_all_ships()))
+		repair.name = "FleetRepairAll"
 		_shipyard_action(repair, cost > 0 and GameState.credits >= cost)
-		details.add_child(repair)
+		if is_instance_valid(station_actions) and station_actions.has_node("FleetRepairAll"):
+			repair.queue_free()
+		else:
+			details.add_child(repair)
 		var totals := {"dps": 0.0, "shields": 0.0, "integrity": 0.0, "integrity_max": 0.0,
 			"cargo": 0, "passengers": 0}
 		for ship: HangarShip in GameState.fleet:
@@ -1478,10 +1486,11 @@ func _show_details() -> void:
 			"Shield %.0f" % totals.shields,
 			"Hull %.0f / %.0f" % [totals.integrity, totals.integrity_max],
 			"%s RP / day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.fleet)))]
+		var loads := HangarTrade.summary(GameState.hangar_snapshot())
 		if totals.cargo > 0:
-			lines.append("Cargo capacity %d" % totals.cargo)
+			lines.append("Cargo %d / %d" % [loads.cargo, totals.cargo])
 		if totals.passengers > 0:
-			lines.append("Passenger capacity %d" % totals.passengers)
+			lines.append("Passengers %d / %d" % [loads.passengers, totals.passengers])
 		var fleet_stats := _resource_label("\n".join(lines))
 		fleet_stats.name = "FleetTotals"
 		details.add_child(fleet_stats)
@@ -1506,7 +1515,7 @@ func _show_details() -> void:
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 			slot_info.set_content("%s\n%s %s\n%s" % [item.name, item.size, item.type.capitalize(), _part_effect(item)])
 			return
-		stats_grid.set_ship(owned)
+		stats_grid.set_ship(owned, false)
 		return
 	_clear(details)
 	details.add_child(_label(owned.display_name))
@@ -1514,10 +1523,12 @@ func _show_details() -> void:
 	bars.name = "ShipStatBars"
 	bars.size_flags_vertical = SIZE_SHRINK_BEGIN
 	details.add_child(bars)
-	bars.set_ship(owned)
-	var regen := _label("Self-repair %.2f hull/s" % GameState.self_repair_rate(owned))
-	regen.name = "SelfRepairRate"
-	details.add_child(regen)
+	bars.set_ship(owned, false)
+	var repair_rate: float = GameState.self_repair_rate(owned)
+	if repair_rate > 0:
+		var regen := _label("Self-repair %.2f hull/s" % repair_rate)
+		regen.name = "SelfRepairRate"
+		details.add_child(regen)
 	if not selected_slot.is_empty():
 		for slot: Dictionary in owned.chassis.slots:
 			if slot.id == selected_slot:
@@ -1526,16 +1537,6 @@ func _show_details() -> void:
 		if not instance.is_empty():
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 			details.add_child(_resource_label("%s\n%s %s\n%s" % [item.name, item.size, item.type.capitalize(), _part_effect(item)]))
-			if item.id == "research_lab":
-				details.add_child(_resource_label("%d RP/day" % int(item.rank)))
-			if item.id in HangarCarriers.CAPACITIES:
-				details.add_child(_label("%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])))
-			if item.id == "ammunition_magazine":
-				details.add_child(_label("+20% weapon cycling"))
-			if item.id == "tactical_computer":
-				details.add_child(_label("Salvo / 12s per computer"))
-			if item.id == "command_uplink":
-				details.add_child(_label("Auto mark: +20% / 5s"))
 			if item.id in HangarResearch.DEFERRED_PURCHASES:
 				details.add_child(_label("Deferred"))
 			if HangarTrade.has_load(instance):
@@ -1904,16 +1905,15 @@ func _render_map_details() -> void:
 		lines.append("%d NU away" % roundi(distance))
 		lines.append("%d fuel%s" % [ceili(fuel_needed), " (out of range)" if fuel_needed > state.fuel else ""])
 		lines.append("ETA %ds at 1x · %ds at 10x" % [ceili(distance / cruise), ceili(distance / cruise / 10.0)])
-	else:
-		lines.append("Fleet is here")
 	var services: PackedStringArray = []
 	for service: String in location.services:
 		services.append(service.capitalize())
-	if not services.is_empty():
+	if not services.is_empty() and distance > 0.01:
 		lines.append(", ".join(services))
 	if not simulation.location_accessible(location):
 		lines.append("Locked")
-	map_details.add_child(_label("\n".join(lines)))
+	if not lines.is_empty():
+		map_details.add_child(_label("\n".join(lines)))
 
 func _map_event_details() -> void:
 	if GameState.navigation.is_empty():
@@ -1938,7 +1938,7 @@ func _select_destination(id: int) -> void:
 	if traveling:
 		return
 	if GameState.expedition_simulation != null:
-		feedback.text = "Choose the next destination in the arrival dialog."
+		feedback.text = "Select a destination on the Map."
 		return
 	AudioManager.play_ui_sfx(&"detail")
 	GameState.set_planned_destination(id)
@@ -1966,7 +1966,7 @@ func _begin_travel(id: int) -> void:
 	if traveling:
 		return
 	if GameState.expedition_simulation != null:
-		feedback.text = "Choose the next destination in the arrival dialog."
+		feedback.text = "Select a destination on the Map."
 		return
 	traveling = true
 	# Commit departure before animation; prevent UI rebuilds until arrival.

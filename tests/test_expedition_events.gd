@@ -223,9 +223,9 @@ func run() -> void:
 	check(state.fleet[0] == flagship, "Repeated decisions preserve live ship identity")
 	screen.speed_buttons[10].pressed.emit()
 	screen._process(100)
-	check(is_instance_valid(screen.arrival_modal)
+	check(screen.get_node_or_null("ArrivalDialog") == null
 			and state.expedition_simulation.state.return_destination_id == "refuel_station_1",
-			"Detour arrival shows the arrival dialog and preserves the return target")
+			"Detour arrival preserves the return target without an informational popup")
 	screen._open_map()
 	await settle()
 	screen.graph.selected_id = "refuel_station_1"

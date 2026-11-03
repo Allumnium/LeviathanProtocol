@@ -26,3 +26,4 @@ res://scripts/ship_loadouts.gd
 res://scripts/ui_art_frame.gd
 res://scripts/settings_dialog.gd
 res://scripts/science_rules.gd
+res://scripts/ship_stat_bars.gd

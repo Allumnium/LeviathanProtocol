@@ -1,7 +1,6 @@
 extends SceneTree
 
-# Arrival dialogs describe where the fleet is and its local actions; courses
-# are set from the Map (GO TO or double-click) at any time, including mid-flight.
+# Ordinary arrivals expose local actions without a modal or a new pause.
 const Travel = preload("res://scripts/expedition_state.gd")
 var checks := 0
 var failures := 0
@@ -54,7 +53,7 @@ func run() -> void:
 	for authored: Dictionary in expedition.events:
 		expedition.state.event_receipts[authored.id] = true
 	await open_screen()
-	check(screen.arrival_modal == null and not expedition.state.departure_choice_pending,
+	check(screen.get_node_or_null("ArrivalDialog") == null and not expedition.state.departure_choice_pending,
 			"Starting dock never forces a destination choice")
 	screen.departure_button.pressed.emit()
 	await settle()
@@ -128,40 +127,101 @@ func run() -> void:
 	before = expedition.state.snapshot()
 	state.run_save_path = "res://project.godot/no-save.json"
 	screen._process(100)
-	check(screen.arrival_modal == null
+	check(screen.get_node_or_null("ArrivalDialog") == null
 			and expedition.state.position_nu == Vector2(before.position_nu[0], before.position_nu[1])
 			and Travel.PauseReason.SAVE_ERROR in expedition.state.pause_reasons,
 			"Failed arrival save rolls back before showing an arrival")
 	state.run_save_path = save_path
 	screen._on_expedition_retry_pressed()
 	screen._process(100)
-	check(expedition.state.docked_location_id == "refuel_station_1" and is_instance_valid(screen.arrival_modal)
-			and screen.arrival_location_id == "refuel_station_1" and expedition.state.requested_speed == 10,
-			"Retried arrival docks, describes the station and keeps fast-forward")
+	check(expedition.state.docked_location_id == "refuel_station_1"
+			and screen.get_node_or_null("ArrivalDialog") == null
+			and screen.station_actions.find_child("StationRefuel", true, false) != null
+			and expedition.state.requested_speed == 10,
+			"Retried arrival exposes station services without a popup and keeps fast-forward")
 	tick = expedition.state.simulation_tick
 	check(expedition.advance(1) and expedition.state.simulation_tick > tick,
-			"Docked time keeps running while the arrival dialog is open")
+			"Docked time keeps running with contextual station services")
 	# Arrival actions reflect real station services.
 	state.fleet[0].hull_hp -= 40
-	screen._fill_arrival_actions()
-	var repair: Button = screen.arrival_modal.find_child("ArrivalRepairAll", true, false)
-	var refuel: Button = screen.arrival_modal.find_child("ArrivalRefuel", true, false)
+	screen._sync_station_actions()
+	var repair: Button = screen.station_actions.find_child("StationRepairAll", true, false)
+	var refuel: Button = screen.station_actions.find_child("StationRefuel", true, false)
 	check(repair != null and not repair.disabled and refuel != null, "Docked shipyard offers Repair all and Refuel")
-	var credits: int = state.credits
+	screen.graph.location_selected.emit("refuel_station_1")
+	var repeated_state := false
+	for child in screen.map_details.get_children():
+		if child is Label and child.text.contains("Fleet is here"):
+			repeated_state = true
+	check(not repeated_state, "The fleet marker and station actions replace routine Fleet is here prose")
+	check(repair.get_meta("resource_text", "") == "REPAIR ALL %d cr" % state.fleet_repair_cost()
+			and refuel.get_meta("resource_text", "") == "REFUEL %d cr" % ceili(
+				(expedition.state.fuel_capacity - expedition.state.fuel) * 2),
+			"Contextual service controls expose exact current prices")
+	screen.graph.user_moved = true
+	var camera: Vector2 = screen.graph.camera_position
+	var zoom: float = screen.graph.camera_zoom
+	var selected: String = screen.map_selected_id
+	var service_snapshot: Dictionary = state.hangar_snapshot()
+	state.run_save_path = "res://project.godot/failed-service.json"
 	repair.pressed.emit()
+	service_snapshot.expedition.pause_reasons = expedition.state.snapshot().pause_reasons
+	check(state.hangar_snapshot() == service_snapshot and not screen.expedition_status_override.is_empty()
+			and screen.travel_retry_button.visible,
+			"Failed contextual repair preserves hull, loads and credits and exposes save retry")
+	state.run_save_path = save_path
+	screen._on_expedition_retry_pressed()
+	screen.station_actions.find_child("StationRefuel", true, false).pressed.emit()
+	await settle()
+	# Restore a missing-fuel quote to exercise refuel failure independently.
+	expedition.state.fuel -= 10
+	check(state.save_expedition_checkpoint(), "Persist partial fuel service fixture")
+	screen._refresh_expedition_controls()
+	service_snapshot = state.hangar_snapshot()
+	state.run_save_path = "res://project.godot/failed-service.json"
+	screen.station_actions.find_child("StationRefuel", true, false).pressed.emit()
+	service_snapshot.expedition.pause_reasons = expedition.state.snapshot().pause_reasons
+	check(state.hangar_snapshot() == service_snapshot and screen.travel_retry_button.visible
+			and not screen.expedition_status_override.is_empty(),
+			"Failed contextual refuel preserves fuel and credits with explicit retry")
+	state.run_save_path = save_path
+	screen._on_expedition_retry_pressed()
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		check(screen.roster_panel.get_global_rect().grow(1).encloses(screen.station_actions.get_global_rect()),
+			"Contextual services fit the existing frame at %s" % resolution)
+		check(screen.graph.camera_position == camera and screen.graph.camera_zoom == zoom
+				and screen.map_selected_id == selected,
+				"Service updates preserve map selection, pan and zoom")
+		for action: Node in screen.station_actions.get_children():
+			if action is Button:
+				check(screen.roster_panel.get_global_rect().grow(1).encloses(action.get_global_rect()),
+					"Cost-bearing service button fits its frame")
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/checks/contextual-arrival/services-%d.png" % resolution.x)
+	root.size = Vector2i(1280, 720)
+	await settle()
+	var credits: int = state.credits
+	screen.station_actions.find_child("StationRepairAll", true, false).pressed.emit()
 	await settle()
 	check(state.fleet[0].hull_hp == state.fleet[0].hull_max and state.credits < credits
-			and screen.arrival_modal.find_child("ArrivalRepairAll", true, false) == null,
+			and screen.station_actions.find_child("StationRepairAll", true, false) == null,
 			"Repair all charges once and the action disappears")
-	screen.arrival_modal.find_child("ArrivalRefuel", true, false).pressed.emit()
+	screen.station_actions.find_child("StationRefuel", true, false).pressed.emit()
 	await settle()
 	check(is_equal_approx(expedition.state.fuel, expedition.state.fuel_capacity)
-			and screen.arrival_modal.find_child("ArrivalRefuel", true, false) == null, "Refuel fills the tank")
-	check(screen.get_global_rect().encloses(screen.arrival_modal.find_child("ArrivalDialogPanel", true, false).get_global_rect()),
-			"Arrival dialog fits the viewport")
-	screen.arrival_modal.find_child("ArrivalShipyard", true, false).pressed.emit()
+			and screen.station_actions.find_child("StationRefuel", true, false) == null, "Refuel fills the tank")
+	await reopen_checkpoint()
+	check(screen.get_node_or_null("ArrivalDialog") == null
+			and screen.station_actions.find_child("StationShipyard", true, false) != null,
+			"Continue at a dock restores contextual services without an arrival notice or popup")
+	check(screen.roster_panel.get_global_rect().encloses(screen.station_actions.get_global_rect()),
+			"Station actions fit their existing side panel")
+	screen.station_actions.find_child("StationShipyard", true, false).pressed.emit()
 	await settle()
-	check(screen.arrival_modal == null and screen.active_tab == "SHIPS", "Visit Shipyard opens Ships")
+	check(screen.get_node_or_null("ArrivalDialog") == null and screen.active_tab == "SHIPS", "Shipyard opens Ships without a modal")
 	# A failed course save changes nothing and offers retry.
 	var before_route: Dictionary = state.hangar_snapshot()
 	state.run_save_path = "res://project.godot/no-save.json"
@@ -174,25 +234,47 @@ func run() -> void:
 	screen._on_expedition_retry_pressed()
 	await map_go("derelict_1")
 	screen._process(100)
-	check(expedition.state.travel_state == Travel.TravelState.STOPPED and is_instance_valid(screen.arrival_modal)
-			and screen.arrival_modal.find_child("ArrivalRepairAll", true, false) == null
-			and screen.arrival_modal.find_child("ArrivalSetCourse", true, false) != null,
-			"POI arrival describes the location without station services")
-	screen.arrival_modal.find_child("ArrivalSetCourse", true, false).pressed.emit()
+	check(expedition.state.travel_state == Travel.TravelState.STOPPED
+			and screen.get_node_or_null("ArrivalDialog") == null
+			and screen.station_actions.get_child_count() == 0 and screen.departure_button.visible,
+			"POI arrival has no station services or popup; Engage remains available")
+	expedition.state.event_receipts.erase("derelict_salvage")
+	check(state.save_expedition_checkpoint(), "Persist a withdrawn-arrival retry fixture")
+	screen._sync_station_actions()
+	var face: Button = screen.station_actions.find_child("StationRetryEvent", true, false)
+	check(face != null and face.text == "FACE DERELICT FIELD",
+			"An unresolved arrival encounter retains its named retry action in the side panel")
+	var retry_snapshot: Dictionary = expedition.state.snapshot()
+	state.run_save_path = "res://project.godot/failed-face.json"
+	face.pressed.emit()
+	check(screen.encounter_modal == null and expedition.state.pending_event_id.is_empty()
+			and expedition.state.position_nu == Vector2(retry_snapshot.position_nu[0], retry_snapshot.position_nu[1])
+			and screen.travel_retry_button.visible,
+			"Failed encounter readmission rolls back and exposes save retry before opening a dialog")
+	state.run_save_path = save_path
+	screen._on_expedition_retry_pressed()
+	screen.station_actions.find_child("StationRetryEvent", true, false).pressed.emit()
+	check(is_instance_valid(screen.encounter_modal) and expedition.state.pending_event_id == "derelict_salvage"
+			and Travel.PauseReason.ENCOUNTER in expedition.state.pause_reasons,
+			"Retrying an arrival opens the real encounter and retains its mandatory pause")
+	screen._choose_encounter("derelict_salvage", "careful")
+	check(screen.encounter_modal == null and expedition.state.pending_event_id.is_empty(),
+			"Encounter resolution returns to the same nonmodal location view")
+	screen.departure_button.pressed.emit()
 	await settle()
-	check(screen.active_tab == "MAP" and screen.arrival_modal == null, "Arrival Set Course opens the map")
+	check(screen.active_tab == "MAP" and screen.get_node_or_null("ArrivalDialog") == null, "Arrival Engage opens the map")
 	await map_go("start_station")
 	screen._on_expedition_stop_pressed()
 	check(state.save_expedition_checkpoint(), "Persist manually stopped route")
 	await reopen_checkpoint()
-	check(screen.arrival_modal == null and expedition.state.destination_location_id == "start_station",
+	check(screen.get_node_or_null("ArrivalDialog") == null and expedition.state.destination_location_id == "start_station",
 			"Stopping a route is not mistaken for an arrival on Continue")
 	# A finished demo always leaves Main Menu reachable above every other dialog.
 	state.completed = true
 	check(state.save_run_checkpoint(), "Persist completed demo")
 	await reopen_checkpoint()
 	var run_end: Control = screen.get_node_or_null("RunEnd")
-	check(run_end != null and screen.arrival_modal == null and screen.encounter_modal == null,
+	check(run_end != null and screen.get_node_or_null("ArrivalDialog") == null and screen.encounter_modal == null,
 			"Demo complete is the only dialog")
 	run_end.find_child("RunEndMainMenu", true, false).pressed.emit()
 	await settle()

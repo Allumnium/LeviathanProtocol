@@ -99,8 +99,6 @@ func _refresh_production() -> void:
 	var simulation = GameState.expedition_simulation
 	if simulation != null:
 		groups_host.add_child(_label("1 day = %d NU\nTravel only" % int(simulation.tuning.nav_units_per_day)))
-		if GameState.research_focus.is_empty():
-			groups_host.add_child(_label("%s RP stored" % ScienceRules.format_points(GameState.research_points)))
 		return
 	var destination := GameState.planned_destination_node_id
 	if destination < 0:
@@ -170,7 +168,8 @@ func _refresh_summary() -> void:
 		pass
 	else:
 		summary_host.add_child(_label("%s / %d RP" % [ScienceRules.format_points(float(state.get("research_progress", {}).get(selected_id, 0))), int(row.cost)]))
-		focus_button = _button("FOCUSED" if focused else "SET FOCUS")
+		focus_button = _button("SET FOCUS")
+		focus_button.visible = not focused
 		focus_button.disabled = focused or not row.nearby or (state_override.is_empty() and (GameState.battle_pending or GameState.run_ended))
 		AudioManager.connect_ui_button(focus_button)
 		focus_button.pressed.connect(func() -> void: focus_requested.emit(selected_id))

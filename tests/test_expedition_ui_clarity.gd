@@ -177,10 +177,10 @@ func run() -> void:
 	for child: Node in screen.roster.get_children():
 		if child is ResourceText:
 			production += child.source_text + "\n"
-	check(production.contains("Travel only") and production.contains("RP stored")
+	check(production.contains("Travel only") and not production.contains("RP stored")
 		and not production.contains("on arrival") and not production.contains("Choose a destination")
 		and not production.contains("PRODUCTION"),
-		"Research explains distance-only accrual and missing focus without legacy arrival-preview instructions")
+		"Research explains distance-only accrual without duplicating the header bank or legacy arrival previews")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		screen.active_tab = "MAP"
@@ -240,6 +240,86 @@ func run() -> void:
 	screen._update_expedition_readouts()
 	check(screen.research_status.text == "8 RP" and screen.graph == graph_before,
 		"Travel refreshes the RP balance in place without rebuilding the map")
+	screen.active_tab = "RESEARCH"
+	screen._refresh()
+	await settle()
+	var research: Control = screen.research_panel
+	research.state_override = {"research_ids": ["foundation"], "story_flags": {},
+		"branch_choices": {}, "research_focus": "applied_energy",
+		"research_progress": {"applied_energy": 2}}
+	research.refresh()
+	research._select("applied_energy")
+	check(not research.focus_button.visible and research.card_buttons.applied_energy.has_node("Focus"),
+		"Focused research uses a distinct shape on its tree node instead of a redundant disabled FOCUSED button")
+	research.show_failure()
+	check(research.feedback.visible and research.feedback.text == "Save failed. Retry.",
+		"Visual focus presentation retains explicit save failures")
+	var research_snapshot: Dictionary = state.hangar_snapshot()
+	var camera_before: Vector2 = research.tree_canvas.camera_position
+	var zoom_before: float = research.tree_canvas.camera_zoom
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		var cue: Line2D = research.card_buttons.applied_energy.get_node("Focus")
+		check(cue.points.size() == 5 and cue.points[0] == cue.points[-1]
+			and Rect2(Vector2.ZERO, research.card_buttons.applied_energy.size).has_point(cue.points[2]),
+			"Research focus has a bounded closed shape independent of color at %s" % resolution)
+		check(screen.details_panel.get_global_rect().encloses(research.summary_host.get_global_rect()),
+			"Exact research costs, effects and error feedback fit the details frame at %s" % resolution)
+		check(research.tree_canvas.camera_position == camera_before
+			and research.tree_canvas.camera_zoom == zoom_before and state.hangar_snapshot() == research_snapshot,
+			"Research presentation and resize preserve pan/zoom and saved state")
+	research.state_override.research_focus = ""
+	research.refresh()
+	check(research.focus_button.visible and research.focus_button.text == "SET FOCUS"
+		and not research.card_buttons.applied_energy.has_node("Focus"),
+		"Unfocused research restores the discoverable action and removes the focus shape")
+	var transport: HangarShip
+	for owned: HangarShip in state.fleet:
+		if owned.chassis_id == "transport":
+			transport = owned
+	screen.active_tab = "SHIPS"
+	screen.selected_ship_id = transport.id
+	screen.selected_slot = ""
+	screen._refresh()
+	await settle()
+	var hull_before: float = transport.hull_hp
+	var load_before: Dictionary = transport.mounts.hold.get("load", {}).duplicate(true)
+	transport.hull_hp = transport.hull_max * 0.25
+	transport.mounts.hold.load = {"kind": "cargo", "quantity": 3, "origin": 0, "unit_value": 3}
+	screen._show_details()
+	check(screen.stats_grid.bars.size() == 1 and is_equal_approx(screen.stats_grid.bars.hull.value, 25),
+		"Default ship hull instrument measures its own exact condition, not normalized chassis strength")
+	var cargo: ResourceText = screen.stats_grid.get_child(screen.stats_grid.get_child_count() - 1)
+	check(cargo.source_text == "Cargo 3 / 10",
+		"Default ship transport instrument shows carried cargo against capacity")
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		check(screen.center.get_global_rect().grow(1).encloses(screen.stats_grid.get_global_rect()),
+			"Operational ship stats fit at %s: center %s, stats %s" % [
+				resolution, screen.center.get_global_rect(), screen.stats_grid.get_global_rect()])
+	transport.hull_hp = 0
+	screen._show_details()
+	check(screen.stats_grid.bars.hull.value == 0,
+		"Living zero-hull ships do not receive the comparison bar's misleading ten-percent floor")
+	transport.hull_hp = -1
+	screen._show_details()
+	check(screen.stats_grid.bars.hull.value == 0,
+		"Destroyed ships retain an empty hull condition instrument")
+	transport.hull_hp = hull_before
+	transport.mounts.hold.load = load_before
+	screen._show_details()
+	screen.selected_slot = "hold"
+	screen._show_details()
+	screen._render_refit_panel()
+	check(screen.slot_info.source_text.contains("Cargo Hold") and screen.slot_info.source_text.contains("10 cargo"),
+		"Selected equipment retains its full name and gameplay effect")
+	var duplicate_effect := false
+	for child in screen.refit_panel.get_children():
+		if child is ResourceText and child.source_text.contains("10 cargo"):
+			duplicate_effect = true
+	check(not duplicate_effect, "Refit options do not repeat the installed-part effect already shown below the ship")
 	print("EXPEDITION_UI_CLARITY_CHECKS=%d failures=%d" % [checks, failures])
 	screen.queue_free()
 	await settle()
