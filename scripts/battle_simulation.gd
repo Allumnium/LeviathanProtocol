@@ -537,10 +537,11 @@ func _hostile(source: Combatant, target: Combatant) -> bool:
 func _auto_candidate(source: Combatant, target: Combatant) -> bool:
 	if not can_attack(source, target) or not target.automatic_targetable:
 		return false
-	if source.is_player and source.owned_ship is HangarShip and source.commanded_target == null:
-		if source.owned_ship.stance == "evade":
+	var ordered_source: Combatant = entities.get(source.carrier_source_id, source)
+	if ordered_source.owned_ship is HangarShip and ordered_source.commanded_target == null:
+		if ordered_source.owned_ship.stance == "evade":
 			return false
-		if source.owned_ship.stance == "defend" and target.position.distance_to(_flagship_position()) > 260.0:
+		if ordered_source.owned_ship.stance == "defend" and target.position.distance_to(_flagship_position()) > 260.0:
 			return false
 	if mining_enabled and MiningRules.operational(source, MiningRules.TOOLS) and MiningRules.known_eligible(self, source, target):
 		return true
@@ -1230,8 +1231,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 			steering_direction = ship.position.direction_to(pickup)
 			pickup_approach_speed = minf(ship.speed, maxf(8, ship.position.distance_to(pickup) * 0.6))
 	var escort_distance := INF
-	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty() or stance == "defend") and ship.commanded_target == null:
-		var anchor := _flagship_position() + _guard_offset(ship) if stance == "defend" else _escort_anchor(ship)
+	if ship.owned_ship != null and (ship.owned_ship.escort_target_id > 0 or ship.stats.weapons.is_empty()) and ship.commanded_target == null:
+		var anchor := _escort_anchor(ship)
 		escort_distance = ship.position.distance_to(anchor)
 		steering_direction = ship.position.direction_to(anchor)
 	if ship.retreat_time > 0.0:

@@ -26,7 +26,13 @@ The optional `squadrons` checkpoint field is validated with the fleet in the exi
 
 Seek & Destroy retains normal automatic combat. Defend Flagship attacks visible threats within 260 units of the flagship and returns to its relative formation anchor otherwise. Evade avoids visible enemies within 360 units, falls back behind the flagship and does not automatically fire. Explicit attack orders override a passive stance until cleared or invalidated. Movement retains forward thrust, turn limits and hazard/boundary avoidance. Default stance is Seek for every existing squadron, preserving prior battle behavior.
 
-Foundation regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd), plus persistence, refit, reward and deterministic replay suites. Group controls/actions are the next D3 increment; this foundation alone does not close D3.
+Fleet's roster uses chassis artwork plus squadron number/count. Selecting any member or box-selecting part of a squadron selects its entire block; dragging translates all selected blocks with internal spacing intact and one atomic save. Empty-space deselection, multi-block selection, white silhouette glow and pan/zoom persist. Double-click a ship to inspect it in Ships.
+
+The selected squadron panel offers explicit stance orders, its default named loadout, exact aggregate repair quote and a quantity/total-price purchase into that squadron. Default-loadout changes refit non-overridden members only; **Reset overrides** deliberately applies the default to everyone. Buy N uses that default, charges the full fitted quote and checks the complete command cost before creating any ships. Repairs/refits/purchases require a docked shipyard, remain all-or-none and preserve occupied holds/cabins. In Ships, **New squadron** splits the inspected ship without moving/refitting it; **Join #** transfers it to another same-chassis group. Stance/assignment orders can be changed during travel, but not during a pending battle or after the run ends.
+
+Defending carriers launch only against nearby threats, and their sorties obey the flagship guard radius. Evading carriers do not launch automatically or spend replacements; explicit attack orders override this too.
+
+Regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd) runs headless and native in the baseline. Its 177 focused checks cover malformed saves, Continue, unique ownership, group rollback, overrides, load retention, combat targeting/movement/carriers, three-resolution layouts, real pointer group actions, block/box selection and preserved formation camera. Full D3 baseline acceptance is tracked in [TODO.md](../TODO.md).
 
 ## Demo vertical slice
 

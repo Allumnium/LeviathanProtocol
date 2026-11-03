@@ -64,6 +64,9 @@ func advance(sim, delta: float) -> void:
 		if not has_bay(member.owned_ship) or sim.objective_complete() or sim.withdrawing:
 			continue
 		var owned: HangarShip = member.owned_ship
+		if member.commanded_target == null and (owned.stance == "evade" \
+				or (owned.stance == "defend" and sim._choose_target(member) == null)):
+			continue
 		for index in range(owned.units.size()):
 			var unit: Dictionary = owned.units[index]
 			if unit.hp <= 0 or unit.part == null or unit.part.definition_id not in CAPACITIES:

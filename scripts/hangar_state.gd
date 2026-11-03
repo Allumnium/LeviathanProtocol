@@ -238,6 +238,9 @@ func _apply_hangar(data: Dictionary, restore_expedition := false, announce_resea
 		owned.hull_hp = entry.hull_hp
 		fleet.append(owned)
 	squadrons = data.squadrons.duplicate(true) if data.has("squadrons") else HangarSquadrons.initial(data)
+	for group: Dictionary in squadrons:
+		group.members = group.members.map(func(id: Variant) -> int: return int(id))
+		group.overrides = group.overrides.map(func(id: Variant) -> int: return int(id))
 	_apply_squadron_orders()
 	current_node_id = int(data.current)
 	destination_node_id = int(data.destination)
@@ -314,6 +317,80 @@ func set_squadron_stance(group_id: int, stance: String) -> bool:
 		last_save_error = "Unknown squadron."
 		return false
 	group.stance = stance
+	return _commit_hangar(data)
+
+func assign_squadron(ship_id: int, group_id := 0) -> bool:
+	if not _can_refit():
+		last_save_error = "Squadron assignments are unavailable."
+		return false
+	var owned := owned_ship(ship_id)
+	var data := hangar_snapshot()
+	var target := HangarSquadrons.find(data.squadrons, group_id)
+	if owned == null or (group_id != 0 and (target.is_empty() or target.chassis != owned.chassis_id)):
+		last_save_error = "Choose a squadron of the same ship class."
+		return false
+	var previous := HangarSquadrons.for_ship(data.squadrons, ship_id)
+	if previous.id == group_id or (group_id == 0 and previous.members.size() == 1):
+		last_save_error = "Already assigned."
+		return false
+	previous.members.erase(ship_id)
+	previous.overrides.erase(ship_id)
+	if group_id == 0:
+		var id := 1
+		for group: Dictionary in data.squadrons:
+			id = maxi(id, int(group.id) + 1)
+		target = previous.duplicate(true)
+		target.id = id
+		target.members = []
+		target.overrides = []
+		data.squadrons.append(target)
+	for entry: Dictionary in data.ships:
+		if int(entry.id) == ship_id:
+			HangarSquadrons.add_ship(data, entry, int(target.id))
+			break
+	return _commit_hangar(data)
+
+func refit_squadron(group_id: int, loadout_id: String, reset_overrides := false) -> bool:
+	if not _require_shipyard():
+		return false
+	var data := hangar_snapshot()
+	var group := HangarSquadrons.find(data.squadrons, group_id)
+	var loadout := ShipLoadouts.find(str(group.get("chassis", "")), loadout_id)
+	if group.is_empty() or loadout.is_empty():
+		last_save_error = "Unknown squadron loadout."
+		return false
+	var overrides: Array = group.overrides.duplicate()
+	group.loadout = loadout_id
+	for id: int in group.members:
+		if reset_overrides or id not in overrides:
+			if not _stage_refit(data, id, loadout.mounts, true):
+				return false
+		HangarSquadrons.update_override(data, id)
+	return _commit_hangar(data)
+
+func squadron_repair_cost(group_id: int) -> int:
+	var cost := 0
+	for id: int in HangarSquadrons.find(squadrons, group_id).get("members", []):
+		var owned := owned_ship(id)
+		if owned != null and owned.is_alive():
+			cost += owned.repair_cost()
+	return cost
+
+func repair_squadron(group_id: int) -> bool:
+	if not _require_shipyard():
+		return false
+	var data := hangar_snapshot()
+	var group := HangarSquadrons.find(data.squadrons, group_id)
+	var cost := squadron_repair_cost(group_id)
+	if group.is_empty() or cost <= 0 or credits < cost:
+		last_save_error = "No repairs needed." if cost <= 0 else "Not enough credits. Cost: %d." % cost
+		return false
+	for entry: Dictionary in data.ships:
+		if int(entry.id) in group.members:
+			var owned := owned_ship(int(entry.id))
+			if owned.is_alive():
+				entry.hull_hp = owned.hull_max
+	data.credits -= cost
 	return _commit_hangar(data)
 
 func load_run_checkpoint() -> bool:
@@ -816,6 +893,13 @@ func swap_part(ship_id: int, slot_id: String, key: String) -> bool:
 func _refit(ship_id: int, target: Dictionary) -> bool:
 	if not _require_shipyard():
 		return false
+	var data := hangar_snapshot()
+	if not _stage_refit(data, ship_id, target):
+		return false
+	HangarSquadrons.update_override(data, ship_id)
+	return _commit_hangar(data)
+
+func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unchanged := false) -> bool:
 	var owned := owned_ship(ship_id)
 	if not _can_refit() or owned == null:
 		last_save_error = "Refits are unavailable right now."
@@ -827,9 +911,10 @@ func _refit(ship_id: int, target: Dictionary) -> bool:
 			return false
 	var current := ShipLoadouts.current_keys(owned.mounts)
 	if SaveValidation.same(current, target):
+		if allow_unchanged:
+			return true
 		last_save_error = "Already fitted."
 		return false
-	var data := hangar_snapshot()
 	var entry: Dictionary = {}
 	for candidate: Dictionary in data.ships:
 		if int(candidate.id) == ship_id:
@@ -857,27 +942,41 @@ func _refit(ship_id: int, target: Dictionary) -> bool:
 			entry.mounts[slot_id] = uid
 	var fitted := _fitted_integrity(entry, data.equipment)
 	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
-	HangarSquadrons.update_override(data, ship_id)
-	return _commit_hangar(data)
+	return true
 
 # Ships are sold fully fitted with a named loadout (the class default if none).
 func buy_ship(key: String, loadout_id := "") -> bool:
+	return buy_ships(key, 1, 0, loadout_id)
+
+func buy_ships(key: String, count: Variant, group_id := 0, loadout_id := "") -> bool:
 	if not _require_shipyard():
 		return false
+	if not SaveValidation.integer(count) or count <= 0:
+		last_save_error = "Choose a positive whole number of ships."
+		return false
+	var group := HangarSquadrons.find(squadrons, group_id)
+	if group_id != 0:
+		if group.is_empty() or group.chassis != key:
+			last_save_error = "Choose a squadron of the same ship class."
+			return false
+		loadout_id = group.loadout
 	var chassis := SlotCatalog.find_chassis(key)
 	var loadout := ShipLoadouts.default_for(key) if loadout_id.is_empty() else ShipLoadouts.find(key, loadout_id)
 	var price := ShipLoadouts.ship_price(key, loadout)
 	if not _can_refit() or chassis.is_empty() or int(chassis.command) > 0 or loadout.is_empty():
+		last_save_error = "Ships are unavailable."
 		return false
+	price *= int(count)
 	if credits < price:
 		last_save_error = "Not enough credits. Cost: %d." % price
 		return false
-	if used_command() + int(chassis.command_cost) > command_limit():
+	if used_command() + int(chassis.command_cost) * int(count) > command_limit():
 		last_save_error = "Not enough command capacity."
 		return false
 	var data := hangar_snapshot()
-	ShipLoadouts.append_ship(data, key, loadout)
-	HangarSquadrons.add_ship(data, data.ships.back())
+	for index in range(int(count)):
+		ShipLoadouts.append_ship(data, key, loadout)
+		HangarSquadrons.add_ship(data, data.ships.back(), group_id)
 	data.credits -= price
 	return _commit_hangar(data)
 

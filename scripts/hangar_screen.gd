@@ -45,6 +45,7 @@ var formation_camera := Vector2.ZERO
 var formation_zoom := 1.0
 var formation_station_angle := 0.0
 var formation_selection: Array[int] = []
+var squadron_buy_count := 1
 var fitting_views: Dictionary = {}
 var research_view: Dictionary = {}
 var research_panel: Control
@@ -779,6 +780,17 @@ func _refresh() -> void:
 		var tile_size := _ship_tile_size()
 		for owned: HangarShip in GameState.fleet:
 			ship_rows.add_child(_ship_tile(owned, tile_size))
+	elif active_tab == "FLEET":
+		for group: Dictionary in GameState.squadrons:
+			var choose := _button("#%d x%d" % [group.id, group.members.size()],
+				_select_squadron.bind(int(group.id)))
+			choose.name = "Squadron_%d" % group.id
+			choose.icon = SurfaceArt.diffuse(GameState.owned_ship(int(group.members[0])).art_texture)
+			choose.expand_icon = true
+			choose.add_theme_constant_override("icon_max_width", 24)
+			choose.toggle_mode = true
+			choose.button_pressed = selected_ship_id in group.members
+			roster.add_child(choose)
 	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
 	var buy := _button_with_sound("Buy Ships", _open_shop.bind("SHIPS"), &"animate_ui")
 	buy.name = "BuyShips"
@@ -808,6 +820,7 @@ func _refresh() -> void:
 			selected_ship_id = id
 			_queue_refresh())
 		board.ship_opened.connect(_open_ship_editor)
+		board.action_failed.connect(func(message: String) -> void: feedback.text = message)
 	else:
 		var owned: HangarShip = GameState.owned_ship(selected_ship_id)
 		if owned != null:
@@ -1491,6 +1504,7 @@ func _render_refit_panel() -> void:
 			option.clip_text = true
 			option.disabled = fitted or not access
 			refit_panel.add_child(option)
+		_render_squadron_assignment(owned)
 	else:
 		refit_panel.add_child(UiKit.label(SlotCatalog.slot_label(slot).to_upper(), &"HeaderResearch"))
 		var instance: Dictionary = owned.mounts.get(slot.id, {})
@@ -1547,6 +1561,9 @@ func _show_details() -> void:
 	if (not inspected_item.is_empty() and active_tab != "SHIPS") or (buy_open and active_tab == "FLEET"):
 		return
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
+	if owned != null and active_tab == "FLEET":
+		_show_squadron_details(HangarSquadrons.for_ship(GameState.squadrons, owned.id))
+		return
 	if owned == null:
 		_clear(details)
 		var cost: int = GameState.fleet_repair_cost()
@@ -1638,6 +1655,99 @@ func _show_details() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = SIZE_EXPAND_FILL
 	details.add_child(spacer)
+
+func _select_squadron(id: int) -> void:
+	var group := HangarSquadrons.find(GameState.squadrons, id)
+	if group.is_empty():
+		return
+	selected_ship_id = int(group.members[0])
+	formation_selection.assign(group.members)
+	selected_slot = ""
+	_queue_refresh()
+
+func _show_squadron_details(group: Dictionary) -> void:
+	_clear(details)
+	if group.is_empty():
+		return
+	details.add_child(_label("%s #%d x%d" % [group.name, group.id, group.members.size()]))
+	for stance: String in HangarSquadrons.STANCES:
+		var option := _button(HangarSquadrons.LABELS[stance],
+			func() -> void: _result(GameState.set_squadron_stance(int(group.id), stance)))
+		option.name = "Stance_" + stance
+		option.toggle_mode = true
+		option.button_pressed = group.stance == stance
+		option.disabled = not GameState._can_refit()
+		details.add_child(option)
+	var loadout := ShipLoadouts.find(group.chassis, group.loadout)
+	details.add_child(_label("Default loadout"))
+	for choice: Dictionary in ShipLoadouts.for_chassis(group.chassis):
+		var option := _button(choice.name, func() -> void:
+			_result(GameState.refit_squadron(int(group.id), choice.id)))
+		option.name = "SquadronLoadout_" + str(choice.id)
+		option.toggle_mode = true
+		option.button_pressed = choice.id == group.loadout
+		_shipyard_action(option, choice.id != group.loadout)
+		details.add_child(option)
+	if not group.overrides.is_empty():
+		var reset := _button("Reset %d overrides" % group.overrides.size(),
+			func() -> void: _result(GameState.refit_squadron(int(group.id), group.loadout, true)))
+		reset.name = "ResetOverrides"
+		_shipyard_action(reset)
+		details.add_child(reset)
+	var cost: int = GameState.squadron_repair_cost(int(group.id))
+	var repair := _button("Repair %d cr" % cost,
+		func() -> void: _result(GameState.repair_squadron(int(group.id))))
+	repair.name = "SquadronRepair"
+	_shipyard_action(repair, cost > 0 and GameState.credits >= cost)
+	details.add_child(repair)
+	var chassis := SlotCatalog.find_chassis(group.chassis)
+	if int(chassis.command) <= 0:
+		var quantity := HBoxContainer.new()
+		quantity.name = "SquadronQuantity"
+		details.add_child(quantity)
+		var lower := _button("-", func() -> void:
+			squadron_buy_count = maxi(1, squadron_buy_count - 1)
+			_show_squadron_details(group))
+		lower.name = "BuyFewer"
+		lower.disabled = squadron_buy_count <= 1
+		quantity.add_child(lower)
+		var number := _label(str(squadron_buy_count))
+		number.name = "BuyCount"
+		number.size_flags_horizontal = SIZE_EXPAND_FILL
+		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		quantity.add_child(number)
+		var upper := _button("+", func() -> void:
+			squadron_buy_count += 1
+			_show_squadron_details(group))
+		upper.name = "BuyMore"
+		upper.disabled = squadron_buy_count >= maxi(1, (GameState.command_limit() - GameState.used_command()) / maxi(1, int(chassis.command_cost)))
+		quantity.add_child(upper)
+		var price := ShipLoadouts.ship_price(group.chassis, loadout) * squadron_buy_count
+		var buy := _button("Buy %d / %d cr" % [squadron_buy_count, price],
+			func() -> void: _result(GameState.buy_ships(group.chassis, squadron_buy_count, int(group.id))))
+		buy.name = "SquadronBuy"
+		_shipyard_action(buy, GameState.credits >= price
+			and GameState.used_command() + int(chassis.command_cost) * squadron_buy_count <= GameState.command_limit())
+		details.add_child(buy)
+	var inspect := _button("Inspect ships", _open_ship_editor.bind(int(group.members[0])))
+	inspect.name = "InspectSquadronShip"
+	details.add_child(inspect)
+
+func _render_squadron_assignment(owned: HangarShip) -> void:
+	var current := HangarSquadrons.for_ship(GameState.squadrons, owned.id)
+	refit_panel.add_child(_label("Squadron #%d%s" % [current.id,
+		" / override" if owned.id in current.overrides else ""]))
+	for group: Dictionary in GameState.squadrons:
+		if group.id == current.id or group.chassis != owned.chassis_id:
+			continue
+		var move := _button("Join #%d" % group.id, func() -> void:
+			_result(GameState.assign_squadron(owned.id, int(group.id))))
+		move.name = "JoinSquadron_%d" % group.id
+		refit_panel.add_child(move)
+	if current.members.size() > 1:
+		var split := _button("New squadron", func() -> void: _result(GameState.assign_squadron(owned.id)))
+		split.name = "SplitSquadron"
+		refit_panel.add_child(split)
 
 func _part_effect(item: Dictionary) -> String:
 	match item.id:

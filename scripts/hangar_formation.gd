@@ -2,6 +2,7 @@ extends Control
 
 signal ship_selected(id: int)
 signal ship_opened(id: int)
+signal action_failed(message: String)
 const GLOW = preload("res://shaders/ship_selection.gdshader")
 const Exhaust = preload("res://scripts/ship_exhaust.gd")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
@@ -51,6 +52,7 @@ func _ready() -> void:
 		starfield.call("scroll_stationary", travel_distance_nu * 0.002)
 	if selected_ids.is_empty() and selected_id > 0:
 		selected_ids.append(selected_id)
+	_expand_squadrons()
 	for owned: HangarShip in GameState.fleet:
 		hit_images[owned.id] = SurfaceArt.diffuse(owned.art_texture).get_image()
 		var glow := TextureRect.new()
@@ -85,6 +87,20 @@ func _hit(position: Vector2) -> int:
 				return owned.id
 	return 0
 
+func _expand_squadrons() -> void:
+	var expanded: Array[int] = []
+	var groups := {}
+	for id: int in selected_ids:
+		var group := HangarSquadrons.for_ship(GameState.squadrons, id)
+		if group.is_empty():
+			continue
+		groups[int(group.id)] = true
+		for member: int in group.members:
+			if member not in expanded:
+				expanded.append(member)
+	selected_ids = expanded
+	selected_id = selected_ids[0] if groups.size() == 1 else 0
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and event.pressed:
@@ -110,7 +126,7 @@ func _gui_input(event: InputEvent) -> void:
 				AudioManager.play_ui_sfx(&"select_tab")
 				if hit not in selected_ids:
 					selected_ids.assign([hit])
-				selected_id = hit if selected_ids.size() == 1 else 0
+				_expand_squadrons()
 				dragging = true
 				drag_start = _world(event.position)
 				drag_delta = Vector2.ZERO
@@ -128,7 +144,8 @@ func _gui_input(event: InputEvent) -> void:
 					var positions := {}
 					for id in selected_ids:
 						positions[id] = GameState.owned_ship(id).formation + drag_delta
-					GameState.move_ships(positions)
+					if not GameState.move_ships(positions):
+						action_failed.emit(GameState.last_save_error if not GameState.last_save_error.is_empty() else "Formation move failed.")
 				drag_delta = Vector2.ZERO
 			elif box_selecting:
 				box_selecting = false
@@ -137,7 +154,7 @@ func _gui_input(event: InputEvent) -> void:
 					for owned: HangarShip in GameState.fleet:
 						if rect.has_point(point(owned)):
 							selected_ids.append(owned.id)
-				selected_id = selected_ids[0] if selected_ids.size() == 1 else 0
+				_expand_squadrons()
 			ship_selected.emit(selected_id)
 		queue_redraw()
 	elif event is InputEventMouseMotion:

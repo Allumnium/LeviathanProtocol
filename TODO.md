@@ -106,9 +106,10 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 ### D3 - Squadrons and stances
 
 - Foundation increment: saved same-chassis groups, default-loadout overrides, formation anchors and Seek/Defend/Evade targeting/movement are implemented. The focused squadron suite passes 65 checks; persistence (106), refit (189), rewards (48) and deterministic battle replay also pass. Older physical-v2 saves derive groups without rearrangement or equipment changes. Fleet controls and atomic group actions remain open; D3 is not yet accepted.
-- [ ] Ships belong to squadrons, the main unit of command. A squadron owns its stance, formation slot and default loadout, with per-ship overrides.
-- [ ] Stances: Seek & Destroy, Defend Flagship, Evade. Combat AI targeting and movement follow them (Evade keeps transports out of fights).
-- [ ] Group actions: refit, repair, buy N ships into a squadron. The Fleet tab arranges squadrons as blocks.
+- [x] Ships belong to squadrons, the main unit of command. A squadron owns its stance, formation slot and default loadout, with per-ship overrides. Same-chassis groups preserve actual fits/positions; Ships can split a member or join another compatible group.
+- [x] Stances: Seek & Destroy, Defend Flagship, Evade. Combat AI targeting and movement follow them (Evade keeps transports out of fights). Explicit attacks override passive orders; carriers respect stance and retain their finite allowance.
+- [x] Group actions: refit, repair, buy N ships into a squadron. The Fleet tab arranges squadrons as blocks. Refits preserve overrides unless explicitly reset; group purchases/repairs/moves use one quoted atomic transaction. Artwork/count roster cards avoid long repeated names.
+- Focused group acceptance: 177 checks pass in native rendering, including actual pointer orders, refits, buy-N, split/join, box selection, whole-block drags and failed-move feedback; three-resolution geometry and pan/zoom are covered. The new suite is registered for both baseline render modes. Full D3 baseline acceptance remains pending.
 
 ### D4 - Research that you can feel
 
