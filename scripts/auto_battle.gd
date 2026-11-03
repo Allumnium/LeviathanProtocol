@@ -54,6 +54,8 @@ var _simulation_accumulator := 0.0
 var repair_label: ResourceText
 var objective_label: Label
 var _settlement_error := false
+var command_header: Container
+var battle_readouts: VBoxContainer
 
 
 func _ready() -> void:
@@ -104,13 +106,9 @@ func _ready() -> void:
 		return
 	simulation.set_destroy_all_neutral_targets(GameState.destroy_all_neutral_targets)
 	repair_label = ResourceText.new()
-	repair_label.position = Vector2(8, 56)
-	repair_label.size = Vector2(550, 20)
-	add_child(repair_label)
 	objective_label = Label.new()
-	objective_label.position = Vector2(8, 38)
 	objective_label.text = simulation.encounter.label(simulation)
-	add_child(objective_label)
+	_build_header()
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
 	destroy_neutral_targets.hide()
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
@@ -137,6 +135,50 @@ func _ready() -> void:
 	defeat_accept_button.pressed.connect(_return_to_main_menu)
 	defeat_close_button.pressed.connect(_return_to_main_menu)
 
+func _build_header() -> void:
+	var column := VBoxContainer.new()
+	column.name = "BattleHeader"
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	column.add_theme_constant_override("separation", 0)
+	add_child(column)
+	move_child(column, visuals.get_index() + 1)
+	command_header = preload("res://scripts/command_header.gd").new()
+	preload("res://scripts/panel_slide.gd").wrap(column, command_header, Vector2.UP)
+	battle_speed_controls.reparent(command_header.middle)
+	battle_speed_controls.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	battle_speed_controls.mouse_filter = Control.MOUSE_FILTER_PASS
+	battle_speed_controls.add_theme_constant_override("separation", 2)
+	var glyphs := preload("res://scripts/time_control.gd")
+	glyphs.decorate(pause_button, "pause")
+	glyphs.decorate(fast_forward_button, "play")
+	glyphs.decorate(five_times_button, "fast")
+	for speed: int in [2, 5]:
+		var label := Label.new()
+		label.name = "Speed%dLabel" % speed
+		label.text = "%dx" % speed
+		label.theme_type_variation = &"HeaderResearch"
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		battle_speed_controls.add_child(label)
+		battle_speed_controls.move_child(label, 2 if speed == 2 else 4)
+	battle_readouts = VBoxContainer.new()
+	battle_readouts.name = "BattleReadouts"
+	battle_readouts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	column.add_child(margin)
+	margin.add_child(battle_readouts)
+	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	objective_label.theme_type_variation = &"HeaderResearch"
+	objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	objective_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	objective_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	objective_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	command_header.course.add_child(objective_label)
+	battle_readouts.add_child(repair_label)
 
 func _commit_asteroid_pickup(id: String, materials: Array, field: Dictionary) -> bool:
 	return GameState.commit_asteroid_pickup(simulation, id, materials, field)
@@ -318,7 +360,7 @@ func _input(event: InputEvent) -> void:
 			ability_bar.set_preview(visuals.world_transform().affine_inverse() * event.position)
 			return
 		if event is InputEventMouseButton:
-			if ability_bar.get_global_rect().has_point(event.position):
+			if not _battlefield_input(event.position):
 				return
 			if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 				ability_bar.cast_at(visuals.world_transform().affine_inverse() * event.position)
@@ -368,6 +410,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _battlefield_input(point: Vector2) -> bool:
+	if command_header != null and command_header.get_global_rect().has_point(point):
+		return false
 	if ability_bar != null and ability_bar.visible and ability_bar.get_global_rect().has_point(point):
 		return false
 	var radar := get_node_or_null("Radar") as Control

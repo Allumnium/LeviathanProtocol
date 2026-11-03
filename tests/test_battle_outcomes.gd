@@ -182,9 +182,82 @@ func _test_camera(battle: Control) -> void:
 		"Independent pan and zoom preferences survive reload")
 	state.battle_auto_zoom = true
 
+func _test_header(battle: Control) -> void:
+	battle.set_physics_process(false)
+	await create_timer(0.25).timeout
+	check(battle.battle_speed_controls.get_parent() == battle.command_header.middle,
+		"Battle controls occupy the shared command header's top recess")
+	check(battle.command_header.background.texture is CanvasTexture
+		and SurfaceArt.diffuse(battle.command_header.background.texture).resource_path.ends_with("top_bar_d.png"),
+		"Battle uses the same mapped top-bar artwork as management")
+	check(battle.pause_button.text.is_empty() and battle.fast_forward_button.text.is_empty()
+		and battle.five_times_button.text.is_empty()
+		and battle.battle_speed_controls.get_node("Speed2Label").text == "2x"
+		and battle.battle_speed_controls.get_node("Speed5Label").text == "5x",
+		"Battle replaces speed prose with shared glyphs and exact multiplier labels")
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		battle.objective_label.text = "WARDEN: Destroy body | Exposed 12s | Lance 5s"
+		battle.repair_label.set_content("REPAIR: 100.0 HP | REBUILD: 3 | CRAFT: 10 ready / 4 active")
+		battle.repair_label.show()
+		await settle()
+		check(root.get_visible_rect().encloses(battle.command_header.get_global_rect()),
+			"Battle frame stays on screen at %d" % resolution.x)
+		check(battle.command_header.middle.get_global_rect().encloses(battle.battle_speed_controls.get_global_rect()),
+			"Compact battle controls fit inside the top recess at %d" % resolution.x)
+		check(not battle._battlefield_input(battle.pause_button.get_global_rect().get_center())
+			and not battle._battlefield_input(battle.objective_label.get_global_rect().get_center()),
+			"Header clicks never reach battle targeting or camera input at %d" % resolution.x)
+		check(is_equal_approx(battle.command_header.background.scale.x, battle.command_header.background.scale.y),
+			"Battle frame retains its original aspect ratio at %d" % resolution.x)
+		check(battle.command_header.course.get_global_rect().encloses(battle.objective_label.get_global_rect())
+			and battle.objective_label.get_line_count() <= 2
+			and battle.repair_label.get_global_rect().position.y >= battle.command_header.get_global_rect().end.y
+			and battle.repair_label.get_content_width() <= battle.repair_label.size.x,
+			"Full objective and support readouts do not overlap or truncate at %d" % resolution.x)
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/battle-header-%d.png" % resolution.x)
+	battle.fast_forward_button.set_pressed_no_signal(false)
+	state.battle_speed = 1
+	for pressed: bool in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.position = battle.fast_forward_button.get_global_rect().get_center()
+		click.global_position = click.position
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		root.push_input(click, true)
+		await process_frame
+	check(state.battle_speed == 2 and battle.fast_forward_button.button_pressed
+		and not battle._dragging, "Actual pointer clicks activate framed speed controls without panning")
+	battle.fast_forward_button.button_pressed = false
+	battle.fast_forward_button.button_pressed = true
+	check(state.battle_speed == 2 and not battle.pause_button.button_pressed
+		and not battle.five_times_button.button_pressed, "2x enables only its own speed")
+	battle.fast_forward_button.button_pressed = false
+	check(state.battle_speed == 1, "Toggling 2x off restores 1x")
+	battle.five_times_button.button_pressed = true
+	check(state.battle_speed == 5 and not battle.pause_button.button_pressed
+		and not battle.fast_forward_button.button_pressed, "5x enables only its own speed")
+	battle.pause_button.button_pressed = true
+	check(state.battle_speed == 1 and not battle.fast_forward_button.button_pressed
+		and not battle.five_times_button.button_pressed, "Pause still resets fast speeds")
+	battle.five_times_button.button_pressed = true
+	check(state.battle_speed == 5 and not battle.pause_button.button_pressed,
+		"Selecting a speed still resumes from pause")
+	battle.five_times_button.button_pressed = false
+	battle.objective_label.text = battle.simulation.encounter.label(battle.simulation)
+	battle.repair_label.set_content("")
+	var motion := InputEventMouseMotion.new()
+	motion.position = battle.visuals.size * 0.5
+	motion.global_position = motion.position
+	root.push_input(motion, true)
+	await process_frame
+
 func _test_victory() -> void:
 	var battle := _battle()
 	await settle()
+	await _test_header(battle)
 	_test_camera(battle)
 	battle.simulation.player.damage_dealt = 98765.5
 	battle.simulation.player.shield_damage_taken = 1234

@@ -46,6 +46,51 @@ func run() -> void:
 	current_scene = screen
 	screen.set_process(false)
 	await settle()
+	var map: Control = screen.graph
+	var simulation = state.expedition_simulation
+	check(map.services_for(simulation.locations.start_station) == ["shipyard", "refuel", "trade"]
+		and map.services_for(simulation.locations.settlement_1) == ["refuel", "trade"]
+		and map.services_for(simulation.locations.derelict_1).is_empty(),
+		"Station symbols show only their declared services; POIs gain no invented services")
+	check(map.services_for({"kind": "station", "services": ["trade", "shipyard"]}) == ["shipyard", "trade"],
+		"Service symbols use consistent order independent of catalog order")
+	check(map.service_key.get_child_count() == 3
+		and map.service_key.get_child(0).get_child(1).text == "Shipyard"
+		and map.service_key.get_child(1).get_child(1).text == "Refuel"
+		and map.service_key.get_child(2).get_child(1).text == "Trade",
+		"Map symbols retain a visible named key rather than depending on tooltips")
+	var map_snapshot: Dictionary = state.hangar_snapshot()
+	map.user_moved = true
+	var map_position: Vector2 = map.camera_position
+	var map_zoom: float = map.camera_zoom
+	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await settle()
+		map._process(0)
+		await settle()
+		check(map.get_global_rect().grow(1).encloses(map.service_key.get_global_rect()),
+			"Named map service key fits its canvas at %s" % resolution)
+		var station: Dictionary = simulation.locations.start_station
+		var marker := Rect2(map.to_screen(Vector2(station.position[0], station.position[1]))
+			- Vector2.ONE * 9, Vector2.ONE * 18)
+		var badges: Array[Rect2] = map.service_rects(station)
+		check(badges.size() == 3 and not badges[0].intersects(marker)
+			and not badges[0].intersects(badges[1]) and not badges[1].intersects(badges[2]),
+			"Service symbols do not cover station artwork or one another at %s" % resolution)
+		check(map.camera_position == map_position and map.camera_zoom == map_zoom
+			and state.hangar_snapshot() == map_snapshot,
+			"Service presentation preserves manual map view and gameplay state")
+		check(map.location_label_rects.size() == simulation.state.discovered_location_ids.size(),
+			"Service badges do not displace any initially discovered destination name at %s" % resolution)
+		for label_rect: Rect2 in map.location_label_rects.values():
+			check(not label_rect.intersects(map.service_key.get_rect())
+				and not badges.any(func(rect: Rect2) -> bool: return rect.intersects(label_rect)),
+				"Destination names remain separate from service symbols and key")
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://.local/checks/map-services-%d.png" % resolution.x)
+	root.size = Vector2i(1280, 720)
+	await settle()
 	await create_timer(0.22).timeout
 	check(root.get_node("AudioManager").UI_SFX[&"panel_open"].resource_path.ends_with("/panel-open.mp3"),
 		"Panel entrances use the supplied sound on the existing effects bus")

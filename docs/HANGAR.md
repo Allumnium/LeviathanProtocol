@@ -39,6 +39,7 @@ The current demo is a 10-15 minute Act I run: Haven Dock -> travel, events and b
 - **Docked Fleet scenery** uses the supplied mapped `assets/environment/space_station_large_d.png` station, rotating once per 30 real-time seconds as a cosmetic animation. It emits a soft warm light onto nearby mapped ships and disappears, along with its light, when departing. Station position/scale follow Fleet pan/zoom; it does not intercept selection. Shared mapped-surface ambient lighting is reduced to keep space darker while preserving directional, cursor and combat lights; UI text and unmapped artwork are unaffected.
 - Fleet view refreshes retain the station's cosmetic rotation alongside pan/zoom, so releasing a formation drag or changing selection does not reset its angle. This transient view state adds no checkpoint fields.
 - **Map** shows discovered locations, live fleet position/heading, planned route and detour, and details (distance, fuel, ETA, services) for the selected location. Players estimate fuel range from fuel levels and trip costs; there is no fuel-range circle or calculated range readout. All act regions share the same space background, without region tinting, shading or boundary lines; destination access restrictions still apply.
+- **Map service symbols** show each station's declared shipyard/refuel/trade capabilities above its art, in a consistent order. Shipyard reuses the repair-tools artwork, trade uses the credits coin, and refuel uses a conventional line-drawn pump because no supplied fuel icon exists. A compact named key at the lower left of the map uses the same rendering, so meaning never depends on a tooltip or color alone. Badges remain legible at the existing zoom levels, keep source texture proportions, and reserve space in destination-label placement. Displaced names have thin leader lines back to their location; these are label connectors, not route or reachability overlays. POIs do not gain station services. Visited checkmarks, destination names, selected-trip costs/ETA, locked restrictions and map input remain unchanged; no automatic reachability overlay is added.
 
 ### Placeholder assets
 
@@ -159,6 +160,14 @@ unpauses. The selected speed persists in settings (older 2x preferences still
 load), and Settings pauses all speeds. Simulation continues to use fixed ticks;
 finishing-shot slow motion multiplies the chosen speed. Retreat is no longer
 offered in the battle UI; shared withdrawal/replay mechanics remain unchanged.
+
+The battle header shares management's mapped, uniformly scaled top-bar artwork
+and quick entrance from the viewport edge. Compact pause/play/fast glyphs reuse
+the management renderer; the speed buttons retain adjacent exact 2x/5x labels.
+The lower recess holds the full encounter objective, including Warden exposure
+and lance countdowns, with wrapping rather than truncation. Conditional repair,
+rebuild and carrier readouts flow below the frame without fixed-position overlap.
+Header clicks remain UI input, never battlefield targeting or camera gestures.
 
 Victory uses the supplied Victory background, badge, rays, light line and title,
 with compact integer-valued ship statistics in themed reward cards. Names have

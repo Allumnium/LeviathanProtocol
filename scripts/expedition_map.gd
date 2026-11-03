@@ -9,6 +9,12 @@ signal go_requested(id: String)
 const STATION_TEXTURE: Texture2D = preload("res://assets/space_station.png")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 const UiKit = preload("res://scripts/ui_kit.gd")
+const SERVICE_ORDER := ["shipyard", "refuel", "trade"]
+const SERVICE_NAMES := ["Shipyard", "Refuel", "Trade"]
+const SHIPYARD_TEXTURE: Texture2D = preload("res://assets/ui/icons/icon_repair.png")
+const TRADE_TEXTURE: Texture2D = preload("res://assets/credits.png")
+const SERVICE_SIZE := 10.0
+const SERVICE_STEP := 13.0
 
 var camera_position := Vector2(380, 0)
 var camera_zoom := 0.0
@@ -21,6 +27,8 @@ var _drag_moved := false
 var _pulse := 0.0
 var _flagship_texture: Texture2D
 var go_button: Button
+var service_key: VBoxContainer
+var location_label_rects: Dictionary = {}
 
 func _ready() -> void:
 	clip_contents = true
@@ -42,6 +50,26 @@ func _ready() -> void:
 	go_button.custom_minimum_size = Vector2(56, 22)
 	go_button.hide()
 	add_child(go_button)
+	service_key = VBoxContainer.new()
+	service_key.name = "MapServiceKey"
+	service_key.mouse_filter = MOUSE_FILTER_IGNORE
+	service_key.add_theme_constant_override("separation", 0)
+	add_child(service_key)
+	for index in range(SERVICE_ORDER.size()):
+		var row := HBoxContainer.new()
+		row.mouse_filter = MOUSE_FILTER_IGNORE
+		service_key.add_child(row)
+		var symbol := Control.new()
+		symbol.custom_minimum_size = Vector2(12, 12)
+		symbol.mouse_filter = MOUSE_FILTER_IGNORE
+		var service: String = SERVICE_ORDER[index]
+		symbol.draw.connect(func() -> void:
+			draw_service(symbol, service, Rect2(Vector2(1, 1), Vector2.ONE * SERVICE_SIZE), Color.WHITE))
+		row.add_child(symbol)
+		var label := UiKit.label(SERVICE_NAMES[index], &"HeaderResearch")
+		label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		label.mouse_filter = MOUSE_FILTER_IGNORE
+		row.add_child(label)
 	resized.connect(_fit_default)
 	_fit_default.call_deferred()
 
@@ -69,7 +97,44 @@ func _process(delta: float) -> void:
 	if is_visible_in_tree():
 		_pulse = fmod(_pulse + delta, 2.0)
 		_place_go_button()
+		service_key.position = Vector2(4, maxf(4, size.y - service_key.size.y - 4)).round()
 		queue_redraw()
+
+static func services_for(location: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	if location.get("kind") != "station":
+		return result
+	for service: String in SERVICE_ORDER:
+		if service in location.get("services", []):
+			result.append(service)
+	return result
+
+func service_rects(location: Dictionary) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	var services := services_for(location)
+	var point := to_screen(_position(location)).round()
+	var width := services.size() * SERVICE_STEP - (SERVICE_STEP - SERVICE_SIZE)
+	for index in range(services.size()):
+		result.append(Rect2(point + Vector2(-width * 0.5 + index * SERVICE_STEP, -24).round(),
+			Vector2.ONE * SERVICE_SIZE))
+	return result
+
+static func draw_service(target: CanvasItem, service: String, rect: Rect2, tint: Color) -> void:
+	if service in ["shipyard", "trade"]:
+		var texture := SHIPYARD_TEXTURE if service == "shipyard" else TRADE_TEXTURE
+		var extent := texture.get_size()
+		var scaled := extent * minf(rect.size.x / extent.x, rect.size.y / extent.y)
+		target.draw_texture_rect(texture, Rect2(rect.get_center() - scaled * 0.5, scaled), false, tint)
+	else:
+		# A conventional fuel pump, shared by the map marker and its named key.
+		var origin := rect.position
+		var scale := rect.size / Vector2(10, 10)
+		target.draw_rect(Rect2(origin + Vector2(1, 1) * scale, Vector2(5, 8) * scale), tint, false, 1)
+		target.draw_line(origin + Vector2(0, 9) * scale, origin + Vector2(7, 9) * scale, tint, 1)
+		target.draw_line(origin + Vector2(2, 4) * scale, origin + Vector2(5, 4) * scale, tint, 1)
+		target.draw_polyline(PackedVector2Array([origin + Vector2(6, 5) * scale,
+			origin + Vector2(8, 7) * scale, origin + Vector2(9, 7) * scale,
+			origin + Vector2(9, 3) * scale, origin + Vector2(7, 1) * scale]), tint, 1)
 
 func can_go(id: String) -> bool:
 	var simulation = GameState.expedition_simulation
@@ -161,12 +226,16 @@ func _draw() -> void:
 			var back := to_screen(_position(simulation.locations[state.return_destination_id]))
 			_dashed(target, back, Color(1.0, 1.0, 1.0, 0.3))
 	var placed_labels: Array[Rect2] = []
+	location_label_rects.clear()
+	placed_labels.append(service_key.get_rect())
 	var label_font_size := get_theme_font_size("font_size", "HeaderResearch")
 	for id: String in state.discovered_location_ids:
 		var known: Dictionary = simulation.locations.get(id, {})
 		if not known.is_empty():
 			var reserve := 18.0 if known.kind == "station" else 10.0
 			placed_labels.append(Rect2(to_screen(_position(known)) - Vector2.ONE * reserve * 0.5, Vector2.ONE * reserve))
+			for rect: Rect2 in service_rects(known):
+				placed_labels.append(rect.grow(1))
 	for id: String in state.discovered_location_ids:
 		var location: Dictionary = simulation.locations.get(id, {})
 		if location.is_empty():
@@ -177,6 +246,10 @@ func _draw() -> void:
 		var icon := 18.0 if location.kind == "station" else 10.0
 		var texture: Texture2D = STATION_TEXTURE if location.kind == "station" else PlaceholderAssets.art()
 		draw_texture_rect(texture, Rect2(point - Vector2.ONE * icon * 0.5, Vector2.ONE * icon), false, tint)
+		var services := services_for(location)
+		var badges := service_rects(location)
+		for index in range(services.size()):
+			draw_service(self, services[index], badges[index], tint)
 		if id == selected_id:
 			draw_arc(point, icon * 0.9, 0, TAU, 32, Color(1, 1, 1, 0.9), 1.0)
 		if location.kind == "gate" and accessible and not GameState.completed:
@@ -187,10 +260,16 @@ func _draw() -> void:
 			draw_polyline(PackedVector2Array([mark, mark + Vector2(2, 2), mark + Vector2(6, -3)]), Color("6be38a"), 1.0)
 		var text_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_font_size)
 		var below := Rect2(point + Vector2(-text_size.x * 0.5, icon * 0.5 + 1), text_size)
-		var above := Rect2(point + Vector2(-text_size.x * 0.5, -icon * 0.5 - 1 - text_size.y), text_size)
+		var above := Rect2(point + Vector2(-text_size.x * 0.5,
+			(-25 if not services.is_empty() else -icon * 0.5 - 1) - text_size.y), text_size)
 		var spot := Rect2()
-		for candidate: Rect2 in [below, above]:
-			if not placed_labels.any(func(other: Rect2) -> bool: return other.intersects(candidate)):
+		var candidates: Array[Rect2] = [below, above]
+		for step in range(1, 4):
+			candidates.append(Rect2(below.position + Vector2(0, (text_size.y + 2) * step), text_size))
+			candidates.append(Rect2(above.position - Vector2(0, (text_size.y + 2) * step), text_size))
+		for candidate: Rect2 in candidates:
+			if Rect2(Vector2.ZERO, size).encloses(candidate) \
+					and not placed_labels.any(func(other: Rect2) -> bool: return other.intersects(candidate)):
 				spot = candidate
 				break
 		if spot.size == Vector2.ZERO and id != selected_id:
@@ -198,6 +277,11 @@ func _draw() -> void:
 		if spot.size == Vector2.ZERO:
 			spot = below
 		placed_labels.append(spot)
+		location_label_rects[id] = spot
+		if spot != below and spot != above:
+			var end := point.clamp(spot.position, spot.end)
+			var direction := point.direction_to(end)
+			draw_line(point + direction * icon * 0.6, end, Color(line, 0.35), 1)
 		draw_string(font, spot.position + Vector2(0, font.get_ascent(label_font_size)), label,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, label_font_size, Color(line, 0.9 if accessible else 0.4))
 	# Fleet marker, pointing along the active course.
