@@ -169,6 +169,25 @@ and lance countdowns, with wrapping rather than truncation. Conditional repair,
 rebuild and carrier readouts flow below the frame without fixed-position overlap.
 Header clicks remain UI input, never battlefield targeting or camera gestures.
 
+The left side of the battle header shows a box and person with exact `xN`
+carried-goods/passenger counts. These use installed equipment-instance loads
+on deployed living ships, not bay counts, capacity or the entire owned fleet.
+Zero hull is alive; destroyed hosts contribute no loads. Once present, a counter
+stays visible at zero after a loss. Battles without that transport equipment omit
+its counter. These are transient instruments, never new save fields.
+
+When existing abilities are available, the pressed full-name action identifies
+the current targeting mode instead of persistent "Click..." instructions. Scan
+uses broken circular arcs, Seismic Cut a cut diamond, Ion Pulse brackets and a
+bolt, and the retained Gravity Well preview inward chevrons. Reticles stay a
+fixed screen size while range/area circles follow world zoom. Invalid targets
+add an X as well as changing color. Validity updates with source movement and
+selection; source loss or an automatic cast's cooldown cancels stale targeting.
+Exact cooldown seconds, source selection, Auto, Pause Aim and existing cancel
+controls remain. Failed saves explicitly say "Save failed", retain targeting and
+do not spend cooldowns. This UI pass does not make deferred abilities/equipment
+available in physical runs.
+
 Victory uses the supplied Victory background, badge, rays, light line and title,
 with compact integer-valued ship statistics in themed reward cards. Names have
 the full details-column width; damage is no longer an unbounded segment flow.

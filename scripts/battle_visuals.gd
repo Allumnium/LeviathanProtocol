@@ -211,7 +211,44 @@ func _draw() -> void:
 		if int(effect.faction) == 0:
 			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+	if not ability_preview.is_empty():
+		var point: Vector2 = world_transform() * ability_preview.position
+		var color := Color("8cd4e8") if ability_preview.valid else Color("ed8975")
+		for segment: PackedVector2Array in ability_reticle(ability_preview.id, ability_preview.valid):
+			var positioned := PackedVector2Array()
+			for vertex: Vector2 in segment:
+				positioned.append(point + vertex)
+			draw_polyline(positioned, color, 1.5, true)
 
+static func ability_reticle(id: String, valid: bool) -> Array[PackedVector2Array]:
+	var segments: Array[PackedVector2Array] = []
+	if id == "scan":
+		for quadrant in range(4):
+			var arc := PackedVector2Array()
+			for step in range(9):
+				var angle := quadrant * PI * 0.5 + step * PI / 24
+				arc.append(Vector2.from_angle(angle) * 10)
+			segments.append(arc)
+	elif id == "seismic_cut":
+		segments.append(PackedVector2Array([Vector2(0, -11), Vector2(11, 0), Vector2(0, 11),
+			Vector2(-11, 0), Vector2(0, -11)]))
+		segments.append(PackedVector2Array([Vector2(-4, -6), Vector2(2, -1), Vector2(-2, 2), Vector2(4, 6)]))
+	elif id == "ion_pulse":
+		for direction in [-1, 1]:
+			segments.append(PackedVector2Array([Vector2(direction * 5, -10), Vector2(direction * 10, -10),
+				Vector2(direction * 10, 10), Vector2(direction * 5, 10)]))
+		segments.append(PackedVector2Array([Vector2(2, -6), Vector2(-3, 1), Vector2(3, 1), Vector2(-2, 6)]))
+	elif id == "gravity_well":
+		for quadrant in range(4):
+			var rotation := quadrant * PI * 0.5
+			var arrow := PackedVector2Array()
+			for vertex in [Vector2(11, -4), Vector2(6, 0), Vector2(11, 4)]:
+				arrow.append(vertex.rotated(rotation))
+			segments.append(arrow)
+	if not valid:
+		segments.append(PackedVector2Array([Vector2(-3, -3), Vector2(3, 3)]))
+		segments.append(PackedVector2Array([Vector2(-3, 3), Vector2(3, -3)]))
+	return segments
 
 func add_projectile_impact(position: Vector2) -> void:
 	if simulation == null or not simulation.point_visible(BattleSimulation.Faction.PLAYER, position):

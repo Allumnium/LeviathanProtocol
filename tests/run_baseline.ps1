@@ -7,7 +7,7 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 $runRoot = Join-Path $projectRoot ('.local/checks/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $runRoot | Out-Null
 $previousAppData = $env:APPDATA
-$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'swarm_navigation', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'ship_refit', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay', 'chassis_review', 'whole_ship', 'battle_outcomes', 'flagship_selection', 'node_environment', 'sprite_collision', 'expedition_state', 'expedition_navigation', 'expedition_world', 'expedition_services', 'expedition_arrival', 'expedition_events', 'expedition_demo', 'expedition_ui_clarity')
+$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'swarm_navigation', 'hangar_research', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'ship_refit', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay', 'chassis_review', 'whole_ship', 'battle_outcomes', 'battle_ui', 'flagship_selection', 'node_environment', 'sprite_collision', 'expedition_state', 'expedition_navigation', 'expedition_world', 'expedition_services', 'expedition_arrival', 'expedition_events', 'expedition_demo', 'expedition_ui_clarity')
 try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     foreach ($suite in $suites) {
@@ -57,6 +57,12 @@ try {
         & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_battle_outcomes.gd --log-file $log
         if ($LASTEXITCODE -ne 0) { throw "Native battle outcomes failed: $LASTEXITCODE" }
         if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native battle outcomes emitted script errors' }
+    }
+    if ($Native) {
+        $log = Join-Path $runRoot 'native-battle-ui.log'
+        & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_battle_ui.gd --log-file $log
+        if ($LASTEXITCODE -ne 0) { throw "Native battle UI failed: $LASTEXITCODE" }
+        if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native battle UI emitted script errors' }
     }
     if ($Native) {
         $log = Join-Path $runRoot 'native-chassis-review.log'

@@ -179,6 +179,9 @@ func _build_header() -> void:
 	objective_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	command_header.course.add_child(objective_label)
 	battle_readouts.add_child(repair_label)
+	var transport := preload("res://scripts/battle_transport_readout.gd").new()
+	transport.simulation = simulation
+	command_header.left.add_child(transport)
 
 func _commit_asteroid_pickup(id: String, materials: Array, field: Dictionary) -> bool:
 	return GameState.commit_asteroid_pickup(simulation, id, materials, field)

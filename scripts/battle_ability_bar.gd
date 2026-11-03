@@ -30,6 +30,7 @@ func _ready() -> void:
 		var button := Button.new()
 		button.name = "Ability_" + id
 		button.custom_minimum_size = Vector2(64, 24)
+		button.toggle_mode = true
 		button.pressed.connect(begin_targeting.bind(id))
 		actions.add_child(button)
 		action_buttons[id] = button
@@ -50,8 +51,8 @@ func _ready() -> void:
 	auto_button.toggle_mode = true
 	options.add_child(auto_button)
 	auto_button.toggled.connect(func(enabled: bool) -> void:
-		if not simulation.issue_command("ability_auto", {"ability": selected_id, "enabled": enabled}):
-			status.text = "Save failed"
+		status.text = "" if simulation.issue_command("ability_auto",
+			{"ability": selected_id, "enabled": enabled}) else "Save failed"
 		refresh())
 	source_picker = OptionButton.new()
 	source_picker.name = "AbilitySource"
@@ -59,15 +60,18 @@ func _ready() -> void:
 	source_picker.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	source_picker.custom_minimum_size.x = 112
 	options.add_child(source_picker)
-	source_picker.item_selected.connect(func(index: int) -> void: source_id = "" if index == 0 else _source_ids[index - 1])
+	source_picker.item_selected.connect(func(index: int) -> void:
+		source_id = "" if index == 0 else _source_ids[index - 1]
+		if targeting:
+			set_preview(visuals.ability_preview.position))
 	pause_aim = Button.new()
 	pause_aim.name = "PauseAim"
 	pause_aim.text = "PAUSE AIM"
 	pause_aim.toggle_mode = true
 	options.add_child(pause_aim)
 	pause_aim.toggled.connect(func(enabled: bool) -> void:
-		if not simulation.issue_command("ability_pause_aim", {"enabled": enabled}):
-			status.text = "Save failed"
+		status.text = "" if simulation.issue_command("ability_pause_aim",
+			{"enabled": enabled}) else "Save failed"
 		refresh())
 	status = Label.new()
 	status.name = "AbilityStatus"
@@ -83,6 +87,7 @@ func refresh() -> void:
 		var cooldown: float = simulation.abilities.remaining(id)
 		button.text = GameDefinitions.find("abilities", id).display_name.to_upper() + (" %d" % ceili(cooldown) if cooldown > 0 else "")
 		button.disabled = simulation.phase != BattleSimulation.Phase.COMBAT or cooldown > 0 or simulation.abilities.sources(simulation, 0, id).is_empty()
+		button.set_pressed_no_signal(targeting and selected_id == id)
 	if auto_button == null:
 		return
 	auto_button.set_pressed_no_signal(simulation.abilities.state.auto.get(selected_id, selected_id != "scan"))
@@ -100,8 +105,11 @@ func refresh() -> void:
 		if not source_id.is_empty() and not ids.has(source_id):
 			source_id = ""
 		source_picker.select(ids.find(source_id) + 1)
-	if targeting and (simulation.phase != 0 or simulation.abilities.sources(simulation, 0, selected_id).is_empty()):
+	if targeting and (simulation.phase != 0 or simulation.abilities.remaining(selected_id) > 0
+			or simulation.abilities.sources(simulation, 0, selected_id).is_empty()):
 		cancel_targeting()
+	elif targeting:
+		set_preview(visuals.ability_preview.position)
 
 func begin_targeting(id: String) -> void:
 	if targeting:
@@ -113,18 +121,25 @@ func begin_targeting(id: String) -> void:
 	if simulation.abilities.remaining(id) > 0 or simulation.abilities.sources(simulation, 0, id).is_empty():
 		return
 	targeting = true
-	status.text = "Click to scan" if id == "scan" else "Click asteroid" if id == "seismic_cut" else "Click target"
+	status.text = ""
 	targeting_changed.emit(true)
 	set_preview(visuals.camera_position)
 
 func set_preview(point: Vector2) -> void:
+	var sources := simulation.abilities.sources(simulation, 0, selected_id)
+	if not source_id.is_empty():
+		sources = sources.filter(func(source) -> bool: return source.entity_id == source_id)
 	visuals.ability_preview = {"id": selected_id, "position": point, "valid": simulation.abilities.can_cast(simulation, selected_id, point, source_id),
-		"sources": simulation.abilities.sources(simulation, 0, selected_id)}
+		"sources": sources}
 	visuals.queue_redraw()
 
 func cast_at(point: Vector2) -> bool:
-	if not simulation.issue_command("ability_cast", {"ability": selected_id, "position": [point.x, point.y], "source": source_id, "faction": 0}):
+	if not simulation.abilities.can_cast(simulation, selected_id, point, source_id):
 		status.text = "Unavailable"
+		set_preview(point)
+		return false
+	if not simulation.issue_command("ability_cast", {"ability": selected_id, "position": [point.x, point.y], "source": source_id, "faction": 0}):
+		status.text = "Save failed" if simulation.abilities.last_commit_failed else "Unavailable"
 		return false
 	cancel_targeting()
 	return true
