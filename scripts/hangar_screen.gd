@@ -2120,7 +2120,7 @@ func _render_map_details() -> void:
 	var cruise := float(simulation.tuning.cruise_units_per_sim_second)
 	var lines: PackedStringArray = []
 	if distance > 0.01:
-		var fuel_needed := distance * float(simulation.tuning.fuel_per_nav_unit)
+		var fuel_needed: float = distance * GameState.expedition_fuel_rate()
 		lines.append("%d NU away" % roundi(distance))
 		lines.append("%d fuel%s" % [ceili(fuel_needed), " (out of range)" if fuel_needed > state.fuel else ""])
 		lines.append("ETA %ds at 1x · %ds at 10x" % [ceili(distance / cruise), ceili(distance / cruise / 10.0)])

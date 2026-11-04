@@ -83,12 +83,12 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 static func description(_registry: Dictionary, id: String) -> String:
 	var explanations := {
 		"applied_energy": "Lasers strike enemies with beams.",
-		"field_engineering": "Large thrusters improve ship movement.",
+		"field_engineering": "Cruising uses less fuel.",
 		"guided_munitions": "Guided missiles strike enemies; point defense intercepts incoming missiles.",
 		"laboratory_ii": "Labs generate research while traveling.",
 		"laboratory_iii": "Unlocks more productive research labs.",
 		"energy_manipulation": "Lasers become sustained beams that grow stronger over time.",
-		"civil_hospitality": "Passenger cabins earn credits by delivering travelers.",
+		"civil_hospitality": "Travel earns credits for the expedition.",
 		"optics_ii": "Unlocks powerful, long-range beam weapons.",
 		"disruption_i": "Ion weapons strip enemy shields.",
 		"bastion_ii": "Shields periodically recover, even under fire.",
@@ -140,6 +140,8 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 			lines.append(ability.display_name)
 	for modifier: Dictionary in node.grants.modifiers:
 		match modifier.id:
+			"cruise_fuel_multiplier": lines.append("Cruise fuel use reduced by %d%%" % roundi((1.0 - float(modifier.value)) * 100))
+			"travel_credits_per_day": lines.append("%d cr per travel day" % int(modifier.value))
 			"prismatic_lasers": lines.append("Laser / Double Laser: continuous beams\nRamp to 2x DPS over 4s on one target\nChanging targets or losing contact resets the ramp")
 			"splinter_missiles": lines.append("Missile Rack: splits into 3 near target\nEach deals half damage; all interceptable\nOne missile spent per parent, not per fragment")
 			"pulse_shields": lines.append("Shielded ships: restore 25% shields / 8s\nWorks under fire; suppression blocks pulses")

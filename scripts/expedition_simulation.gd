@@ -266,9 +266,11 @@ func _admit_event(event: Dictionary) -> void:
 	_emit_boundary(State.BoundaryKind.ENCOUNTER, {"event_id": event.id})
 
 
-func advance(real_delta: float) -> bool:
+func advance(real_delta: float, fuel_multiplier := 1.0) -> bool:
 	if not _configured() or not SaveValidation.number(real_delta) or real_delta < 0.0:
 		return _fail("Invalid expedition frame duration.")
+	if not is_finite(fuel_multiplier) or fuel_multiplier <= 0.0 or fuel_multiplier > 1.0:
+		return _fail("Invalid expedition fuel multiplier.")
 	if _paused() or state.departure_choice_pending or state.travel_state == State.TravelState.DEFEAT:
 		return true
 	var effective_speed := 1 if state.travel_state in [State.TravelState.ENGAGED,
@@ -281,7 +283,7 @@ func advance(real_delta: float) -> bool:
 		state.simulation_tick += 1
 		state.simulation_seconds += tick
 		if state.travel_state == State.TravelState.CRUISING:
-			if not _advance_cruise(tick):
+			if not _advance_cruise(tick, fuel_multiplier):
 				return false
 			if boundary_sequence != prior_boundary_sequence:
 				accumulator = 0.0
@@ -293,7 +295,7 @@ func advance(real_delta: float) -> bool:
 	return true
 
 
-func _advance_cruise(delta: float) -> bool:
+func _advance_cruise(delta: float, fuel_multiplier: float) -> bool:
 	var destination: Dictionary = locations.get(state.destination_location_id, {})
 	if destination.is_empty():
 		return _fail("Active destination is missing from the world.")
@@ -312,12 +314,13 @@ func _advance_cruise(delta: float) -> bool:
 	if not zone.is_empty() and float(zone.distance) < event_distance:
 		event = zone.event
 		event_distance = float(zone.distance)
-	var fuel_distance := state.fuel / float(tuning.fuel_per_nav_unit)
+	var fuel_rate := float(tuning.fuel_per_nav_unit) * fuel_multiplier
+	var fuel_distance := state.fuel / fuel_rate
 	var distance := minf(minf(step_distance, fuel_distance), event_distance)
 	if distance > 0.0:
 		var delta_position := to_target.normalized() * distance
 		state.position_nu += delta_position
-		state.fuel = maxf(0.0, state.fuel - distance * float(tuning.fuel_per_nav_unit))
+		state.fuel = maxf(0.0, state.fuel - distance * fuel_rate)
 		state.traveled_distance_nu += distance
 		state.traveled_days += distance / float(tuning.nav_units_per_day)
 	if fuel_distance <= distance + 0.000001 and distance_remaining - distance > 0.000001:

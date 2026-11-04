@@ -7,7 +7,7 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 $runRoot = Join-Path $projectRoot ('.local/checks/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $runRoot | Out-Null
 $previousAppData = $env:APPDATA
-$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'swarm_navigation', 'hangar_research', 'research_combat', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'ship_refit', 'hangar_squadrons', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay', 'chassis_review', 'whole_ship', 'battle_outcomes', 'battle_ui', 'fleet_missiles', 'flagship_selection', 'node_environment', 'sprite_collision', 'expedition_state', 'expedition_navigation', 'expedition_world', 'expedition_services', 'expedition_arrival', 'expedition_events', 'expedition_rewards', 'expedition_demo', 'expedition_ui_clarity')
+$suites = @('hangar', 'hangar_persistence', 'hangar_campaign', 'swarm_navigation', 'hangar_research', 'research_combat', 'research_travel', 'hangar_carriers', 'hangar_intermediates', 'hangar_mounts', 'ship_refit', 'hangar_squadrons', 'hangar_playthrough', 'hangar_ui', 'ui_polish', 'surface_art', 'legacy_archives', 'ship_stats', 'battle_replay', 'chassis_review', 'whole_ship', 'battle_outcomes', 'battle_ui', 'fleet_missiles', 'flagship_selection', 'node_environment', 'sprite_collision', 'expedition_state', 'expedition_navigation', 'expedition_world', 'expedition_services', 'expedition_arrival', 'expedition_events', 'expedition_rewards', 'expedition_demo', 'expedition_ui_clarity')
 try {
     $env:APPDATA = Join-Path $runRoot 'appdata'
     foreach ($suite in $suites) {
@@ -105,6 +105,12 @@ try {
         & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_research_combat.gd --log-file $log
         if ($LASTEXITCODE -ne 0) { throw "Native research combat failed: $LASTEXITCODE" }
         if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native research combat emitted script errors' }
+    }
+    if ($Native) {
+        $log = Join-Path $runRoot 'native-research-travel.log'
+        & $Godot --path $projectRoot --rendering-method gl_compatibility --script res://tests/test_research_travel.gd --log-file $log
+        if ($LASTEXITCODE -ne 0) { throw "Native research travel failed: $LASTEXITCODE" }
+        if (Select-String -LiteralPath $log -Pattern 'SCRIPT ERROR|Parse Error|Compile Error' -Quiet) { throw 'Native research travel emitted script errors' }
     }
     Write-Output "All $($suites.Count) current baseline suites passed."
 } finally {

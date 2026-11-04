@@ -666,6 +666,12 @@ func depart_expedition(location_id: String, engage := false) -> bool:
 func self_repair_rate(owned: HangarShip) -> float:
 	return float(owned.chassis.get("self_repair_hp_per_second", 0.0))
 
+func expedition_fuel_multiplier() -> float:
+	return float(research_grants().modifiers.get("cruise_fuel_multiplier", {}).get("value", 1.0))
+
+func expedition_fuel_rate() -> float:
+	return float(expedition_simulation.tuning.fuel_per_nav_unit) * expedition_fuel_multiplier()
+
 func stranded() -> bool:
 	var simulation = expedition_simulation
 	return simulation != null and simulation.state != null and not battle_pending and not run_ended \
@@ -729,7 +735,7 @@ func accept_rescue() -> bool:
 # for the UI. A failed boundary save rolls everything back to `before`.
 func advance_expedition(delta: float, force_save := false) -> Dictionary:
 	var result := {"ok": true, "boundary": false, "saved": false, "research_done": "", "repaired": false,
-		"delivered": 0, "error": ""}
+		"delivered": 0, "income": 0, "error": ""}
 	var simulation = expedition_simulation
 	if simulation == null or simulation.state == null or battle_pending or run_ended or completed:
 		return result
@@ -738,7 +744,10 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 	var sequence: int = simulation.boundary_sequence
 	var days_before: float = simulation.state.traveled_days
 	var seconds_before: float = simulation.state.simulation_seconds
-	if not simulation.advance(delta):
+	var modifiers: Dictionary = research_grants().modifiers
+	var income_rate := float(modifiers.get("travel_credits_per_day", {}).get("value", 0.0))
+	var fuel_multiplier := float(modifiers.get("cruise_fuel_multiplier", {}).get("value", 1.0))
+	if not simulation.advance(delta, fuel_multiplier):
 		simulation.restore(sim_before)
 		result.ok = false
 		result.error = "Navigation error: " + simulation.last_error
@@ -755,6 +764,15 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 		hangar_before = hangar_snapshot()
 		hangar_before.expedition = sim_before
 	if days > 0.0:
+		# The saved distance clock retains fractional earnings without another save field.
+		result.income = floori(simulation.state.traveled_days * income_rate + 0.00000001) \
+			- floori(days_before * income_rate + 0.00000001)
+		if result.income > 0:
+			var income := {"credits": credits}
+			if not run_score.is_empty():
+				income.score = run_score
+			RunScore.earn_credits(income, int(result.income))
+			credits = int(income.credits)
 		var focus := research_focus
 		var progress := {"research_ids": current_research_ids, "research_focus": research_focus,
 			"research_progress": research_progress, "branch_choices": research_branch_choices,
@@ -789,14 +807,16 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 				_apply_hangar(hangar_before)
 				simulation.restore(sim_before)
 			result.ok = false
+			result.income = 0
+			result.delivered = 0
 			result.error = "Save failed: " + last_save_error
 			return result
 		result.saved = true
 		if not result.research_done.is_empty():
 			research_completion_notices.append(previous_focus)
 			research_changed.emit()
-		if result.delivered > 0:
-			credits_changed.emit()
+	if result.delivered > 0 or result.income > 0:
+		credits_changed.emit()
 	return result
 
 func _deliver_loads(location_id: String) -> int:

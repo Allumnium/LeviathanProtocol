@@ -52,7 +52,17 @@ Description text uses the shared 11-pixel ResearchDescriptionText theme variatio
 
 The beam's widening cyan/magenta bands, amber missile fragments and shield ring communicate effects in the battle world, without added combat labels. Fixed-step replay includes lock duration, pulse clocks, fragmentation flags and ammunition, but excludes visual-only rings. Pending battles already block research mutations, so effects stay tied to the committed deployment.
 
-Regressions: [test_research_combat.gd](../tests/test_research_combat.gd) runs headless and native in the baseline, covering exact damage/intervals, armor, lock resets/occlusion, visibility, stances, interception, finite ammunition, Continue, exclusivity, save rollback, malformed metadata, deterministic replay, three-resolution details/toasts and native effect pixels. Economy/travel nodes, activated abilities and command-limit growth remain separate D4 work.
+Regressions: [test_research_combat.gd](../tests/test_research_combat.gd) runs headless and native in the baseline, covering exact damage/intervals, armor, lock resets/occlusion, visibility, stances, interception, finite ammunition, Continue, exclusivity, save rollback, malformed metadata, deterministic replay, three-resolution details/toasts and native effect pixels.
+
+## Economy and travel research (fleet-command D4)
+
+- **Field Engineering** reduces expedition cruise fuel consumption by 25%. Actual distance, speed, travel days, encounter positions and research production remain unchanged. The Map's selected-trip fuel quote and out-of-range indicator use the same researched rate; fuel exhaustion clips movement at the discounted boundary.
+- **Civil Hospitality** earns four credits per travel day, without requiring cabins or changing ordinary passenger/cargo payments. Income uses actual traveled distance, not elapsed time: each quarter-day milestone crossed while the research is owned earns one credit. The saved cumulative travel clock retains fractional progress across Continue without another save field. Acquiring research never pays for past milestones.
+- Docked, stopped, paused, stranded, event and battle time produce no travel income. Credits can pay down debt and count toward earned-credit score. The existing wallet updates; there is no new modal, label or recurring sound.
+- Both effects derive from earned research IDs, including on Continue; no research, equipment or branch choice is granted. IDs, prices and prerequisites remain unchanged. Effects are sampled before advancing a frame, so completing a project cannot retroactively discount or pay for that frame's travel.
+- Credits, score, fuel, travel progress, lab output, hull repair and arrival deliveries share the existing atomic checkpoint. Failed saves restore the prior state and emit no successful wallet update; retry/Continue cannot duplicate payouts. Short detail/toast descriptions are "Cruising uses less fuel." and "Travel earns credits for the expedition."
+
+[Travel research regressions](../tests/test_research_travel.gd) run headless and native in the baseline. Coverage includes exact fuel/income, speed/frame invariance, no idle income, mid-route unlocks, fuel/event/arrival boundaries, cargo settlement, debt, scoring, partial-distance Continue, failed-save/retry and actual Map quotes at three resolutions. Faster cruise/encounter pacing, activated abilities and command-limit growth remain separate D4 work.
 
 ## Demo vertical slice
 

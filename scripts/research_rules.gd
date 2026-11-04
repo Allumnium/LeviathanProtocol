@@ -19,6 +19,11 @@ static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool
 	if not modifier is Dictionary:
 		return false
 	match modifier.get("id", ""):
+		"cruise_fuel_multiplier":
+			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value < 1
+		"travel_credits_per_day":
+			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 100 \
+				and modifier.value == floor(modifier.value)
 		"energy_efficiency":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 0.3 \
 				and modifier.get("ordinary_efficiency_cap") == 0.3 and modifier.get("targets") is Array \
