@@ -6,6 +6,8 @@ Forty-six earlier test/capture scripts are preserved as `.gd.txt` under `docs/hi
 
 ## Compatibility boundary
 
+[history/retired_ui/](history/retired_ui/) preserves disconnected builder/help scenes and retired stock controls with their script UID sidecars. Its `.gdignore` excludes these deliberately historical files from Godot imports; their original `res://` references are not active dependencies. The save-design dialog remains under scenes because a runnable UI regression still uses it. Compatibility readers and their dependencies remain active.
+
 `scripts/legacy/` holds the square checkpoint/progress, ledger, roster, passenger/cargo schemas and prototype slot library, alongside the existing hex readers. Historical class names remain for decoder dependencies. Pure legacy helpers reconstruct and validate the historical data in memory; no historical runtime or UI calls them to mutate a player run.
 
 Read-only entry points:

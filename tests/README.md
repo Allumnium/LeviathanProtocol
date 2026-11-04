@@ -29,4 +29,6 @@ Useful focused entry points:
 
 Do not rerun unchanged passing checks or test against real saves. Ask before expanding into a broad run. When explicitly requested, [run_baseline.ps1](run_baseline.ps1) runs broad headless coverage; `-Native` adds native suites. Documentation-only work needs link/content checks, not Godot suites.
 
+Keep generated logs/captures under `.local/checks/<task>/`; `.local`, `.godot`, `*.log` and editor `*~` backups are Git-ignored. Existing archived backups stay versioned. Godot's `.import` resource settings and script `.uid` sidecars remain versioned; only generated `.godot` caches are untracked.
+
 Retired scripts under [docs/history/](../docs/history/) describe historical behavior, not new implementation requirements. See [LEGACY_BOUNDARIES.md](../docs/LEGACY_BOUNDARIES.md) for read-only compatibility.

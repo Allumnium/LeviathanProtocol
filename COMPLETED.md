@@ -2,6 +2,13 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-04 - Repository housekeeping
+
+- Git-ignored `.godot/`, `*~` and `*.log`; removed 1,337 generated cache files from Git's index without deleting or changing their local contents. Source `.import` settings and script `.uid` sidecars remain versioned; archived backups remain versioned.
+- Moved four root logs into ignored `.local/checks/historical-root-logs/` and documented `.local/checks/<task>/` for future outputs. Saved workspace Explorer exclusions for import sidecars/editor backups.
+- Archived two disconnected broken builder scenes, obsolete help and two retired stock controls (seven files including UIDs) in [docs/history/retired_ui/](docs/history/retired_ui/), excluded by `.gdignore`. Preserved original bytes/layout and all active compatibility/test dependencies; kept the test-used save-design dialog.
+- Verified ignore rules, cache preservation, relocated hashes and no active references to retired paths. Focused isolated headless checks completed: retained-scene/menu/management startup 17 checks; legacy archives 66 checks; zero failures/script errors. No full baselines or native acceptance run; no gameplay/UI behavior changed.
+
 ## 2026-11-04 - Unused resource archive
 
 - Moved 405 unused tracked resources (sprites/textures, seven font alternatives, eleven audio tracks/cues, source packs and editor backups) plus 353 import sidecars into [unused_resources/](unused_resources/), preserving all file bytes. Original relative layout is retained except one preview filename shortened for Windows; [manifest.json](unused_resources/manifest.json) records exact original paths, sizes and SHA-256 hashes for restoration. A `.gdignore` excludes the archive from Godot imports/exports.
