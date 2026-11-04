@@ -842,7 +842,7 @@ func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
 		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 		if not SlotCatalog.compatible(slot, item) or not ShipLoadouts.obtainable(item):
 			return false
-		if not ShipLoadouts.researched(item, current_research_ids):
+		if not ShipLoadouts.equipment_available(item, current_research_ids):
 			last_save_error = "Research this equipment first."
 			return false
 	var data := hangar_snapshot()
@@ -923,7 +923,7 @@ func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unch
 		if not SlotCatalog.compatible(ShipLoadouts.slot_by_id(owned.chassis, slot_id), item) or not ShipLoadouts.obtainable(item):
 			last_save_error = "That part does not fit this mount."
 			return false
-		if str(current.get(slot_id, "")) != str(target[slot_id]) and not ShipLoadouts.researched(item, current_research_ids):
+		if str(current.get(slot_id, "")) != str(target[slot_id]) and not ShipLoadouts.equipment_available(item, current_research_ids):
 			last_save_error = "Research this equipment first."
 			return false
 	if SaveValidation.same(current, target):
@@ -960,7 +960,7 @@ func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unch
 	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
 	return true
 
-# Ships are sold fully fitted; an unspecified loadout uses the first researched fit.
+# Ships are sold fully fitted; an unspecified loadout uses the first available fit.
 func buy_ship(key: String, loadout_id := "") -> bool:
 	return buy_ships(key, 1, 0, loadout_id)
 

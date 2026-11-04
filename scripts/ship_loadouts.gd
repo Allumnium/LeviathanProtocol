@@ -2,7 +2,7 @@ extends RefCounted
 
 # Named, fully fitted loadouts per ship class (data/ship_loadouts.json). The
 # first loadout of a class is its default; ships are bought and refitted from
-# these, and single mounts can be swapped for compatible researched parts.
+# these, and single mounts can be swapped for compatible available parts.
 const PATH := "res://data/ship_loadouts.json"
 const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
@@ -73,7 +73,7 @@ static func _valid(chassis: Dictionary, loadout: Variant) -> bool:
 static func for_chassis(chassis_id: String) -> Array:
 	return all().get(chassis_id, [])
 
-static func researched(item: Dictionary, research_ids: Array) -> bool:
+static func equipment_available(item: Dictionary, research_ids: Array) -> bool:
 	if not obtainable(item):
 		return false
 	if HangarResearch.starting_equipment(item):
@@ -83,7 +83,7 @@ static func researched(item: Dictionary, research_ids: Array) -> bool:
 
 static func available(loadout: Dictionary, research_ids: Array) -> bool:
 	return not loadout.is_empty() and loadout.mounts.values().all(func(key: Variant) -> bool:
-		return researched(item_for(str(key)), research_ids))
+		return equipment_available(item_for(str(key)), research_ids))
 
 static func available_for(chassis_id: String, research_ids: Array) -> Array:
 	return for_chassis(chassis_id).filter(func(loadout: Dictionary) -> bool: return available(loadout, research_ids))
@@ -108,11 +108,11 @@ static func slot_by_id(chassis: Dictionary, slot_id: String) -> Dictionary:
 			return slot
 	return {}
 
-# Researched parts a mount accepts, cheapest first.
+# Available parts a mount accepts, cheapest first.
 static func part_options(slot: Dictionary, research_ids: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for item in SlotCatalog.equipment():
-		if researched(item, research_ids) and SlotCatalog.compatible(slot, item):
+		if equipment_available(item, research_ids) and SlotCatalog.compatible(slot, item):
 			result.append(item)
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.price) < int(b.price) if int(a.price) != int(b.price) else str(a.name) < str(b.name))

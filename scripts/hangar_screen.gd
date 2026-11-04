@@ -539,7 +539,7 @@ func _render_inspection() -> void:
 		for weapon: ShipWeaponStats in SlotCatalog.stats_for(item.id, int(item.rank)).weapons:
 			body.add_child(_label("%s\n%.1f damage x %d | %.1fs cycle\nRange %.0f | Charge %.1fs" %
 				[weapon.weapon_name, weapon.damage_per_shot, weapon.projectiles_per_activation, weapon.fire_interval_seconds, weapon.range_units, weapon.charge_seconds]))
-		if not SlotCatalog.unlocked(item, GameState.research_grants()):
+		if not ShipLoadouts.equipment_available(item, GameState.current_research_ids):
 			body.add_child(_label("Research required"))
 		if HangarTrade.has_load(instance):
 			body.add_child(_label("%s: %d\nDeliver before removing" % [str(instance.load.kind).capitalize(), instance.load.quantity]))

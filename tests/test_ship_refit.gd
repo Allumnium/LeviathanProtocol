@@ -49,18 +49,18 @@ func run() -> void:
 						"%s/%s/%s fits and is obtainable" % [chassis.id, loadout.id, slot_id])
 	check(not ShipLoadouts.obtainable(SlotCatalog.find_equipment("gravitic_snare")), "Deferred parts are not offered")
 	check(ShipLoadouts.obtainable(SlotCatalog.find_equipment("railgun"))
-		and ShipLoadouts.researched(SlotCatalog.find_equipment("railgun"), ["foundation"]),
+		and ShipLoadouts.equipment_available(SlotCatalog.find_equipment("railgun"), ["foundation"]),
 		"Starting railguns do not require completing the Siege branch")
 	var initial_parts := 0
 	var eligible_parts := 0
 	for item: Dictionary in SlotCatalog.equipment():
 		if ShipLoadouts.obtainable(item):
 			eligible_parts += 1
-			if ShipLoadouts.researched(item, ["foundation"]):
+			if ShipLoadouts.equipment_available(item, ["foundation"]):
 				initial_parts += 1
 	check(initial_parts * 2 > eligible_parts, "Most obtainable equipment starts available")
 	for key: String in ["beam_lance", "torpedo_bomber_bay", "tactical_computer", "research_lab@3"]:
-		check(not ShipLoadouts.researched(ShipLoadouts.item_for(key), ["foundation"]),
+		check(not ShipLoadouts.equipment_available(ShipLoadouts.item_for(key), ["foundation"]),
 			"Advanced equipment still requires research: " + key)
 
 	for flagship: Dictionary in SlotCatalog.flagships():
@@ -70,7 +70,7 @@ func run() -> void:
 		for owned: HangarShip in state.fleet:
 			check(owned.mounts.size() == owned.chassis.slots.size()
 				and ShipLoadouts.available(ShipLoadouts.default_for(owned.chassis_id), state.current_research_ids),
-				"Every starting mount is filled with researched equipment: " + owned.chassis_id)
+				"Every starting mount is filled with available equipment: " + owned.chassis_id)
 	check(state.start_new_run(1, 808), "Start refit fixture")
 	var previous: Dictionary = state.hangar_snapshot()
 	for slot_id: String in ["port", "starboard"]:
@@ -183,6 +183,15 @@ func run() -> void:
 	await settle()
 	check(screen.tabs.get_child(0).text == "MAP" and screen.active_tab == "MAP" and screen.graph != null,
 			"Map is the first tab and the home screen")
+	screen.inspected_item = {"kind": "equipment", "id": "laser", "rank": 1, "uid": ""}
+	screen._render_inspection()
+	check(not screen.inspection.find_children("*", "Label", true, false).any(func(label: Label) -> bool:
+		return label.text == "Research required"), "Starting equipment inspection does not claim research is required")
+	screen.inspected_item = {"kind": "equipment", "id": "beam_lance", "rank": 1, "uid": ""}
+	screen._render_inspection()
+	check(screen.inspection.find_children("*", "Label", true, false).any(func(label: Label) -> bool:
+		return label.text == "Research required"), "Advanced equipment inspection retains its research requirement")
+	screen._clear_inspection()
 	screen.active_tab = "FLEET"
 	screen._refresh()
 	await settle()
