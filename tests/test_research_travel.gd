@@ -278,6 +278,36 @@ func arrival_and_ui() -> void:
 			check(text.contains(quote) and (researched or text.contains("out of range"))
 				and (not researched or not text.contains("out of range")),
 				"Actual Map fuel quote and range use the researched consumption at " + str(resolution))
+	var proposal: Dictionary = state.hangar_snapshot()
+	proposal.research.research_ids = ["foundation", "civil_hospitality", "field_engineering"]
+	check(state._commit_hangar(proposal) and state.depart_expedition("refuel_station_1"),
+		"Start passive-income UI cruise")
+	await settle()
+	screen.active_tab = "MAP"
+	screen._refresh()
+	await settle()
+	var map: Control = screen.graph
+	map.camera_position = Vector2(17, 29)
+	map.camera_zoom = 0.8
+	map.user_moved = true
+	check(state.advance_expedition(2.5, true).income == 1, "Earn one visible income tick on the Map")
+	await settle()
+	check(screen.graph == map and map.camera_position == Vector2(17, 29) and is_equal_approx(map.camera_zoom, 0.8)
+		and screen.header.text == str(state.credits) and not screen.refresh_queued,
+		"Income updates the wallet without rebuilding the Map or changing pan/zoom")
+	screen.active_tab = "RESEARCH"
+	screen._refresh()
+	await settle()
+	var panel: Control = screen.research_panel
+	panel._select("field_engineering")
+	panel.tree_canvas.camera_position = Vector2(23, 31)
+	panel.tree_canvas.camera_zoom = 0.9
+	check(state.advance_expedition(2.5, true).income == 1, "Earn one visible income tick in Research")
+	await settle()
+	check(screen.research_panel == panel and panel.selected_id == "field_engineering"
+		and panel.tree_canvas.camera_position == Vector2(23, 31) and is_equal_approx(panel.tree_canvas.camera_zoom, 0.9)
+		and screen.header.text == str(state.credits) and not screen.delivery_readout.visible,
+		"Income preserves research selection/pan/zoom without a recurring delivery toast")
 	screen.queue_free()
 	await settle()
 
@@ -289,6 +319,6 @@ func run() -> void:
 	rates_and_speeds()
 	stopped_and_boundaries()
 	persistence_and_unlocks()
-	arrival_and_ui()
+	await arrival_and_ui()
 	print("RESEARCH TRAVEL: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

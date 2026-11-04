@@ -273,7 +273,7 @@ func _ready() -> void:
 	add_child(load("res://scripts/research_notice.gd").new())
 	GameState.fleet_changed.connect(_queue_refresh)
 	GameState.research_changed.connect(_queue_refresh)
-	GameState.credits_changed.connect(_queue_refresh)
+	GameState.credits_changed.connect(_on_credits_changed)
 	_refresh()
 	_sync_music()
 	SceneFadeScript.reveal(self)
@@ -672,6 +672,15 @@ func _clear(host: Node) -> void:
 	for child in host.get_children():
 		host.remove_child(child)
 		child.queue_free()
+
+func _on_credits_changed() -> void:
+	header.text = str(GameState.credits)
+	_resize_research_label.call_deferred()
+	var simulation = GameState.expedition_simulation
+	if simulation != null and simulation.state != null \
+			and simulation.state.travel_state == ExpeditionStateData.TravelState.CRUISING:
+		return
+	_queue_refresh()
 
 func _queue_refresh() -> void:
 	if not refresh_queued:
