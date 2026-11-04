@@ -352,8 +352,12 @@ func run() -> void:
 		check(cue.points.size() == 5 and cue.points[0] == cue.points[-1]
 			and Rect2(Vector2.ZERO, research.card_buttons.applied_energy.size).has_point(cue.points[2]),
 			"Research focus has a bounded closed shape independent of color at %s" % resolution)
-		check(screen.details_panel.get_global_rect().encloses(research.summary_host.get_global_rect()),
-			"Exact research costs, effects and error feedback fit the details frame at %s" % resolution)
+		var detail_viewport: ScrollContainer = research.summary_host.get_parent()
+		detail_viewport.ensure_control_visible(research.feedback)
+		await settle()
+		check(screen.details_panel.get_global_rect().encloses(detail_viewport.get_global_rect())
+			and detail_viewport.get_global_rect().encloses(research.feedback.get_global_rect()),
+			"Research details scroll within their frame and save errors remain reachable at %s" % resolution)
 		check(research.tree_canvas.camera_position == camera_before
 			and research.tree_canvas.camera_zoom == zoom_before and state.hangar_snapshot() == research_snapshot,
 			"Research presentation and resize preserve pan/zoom and saved state")

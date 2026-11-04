@@ -67,6 +67,8 @@ Do this UI pass next, before D2-D5 or additional content depth. The world shows 
 
 ### U4 - Copy correctness and acceptance
 
+- [x] Fix invisible research descriptions: remove the zero-height nested scroll area and use the existing side-panel viewport. Native regression checks require actual readable description height and intersection with the visible viewport for every node at all three resolutions, not merely text existing in the scene tree.
+
 - [x] Selected research details retain basic plain-language gameplay descriptions alongside exact mechanics, prerequisites and branch consequences. Equipment-only nodes explicitly disclose that equipment is already selectable at shipyards and research does not automatically refit ships or add a fleet bonus. Keep the tree compact; meaningful descriptions are not redundant text. Focused research passes 150 checks; native research/UI passes 368 checks, selecting every visible node at 640x360, 1280x720 and 1920x1080. Completion toasts retain compact effect summaries. Isolated saves/logs: `.local/checks/research-descriptions`.
 
 - [x] Correct the charter briefing's retired equipment buying/drag-fitting/DEPART instructions to the current fitted Transport/loadout/Map course flow.

@@ -353,10 +353,23 @@ func ui() -> void:
 			await settle()
 			check(text_under(screen.details).contains(ResearchViewModel.description(HangarResearch.view_registry(), id)),
 				"Selected research displays its plain-language description at %s: %s" % [resolution, id])
+			var body: Control = screen.details.find_child("ResearchDescription", true, false)
+			var description: ResourceText = body.get_child(0)
+			check(body.size.y >= description.size.y and description.size.y >= description.get_theme_font_size("normal_font_size"),
+				"Description has real readable height rather than a collapsed nested scroll: " + id)
+			var viewport: ScrollContainer = screen.details.get_parent()
+			viewport.scroll_vertical = 0
+			await settle()
+			check(viewport.get_global_rect().intersection(description.get_global_rect()).size.y
+				>= description.get_theme_font_size("normal_font_size"),
+				"Description is visibly inside the detail viewport at %s: %s" % [resolution, id])
 			check(text_under(screen.details).contains(ResearchViewModel.effect_summary(HangarResearch.view_registry(), id)),
 				"Actual research detail panel shows exact effect at %s: %s" % [resolution, id])
 			check(screen.details.size.x <= screen.details_panel.size.x,
 				"Research behavioral details fit the frame at " + str(resolution))
+			if id == "applied_energy" and DisplayServer.get_name() != "headless":
+				await RenderingServer.frame_post_draw
+				root.get_texture().get_image().save_png("res://.local/research-description-%d.png" % resolution.x)
 	state.research_completion_notices.append("energy_manipulation")
 	await settle()
 	var notice := screen.find_child("ResearchCompletion", true, false)

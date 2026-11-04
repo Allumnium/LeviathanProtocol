@@ -143,14 +143,10 @@ func _refresh_summary() -> void:
 	if row.is_empty():
 		return
 	summary_host.add_child(_label(row.name))
-	var scroll := ScrollContainer.new()
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	summary_host.add_child(scroll)
 	var body := VBoxContainer.new()
+	body.name = "ResearchDescription"
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(body)
+	summary_host.add_child(body)
 	var description := ResearchViewModel.description(registry, selected_id)
 	if not description.is_empty():
 		body.add_child(_label(description))
