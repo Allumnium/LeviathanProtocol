@@ -32,7 +32,7 @@ func run() -> void:
 	var flagship: HangarShip = state.fleet[0]
 	check(flagship.hull_hp == 330 and flagship.get_stats().thrust == 72, "Command flagship: high hull, thrusters fitted")
 	check(flagship.get_stats().shields == 40, "Defensive flagship doubled level I shields")
-	check(state.equipment_inventory.size() == 17, "Starter fleet is fully fitted from default loadouts")
+	check(state.equipment_inventory.size() == 19, "Starter fleet fills every mount from default loadouts")
 	check(state.ship_loadout_id(flagship.id) == "command", "Flagship starts with the Command loadout")
 	var healthy: Dictionary = state.hangar_snapshot()
 	check(healthy.version == 2 and not healthy.ships[0].has("builtins"), "Schema2 has no builtin component health")

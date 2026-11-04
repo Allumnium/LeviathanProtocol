@@ -34,7 +34,7 @@ func run() -> void:
 		check(ship.units == units and state.equipment_inventory == inventory, "Hull hits never mutate equipment or builtin operation")
 	check(ship.get_stats().dps == stats.dps and ship.get_stats().thrust == stats.thrust and ship.get_stats().shields == stats.shields,
 		"All weapons, engines and shields remain operational on severely damaged hull")
-	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 1, "Installed lab remains productive under hull damage")
+	check(ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet())) == 5, "All installed starting labs remain productive under hull damage")
 	check(ship.repair_cost() == 196, "Repair quote is exactly missing whole-ship hull")
 	check(state.save_run_checkpoint() and state.load_run_checkpoint(), "Whole-ship damage roundtrips")
 	ship = state.fleet[0]

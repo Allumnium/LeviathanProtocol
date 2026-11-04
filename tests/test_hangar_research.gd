@@ -22,7 +22,7 @@ func run() -> void:
 		if node.id != "foundation":
 			check(not ResearchViewModel.description(view_registry, node.id).is_empty(),
 				"Every visible research has a basic gameplay description: " + node.id)
-	check(ResearchViewModel.description(view_registry, "guided_munitions").contains("already available")
+	check(ResearchViewModel.description(view_registry, "guided_munitions").contains("Unlocks equipment")
 		and not ResearchViewModel.description(view_registry, "energy_manipulation").contains("does not"),
 		"Descriptions distinguish existing equipment access from actual fleet upgrades")
 	state.run_save_path = "user://ranked-research.json"
@@ -81,12 +81,17 @@ func run() -> void:
 	# equipment that cannot be obtained at the starting port in a natural run.
 	var fixture: Dictionary = state.hangar_snapshot()
 	fixture.credits = 5000
-	fixture.research.research_ids.append("laboratory_ii")
+	if not "laboratory_ii" in fixture.research.research_ids:
+		fixture.research.research_ids.append("laboratory_ii")
 	fixture.research.research_ids.append("laboratory_iii")
 	fixture.research.story_flags["boss_i_defeated"] = true
 	check(state._commit_hangar(fixture), "Late-game fixture validates")
 	check(state.buy_ship("transport"), "Buy ship with L civic mount")
 	var frigate_id: int = state.fleet[-1].id
+	check(state.swap_part(frigate_id, "port", ""), "Clear preinstalled Lab II for ranked fitting fixture")
+	check(state.swap_part(frigate_id, "starboard", ""), "Isolate one ranked lab on each side")
+	check(state.swap_part(state.fleet[1].id, "port", "") and state.swap_part(state.fleet[1].id, "starboard", ""),
+		"Isolate production from the other starting Transport")
 	check(state.swap_part(frigate_id, "port", "research_lab@2"), "Fit exact L Lab II")
 	var lab_ii: String = state.owned_ship(frigate_id).mounts.port.uid
 	check(state.swap_part(frigate_id, "hold", "research_lab@3"), "Fit exact XL Lab III")
@@ -169,7 +174,9 @@ func run() -> void:
 	fixture.research.story_flags["boss_i_defeated"] = true
 	fixture.research.research_ids.append("applied_energy")
 	fixture.research.research_ids.append("disruption_i")
+	fixture.research.research_ids.append("bastion_ii")
 	fixture.research.branch_choices["energy"] = "disruption"
+	fixture.research.branch_choices["survival"] = "bastion"
 	check(state._commit_hangar(fixture), "Previously earned disruption prerequisite remains valid")
 	check(not state.set_research_focus("disruption_ii"), "No new research focus on inactive ability")
 	fixture.research.research_ids.append("disruption_ii")
@@ -180,13 +187,15 @@ func run() -> void:
 	check(not HangarResearch.view_registry().research.any(func(node: Dictionary) -> bool: return node.id == "disruption_ii"), "Inactive research omitted from active tree")
 	# Already-owned inactive equipment can be inspected, removed and sold; it
 	# cannot silently become deployable or be duplicated by fitting another copy.
-	check(state.buy_ship("corsair"), "Legacy deferred equipment host")
+	check(state.buy_ship("corsair", "guardian"), "Legacy deferred equipment host")
 	var host_id: int = state.fleet[-1].id
 	fixture = state.hangar_snapshot()
 	var uid := str(fixture.next_equipment_id)
 	fixture.next_equipment_id += 1
 	fixture.equipment[uid] = {"uid": uid, "equipment_id": "gravitic_snare", "rank": 1}
+	fixture.equipment.erase(fixture.ships[-1].mounts["fore"])
 	fixture.ships[-1].mounts["fore"] = uid
+	fixture.ships[-1].hull_hp = 1
 	HangarSquadrons.update_override(fixture, host_id)
 	check(state._commit_hangar(fixture) and state.load_run_checkpoint(), "Legacy inactive item remains readable")
 	check(state.deployment_error() == "Unequip deferred equipment", "Inactive loadout cannot depart")

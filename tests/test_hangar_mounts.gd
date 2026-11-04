@@ -41,12 +41,13 @@ func run() -> void:
 	check(state.start_new_run(1, 42), "Start general-mount transaction fixture")
 	var fixture: Dictionary = state.hangar_snapshot()
 	fixture.credits = 5000
-	fixture.research.research_ids.append_array(["applied_energy", "laboratory_ii", "bastion_ii", "command_i", "command_ii"])
+	fixture.research.research_ids.append_array(["applied_energy", "bastion_ii", "command_i", "command_ii"])
 	fixture.research.branch_choices["survival"] = "bastion"
 	fixture.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(fixture) and state.buy_ship("transport"), "Buy actual Transport")
 	var transport_id: int = state.fleet[-1].id
 	var uids: Array[String] = []
+	check(state.swap_part(transport_id, "port", ""), "Clear starting lab for transfer fixture")
 	for key in ["research_lab@2", "shield_relay", "tactical_computer"]:
 		check(state.swap_part(transport_id, "port", key), "Transport left accepts " + key)
 		var uid: String = state.owned_ship(transport_id).mounts.port.uid

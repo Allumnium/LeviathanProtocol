@@ -102,9 +102,8 @@ static func description(registry: Dictionary, id: String) -> String:
 	}
 	var text: String = explanations.get(id, "")
 	var node := find(registry, "research", id)
-	if registry.get("equipment_available_without_research", false) and not node.is_empty() \
-			and node.grants.modifiers.is_empty() and node.grants.ability_ids.is_empty():
-		text += "\n\nEquipment is already available for shipyard refits. Completing this research does not automatically refit ships or add a fleet bonus."
+	if not node.is_empty() and not node.grants.equipment_ids.is_empty():
+		text += "\n\nUnlocks equipment and compatible loadouts for shipyard refits. Existing ships are not automatically refitted."
 	return text
 
 static func effect_summary(registry: Dictionary, id: String) -> String:

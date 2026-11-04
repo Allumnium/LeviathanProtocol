@@ -44,11 +44,13 @@ func run() -> void:
 	check(not state.set_research_focus("carrier_i"), "Carrier research requires Guided Munitions")
 	var fixture := original.duplicate(true)
 	fixture.credits = 5000
+	fixture.research.research_ids.append_array(["guided_munitions", "carrier_i", "carrier_ii", "bastion_ii"])
+	fixture.research.branch_choices = {"force_projection": "carrier", "survival": "bastion"}
 	check(state._commit_hangar(fixture), "Carrier fixture validates")
 	check(not state.swap_part(1, "fore", "flight_deck"), "Wrong type/size does not accept a deck")
-	check(state.swap_part(1, "spine", "flight_deck"), "Exact M general mount accepts a deck without research")
+	check(state.swap_part(1, "spine", "flight_deck"), "Exact M general mount accepts a researched deck")
 	var deck_uid: String = state.owned_ship(1).mounts.spine.uid
-	check(state.buy_ship("corsair"), "Buy bomber host")
+	check(state.buy_ship("corsair", "guardian"), "Buy researched bomber host fit")
 	var corsair: HangarShip = state.fleet[-1]
 	check(state.swap_part(corsair.id, "fore", "torpedo_bomber_bay"), "Exact L combat mount accepts bomber bay")
 	var bomber_uid: String = state.owned_ship(corsair.id).mounts.fore.uid

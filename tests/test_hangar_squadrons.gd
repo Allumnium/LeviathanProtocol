@@ -46,8 +46,15 @@ func group(chassis: String) -> Dictionary:
 			return squadron
 	return {}
 
+func unlock_refits() -> void:
+	var data: Dictionary = state.hangar_snapshot()
+	data.research.research_ids.append_array(["applied_energy", "guided_munitions", "civil_hospitality", "field_engineering", "renewal_i"])
+	data.research.branch_choices.survival = "renewal"
+	check(state._commit_hangar(data), "Earn equipment research for squadron action fixtures")
+
 func persistence() -> void:
 	check(state.start_new_run(1, 7701), "Start squadron fixture")
+	unlock_refits()
 	var initial: Dictionary = state.hangar_snapshot()
 	check(HangarCheckpoint.valid(initial) and initial.squadrons.size() == 3, "Initial homogeneous squadrons cover the fleet")
 	check(group("fighter").members == [3, 4] and group("fighter").stance == "seek"
@@ -146,6 +153,7 @@ func fixture(stance: String, carrier := false) -> BattleSimulation:
 
 func actions() -> void:
 	check(state.start_new_run(1, 7702), "Start group-action fixture")
+	unlock_refits()
 	state.credits = 10000
 	var gid: int = group("fighter").id
 	check(state.refit_ship(3, "striker") and state.refit_squadron(gid, "escort"),
@@ -321,6 +329,7 @@ func combat() -> void:
 
 func ui() -> void:
 	check(state.start_new_run(1, 7703), "Start squadron UI fixture")
+	unlock_refits()
 	state.credits = 10000
 	var gid: int = group("fighter").id
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()

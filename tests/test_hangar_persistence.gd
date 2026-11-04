@@ -22,6 +22,8 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://hangar-persistence.json"
 	check(state.start_new_run(1, 808), "Start state")
+	state.current_research_ids.append("applied_energy")
+	check(state.save_run_checkpoint(), "Persist earned laser research before backup recovery tests")
 	var valid: Dictionary = state.hangar_snapshot()
 	check(valid.version == 2 and not valid.ships[0].has("builtins"), "Whole-ship checkpoint has schema 2 and no builtins")
 	check(valid.equipment.values().all(func(instance: Dictionary) -> bool: return not instance.has("hp")), "Equipment saves contain identity rather than durability")

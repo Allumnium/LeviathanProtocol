@@ -526,7 +526,7 @@ func _render_inspection() -> void:
 		var bars := StatBars.new()
 		body.add_child(bars)
 		bars.set_ship(ship)
-		var price := int(chassis.price) if chassis.command > 0 else ShipLoadouts.ship_price(chassis.id, ShipLoadouts.default_for(chassis.id))
+		var price := int(chassis.price) if chassis.command > 0 else ShipLoadouts.ship_price(chassis.id, ShipLoadouts.purchase_for(chassis.id, GameState.current_research_ids))
 		body.add_child(_resource_label("Command %d\nFitted price %d cr" %
 			[chassis.command if chassis.command > 0 else chassis.command_cost, price]))
 		body.add_child(_resource_label(SlotCatalog.chassis_bonuses(chassis)))
@@ -1496,7 +1496,7 @@ func _render_refit_panel() -> void:
 		var heading := UiKit.label("LOADOUT" if not current.is_empty() else "LOADOUT \u00b7 CUSTOM", &"HeaderResearch")
 		heading.name = "LoadoutHeading"
 		refit_panel.add_child(heading)
-		for loadout: Dictionary in ShipLoadouts.for_chassis(owned.chassis_id):
+		for loadout: Dictionary in ShipLoadouts.available_for(owned.chassis_id, GameState.current_research_ids):
 			var fitted: bool = loadout.id == current
 			var option := UiKit.button(str(loadout.name) + ("  FITTED" if fitted else ""),
 				_refit_to.bind(loadout.id), &"")
@@ -1515,7 +1515,7 @@ func _render_refit_panel() -> void:
 		grid.add_theme_constant_override("h_separation", 4)
 		grid.add_theme_constant_override("v_separation", 4)
 		refit_panel.add_child(grid)
-		for item: Dictionary in ShipLoadouts.part_options(slot):
+		for item: Dictionary in ShipLoadouts.part_options(slot, GameState.current_research_ids):
 			var key := ShipLoadouts.key_for(item)
 			var option := UiKit.button(str(item.name),
 				_swap_part_to.bind(slot.id, key), &"")
@@ -1687,7 +1687,7 @@ func _show_squadron_details(group: Dictionary) -> void:
 		details.add_child(option)
 	var loadout := ShipLoadouts.find(group.chassis, group.loadout)
 	details.add_child(_label("Default loadout"))
-	for choice: Dictionary in ShipLoadouts.for_chassis(group.chassis):
+	for choice: Dictionary in ShipLoadouts.available_for(group.chassis, GameState.current_research_ids):
 		var option := _button(choice.name, func() -> void:
 			_result(GameState.refit_squadron(int(group.id), choice.id)))
 		option.name = "SquadronLoadout_" + str(choice.id)
@@ -1699,7 +1699,7 @@ func _show_squadron_details(group: Dictionary) -> void:
 		var reset := _button("Reset %d overrides" % group.overrides.size(),
 			func() -> void: _result(GameState.refit_squadron(int(group.id), group.loadout, true)))
 		reset.name = "ResetOverrides"
-		_shipyard_action(reset)
+		_shipyard_action(reset, ShipLoadouts.available(loadout, GameState.current_research_ids))
 		details.add_child(reset)
 	var cost: int = GameState.squadron_repair_cost(int(group.id))
 	var repair := _button("Repair %d cr" % cost,
@@ -1733,7 +1733,7 @@ func _show_squadron_details(group: Dictionary) -> void:
 		var buy := _button("Buy %d / %d cr" % [squadron_buy_count, price],
 			func() -> void: _result(GameState.buy_ships(group.chassis, squadron_buy_count, int(group.id))))
 		buy.name = "SquadronBuy"
-		_shipyard_action(buy, GameState.credits >= price
+		_shipyard_action(buy, ShipLoadouts.available(loadout, GameState.current_research_ids) and GameState.credits >= price
 			and GameState.used_command() + int(chassis.command_cost) * squadron_buy_count <= GameState.command_limit())
 		details.add_child(buy)
 	var inspect := _button("Inspect ships", _open_ship_editor.bind(int(group.members[0])))
@@ -1950,13 +1950,16 @@ func _shop_ships() -> void:
 		var image := _shop_thumbnail(SurfaceArt.texture(chassis.art), true)
 		image.custom_minimum_size = Vector2(40, 48)
 		row.add_child(image)
-		var loadout := ShipLoadouts.default_for(chassis.id)
+		var loadout := ShipLoadouts.purchase_for(chassis.id, GameState.current_research_ids)
 		var price := ShipLoadouts.ship_price(chassis.id, loadout)
-		var available_to_buy := not loadout.is_empty() and GameState.credits >= price and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
+		if not ShipLoadouts.available(loadout, GameState.current_research_ids):
+			row.queue_free()
+			continue
+		var available_to_buy := GameState.credits >= price and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
 		var button := _shop_button(
 			"%s (%s)" % [chassis.name, loadout.get("name", "")], "%d command" % chassis.command_cost, price, true, available_to_buy,
 			func() -> void:
-				var ok := GameState.buy_ship(chassis.id)
+				var ok := GameState.buy_ship(chassis.id, loadout.id)
 				if ok:
 					AudioManager.play_ui_sfx(&"purchase")
 				_result(ok),

@@ -64,6 +64,8 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://hangar-ui.json"
 	check(state.start_new_run(1, 151), "UI run starts")
+	state.current_research_ids.append("applied_energy")
+	check(state.save_run_checkpoint(), "Persist researched laser fixture before Continue")
 	var menu: Control = load("res://scenes/main_menu.tscn").instantiate()
 	root.add_child(menu)
 	current_scene = menu
@@ -171,6 +173,8 @@ func run() -> void:
 	check(state.owned_ship(1).mounts.port.equipment_id == "laser", "Clicking a mount and a part refits that mount")
 	check(not state.equipment_inventory.has(replaced_uid), "Replaced part is scrapped; there is no stock")
 	state.credits = 5000
+	state.current_research_ids.append_array(["guided_munitions", "siege_i", "siege_ii"])
+	state.research_branch_choices.force_projection = "siege"
 	check(state.save_run_checkpoint(), "Fund ship layout fixtures")
 	for chassis in SlotCatalog.chassis():
 		if int(chassis.command) > 0:
@@ -277,12 +281,17 @@ func run() -> void:
 	await settle()
 	check(screen.shop == null, "X closes shop")
 	var science_fixture: Dictionary = state.hangar_snapshot()
-	science_fixture.research.research_ids.append("laboratory_ii")
+	if not "laboratory_ii" in science_fixture.research.research_ids:
+		science_fixture.research.research_ids.append("laboratory_ii")
 	science_fixture.research.research_ids.append("laboratory_iii")
 	science_fixture.research.story_flags["boss_i_defeated"] = true
 	check(state._commit_hangar(science_fixture), "Late-game research UI fixture")
 	check(state.buy_ship("transport"), "Science ship UI fixture")
 	var science_ship: int = state.fleet[-1].id
+	check(state.swap_part(science_ship, "port", "") and state.swap_part(science_ship, "starboard", ""),
+		"Isolate ranked research UI fixture from preinstalled labs")
+	check(state.swap_part(state.fleet[1].id, "port", "") and state.swap_part(state.fleet[1].id, "starboard", ""),
+		"Isolate production from the starting Transport")
 	check(state.swap_part(science_ship, "port", "research_lab@2"), "Lab II UI fixture")
 	check(state.swap_part(science_ship, "hold", "research_lab@3"), "Lab III UI fixture")
 	await settle()

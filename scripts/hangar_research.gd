@@ -23,7 +23,6 @@ static func registry() -> Dictionary:
 		nodes.append(node)
 	result.research = nodes
 	result["lab_production_by_rank"] = true
-	result["equipment_available_without_research"] = true
 	return result
 
 static func view_registry() -> Dictionary:

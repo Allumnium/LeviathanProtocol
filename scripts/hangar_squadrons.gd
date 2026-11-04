@@ -17,7 +17,7 @@ static func find(groups: Array, id: int) -> Dictionary:
 			return group
 	return {}
 
-static func add_ship(data: Dictionary, entry: Dictionary, group_id := 0) -> void:
+static func add_ship(data: Dictionary, entry: Dictionary, group_id := 0, loadout_id := "") -> void:
 	if not data.has("squadrons"):
 		data.squadrons = []
 	var group := find(data.squadrons, group_id)
@@ -33,7 +33,7 @@ static func add_ship(data: Dictionary, entry: Dictionary, group_id := 0) -> void
 		group = {"id": id, "name": SlotCatalog.find_chassis(entry.chassis).name,
 			"chassis": entry.chassis, "stance": "seek",
 			"formation": entry.formation.duplicate(),
-			"loadout": Loadouts.default_for(entry.chassis).id, "members": [], "overrides": []}
+			"loadout": Loadouts.default_for(entry.chassis).id if loadout_id.is_empty() else loadout_id, "members": [], "overrides": []}
 		data.squadrons.append(group)
 	group.members.append(int(entry.id))
 	update_override(data, int(entry.id))
@@ -52,7 +52,8 @@ static func update_override(data: Dictionary, ship_id: int) -> void:
 		return
 	group.overrides = group.overrides.filter(func(id: Variant) -> bool: return int(id) != ship_id)
 	for entry: Dictionary in data.ships:
-		if int(entry.id) == ship_id and Loadouts.matching(entry.chassis, entry.mounts, data.equipment) != group.loadout:
+		if int(entry.id) == ship_id and not SaveValidation.same(Loadouts.current_keys(entry.mounts, data.equipment),
+				Loadouts.find(group.chassis, group.loadout).mounts):
 			group.overrides.append(ship_id)
 
 static func sync(data: Dictionary) -> void:
@@ -110,7 +111,11 @@ static func valid(data: Dictionary) -> bool:
 			members[int(id)] = true
 			var entry: Dictionary = entries[int(id)]
 			center += Vector2(entry.formation[0], entry.formation[1])
-			if (Loadouts.matching(entry.chassis, entry.mounts, data.equipment) != group.loadout) != overrides.has(int(id)):
+			var loadout := Loadouts.find(group.chassis, group.loadout)
+			var keys := Loadouts.current_keys(entry.mounts, data.equipment)
+			var default_fit := SaveValidation.same(keys, loadout.mounts)
+			var previous_fit := loadout.has("previous_mounts") and SaveValidation.same(keys, loadout.previous_mounts)
+			if (not default_fit) != overrides.has(int(id)) and not (previous_fit and not overrides.has(int(id))):
 				return false
 		center /= group.members.size()
 		if not center.is_equal_approx(Vector2(group.formation[0], group.formation[1])):

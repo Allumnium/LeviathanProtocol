@@ -31,6 +31,7 @@ func run() -> void:
 		broken.score = malformed
 		check(not HangarCheckpoint.valid(broken), "Malformed score rejected")
 	data.score = {"swarm_damage": 125.5, "credits_earned": 249}
+	data.research.research_ids = ["foundation"]
 	data.research.research_ids.append("civil_hospitality")
 	var points := RunScore.breakdown(data)
 	check(points == {"research": 100, "damage": 12, "credits": 24, "leviathan": 0, "total": 136},
@@ -367,7 +368,7 @@ func _test_defeat() -> void:
 	check(battle.defeat_dialog.get_node("Backdrop").color == Color.BLACK, "Game Over fully blacks out the battle")
 	check(battle.defeat_accept_button.text == "ACCEPT DEFEAT"
 		and battle.defeat_accept_button.theme_type_variation == &"DefeatButton", "Defeat action uses red themed button")
-	check(battle.defeat_dialog.get_node("CenterContainer/Panel/Contents/Score").text.contains("RUN SCORE  43"), "Game Over displays persisted score")
+	check(battle.defeat_dialog.get_node("CenterContainer/Panel/Contents/Score").text.contains("RUN SCORE  143"), "Game Over displays persisted score including starting Laboratory II")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
 		await settle()

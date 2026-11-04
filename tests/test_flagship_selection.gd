@@ -159,6 +159,7 @@ func _test_bonuses() -> void:
 		"Defensive flagship shares one flat hull damage reduction and its new name")
 	check(state.start_new_run(1, 351, true, "flagship_science"), "Research bonus fixture")
 	strip_flagship_except("spine")
+	check(state.swap_part(2, "port", "") and state.swap_part(2, "starboard", ""), "Isolate flagship production from starting Transport labs")
 	var snapshot := ScienceRules.snapshot(state.get_deployed_fleet())
 	check(ScienceRules.production_rate(snapshot) == 1.25 and ScienceRules.journey_rp(snapshot, 3) == 3.75,
 		"Research flagship increases host lab output and retains fractions")

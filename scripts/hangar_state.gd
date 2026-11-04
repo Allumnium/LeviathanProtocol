@@ -131,6 +131,11 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	last_battle_report.clear()
 	last_equipment_loot = ""
 	_build_campaign()
+	current_research_ids.assign(ShipLoadouts.starting_research([
+		ShipLoadouts.default_for(flagship_id), ShipLoadouts.default_for("transport"), ShipLoadouts.default_for("fighter")]))
+	for node: Dictionary in HangarResearch.catalog():
+		if node.id in current_research_ids and not node.family_id.is_empty():
+			research_branch_choices[node.family_id] = node.path_id
 	# Every starting ship arrives fully fitted with its class's default loadout.
 	var lead := _add_chassis(flagship_id, true)
 	lead.formation = Vector2.ZERO
@@ -358,6 +363,9 @@ func refit_squadron(group_id: int, loadout_id: String, reset_overrides := false)
 	var loadout := ShipLoadouts.find(str(group.get("chassis", "")), loadout_id)
 	if group.is_empty() or loadout.is_empty():
 		last_save_error = "Unknown squadron loadout."
+		return false
+	if not ShipLoadouts.available(loadout, current_research_ids):
+		last_save_error = "Research this loadout's equipment first."
 		return false
 	var overrides: Array = group.overrides.duplicate()
 	group.loadout = loadout_id
@@ -838,6 +846,9 @@ func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
 		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 		if not SlotCatalog.compatible(slot, item) or not ShipLoadouts.obtainable(item):
 			return false
+		if not ShipLoadouts.researched(item, current_research_ids):
+			last_save_error = "Research this equipment first."
+			return false
 	var data := hangar_snapshot()
 	for entry: Dictionary in data.ships:
 		var armor_before := _fitted_integrity(entry, data.equipment)
@@ -878,6 +889,9 @@ func refit_ship(ship_id: int, loadout_id: String) -> bool:
 	if loadout.is_empty():
 		last_save_error = "Unknown loadout."
 		return false
+	if not ShipLoadouts.available(loadout, current_research_ids):
+		last_save_error = "Research this loadout's equipment first."
+		return false
 	return _refit(ship_id, loadout.mounts)
 
 # Swaps one mount to `key` ("id" or "id@rank"); an empty key strips the mount.
@@ -907,12 +921,15 @@ func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unch
 	if not _can_refit() or owned == null:
 		last_save_error = "Refits are unavailable right now."
 		return false
+	var current := ShipLoadouts.current_keys(owned.mounts)
 	for slot_id: String in target:
 		var item := ShipLoadouts.item_for(str(target[slot_id]))
 		if not SlotCatalog.compatible(ShipLoadouts.slot_by_id(owned.chassis, slot_id), item) or not ShipLoadouts.obtainable(item):
 			last_save_error = "That part does not fit this mount."
 			return false
-	var current := ShipLoadouts.current_keys(owned.mounts)
+		if str(current.get(slot_id, "")) != str(target[slot_id]) and not ShipLoadouts.researched(item, current_research_ids):
+			last_save_error = "Research this equipment first."
+			return false
 	if SaveValidation.same(current, target):
 		if allow_unchanged:
 			return true
@@ -964,10 +981,13 @@ func buy_ships(key: String, count: Variant, group_id := 0, loadout_id := "") -> 
 			return false
 		loadout_id = group.loadout
 	var chassis := SlotCatalog.find_chassis(key)
-	var loadout := ShipLoadouts.default_for(key) if loadout_id.is_empty() else ShipLoadouts.find(key, loadout_id)
+	var loadout := ShipLoadouts.purchase_for(key, current_research_ids) if loadout_id.is_empty() else ShipLoadouts.find(key, loadout_id)
 	var price := ShipLoadouts.ship_price(key, loadout)
 	if not _can_refit() or chassis.is_empty() or int(chassis.command) > 0 or loadout.is_empty():
 		last_save_error = "Ships are unavailable."
+		return false
+	if not ShipLoadouts.available(loadout, current_research_ids):
+		last_save_error = "Research this loadout's equipment first."
 		return false
 	price *= int(count)
 	if credits < price:
@@ -979,7 +999,7 @@ func buy_ships(key: String, count: Variant, group_id := 0, loadout_id := "") -> 
 	var data := hangar_snapshot()
 	for index in range(int(count)):
 		ShipLoadouts.append_ship(data, key, loadout)
-		HangarSquadrons.add_ship(data, data.ships.back(), group_id)
+		HangarSquadrons.add_ship(data, data.ships.back(), group_id, loadout.id)
 	data.credits -= price
 	return _commit_hangar(data)
 

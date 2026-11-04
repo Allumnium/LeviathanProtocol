@@ -316,7 +316,7 @@ func run() -> void:
 		and screen.research_progress.visible and screen.research_progress.value == 1
 		and screen.research_progress.max_value == required and not screen.research_progress.show_percentage,
 		"Header shows technology name and whole-number project progress in a bar")
-	check(screen.research_rate.text == "+1/day" and screen.research_progress.min_value == -1,
+	check(screen.research_rate.text == "+9/day" and screen.research_progress.min_value == -1,
 		"Research progress has a UI-only negative minimum and adjacent daily production")
 	var progress_snapshot: Dictionary = state.hangar_snapshot()
 	screen.research_progress.value = 0
@@ -499,13 +499,13 @@ func run() -> void:
 	research.tree_canvas.camera_position = Vector2(320, 180)
 	research.tree_canvas.camera_zoom = 1.4
 	research.tree_canvas._update_camera()
-	research.card_buttons["laboratory_ii"].pressed.emit()
+	research.card_buttons["guided_munitions"].pressed.emit()
 	await settle()
 	check(screen.research_panel.tree_canvas.camera_position == Vector2(320, 180)
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4,
 		"Selecting research preserves pan and zoom")
-	var research_card: Button = research.card_buttons["laboratory_ii"]
-	research.tree_canvas.camera_position = research.tree_canvas.positions["laboratory_ii"] + research.tree_canvas.CARD_SIZE * 0.5
+	var research_card: Button = research.card_buttons["guided_munitions"]
+	research.tree_canvas.camera_position = research.tree_canvas.positions["guided_munitions"] + research.tree_canvas.CARD_SIZE * 0.5
 	research.tree_canvas._update_camera()
 	var research_camera: Vector2 = research.tree_canvas.camera_position
 	await settle()
@@ -514,9 +514,9 @@ func run() -> void:
 	button(card_center, true, true)
 	button(card_center, false)
 	await settle()
-	check(state.research_focus == "laboratory_ii", "Native double-click sets the research focus")
+	check(state.research_focus == "guided_munitions", "Native double-click sets the research focus")
 	var focus_snapshot: Dictionary = state.hangar_snapshot()
-	screen.research_panel._activate("laboratory_ii")
+	screen.research_panel._activate("guided_munitions")
 	screen.research_panel._activate("laboratory_iii")
 	check(state.hangar_snapshot() == focus_snapshot, "Double-click cannot refocus the same technology or bypass prerequisites")
 	var focus_blocker := FileAccess.open("user://focus-save-blocked", FileAccess.WRITE)
@@ -532,10 +532,10 @@ func run() -> void:
 	check(failed_focus_snapshot == focus_snapshot and not screen.feedback.text.is_empty(),
 		"Failed double-click focus save rolls back state and displays the existing failure notification")
 	state.run_save_path = focus_save_path
-	screen.research_panel._select("laboratory_ii")
+	screen.research_panel._select("guided_munitions")
 	check(screen.research_panel.tree_canvas.camera_position == research_camera
 		and screen.research_panel.tree_canvas.camera_zoom == 1.4
-		and screen.research_panel.selected_id == "laboratory_ii",
+		and screen.research_panel.selected_id == "guided_munitions",
 		"Research focus refresh preserves camera and selection")
 	screen.tabs.get_child(1).pressed.emit()
 	await settle()
@@ -607,7 +607,7 @@ func run() -> void:
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
 		and repair_label.icon_size == screen.find_child("FleetRepairAll", true, false).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo 0 / 20",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n9 RP / day\nCargo 0 / 20",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -623,7 +623,7 @@ func run() -> void:
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
 	var fixture_summary := summary_ship.hangar_summary()
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1310 / 1310\n2 RP / day\nCargo 0 / 30\nPassengers 0 / 4" % [
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1310 / 1310\n10 RP / day\nCargo 0 / 30\nPassengers 0 / 4" % [
 		10.8 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Fleet totals include operational weapons, shields, labs, cargo and passenger capacity: " + fleet_totals.source_text)
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
@@ -637,13 +637,13 @@ func run() -> void:
 	summary_ship.hull_hp -= 15
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1295 / 1310\n2 RP / day\nCargo 0 / 30\nPassengers 0 / 4" % [
+	check(fleet_totals.source_text == "DPS %.1f\nShield %.0f\nHull 1295 / 1310\n10 RP / day\nCargo 0 / 30\nPassengers 0 / 4" % [
 		10.8 + fixture_summary.dps, 40 + fixture_summary.shields],
 		"Damaged hull contributes exact current/max while all fitted equipment and capacity stay operational: " + fleet_totals.source_text)
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n1 RP / day\nCargo 0 / 20",
+	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n9 RP / day\nCargo 0 / 20",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()

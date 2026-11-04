@@ -183,10 +183,11 @@ func transactions() -> void:
 	check(state.start_new_run(1, 642), "Start research/purchase checks")
 	var base: Dictionary = state.hangar_snapshot()
 	for id in ["ammunition_magazine", "railgun", "command_uplink", "tactical_computer"]:
-		check(ShipLoadouts.obtainable(SlotCatalog.find_equipment(id)), "Intermediates are selectable without research")
+		check(ShipLoadouts.obtainable(SlotCatalog.find_equipment(id))
+			and not ShipLoadouts.researched(SlotCatalog.find_equipment(id), state.current_research_ids), "Intermediates require earned research")
 	var fixture := base.duplicate(true)
 	fixture.credits = 5000
-	fixture.research.research_ids.append_array(["guided_munitions", "siege_i", "siege_ii", "command_i", "command_ii"])
+	fixture.research.research_ids.append_array(["applied_energy", "guided_munitions", "siege_i", "siege_ii", "command_i", "command_ii"])
 	fixture.research.branch_choices["force_projection"] = "siege"
 	fixture.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(fixture), "Siege/command prerequisites and branch choices validate")

@@ -2,7 +2,7 @@ extends RefCounted
 
 # Named, fully fitted loadouts per ship class (data/ship_loadouts.json). The
 # first loadout of a class is its default; ships are bought and refitted from
-# these, and single mounts can be swapped for any compatible obtainable part.
+# these, and single mounts can be swapped for compatible researched parts.
 const PATH := "res://data/ship_loadouts.json"
 const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
@@ -21,8 +21,7 @@ static func item_for(key: String) -> Dictionary:
 	var parsed := parse_key(key)
 	return SlotCatalog.find_equipment(parsed.id, parsed.rank)
 
-# Equipment the active game can fit: granted by any active research node and
-# not deferred. Research no longer gates fitting.
+# Catalog eligibility is independent of a run's earned research.
 static func obtainable(item: Dictionary) -> bool:
 	if item.is_empty():
 		return false
@@ -57,15 +56,64 @@ static func _valid(chassis: Dictionary, loadout: Variant) -> bool:
 	if not loadout is Dictionary or not loadout.get("id") is String or not loadout.get("name") is String \
 			or not loadout.get("mounts") is Dictionary:
 		return false
-	for slot_id: Variant in loadout.mounts:
-		var slot := slot_by_id(chassis, str(slot_id))
-		var item := item_for(str(loadout.mounts[slot_id]))
-		if slot.is_empty() or not SlotCatalog.compatible(slot, item) or not obtainable(item):
+	if loadout.mounts.size() != chassis.slots.size():
+		return false
+	for mounts: Variant in [loadout.mounts, loadout.get("previous_mounts", {})]:
+		if not mounts is Dictionary:
 			return false
+		for slot_id: Variant in mounts:
+			if not slot_id is String or not mounts[slot_id] is String:
+				return false
+			var slot := slot_by_id(chassis, slot_id)
+			var item := item_for(mounts[slot_id])
+			if slot.is_empty() or not SlotCatalog.compatible(slot, item) or not obtainable(item):
+				return false
 	return true
 
 static func for_chassis(chassis_id: String) -> Array:
 	return all().get(chassis_id, [])
+
+static func researched(item: Dictionary, research_ids: Array) -> bool:
+	if not obtainable(item):
+		return false
+	var grants := ResearchRules.resolve(research_ids, HangarResearch.catalog())
+	return int(grants.ranks.get(item.id, 0)) >= int(item.rank)
+
+static func available(loadout: Dictionary, research_ids: Array) -> bool:
+	return not loadout.is_empty() and loadout.mounts.values().all(func(key: Variant) -> bool:
+		return researched(item_for(str(key)), research_ids))
+
+static func available_for(chassis_id: String, research_ids: Array) -> Array:
+	return for_chassis(chassis_id).filter(func(loadout: Dictionary) -> bool: return available(loadout, research_ids))
+
+static func purchase_for(chassis_id: String, research_ids: Array) -> Dictionary:
+	var options := available_for(chassis_id, research_ids)
+	return options[0] if not options.is_empty() else {}
+
+static func starting_research(loadouts: Array) -> Array[String]:
+	var ids: Array[String] = ["foundation"]
+	var catalog := HangarResearch.catalog()
+	for loadout: Dictionary in loadouts:
+		for key: Variant in loadout.mounts.values():
+			var item := item_for(str(key))
+			if researched(item, ids):
+				continue
+			for node: Dictionary in catalog:
+				var grants := ResearchRules.resolve([node.id], catalog)
+				if int(grants.ranks.get(item.id, 0)) >= int(item.rank):
+					_add_prerequisites(node.id, ids, catalog)
+					break
+	return ids
+
+static func _add_prerequisites(id: String, ids: Array[String], catalog: Array[Dictionary]) -> void:
+	if id in ids:
+		return
+	for node: Dictionary in catalog:
+		if node.id == id:
+			for parent: String in node.prerequisite_ids:
+				_add_prerequisites(parent, ids, catalog)
+			ids.append(id)
+			return
 
 static func find(chassis_id: String, loadout_id: String) -> Dictionary:
 	for loadout: Dictionary in for_chassis(chassis_id):
@@ -83,11 +131,11 @@ static func slot_by_id(chassis: Dictionary, slot_id: String) -> Dictionary:
 			return slot
 	return {}
 
-# Every obtainable part a mount accepts, cheapest first.
-static func part_options(slot: Dictionary) -> Array[Dictionary]:
+# Researched parts a mount accepts, cheapest first.
+static func part_options(slot: Dictionary, research_ids: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for item in SlotCatalog.equipment():
-		if obtainable(item) and SlotCatalog.compatible(slot, item):
+		if researched(item, research_ids) and SlotCatalog.compatible(slot, item):
 			result.append(item)
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.price) < int(b.price) if int(a.price) != int(b.price) else str(a.name) < str(b.name))

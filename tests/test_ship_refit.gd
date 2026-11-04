@@ -42,20 +42,53 @@ func run() -> void:
 		var options: Array = ShipLoadouts.for_chassis(chassis.id)
 		check(not options.is_empty(), "%s has named loadouts" % chassis.id)
 		for loadout: Dictionary in options:
+			check(loadout.mounts.size() == chassis.slots.size(), "%s/%s fills every mount" % [chassis.id, loadout.id])
 			for slot_id: String in loadout.mounts:
 				var item := ShipLoadouts.item_for(str(loadout.mounts[slot_id]))
 				check(SlotCatalog.compatible(ShipLoadouts.slot_by_id(chassis, slot_id), item) and ShipLoadouts.obtainable(item),
 						"%s/%s/%s fits and is obtainable" % [chassis.id, loadout.id, slot_id])
 	check(not ShipLoadouts.obtainable(SlotCatalog.find_equipment("gravitic_snare")), "Deferred parts are not offered")
-	check(ShipLoadouts.obtainable(SlotCatalog.find_equipment("railgun")), "Parts are available without research")
+	check(ShipLoadouts.obtainable(SlotCatalog.find_equipment("railgun"))
+		and not ShipLoadouts.researched(SlotCatalog.find_equipment("railgun"), ["foundation"]),
+		"Catalog eligibility does not bypass research")
 
+	for flagship: Dictionary in SlotCatalog.flagships():
+		check(state.start_new_run(1, 808, true, flagship.id), "Start fully fitted " + flagship.id)
+		for owned: HangarShip in state.fleet:
+			check(owned.mounts.size() == owned.chassis.slots.size()
+				and ShipLoadouts.available(ShipLoadouts.default_for(owned.chassis_id), state.current_research_ids),
+				"Every starting mount is filled with researched equipment: " + owned.chassis_id)
 	check(state.start_new_run(1, 808), "Start refit fixture")
+	var previous: Dictionary = state.hangar_snapshot()
+	for slot_id: String in ["port", "starboard"]:
+		previous.equipment.erase(previous.ships[1].mounts[slot_id])
+		previous.ships[1].mounts.erase(slot_id)
+	previous.research.research_ids.erase("laboratory_ii")
+	check(state._commit_hangar(previous) and state.load_run_checkpoint()
+		and SaveValidation.same(previous, state.hangar_snapshot()), "Older partial default saves reload without free equipment or research")
+	check(state.start_new_run(1, 808), "Restore complete starting loadouts")
 	for owned: HangarShip in state.fleet:
 		check(state.ship_loadout_id(owned.id) == ShipLoadouts.default_for(owned.chassis_id).id
 				and owned.hull_hp == owned.hull_max, "%s starts fully fitted with its default loadout" % owned.chassis_id)
 	check(loose_equipment() == 0, "There is no loose equipment stock")
 	check(not state.has_method("buy_equipment") and not state.has_method("sell_equipment") and not state.has_method("buy_chassis"),
 			"Equipment buying/selling and chassis buying are gone")
+	var locked_before: Dictionary = state.hangar_snapshot()
+	check(not state.refit_ship(state.fleet[2].id, "striker")
+		and not state.swap_part(state.fleet[2].id, "port", "laser")
+		and SaveValidation.same(locked_before, state.hangar_snapshot()), "Locked fits and parts fail without mutation")
+	check(ShipLoadouts.available_for("fighter", state.current_research_ids).size() == 1,
+		"Only researched named fits are offered")
+	var fighter_group := HangarSquadrons.for_ship(state.squadrons, state.fleet[2].id)
+	check(not state.refit_squadron(int(fighter_group.id), "striker")
+		and not state.buy_ship("fighter", "striker")
+		and not state.swap_part(2, "hold", "research_lab@3")
+		and SaveValidation.same(locked_before, state.hangar_snapshot()),
+		"Squadron refits, fitted purchases and higher ranks share atomic research gates")
+	var unlocked: Dictionary = state.hangar_snapshot()
+	unlocked.research.research_ids.append_array(["applied_energy", "field_engineering", "renewal_i"])
+	unlocked.research.branch_choices.survival = "renewal"
+	check(state._commit_hangar(unlocked), "Earn research for advanced refit fixture")
 
 	# Refit a whole loadout for free, even in credit debt.
 	var fighter := ship("fighter")
@@ -81,6 +114,17 @@ func run() -> void:
 			and fighter.hull_max < hull_max and fighter.hull_hp <= fighter.hull_max, "Removing a part updates hull")
 	check(not state.swap_part(fighter.id, "port", "cargo_hold") and not state.swap_part(fighter.id, "port", "shield_generator"),
 			"Parts must fit the mount's size and type")
+	var previous_research: Dictionary = state.hangar_snapshot()
+	previous_research.research.research_ids.erase("applied_energy")
+	check(state._commit_hangar(previous_research) and state.load_run_checkpoint(), "Older installed unresearched equipment remains readable")
+	var installed_laser: String = state.owned_ship(fighter.id).mounts.port.uid
+	check(state.swap_part(fighter.id, "fore", "hull_plate")
+		and state.owned_ship(fighter.id).mounts.port.uid == installed_laser,
+		"Changing a researched mount preserves existing unresearched equipment and identity")
+	check(state.swap_part(fighter.id, "port", ""), "Older unresearched equipment can be removed")
+	var removed: Dictionary = state.hangar_snapshot()
+	check(not state.swap_part(fighter.id, "port", "laser") and SaveValidation.same(removed, state.hangar_snapshot()),
+		"Removing an older unresearched item does not permit a free replacement")
 	# Loaded cargo must deliver before its hold is replaced.
 	var transport := ship("transport")
 	transport.mounts.hold["load"] = {"kind": "cargo", "quantity": 10, "unit_value": 3, "origin": 0}
@@ -139,6 +183,20 @@ func run() -> void:
 	var panel: Control = screen.details.find_child("RefitPanel", true, false)
 	check(panel != null and screen.details.find_children("*", "ScrollContainer", true, false).is_empty(),
 			"Ships shows a refit panel without stock or scrolling")
+	check(panel.find_child("Loadout_striker", true, false) == null
+		and panel.find_child("Loadout_escort", true, false) == null, "Unresearched named fits are absent from the UI")
+	screen.canvas.slot_selected.emit("port")
+	await settle()
+	check(screen.details.find_child("Part_laser", true, false) == null
+		and screen.details.find_child("Part_mini_turret", true, false) != null,
+		"Mount options show starting weapons but hide unresearched lasers")
+	screen.selected_slot = ""
+	var ui_research: Dictionary = state.hangar_snapshot()
+	ui_research.research.research_ids.append("applied_energy")
+	check(state._commit_hangar(ui_research), "Unlock laser fit in the actual UI")
+	screen._refresh()
+	await settle()
+	panel = screen.details.find_child("RefitPanel", true, false)
 	check(panel.find_child("Loadout_interceptor", true, false).disabled
 			and not panel.find_child("Loadout_striker", true, false).disabled, "Fitted loadout is marked; others can be chosen")
 	check(panel.find_child("Loadout_striker", true, false).text == "Striker",

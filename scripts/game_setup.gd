@@ -160,7 +160,11 @@ func _update_flagship() -> void:
 	flagship_command.text = "Command Points %d" % chassis.command
 	flagship_stats.set_ship(ship)
 	flagship_bonuses.set_content(SlotCatalog.chassis_bonuses(chassis))
-	flagship_description.set_content(chassis.description)
+	var loadouts = preload("res://scripts/ship_loadouts.gd")
+	var research := loadouts.starting_research([loadouts.default_for(chassis.id), loadouts.default_for("transport"), loadouts.default_for("fighter")])
+	research.erase("foundation")
+	flagship_description.set_content(chassis.description + "\n\nStarting research: "
+		+ ResearchViewModel.names(HangarResearch.registry(), "research", research))
 	$CenterContainer/SetupModal/Contents/FlagshipDetails.scroll_vertical = 0
 	status.hide()
 

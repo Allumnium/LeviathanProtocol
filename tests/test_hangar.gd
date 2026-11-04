@@ -28,6 +28,7 @@ func run() -> void:
 	check(state.hangar_snapshot() == original, "Failed refit unchanged")
 	var credits: int = state.credits
 	check(state.buy_ship("drone"), "Buy fitted ship")
+	state.current_research_ids.append("applied_energy")
 	var ship_id: int = state.fleet[-1].id
 	credits = state.credits
 	check(state.swap_part(ship_id, "fore", "laser") and state.credits == credits, "Shipyard part swap is free")

@@ -57,6 +57,7 @@ func run() -> void:
 		state.expedition_simulation.state.event_receipts[authored.id] = true
 	var fixture: Dictionary = state.hangar_snapshot()
 	fixture.credits = 5000
+	fixture.research.research_ids.append("applied_energy")
 	check(state._commit_hangar(fixture), "Fund service fixture")
 	flagship_id = state.fleet[0].id
 	escort_id = state.fleet[2].id
@@ -90,7 +91,7 @@ func run() -> void:
 	check(screen.inspection != null, "Ship inspection remains available in flight")
 	check_no_shipyard("Cruising")
 	denied(func() -> bool: return state.refuel_expedition(), "Cruising refuel")
-	check(state.set_research_focus("applied_energy"), "Research focus remains available in flight")
+	check(state.set_research_focus("guided_munitions"), "Research focus remains available in flight")
 	check(state.move_ships({escort_id: Vector2(-1, -1)}), "Formation edits remain available in flight")
 
 	var simulation = state.expedition_simulation
