@@ -19,6 +19,13 @@ func settle() -> void:
 	for index in range(4):
 		await process_frame
 
+func capture_native(filename: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	await RenderingServer.frame_post_draw
+	check(root.get_texture().get_image().save_png("user://" + filename) == OK,
+		"Save focused native travel research capture: " + filename)
+
 func start(research_ids: Array = []) -> void:
 	check(state.start_new_run(1, 847), "Start travel research fixture")
 	for event: Dictionary in state.expedition_simulation.events:
@@ -60,7 +67,12 @@ func registry_checks() -> void:
 			check(not ResearchRules.validate_registry(invalid).is_empty(), "Reject malformed travel modifier: " + str(value))
 		check(definition.cost_rp == 20 and definition.prerequisite_ids == ["foundation"]
 			and definition.family_id.is_empty(), "Travel upgrades retain costs and do not force branches")
-	check(ResearchViewModel.description(HangarResearch.view_registry(), "field_engineering") == "Cruising uses less fuel."
+	for value: Variant in [0, 1, -1, NAN, INF, "1.25", null, 2.01]:
+		var invalid := registry.duplicate(true)
+		var node := ResearchViewModel.find(invalid, "research", "field_engineering")
+		node.grants.modifiers[1].value = value
+		check(not ResearchRules.validate_registry(invalid).is_empty(), "Reject malformed cruise multiplier: " + str(value))
+	check(ResearchViewModel.description(HangarResearch.view_registry(), "field_engineering") == "Cruise faster using less fuel."
 		and ResearchViewModel.description(HangarResearch.view_registry(), "civil_hospitality") == "Travel earns credits for the expedition.",
 		"Travel descriptions remain short gameplay sentences")
 
@@ -79,11 +91,13 @@ func rates_and_speeds() -> void:
 			state.credits = -10
 			check(state.depart_expedition("refuel_station_1")
 				and state.expedition_simulation.set_speed(speed), "Start researched cruise at speed " + str(speed))
-			advance_seconds(10.0 / speed, frame)
+			advance_seconds(8.0 / speed, frame)
 			var simulation = state.expedition_simulation
 			check(is_equal_approx(simulation.state.traveled_distance_nu, 40)
 				and is_equal_approx(simulation.state.traveled_days, 1),
-				"Travel distance and days remain speed/frame invariant")
+				"Faster cruise covers one day in eight simulation seconds at every speed/frame size")
+			check(is_equal_approx(simulation.state.simulation_seconds, 8),
+				"Research changes cruise distance, not the simulation clock")
 			check(is_equal_approx(simulation.state.fuel, 97),
 				"Field Engineering reduces actual fuel consumption by exactly 25 percent")
 			check(state.credits == -6 and state.run_score.credits_earned == 4,
@@ -98,6 +112,44 @@ func rates_and_speeds() -> void:
 		check(not simulation.advance(1.0, multiplier) and not simulation.last_error.is_empty()
 			and SaveValidation.same(before, simulation.state.snapshot()),
 			"Invalid fuel multipliers fail explicitly before mutation")
+	for multiplier: float in [0.0, -0.5, 0.99, 2.01, INF, NAN]:
+		check(not simulation.advance(1.0, 1.0, multiplier) and not simulation.last_error.is_empty()
+			and SaveValidation.same(before, simulation.state.snapshot()),
+			"Invalid cruise multipliers fail explicitly before mutation")
+
+func cruise_timing() -> void:
+	var snapshots: Array[Dictionary] = []
+	for researched: bool in [false, true]:
+		start(["field_engineering", "civil_hospitality"] if researched else ["civil_hospitality"])
+		state.fleet[0].hull_hp -= 100
+		var hull_before: float = state.fleet[0].hull_hp
+		var repair_rate: float = state.self_repair_rate(state.fleet[0])
+		check(state.depart_expedition("refuel_station_1"), "Start equal-time cruise comparison")
+		advance_seconds(2)
+		var simulation = state.expedition_simulation
+		snapshots.append(simulation.state.snapshot())
+		check(is_equal_approx(state.fleet[0].hull_hp - hull_before, repair_rate * 2),
+			"Faster cruise does not accelerate simulation-time hull repair")
+		check(is_equal_approx(state.expedition_cruise_rate(), 5 if researched else 4),
+			"Shared effective cruise rate derives from earned research")
+	check(is_equal_approx(snapshots[1].traveled_distance_nu, snapshots[0].traveled_distance_nu * 1.25)
+		and is_equal_approx(snapshots[1].simulation_seconds, snapshots[0].simulation_seconds),
+		"Field Engineering moves exactly 25 percent farther in equal simulation time")
+	var boundaries: Array[Dictionary] = []
+	for researched: bool in [false, true]:
+		start(["field_engineering"] if researched else [])
+		var simulation = state.expedition_simulation
+		simulation.state.event_receipts.erase("first_contact")
+		check(state.depart_expedition("refuel_station_1") and simulation.set_speed(20),
+			"Start fast-forward zone admission fixture")
+		check(state.advance_expedition(10, true).ok and simulation.state.pending_event_id == "first_contact",
+			"Faster cruise still admits authored zone encounters")
+		boundaries.append(simulation.state.snapshot())
+	check(Vector2(boundaries[0].position_nu[0], boundaries[0].position_nu[1]).is_equal_approx(
+			Vector2(boundaries[1].position_nu[0], boundaries[1].position_nu[1]))
+		and is_equal_approx(boundaries[0].traveled_distance_nu, boundaries[1].traveled_distance_nu)
+		and boundaries[1].simulation_seconds < boundaries[0].simulation_seconds,
+		"Authored zone boundary is unchanged and reached sooner with cruise research")
 
 func stopped_and_boundaries() -> void:
 	start(["civil_hospitality", "field_engineering"])
@@ -160,13 +212,13 @@ func stopped_and_boundaries() -> void:
 func persistence_and_unlocks() -> void:
 	start(["civil_hospitality", "field_engineering"])
 	check(state.depart_expedition("refuel_station_1"), "Start fractional-income cruise")
-	advance_seconds(1)
+	advance_seconds(0.8)
 	var before: Dictionary = state.hangar_snapshot()
 	check(state.load_run_checkpoint() and SaveValidation.same(before, state.hangar_snapshot()),
 		"Continue preserves partial credit distance, fuel and progress without new save fields")
 	check(state.advance_expedition(0, true).income == 0 and state.credits == before.credits,
 		"Continue cannot repay past distance")
-	advance_seconds(1.5)
+	advance_seconds(1.2)
 	check(state.credits == before.credits + 1 and state.run_score.credits_earned == 1
 		and is_equal_approx(state.expedition_simulation.state.fuel, 99.25),
 		"Partial travel combines across Continue into exactly one credit")
@@ -175,12 +227,12 @@ func persistence_and_unlocks() -> void:
 	before = state.hangar_snapshot()
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-travel-research.json"
-	var failed: Dictionary = state.advance_expedition(2.5, true)
+	var failed: Dictionary = state.advance_expedition(2, true)
 	check(not failed.ok and failed.income == 0 and not failed.error.is_empty()
 		and SaveValidation.same(before, state.hangar_snapshot()),
 		"Failed travel save rolls back credits, score, fuel, distance, labs and health together")
 	state.run_save_path = path
-	check(state.advance_expedition(2.5, true).income == 1 and state.credits == before.credits + 1,
+	check(state.advance_expedition(2, true).income == 1 and state.credits == before.credits + 1,
 		"Retry earns the rolled-back income exactly once")
 
 	start()
@@ -191,15 +243,18 @@ func persistence_and_unlocks() -> void:
 	proposal.research.research_ids.append_array(["civil_hospitality", "field_engineering"])
 	state.run_save_path = "res://project.godot/no-travel-research.json"
 	check(not state._commit_hangar(proposal) and SaveValidation.same(before, state.hangar_snapshot())
-		and is_equal_approx(state.expedition_fuel_rate(), 0.1),
+		and is_equal_approx(state.expedition_fuel_rate(), 0.1)
+		and is_equal_approx(state.expedition_cruise_rate(), 4),
 		"Failed research transaction leaves future travel rates unchanged")
 	state.run_save_path = path
 	check(state._commit_hangar(proposal) and state.credits == before.credits
-		and is_equal_approx(state.expedition_fuel_rate(), 0.075), "Earned upgrades affect future travel without retroactive payouts")
+		and is_equal_approx(state.expedition_fuel_rate(), 0.075)
+		and is_equal_approx(state.expedition_cruise_rate(), 5), "Earned upgrades affect future travel without retroactive payouts")
 	check(state.load_run_checkpoint() and state.current_research_ids.has("civil_hospitality")
-		and is_equal_approx(state.expedition_fuel_rate(), 0.075),
+		and is_equal_approx(state.expedition_fuel_rate(), 0.075)
+		and is_equal_approx(state.expedition_cruise_rate(), 5),
 		"Already-earned upgrades derive their effects on Continue")
-	advance_seconds(2.5)
+	advance_seconds(2)
 	check(state.credits == before.credits + 1
 		and is_equal_approx(state.expedition_simulation.state.fuel, float(before.expedition.fuel) - 0.75),
 		"Only new distance receives researched income and fuel economy")
@@ -228,11 +283,12 @@ func persistence_and_unlocks() -> void:
 		"Start cruise with nearly completed fuel research")
 	result = state.advance_expedition(1, true)
 	check(result.ok and not result.research_done.is_empty()
-		and is_equal_approx(state.expedition_simulation.state.fuel, 99.6),
-		"Fuel research does not discount the frame that completed it")
-	advance_seconds(2.5)
+		and is_equal_approx(state.expedition_simulation.state.fuel, 99.6)
+		and is_equal_approx(state.expedition_simulation.state.traveled_distance_nu, 4),
+		"Travel research neither discounts nor accelerates the frame that completed it")
+	advance_seconds(2)
 	check(is_equal_approx(state.expedition_simulation.state.fuel, 98.85),
-		"Fuel research starts reducing consumption on subsequent travel")
+		"Travel research starts increasing speed and reducing consumption on subsequent travel")
 
 func arrival_and_ui() -> void:
 	start(["civil_hospitality", "field_engineering"])
@@ -282,6 +338,13 @@ func arrival_and_ui() -> void:
 			check(text.contains(quote) and (researched or text.contains("out of range"))
 				and (not researched or not text.contains("out of range")),
 				"Actual Map fuel quote and range use the researched consumption at " + str(resolution))
+			var destination: Dictionary = state.expedition_simulation.locations["refuel_station_1"]
+			var distance: float = state.expedition_simulation.state.position_nu.distance_to(Vector2(destination.position[0], destination.position[1]))
+			var rate := 5.0 if researched else 4.0
+			check(text.contains("ETA %ds at 1x · %ds at 10x" % [ceili(distance / rate), ceili(distance / rate / 10)]),
+				"Selected-trip ETA uses the researched cruise rate at " + str(resolution))
+			if resolution == Vector2i(1280, 720) and researched:
+				await capture_native("cruise-map.png")
 	var proposal: Dictionary = state.hangar_snapshot()
 	proposal.research.research_ids = ["foundation", "civil_hospitality", "field_engineering"]
 	check(state._commit_hangar(proposal) and state.depart_expedition("refuel_station_1"),
@@ -294,7 +357,13 @@ func arrival_and_ui() -> void:
 	map.camera_position = Vector2(17, 29)
 	map.camera_zoom = 0.8
 	map.user_moved = true
-	check(state.advance_expedition(2.5, true).income == 1, "Earn one visible income tick on the Map")
+	check(state.advance_expedition(2, true).income == 1, "Earn one visible income tick on the Map")
+	screen._update_expedition_readouts()
+	var remaining: float = state.expedition_simulation.state.position_nu.distance_to(
+		Vector2(state.expedition_simulation.locations["refuel_station_1"].position[0],
+			state.expedition_simulation.locations["refuel_station_1"].position[1]))
+	check(screen.feedback.text.contains("ETA %ds" % ceili(remaining / 5)),
+		"Underway ETA shares the researched cruise rate")
 	await settle()
 	check(screen.graph == map and map.camera_position == Vector2(17, 29) and is_equal_approx(map.camera_zoom, 0.8)
 		and screen.header.text == str(state.credits) and not screen.refresh_queued,
@@ -306,12 +375,13 @@ func arrival_and_ui() -> void:
 	panel._select("field_engineering")
 	panel.tree_canvas.camera_position = Vector2(23, 31)
 	panel.tree_canvas.camera_zoom = 0.9
-	check(state.advance_expedition(2.5, true).income == 1, "Earn one visible income tick in Research")
+	check(state.advance_expedition(2, true).income == 1, "Earn one visible income tick in Research")
 	await settle()
 	check(screen.research_panel == panel and panel.selected_id == "field_engineering"
 		and panel.tree_canvas.camera_position == Vector2(23, 31) and is_equal_approx(panel.tree_canvas.camera_zoom, 0.9)
 		and screen.header.text == str(state.credits) and not screen.delivery_readout.visible,
 		"Income preserves research selection/pan/zoom without a recurring delivery toast")
+	await capture_native("cruise-research.png")
 	screen.queue_free()
 	await settle()
 
@@ -321,6 +391,7 @@ func run() -> void:
 	state.credits_changed.connect(func() -> void: credit_notifications += 1)
 	registry_checks()
 	rates_and_speeds()
+	cruise_timing()
 	stopped_and_boundaries()
 	persistence_and_unlocks()
 	await arrival_and_ui()

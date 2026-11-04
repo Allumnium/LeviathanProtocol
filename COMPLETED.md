@@ -2,6 +2,13 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-04 - Faster cruise research (D4 increment)
+
+- Field Engineering now adds 25% cruise speed alongside its existing 25% fuel-per-distance reduction. Actual movement and both ETA displays share the researched rate; one short detail/toast sentence covers both benefits.
+- Simulation-time repair/combat/idle clocks, journey distance-based fuel/research/income and authored encounter positions remain unchanged. Effects derive from existing earned research on Continue and start after the earning frame; no save fields, equipment, price or prerequisite changes.
+- Focused isolated verification: travel research 237 headless / 239 native checks; default navigation 167 checks, all zero failures. Covered speed/frame invariance, fuel/event/arrival clipping, authored zone admission, mid-route unlocks, Continue, atomic rollback, both ETAs and three-resolution UI; reviewed native Map/research captures. Existing renderer shutdown warnings remain; no full baseline run.
+- Random-encounter reduction remains deferred/open because the demo uses authored encounters, not a random-encounter system. Publishing remains blocked by the missing Git remote.
+
 ## 2026-11-04 - Incremental delivery permission
 
 - Updated the personal Godot instructions to authorize automatic task-scoped staging, verified incremental commits and pushes to configured upstreams, without repeated approval. Preserve unrelated work; never force-push or guess a remote.

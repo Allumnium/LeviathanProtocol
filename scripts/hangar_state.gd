@@ -672,6 +672,10 @@ func expedition_fuel_multiplier() -> float:
 func expedition_fuel_rate() -> float:
 	return float(expedition_simulation.tuning.fuel_per_nav_unit) * expedition_fuel_multiplier()
 
+func expedition_cruise_rate() -> float:
+	var multiplier := float(research_grants().modifiers.get("cruise_speed_multiplier", {}).get("value", 1.0))
+	return expedition_simulation.cruise_rate(multiplier)
+
 func stranded() -> bool:
 	var simulation = expedition_simulation
 	return simulation != null and simulation.state != null and not battle_pending and not run_ended \
@@ -747,7 +751,8 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 	var modifiers: Dictionary = research_grants().modifiers
 	var income_rate := float(modifiers.get("travel_credits_per_day", {}).get("value", 0.0))
 	var fuel_multiplier := float(modifiers.get("cruise_fuel_multiplier", {}).get("value", 1.0))
-	if not simulation.advance(delta, fuel_multiplier):
+	var cruise_multiplier := float(modifiers.get("cruise_speed_multiplier", {}).get("value", 1.0))
+	if not simulation.advance(delta, fuel_multiplier, cruise_multiplier):
 		simulation.restore(sim_before)
 		result.ok = false
 		result.error = "Navigation error: " + simulation.last_error

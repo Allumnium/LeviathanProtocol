@@ -83,7 +83,7 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 static func description(_registry: Dictionary, id: String) -> String:
 	var explanations := {
 		"applied_energy": "Lasers strike enemies with beams.",
-		"field_engineering": "Cruising uses less fuel.",
+		"field_engineering": "Cruise faster using less fuel.",
 		"guided_munitions": "Guided missiles strike enemies; point defense intercepts incoming missiles.",
 		"laboratory_ii": "Labs generate research while traveling.",
 		"laboratory_iii": "Unlocks more productive research labs.",
@@ -141,6 +141,7 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 	for modifier: Dictionary in node.grants.modifiers:
 		match modifier.id:
 			"cruise_fuel_multiplier": lines.append("Cruise fuel use reduced by %d%%" % roundi((1.0 - float(modifier.value)) * 100))
+			"cruise_speed_multiplier": lines.append("Cruise speed increased by %d%%" % roundi((float(modifier.value) - 1.0) * 100))
 			"travel_credits_per_day": lines.append("%d cr per travel day" % int(modifier.value))
 			"prismatic_lasers": lines.append("Laser / Double Laser: continuous beams\nRamp to 2x DPS over 4s on one target\nChanging targets or losing contact resets the ramp")
 			"splinter_missiles": lines.append("Missile Rack: splits into 3 near target\nEach deals half damage; all interceptable\nOne missile spent per parent, not per fragment")

@@ -12,7 +12,7 @@ Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS
 
 Research changes fleet behavior, not access to ordinary equipment. Keep the earned Prismatic Lasers, Siege I, Bastion II, Field Engineering and Civil Hospitality effects. Do not grant completed research/branches to make starting fits legal.
 
-- [ ] Remaining travel research: faster cruise / fewer random encounters.
+- [ ] Fewer random encounters: deferred until a random-encounter system exists; do not suppress authored/story encounters.
 - [ ] Activated combat abilities with cooldowns (build on the existing ability bar).
 - [ ] Research raises the command limit as long-term fleet growth. Keep a few exclusive branch choices so runs differ.
 

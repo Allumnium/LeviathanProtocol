@@ -266,11 +266,13 @@ func _admit_event(event: Dictionary) -> void:
 	_emit_boundary(State.BoundaryKind.ENCOUNTER, {"event_id": event.id})
 
 
-func advance(real_delta: float, fuel_multiplier := 1.0) -> bool:
+func advance(real_delta: float, fuel_multiplier := 1.0, cruise_multiplier := 1.0) -> bool:
 	if not _configured() or not SaveValidation.number(real_delta) or real_delta < 0.0:
 		return _fail("Invalid expedition frame duration.")
 	if not is_finite(fuel_multiplier) or fuel_multiplier <= 0.0 or fuel_multiplier > 1.0:
 		return _fail("Invalid expedition fuel multiplier.")
+	if not is_finite(cruise_multiplier) or cruise_multiplier < 1.0 or cruise_multiplier > 2.0:
+		return _fail("Invalid expedition cruise multiplier.")
 	if _paused() or state.departure_choice_pending or state.travel_state == State.TravelState.DEFEAT:
 		return true
 	var effective_speed := 1 if state.travel_state in [State.TravelState.ENGAGED,
@@ -283,7 +285,7 @@ func advance(real_delta: float, fuel_multiplier := 1.0) -> bool:
 		state.simulation_tick += 1
 		state.simulation_seconds += tick
 		if state.travel_state == State.TravelState.CRUISING:
-			if not _advance_cruise(tick, fuel_multiplier):
+			if not _advance_cruise(tick, fuel_multiplier, cruise_multiplier):
 				return false
 			if boundary_sequence != prior_boundary_sequence:
 				accumulator = 0.0
@@ -295,7 +297,7 @@ func advance(real_delta: float, fuel_multiplier := 1.0) -> bool:
 	return true
 
 
-func _advance_cruise(delta: float, fuel_multiplier: float) -> bool:
+func _advance_cruise(delta: float, fuel_multiplier: float, cruise_multiplier: float) -> bool:
 	var destination: Dictionary = locations.get(state.destination_location_id, {})
 	if destination.is_empty():
 		return _fail("Active destination is missing from the world.")
@@ -305,7 +307,7 @@ func _advance_cruise(delta: float, fuel_multiplier: float) -> bool:
 	if distance_remaining <= 0.000001:
 		_arrive(destination)
 		return true
-	var step_distance := minf(float(tuning.cruise_units_per_sim_second) * delta, distance_remaining)
+	var step_distance := minf(cruise_rate(cruise_multiplier) * delta, distance_remaining)
 	var event := Events.next_event(events, state.event_receipts, state.flags)
 	var event_distance := INF if event.is_empty() else maxf(0.0,
 			float(event.distance_nu) - state.traveled_distance_nu)
@@ -341,6 +343,10 @@ func _advance_cruise(delta: float, fuel_multiplier: float) -> bool:
 		state.position_nu = target
 		_arrive(destination)
 	return true
+
+
+func cruise_rate(multiplier := 1.0) -> float:
+	return float(tuning.cruise_units_per_sim_second) * multiplier
 
 
 func _arrive(location: Dictionary) -> void:

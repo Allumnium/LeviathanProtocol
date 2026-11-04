@@ -21,6 +21,8 @@ static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool
 	match modifier.get("id", ""):
 		"cruise_fuel_multiplier":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value < 1
+		"cruise_speed_multiplier":
+			return _number(modifier.get("value")) and modifier.value > 1 and modifier.value <= 2
 		"travel_credits_per_day":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 100 \
 				and modifier.value == floor(modifier.value)

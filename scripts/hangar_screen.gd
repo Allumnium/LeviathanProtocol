@@ -1120,7 +1120,7 @@ func _update_expedition_readouts() -> void:
 			ExpeditionStateData.TravelState.SETTLING,
 			ExpeditionStateData.TravelState.REGROUPING
 		] else state.requested_speed
-		var eta: float = distance / (float(simulation.tuning.cruise_units_per_sim_second) * effective_speed)
+		var eta: float = distance / (GameState.expedition_cruise_rate() * effective_speed)
 		var paused: bool = not state.pause_reasons.is_empty()
 		feedback.text = "TO %s · %d NU · %s" % [
 			str(destination.get("name", "UNKNOWN")).to_upper(), roundi(distance),
@@ -2126,7 +2126,7 @@ func _render_map_details() -> void:
 	if not str(location.get("description", "")).is_empty():
 		map_details.add_child(_label(location.description))
 	var distance: float = state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
-	var cruise := float(simulation.tuning.cruise_units_per_sim_second)
+	var cruise: float = GameState.expedition_cruise_rate()
 	var lines: PackedStringArray = []
 	if distance > 0.01:
 		var fuel_needed: float = distance * GameState.expedition_fuel_rate()
