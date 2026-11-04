@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-04 - Unused resource archive
+
+- Moved 405 unused tracked resources (sprites/textures, seven font alternatives, eleven audio tracks/cues, source packs and editor backups) plus 353 import sidecars into [unused_resources/](unused_resources/), preserving all file bytes. Original relative layout is retained except one preview filename shortened for Windows; [manifest.json](unused_resources/manifest.json) records exact original paths, sizes and SHA-256 hashes for restoration. A `.gdignore` excludes the archive from Godot imports/exports.
+- Kept resources referenced by runtime, catalogs or runnable tests, including dynamically paired surface maps, bitmap font pages and font license metadata. Untracked editor files were left untouched.
+- Verified all 758 moved files against source hashes and Git originals; retained assets are unchanged and active code/catalog/test references remain valid. Isolated native resource/startup check completed 516 checks with zero failures, loading retained resources and opening menu, Map, Fleet, Ships and Research; reviewed menu/Map/Ships captures. Test-only raw-font-image export warning and renderer shutdown diagnostics were emitted; no script/parse errors. No full suites run.
+
 ## 2026-11-04 - Documentation cleanup
 
 - Archived 45 superseded documents plus five former-guidance/history snapshots under [docs/history/](docs/history/). Current slice/D4/D5 stay active; older E01-E14 work is deferred, not completed.

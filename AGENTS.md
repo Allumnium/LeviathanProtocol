@@ -8,6 +8,7 @@
 - [COMPLETED.md](COMPLETED.md): concise delivery record.
 - [docs/STORY_SPEC.md](docs/STORY_SPEC.md): narrative reference, not an implementation backlog.
 - [docs/history/](docs/history/): archived plans and reports, **not current requirements**. Do not load them routinely or restore retired behavior from them.
+- [unused_resources/](unused_resources/): archived assets, excluded from Godot by `.gdignore`. Do not reference these from active code; its manifest records restoration paths.
 
 ## Workflow
 

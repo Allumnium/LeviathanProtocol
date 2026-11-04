@@ -84,6 +84,8 @@ Require an **exact** S/M/L/XL size match. Current artwork-based category restric
 
 ## UI and artwork
 
+- [unused_resources/](../unused_resources/) holds confirmed-unused tracked resources and their import sidecars in the original relative layout (one long preview filename is shortened for Windows). Its `.gdignore` excludes the archive from Godot imports/exports; local `.gitattributes` prevents checkout line-ending changes from invalidating archived hashes. [manifest.json](../unused_resources/manifest.json) records original paths and SHA-256 hashes for restoration; restore source plus sidecar together. Do not reference archived files from active code or remove the ignore marker.
+
 - Keep Starhull/crisp bitmap sizing and shared [ui_theme.tres](../themes/ui_theme.tres) styles. Use supplied mapped bars/panels without distorting source artwork; cache textures outside draw loops.
 - Concise, necessary text only; prefer recognizable instruments/icons and in-world cues. Preserve names, exact costs, important consequences and errors. No hover tooltips, Tab/arrow UI cycling or focus outlines; caret/gameplay/canvas controls remain allowed.
 - Use the shared X for windows. Preserve actual supported-resolution layout and accessible native input. Formation refreshes retain pan/zoom; do not auto-fit.
