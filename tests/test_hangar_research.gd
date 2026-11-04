@@ -22,11 +22,14 @@ func run() -> void:
 		if node.id != "foundation":
 			check(not ResearchViewModel.description(view_registry, node.id).is_empty(),
 				"Every visible research has a basic gameplay description: " + node.id)
-	check(ResearchViewModel.description(view_registry, "guided_munitions").contains("available from the start")
+			check(not ResearchViewModel.description(view_registry, node.id).contains("available from the start")
+				and not ResearchViewModel.description(view_registry, node.id).contains("required to fit it"),
+				"Research descriptions omit starting-access boilerplate: " + node.id)
+	check(not ResearchViewModel.description(view_registry, "guided_munitions").contains("Unlocks")
 		and ResearchViewModel.description(view_registry, "carrier_ii").contains("Unlocks")
 		and ResearchViewModel.description(view_registry, "laboratory_iii").contains("Unlocks")
-		and not ResearchViewModel.description(view_registry, "energy_manipulation").contains("available from the start"),
-		"Descriptions distinguish existing equipment access from actual fleet upgrades")
+		and ResearchViewModel.description(view_registry, "energy_manipulation").contains("sustained beams"),
+		"Descriptions retain actual advanced unlocks and gameplay upgrades")
 	state.run_save_path = "user://ranked-research.json"
 	check(state.start_new_run(1, 42), "Start rank fixture")
 	var bank: Dictionary = state.hangar_snapshot()

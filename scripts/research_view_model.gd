@@ -112,8 +112,6 @@ static func description(registry: Dictionary, id: String) -> String:
 				unlocks.append("Research Lab %d" % int(rank.rank))
 		if not unlocks.is_empty():
 			text += "\n\nUnlocks %s and compatible shipyard loadouts. Existing ships are not automatically refitted." % ", ".join(unlocks)
-		elif not node.grants.equipment_ids.is_empty() or not node.grants.ranks.is_empty():
-			text += "\n\nThis equipment is available from the start; researching this node is not required to fit it."
 	return text
 
 static func effect_summary(registry: Dictionary, id: String) -> String:

@@ -41,7 +41,7 @@ Regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd) runs 
 
 Research changes how existing equipment behaves, without new items, artwork or save fields. Earned research IDs, costs, prerequisites and exclusive branch choices remain intact; Continue derives the same battle effects from the saved research. The research tree, completion toast and installed-part inspection disclose the actual effects.
 
-Selecting any visible research shows a basic plain-language description in the detail panel, followed by exact mechanics and requirements. Descriptions distinguish initially available equipment from the four advanced equipment unlocks; research never automatically refits existing ships. Descriptions do not claim deferred activated abilities or retired adjacency effects; the tree and completion toast remain compact.
+Selecting any visible research shows a basic plain-language description in the detail panel, followed by exact mechanics and requirements. Descriptions disclose actual advanced equipment unlocks without starting-access boilerplate; research never automatically refits existing ships. Descriptions do not claim deferred activated abilities or retired adjacency effects; the tree and completion toast remain compact.
 
 Research details use the side panel's existing scroll viewport, not a nested expanding scroll area: descriptions retain their content height and remain visible immediately below the selected name.
 
