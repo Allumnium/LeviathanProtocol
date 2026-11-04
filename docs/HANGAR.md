@@ -35,7 +35,7 @@ The selected squadron panel preserves meaningful condition readouts (summed curr
 
 Defending carriers launch only against nearby threats, and their sorties obey the flagship guard radius. Evading carriers do not launch automatically or spend replacements; explicit attack orders override this too.
 
-Regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd) runs headless and native in the baseline. Its 179 focused checks cover malformed saves, Continue, unique ownership, group rollback, overrides, load retention, aggregate condition/transport readouts, combat targeting/movement/carriers, three-resolution layouts, real pointer group actions, block/box selection and preserved formation camera. Full D3 baseline acceptance is tracked in [TODO.md](../TODO.md).
+Regressions: [test_hangar_squadrons.gd](../tests/test_hangar_squadrons.gd) runs headless and native in the baseline. Its 179 focused checks cover malformed saves, Continue, unique ownership, group rollback, overrides, load retention, aggregate condition/transport readouts, combat targeting/movement/carriers, three-resolution layouts, real pointer group actions, block/box selection and preserved formation camera. Historical D3 acceptance is recorded in [COMPLETED.md](../COMPLETED.md).
 
 ## Behavioral combat research (fleet-command D4)
 
@@ -123,7 +123,7 @@ Buying ships, refits, part swaps, salvaging ships and paid repairs require docki
 
 The backend validates service access before mutation or saving. Unavailable controls retain the existing layout with a short reason. Leaving a shipyard closes the ship shop and salvage confirmations and disables refit buttons with a reason; arriving restores applicable actions in place without rebuilding the Fleet view or resetting its pan/zoom. Equipment/ship inspection, research focus and formation edits remain available underway. User pause permits docked services; combat and save-error pause block them.
 
-Run [the baseline](../tests/run_baseline.ps1), optionally with `-Native`, using its isolated APPDATA. [Station-service tests](../tests/test_expedition_services.gd) cover access, unchanged state on rejection, Continue, refueling-only stations and UI cancellation/restoration.
+Run focused cases/files relevant to the service change with isolated APPDATA. [Station-service tests](../tests/test_expedition_services.gd) cover access, unchanged state on rejection, Continue, refueling-only stations and UI cancellation/restoration. The broad [baseline](../tests/run_baseline.ps1) is for explicit user requests, not routine service edits.
 [Arrival tests](../tests/test_expedition_arrival.gd) cover required choices, Continue pause, station/POI reloads and failed-save/retry transactions in headless and native runs.
 
 ## First travel interruption
@@ -422,7 +422,9 @@ The square builder, material shop/fleet panel, blueprint-library dialog, main-me
 
 ## Validation
 
-Run `powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_baseline.ps1 -Native`. It uses isolated APPDATA and the installed Godot console. The current baseline covers the physical game plus shared combat/research/archive readers. The earlier grid-era runner is preserved under `docs/history/run_baseline_PRE_HANGAR.ps1.txt`; its retired UI expectations are not current hangar requirements.
+Run only the smallest relevant test cases/files. Set APPDATA to a dedicated directory under `.local/checks` before launching the Godot console with `--headless --path . --script res://tests/test_<affected_area>.gd`; for a focused native visual/interaction check, replace `--headless` with `--rendering-method gl_compatibility`. Restore APPDATA afterward. Require the suite's completed summary and absence of script/parse errors, not an exit code alone. Documentation-only work needs document/link checks rather than game tests.
+
+Do not run full baselines, all campaign variants or broad native acceptance unless explicitly requested. Ask before expanding focused coverage into a broad run; do not rerun unchanged passing checks. The optional broad runner is `powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_baseline.ps1 -Native`; it isolates APPDATA and covers physical gameplay plus shared combat/research/archive readers. Historical acceptance is in [COMPLETED.md](../COMPLETED.md), not a standing retest requirement. The earlier grid-era runner under `docs/history/run_baseline_PRE_HANGAR.ps1.txt` describes retired behavior.
 
 Hangar-specific checks cover exact fitting, physical ownership, credit charging, transfers, command limits, hull/component/built-in health, zero-HP destruction boundaries, flagship defeat with a surviving escort, repair, loaded trade/losses, malformed data, backup recovery, failed-save rollback, duplicate settlement, deterministic loot, departure research and refit timing. Native UI checks cover real OptionButton callbacks, shared X windows, no overlapping mounts, theme/focus/tooltip preferences, actual battle/report integration and 640x360 / 1280x720 / 1920x1080 layouts. Captures are in `.local/hangar/ui-*.png`.
 

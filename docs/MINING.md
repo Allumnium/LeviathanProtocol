@@ -1,5 +1,7 @@
 # Asteroids and mining — steps 41–43, 45–46
 
+Historical implementation record for the retired material/mining game. Do not restore mining or run these historical suites for current hangar work; use [HANGAR.md](HANGAR.md) for current behavior and focused validation. Asteroid combat remains active, but the extraction/material economy described below does not.
+
 Asteroids are neutral actors in the existing weapon/command/visibility system. Either side can damage them. Clicking a visible rock/hostile orders armed player hulls to focus it, with an amber target marker; clicking empty battlefield clears the orders. Dragging continues to pan, and GUI/radar clicks never issue an attack. Real pointer tests cover visible targeting and hidden-space rejection. Ordinary victory excludes rocks; the existing optional neutral-cleanup checkbox includes them. No new mandatory clearing objective was added.
 
 The four classes have mass 8/4/2/1, radius `8 * sqrt(mass)` and HP `12 * mass`. They drift on the fixed simulation clock. Destruction splits a larger rock into two half-mass children, with deterministic separation velocities and 0.5 seconds of collision grace. A mass-one rock becomes terminal debris/pickup. An impact deals `6 * mass` to the contacted hull/component and removes one quarter of the rock's maximum HP. Bodies separate, and each rock/ship pair has a 0.75-second cooldown. Both factions obey these rules. Projectiles use swept segment obstruction; beams also strike an intervening rock. Finishing-camera predictions exclude obstructed shots.
