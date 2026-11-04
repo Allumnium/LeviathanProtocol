@@ -4,6 +4,10 @@ Priority: finish the remaining D4 research work, then D5 fleet scale. Preserve t
 
 Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS.md). Delivered work: [COMPLETED.md](COMPLETED.md).
 
+## Publishing cleanup
+
+- [ ] Push the committed cleanup work once a Git remote URL is supplied. No remote is configured; do not guess a destination or force-push.
+
 ## D4 - Research that you can feel
 
 Research changes fleet behavior, not access to ordinary equipment. Keep the earned Prismatic Lasers, Siege I, Bastion II, Field Engineering and Civil Hospitality effects. Do not grant completed research/branches to make starting fits legal.

@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-04 - Incremental delivery permission
+
+- Updated the personal Godot instructions to authorize automatic task-scoped staging, verified incremental commits and pushes to configured upstreams, without repeated approval. Preserve unrelated work; never force-push or guess a remote.
+- Added the research-travel test's source UID sidecar after checking its format and uniqueness. Cleanup commits are local; publishing remains blocked in TODO until a remote URL is supplied.
+
 ## 2026-11-04 - Repository housekeeping
 
 - Git-ignored `.godot/`, `*~` and `*.log`; removed 1,337 generated cache files from Git's index without deleting or changing their local contents. Source `.import` settings and script `.uid` sidecars remain versioned; archived backups remain versioned.
