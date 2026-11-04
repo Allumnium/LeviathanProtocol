@@ -101,6 +101,7 @@ The player commands fleets, not parts. Cut equipment busywork, make research fee
 - [x] Map is the first, default tab and the home screen; Fleet is for arrangement.
 - [x] Battle rewards stop granting items: credits and research points for now (D2 adds the rest).
 - [x] Pricing: loadout changes, part swaps and removals are free at shipyards; buying a fitted ship still costs its chassis plus half its parts. Data: `data/ship_loadouts.json`, logic: `scripts/ship_loadouts.gd`, tests: `tests/test_ship_refit.gd`.
+- Research-gate/full-fit acceptance: all 35 headless suites passed in `tests/run_baseline.ps1 -Native`, including 253 refit checks, 520 demo checks and nine natural campaign variants. The command stopped at two native surface-art snapshot comparisons; an unchanged focused rerun passed all 383 checks. The five remaining native suites then passed (UI 2096, polish 272, missiles 126, squadrons 182, combat research 470), completing coverage of all 15 native baseline suites across the run and follow-ups, not a single uninterrupted green baseline. Focused native refit coverage also passed 253 checks. Initial logs: `.local/checks/ae2a2a3dff134abc8c92aa88d4dc850f`; focused rerun/follow-up logs: `.local/checks/gated-refits`. APPDATA remained isolated; real saves were not used. Surface-art assertions and rendering code were not weakened or changed.
 
 ### D2 - Rewards and resources
 

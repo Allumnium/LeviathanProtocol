@@ -964,7 +964,7 @@ func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unch
 	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
 	return true
 
-# Ships are sold fully fitted with a named loadout (the class default if none).
+# Ships are sold fully fitted; an unspecified loadout uses the first researched fit.
 func buy_ship(key: String, loadout_id := "") -> bool:
 	return buy_ships(key, 1, 0, loadout_id)
 

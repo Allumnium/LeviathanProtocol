@@ -135,7 +135,8 @@ func run() -> void:
 	check(state.research_progress.get("applied_energy", 0.0) == 0.0, "Docked time earns no research")
 	flagship.hull_hp = flagship.hull_max
 	check(travel("refuel_station_1", {"derelict_signal": "continue"}), "First leg reaches Kessler")
-	check(state.research_progress.get("applied_energy", 0.0) > 0.0, "Travel distance earns research")
+	check(state.research_progress.get("applied_energy", 0.0) > 0.0
+		or state.current_research_ids.has("applied_energy"), "Travel distance advances or completes focused research")
 	check(not HangarTrade.has_load(state.equipment_inventory[hold_uid]), "Haven cargo delivered at Kessler")
 	check(state.expedition_simulation.state.event_receipts.get("first_contact", false), "First contact battle happened")
 	refit()
