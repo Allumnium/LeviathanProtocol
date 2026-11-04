@@ -356,8 +356,8 @@ func ui() -> void:
 			var body: Control = screen.details.find_child("ResearchDescription", true, false)
 			var description: ResourceText = body.get_child(0)
 			check(description.get_theme_font_size("normal_font_size") == 11
-				and body.get_child(1).get_theme_font_size("normal_font_size") == 11,
-				"Research description and effects use compact shared typography: " + id)
+				and body.get_child_count() == 1,
+				"Research details contain only one compact gameplay description: " + id)
 			check(body.size.y >= description.size.y and description.size.y >= description.get_theme_font_size("normal_font_size"),
 				"Description has real readable height rather than a collapsed nested scroll: " + id)
 			var viewport: ScrollContainer = screen.details.get_parent()
@@ -366,8 +366,10 @@ func ui() -> void:
 			check(viewport.get_global_rect().intersection(description.get_global_rect()).size.y
 				>= description.get_theme_font_size("normal_font_size"),
 				"Description is visibly inside the detail viewport at %s: %s" % [resolution, id])
-			check(text_under(screen.details).contains(ResearchViewModel.effect_summary(HangarResearch.view_registry(), id)),
-				"Actual research detail panel shows exact effect at %s: %s" % [resolution, id])
+			check(not text_under(screen.details).contains("Requires:")
+				and not text_under(screen.details).contains("Locks other")
+				and not text_under(screen.details).contains("DPS"),
+				"Research panel omits requirements and detailed-stat prose at %s: %s" % [resolution, id])
 			check(screen.details.size.x <= screen.details_panel.size.x,
 				"Research behavioral details fit the frame at " + str(resolution))
 			if id == "applied_energy" and DisplayServer.get_name() != "headless":
@@ -377,7 +379,8 @@ func ui() -> void:
 	await settle()
 	var notice := screen.find_child("ResearchCompletion", true, false)
 	check(notice != null and notice.visible and notice.title.source_text.contains("Prismatic Lasers")
-		and notice.effect.source_text.contains("continuous"), "Completion toast announces the actual new behavior")
+		and notice.effect.source_text == "Lasers become sustained beams that grow stronger over time.",
+		"Completion toast uses the same concise gameplay description")
 	screen.queue_free()
 	await settle()
 	if DisplayServer.get_name() == "headless":

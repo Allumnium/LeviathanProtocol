@@ -31,7 +31,7 @@ func _process(delta: float) -> void:
 		var registry := HangarResearch.view_registry()
 		var definition := ResearchViewModel.find(registry, "research", id)
 		title.set_content("RP  " + str(definition.display_name) + " complete")
-		effect.set_content(ResearchViewModel.effect_summary(registry, id).replace("\n\n", "  |  ").replace("\n", " · "))
+		effect.set_content(ResearchViewModel.description(registry, id))
 		remaining = 5.0
 		AudioManager.play_ui_sfx(&"research_complete")
 	visible = remaining > 0

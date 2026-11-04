@@ -25,6 +25,11 @@ func run() -> void:
 			check(not ResearchViewModel.description(view_registry, node.id).contains("available from the start")
 				and not ResearchViewModel.description(view_registry, node.id).contains("required to fit it"),
 				"Research descriptions omit starting-access boilerplate: " + node.id)
+			var description := ResearchViewModel.description(view_registry, node.id)
+			check(description.length() <= 85 and not description.contains("\n")
+				and not description.contains("This research") and not description.contains("Requires")
+				and not description.contains("DPS") and not description.contains("RP/day"),
+				"Every research uses a short gameplay sentence without progression or stat prose: " + node.id)
 	check(not ResearchViewModel.description(view_registry, "guided_munitions").contains("Unlocks")
 		and ResearchViewModel.description(view_registry, "carrier_ii").contains("Unlocks")
 		and ResearchViewModel.description(view_registry, "laboratory_iii").contains("Unlocks")

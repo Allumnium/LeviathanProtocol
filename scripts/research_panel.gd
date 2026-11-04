@@ -152,19 +152,7 @@ func _refresh_summary() -> void:
 		var description_label := _label(description)
 		description_label.theme_type_variation = &"ResearchDescriptionText"
 		body.add_child(description_label)
-	var effect_label := _label(ResearchViewModel.effect_summary(registry, selected_id))
-	effect_label.theme_type_variation = &"ResearchDescriptionText"
-	body.add_child(effect_label)
 	var required: Dictionary = row.requirements
-	if not required.missing_prerequisites.is_empty():
-		body.add_child(_label("Requires: " + ResearchViewModel.names(registry, "research", required.missing_prerequisites)))
-	for gate: String in required.missing_story_gates:
-		body.add_child(_label(ResearchViewModel.GATE_NAMES.get(gate, gate)))
-	if row.status == "Excluded":
-		body.add_child(_label("Path locked"))
-	var definition := ResearchViewModel.find(registry, "research", selected_id)
-	if not definition.family_id.is_empty() and not required.owned:
-		body.add_child(_label("Locks other %s path" % ResearchViewModel.GROUP_NAMES[definition.family_id]))
 	var state := _state()
 	var focused: bool = state.get("research_focus", "") == selected_id
 	if required.owned:

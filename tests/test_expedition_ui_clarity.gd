@@ -419,7 +419,7 @@ func run() -> void:
 	notice._process(0)
 	notice._process(0.2)
 	check(notice.visible and notice.title.source_text.contains("Laboratory II")
-		and notice.effect.source_text.contains("2 RP/day"),
+		and notice.effect.source_text == "Labs generate research while traveling.",
 		"Research completion banner identifies the upgrade and its real gameplay effect")
 	check(notice.get_theme_stylebox("panel").texture.resource_path.ends_with("Popup_GameTips.png")
 		and notice.mouse_filter == Control.MOUSE_FILTER_IGNORE and not notice.is_in_group("modal_ui"),

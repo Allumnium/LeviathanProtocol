@@ -80,39 +80,27 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 		result.append(find(registry, domain, id).get("display_name", id))
 	return ", ".join(result)
 
-static func description(registry: Dictionary, id: String) -> String:
+static func description(_registry: Dictionary, id: String) -> String:
 	var explanations := {
-		"applied_energy": "Laser weapons damage enemies with beams. This research leads to Prismatic Lasers.",
-		"field_engineering": "Large Thrusters improve ship movement. This research leads to the Renewal repair path.",
-		"guided_munitions": "Missile Racks fire guided bursts; Point Defense Turrets intercept incoming missiles. This research opens the Siege and Carrier paths.",
-		"laboratory_ii": "Research Lab II produces 2 RP per travel day per installed lab.",
-		"laboratory_iii": "Research Lab III produces 3 RP per travel day per installed lab.",
-		"energy_manipulation": "Turns your Laser and Double Laser weapons into sustained beams that grow stronger while holding the same target.",
-		"civil_hospitality": "Passenger Cabins carry travelers between inhabited ports and earn credits on delivery.",
-		"optics_ii": "Beam Lances charge before firing powerful, long-range beams.",
-		"disruption_i": "Ion Emitters specialize in stripping shields but deal reduced hull damage.",
-		"bastion_ii": "Your shielded ships periodically recover shields, even while taking fire.",
-		"renewal_i": "Repair Drone Bays send drones to repair damaged allied hulls using a finite repair reserve.",
-		"siege_i": "Your Missile Rack shots split near their target, spreading damage across nearby enemies or converging on a single enemy.",
-		"siege_ii": "Railguns charge long-range shots that pierce Sentinel hull cover.",
-		"carrier_i": "Flight Decks launch a finite supply of interceptors that attack enemies and screen incoming missiles.",
-		"carrier_ii": "Bomber Bays launch a finite supply of bombers with interceptable torpedoes.",
-		"command_i": "Command Uplinks automatically mark enemies so allied attacks deal more damage to them.",
-		"command_ii": "Tactical Computers synchronize extra salvos against unshielded targets."
+		"applied_energy": "Lasers strike enemies with beams.",
+		"field_engineering": "Large thrusters improve ship movement.",
+		"guided_munitions": "Guided missiles strike enemies; point defense intercepts incoming missiles.",
+		"laboratory_ii": "Labs generate research while traveling.",
+		"laboratory_iii": "Unlocks more productive research labs.",
+		"energy_manipulation": "Lasers become sustained beams that grow stronger over time.",
+		"civil_hospitality": "Passenger cabins earn credits by delivering travelers.",
+		"optics_ii": "Unlocks powerful, long-range beam weapons.",
+		"disruption_i": "Ion weapons strip enemy shields.",
+		"bastion_ii": "Shields periodically recover, even under fire.",
+		"renewal_i": "Repair drones restore allied hulls.",
+		"siege_i": "Missiles split near their target.",
+		"siege_ii": "Railguns pierce Sentinel hull cover.",
+		"carrier_i": "Interceptors attack enemies and screen incoming missiles.",
+		"carrier_ii": "Unlocks bombers armed with torpedoes.",
+		"command_i": "Marked enemies take more damage from allies.",
+		"command_ii": "Unlocks synchronized salvos against unshielded enemies."
 	}
-	var text: String = explanations.get(id, "")
-	var node := find(registry, "research", id)
-	if not node.is_empty():
-		var unlocks: Array[String] = []
-		for equipment_id: String in node.grants.equipment_ids:
-			if equipment_id in HangarResearch.RESEARCH_ONLY_EQUIPMENT:
-				unlocks.append(find(registry, "equipment", equipment_id).display_name)
-		for rank: Dictionary in node.grants.ranks:
-			if not HangarResearch.starting_equipment({"id": rank.equipment_id, "rank": rank.rank}):
-				unlocks.append("Research Lab %d" % int(rank.rank))
-		if not unlocks.is_empty():
-			text += "\n\nUnlocks %s and compatible shipyard loadouts. Existing ships are not automatically refitted." % ", ".join(unlocks)
-	return text
+	return explanations.get(id, "")
 
 static func effect_summary(registry: Dictionary, id: String) -> String:
 	var node := find(registry, "research", id)
