@@ -88,6 +88,8 @@ func rates_and_speeds() -> void:
 				"Field Engineering reduces actual fuel consumption by exactly 25 percent")
 			check(state.credits == -6 and state.run_score.credits_earned == 4,
 				"Civil Hospitality earns exactly four credits per travel day, including in debt")
+			check(is_equal_approx(state.research_points, ScienceRules.production_rate(ScienceRules.snapshot(state.get_deployed_fleet()))),
+				"Fuel and income research do not change distance-based lab production")
 			check(credit_notifications > 0, "Passive income refreshes the existing wallet")
 	start(["civil_hospitality"])
 	var simulation = state.expedition_simulation
@@ -168,6 +170,8 @@ func persistence_and_unlocks() -> void:
 	check(state.credits == before.credits + 1 and state.run_score.credits_earned == 1
 		and is_equal_approx(state.expedition_simulation.state.fuel, 99.25),
 		"Partial travel combines across Continue into exactly one credit")
+	state.fleet[0].hull_hp -= 10
+	check(state.save_run_checkpoint(), "Persist damaged hull before failed travel save")
 	before = state.hangar_snapshot()
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-travel-research.json"

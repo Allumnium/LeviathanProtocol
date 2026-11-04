@@ -309,7 +309,9 @@ func run() -> void:
 			check(labels_under(screen.roster).contains("6 RP/day") and labels_under(screen.roster).contains("1 x Lab III"), "Native production panel explains ranked lab output")
 			screen.center.get_child(0)._select("laboratory_iii")
 			await settle()
-			check(labels_under(screen.details).contains("3 RP/day"), "Native research details show Lab III output")
+			check(labels_under(screen.details).contains("Unlocks more productive research labs.")
+				and not labels_under(screen.details).contains("3 RP/day"),
+				"Research details retain the concise Lab III description without duplicate production stats")
 		if title == "MAP":
 			check(screen.center.get_child(0).get_script().resource_path == "res://scripts/expedition_map.gd", "Pannable expedition map shows the live voyage")
 			screen._select_destination(state.get_reachable_nodes(0)[0])
