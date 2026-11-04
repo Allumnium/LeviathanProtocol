@@ -76,6 +76,8 @@ static func for_chassis(chassis_id: String) -> Array:
 static func researched(item: Dictionary, research_ids: Array) -> bool:
 	if not obtainable(item):
 		return false
+	if HangarResearch.starting_equipment(item):
+		return true
 	var grants := ResearchRules.resolve(research_ids, HangarResearch.catalog())
 	return int(grants.ranks.get(item.id, 0)) >= int(item.rank)
 
@@ -89,31 +91,6 @@ static func available_for(chassis_id: String, research_ids: Array) -> Array:
 static func purchase_for(chassis_id: String, research_ids: Array) -> Dictionary:
 	var options := available_for(chassis_id, research_ids)
 	return options[0] if not options.is_empty() else {}
-
-static func starting_research(loadouts: Array) -> Array[String]:
-	var ids: Array[String] = ["foundation"]
-	var catalog := HangarResearch.catalog()
-	for loadout: Dictionary in loadouts:
-		for key: Variant in loadout.mounts.values():
-			var item := item_for(str(key))
-			if researched(item, ids):
-				continue
-			for node: Dictionary in catalog:
-				var grants := ResearchRules.resolve([node.id], catalog)
-				if int(grants.ranks.get(item.id, 0)) >= int(item.rank):
-					_add_prerequisites(node.id, ids, catalog)
-					break
-	return ids
-
-static func _add_prerequisites(id: String, ids: Array[String], catalog: Array[Dictionary]) -> void:
-	if id in ids:
-		return
-	for node: Dictionary in catalog:
-		if node.id == id:
-			for parent: String in node.prerequisite_ids:
-				_add_prerequisites(parent, ids, catalog)
-			ids.append(id)
-			return
 
 static func find(chassis_id: String, loadout_id: String) -> Dictionary:
 	for loadout: Dictionary in for_chassis(chassis_id):

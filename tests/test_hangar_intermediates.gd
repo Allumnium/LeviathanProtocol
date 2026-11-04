@@ -184,7 +184,8 @@ func transactions() -> void:
 	var base: Dictionary = state.hangar_snapshot()
 	for id in ["ammunition_magazine", "railgun", "command_uplink", "tactical_computer"]:
 		check(ShipLoadouts.obtainable(SlotCatalog.find_equipment(id))
-			and not ShipLoadouts.researched(SlotCatalog.find_equipment(id), state.current_research_ids), "Intermediates require earned research")
+			and ShipLoadouts.researched(SlotCatalog.find_equipment(id), state.current_research_ids) == (id != "tactical_computer"),
+			"Intermediate support starts available; Tactical Computer remains advanced")
 	var fixture := base.duplicate(true)
 	fixture.credits = 5000
 	fixture.research.research_ids.append_array(["applied_energy", "guided_munitions", "siege_i", "siege_ii", "command_i", "command_ii"])

@@ -102,8 +102,18 @@ static func description(registry: Dictionary, id: String) -> String:
 	}
 	var text: String = explanations.get(id, "")
 	var node := find(registry, "research", id)
-	if not node.is_empty() and not node.grants.equipment_ids.is_empty():
-		text += "\n\nUnlocks equipment and compatible loadouts for shipyard refits. Existing ships are not automatically refitted."
+	if not node.is_empty():
+		var unlocks: Array[String] = []
+		for equipment_id: String in node.grants.equipment_ids:
+			if equipment_id in HangarResearch.RESEARCH_ONLY_EQUIPMENT:
+				unlocks.append(find(registry, "equipment", equipment_id).display_name)
+		for rank: Dictionary in node.grants.ranks:
+			if not HangarResearch.starting_equipment({"id": rank.equipment_id, "rank": rank.rank}):
+				unlocks.append("Research Lab %d" % int(rank.rank))
+		if not unlocks.is_empty():
+			text += "\n\nUnlocks %s and compatible shipyard loadouts. Existing ships are not automatically refitted." % ", ".join(unlocks)
+		elif not node.grants.equipment_ids.is_empty() or not node.grants.ranks.is_empty():
+			text += "\n\nThis equipment is available from the start; researching this node is not required to fit it."
 	return text
 
 static func effect_summary(registry: Dictionary, id: String) -> String:

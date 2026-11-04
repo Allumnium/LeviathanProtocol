@@ -131,11 +131,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	last_battle_report.clear()
 	last_equipment_loot = ""
 	_build_campaign()
-	current_research_ids.assign(ShipLoadouts.starting_research([
-		ShipLoadouts.default_for(flagship_id), ShipLoadouts.default_for("transport"), ShipLoadouts.default_for("fighter")]))
-	for node: Dictionary in HangarResearch.catalog():
-		if node.id in current_research_ids and not node.family_id.is_empty():
-			research_branch_choices[node.family_id] = node.path_id
+	current_research_ids.assign(["foundation"])
 	# Every starting ship arrives fully fitted with its class's default loadout.
 	var lead := _add_chassis(flagship_id, true)
 	lead.formation = Vector2.ZERO

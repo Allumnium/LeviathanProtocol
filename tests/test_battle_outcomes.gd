@@ -368,7 +368,7 @@ func _test_defeat() -> void:
 	check(battle.defeat_dialog.get_node("Backdrop").color == Color.BLACK, "Game Over fully blacks out the battle")
 	check(battle.defeat_accept_button.text == "ACCEPT DEFEAT"
 		and battle.defeat_accept_button.theme_type_variation == &"DefeatButton", "Defeat action uses red themed button")
-	check(battle.defeat_dialog.get_node("CenterContainer/Panel/Contents/Score").text.contains("RUN SCORE  143"), "Game Over displays persisted score including starting Laboratory II")
+	check(battle.defeat_dialog.get_node("CenterContainer/Panel/Contents/Score").text.contains("RUN SCORE  43"), "Game Over displays persisted score without fabricated starting research")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720)]:
 		root.size = resolution
 		await settle()
