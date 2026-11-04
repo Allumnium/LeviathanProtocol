@@ -149,8 +149,12 @@ func _refresh_summary() -> void:
 	summary_host.add_child(body)
 	var description := ResearchViewModel.description(registry, selected_id)
 	if not description.is_empty():
-		body.add_child(_label(description))
-	body.add_child(_label(ResearchViewModel.effect_summary(registry, selected_id)))
+		var description_label := _label(description)
+		description_label.theme_type_variation = &"ResearchDescriptionText"
+		body.add_child(description_label)
+	var effect_label := _label(ResearchViewModel.effect_summary(registry, selected_id))
+	effect_label.theme_type_variation = &"ResearchDescriptionText"
+	body.add_child(effect_label)
 	var required: Dictionary = row.requirements
 	if not required.missing_prerequisites.is_empty():
 		body.add_child(_label("Requires: " + ResearchViewModel.names(registry, "research", required.missing_prerequisites)))

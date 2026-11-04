@@ -355,6 +355,9 @@ func ui() -> void:
 				"Selected research displays its plain-language description at %s: %s" % [resolution, id])
 			var body: Control = screen.details.find_child("ResearchDescription", true, false)
 			var description: ResourceText = body.get_child(0)
+			check(description.get_theme_font_size("normal_font_size") == 11
+				and body.get_child(1).get_theme_font_size("normal_font_size") == 11,
+				"Research description and effects use compact shared typography: " + id)
 			check(body.size.y >= description.size.y and description.size.y >= description.get_theme_font_size("normal_font_size"),
 				"Description has real readable height rather than a collapsed nested scroll: " + id)
 			var viewport: ScrollContainer = screen.details.get_parent()
