@@ -1,4 +1,6 @@
 # LEVIATHAN PROTOCOL
+
+> Narrative reference, not the current implementation backlog. The active slice and remaining D4/D5 work are in [TODO.md](../TODO.md); do not expand Act II/III, branches or endings without a scope decision.
 ## Narrative Design Specification — Version 1.2
 
 **Genre:** Science-fiction expedition, fleet management, narrative roguelite  
