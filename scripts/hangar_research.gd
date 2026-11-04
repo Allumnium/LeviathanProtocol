@@ -19,7 +19,8 @@ static func registry() -> Dictionary:
 		if not node.implemented or node.id in OMITTED_NODES:
 			continue
 		node.grants.equipment_ids = node.grants.equipment_ids.filter(func(key: String) -> bool: return key not in DEFERRED_EQUIPMENT and (key == "command_center" or not SlotCatalog.find_equipment(key).is_empty()))
-		node.grants.ability_ids = []
+		node.grants.ability_ids = node.grants.ability_ids.filter(func(key: String) -> bool:
+			return node.id == "disruption_i" and key == "ion_pulse")
 		if node.id == "optics_ii":
 			node.prerequisite_ids = ["applied_energy"]
 		if node.id == "bastion_ii":

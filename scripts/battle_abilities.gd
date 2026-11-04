@@ -93,14 +93,15 @@ func origin(source, id: String) -> Vector2:
 		var local := Vector2.ZERO
 		for cell: Vector2i in unit.cells:
 			local += source.owned_ship.local_cell_position(cell)
-		return source.position + (local / maxf(1, unit.cells.size())).rotated(source.heading)
+		return source.position + (local / maxf(1, unit.cells.size()) * source.owned_ship.fleet_view_scale()).rotated(source.heading)
 	return source.position
 
 func remaining(id: String, faction := 0) -> float:
 	return float((state.cooldowns if faction == 0 else enemy_cooldowns).get(id, 0.0))
 
 func can_cast(sim, id: String, point: Vector2, source_id := "", faction := 0) -> bool:
-	if sim.phase != 0 or not sim.visibility_enabled or id not in ["scan", "seismic_cut", "ion_pulse", "gravity_well"] or not available.has(id) \
+	if sim.phase != 0 or (not sim.visibility_enabled and not (sim.credits_only and id == "ion_pulse")) \
+		or id not in ["scan", "seismic_cut", "ion_pulse", "gravity_well"] or not available.has(id) \
 		or faction not in [0, 1] or remaining(id, faction) > 0 or choose_source(sim, faction, id, point, source_id) == null:
 		return false
 	if id == "ion_pulse":
@@ -192,6 +193,12 @@ func advance(sim, delta: float) -> void:
 		var source = sim.entities.get(effect.source)
 		if effect.remaining <= 0 or source == null or not sources(sim, int(effect.faction), effect.id).has(source):
 			effects.remove_at(index)
+		elif effect.id == "ion_pulse":
+			var target = sim.entities.get(effect.target)
+			if target == null or not target.is_alive():
+				effects.remove_at(index)
+			else:
+				effect.position = target.position
 
 func visible_target(sim, faction: int, point: Vector2):
 	var chosen = null

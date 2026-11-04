@@ -90,7 +90,7 @@ static func description(_registry: Dictionary, id: String) -> String:
 		"energy_manipulation": "Lasers become sustained beams that grow stronger over time.",
 		"civil_hospitality": "Travel earns credits for the expedition.",
 		"optics_ii": "Unlocks powerful, long-range beam weapons.",
-		"disruption_i": "Ion weapons strip enemy shields.",
+		"disruption_i": "Ion Pulse interrupts enemies and suppresses shield recovery.",
 		"bastion_ii": "Shields periodically recover, even under fire.",
 		"renewal_i": "Repair drones restore allied hulls.",
 		"siege_i": "Missiles split near their target.",

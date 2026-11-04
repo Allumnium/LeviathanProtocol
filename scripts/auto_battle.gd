@@ -73,7 +73,8 @@ func _ready() -> void:
 		return
 	simulation.victory_materials = GameState.battle_material_rewards()
 	simulation.battle_id = GameState.battle_identity()
-	simulation.ability_commit = _commit_battle_ability
+	if not simulation.credits_only:
+		simulation.ability_commit = _commit_battle_ability
 	simulation.asteroid_field.pickup_commit = _commit_asteroid_pickup
 	if simulation.visibility_enabled:
 		var radar: Control = load("res://scripts/battle_radar.gd").new()

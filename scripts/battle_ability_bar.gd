@@ -16,6 +16,8 @@ var overflow_menu: MenuButton
 var _source_ids: Array[String] = []
 
 func _ready() -> void:
+	if not simulation.abilities.available.has(selected_id) and not simulation.abilities.available.is_empty():
+		selected_id = simulation.abilities.available[0]
 	theme_type_variation = &"ContextPanel"
 	var contents := VBoxContainer.new()
 	contents.add_theme_constant_override("separation", 2)
@@ -91,10 +93,13 @@ func refresh() -> void:
 	if auto_button == null:
 		return
 	auto_button.set_pressed_no_signal(simulation.abilities.state.auto.get(selected_id, selected_id != "scan"))
+	auto_button.disabled = simulation.phase != BattleSimulation.Phase.COMBAT
 	pause_aim.set_pressed_no_signal(simulation.abilities.state.pause_aim)
+	pause_aim.disabled = simulation.phase != BattleSimulation.Phase.COMBAT
 	var ids: Array[String] = []
 	for source in simulation.abilities.sources(simulation, 0, selected_id):
 		ids.append(source.entity_id)
+	source_picker.visible = ids.size() > 1
 	if ids != _source_ids:
 		_source_ids = ids
 		source_picker.clear()
@@ -118,7 +123,8 @@ func begin_targeting(id: String) -> void:
 		if previous == id:
 			return
 	selected_id = id
-	if simulation.abilities.remaining(id) > 0 or simulation.abilities.sources(simulation, 0, id).is_empty():
+	if simulation.phase != BattleSimulation.Phase.COMBAT or not simulation.abilities.available.has(id) \
+		or simulation.abilities.remaining(id) > 0 or simulation.abilities.sources(simulation, 0, id).is_empty():
 		return
 	targeting = true
 	status.text = ""

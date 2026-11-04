@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-04 - Activated combat research (D4 increment)
+
+- Disruption I grants the existing Ion Pulse: a living installed Ion Emitter interrupts a visible enemy's charge and suppresses shield recovery for four seconds, with a fleet-wide 24-second cooldown. Existing ability-bar targeting, optional Auto and Pause Aim work in physical battles; single-source fleets omit the redundant source picker.
+- Cooldowns/effects use battle simulation time and restart with the encounter on Continue, like weapon cooldowns. No resource costs, save fields, fog/AI changes or deferred equipment grants. Physical replay snapshots include abilities; source/target loss removes suppression and its ring follows the target. Escort casting ranges use actual scaled mounts.
+- Focused isolated verification: 74 native ability checks and 53 headless retained battle-UI checks, zero failures/script errors. Covered earned/unequipped gating, Continue, manual/Auto, range, interruption/recovery, source/target loss, replay, three-resolution layout, actual battle pointer casts, pause and 2x cooldown timing; reviewed native battle capture. Known renderer shutdown warnings remain; no full baseline run.
+
 ## 2026-11-04 - Faster cruise research (D4 increment)
 
 - Field Engineering now adds 25% cruise speed alongside its existing 25% fuel-per-distance reduction. Actual movement and both ETA displays share the researched rate; one short detail/toast sentence covers both benefits.

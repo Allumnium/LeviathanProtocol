@@ -794,6 +794,7 @@ func authoritative_snapshot() -> Dictionary:
 		"materials": collected_categories.duplicate(), "pending_commands": _pending_commands.duplicate(true)}
 	if visibility_enabled:
 		result["visibility"] = visibility.diagnostic_snapshot()
+	if visibility_enabled or not abilities.available.is_empty():
 		result["ability_state"] = abilities.snapshot()
 		result["enemy_cooldowns"] = abilities.enemy_cooldowns.duplicate()
 		result["ability_retry_delay"] = abilities.retry_delay
@@ -901,7 +902,7 @@ func advance(delta: float) -> void:
 		enemy_roles.advance(self, delta)
 		refresh_visibility()
 		_apply_pending_commands()
-		if visibility_enabled:
+		if visibility_enabled or not abilities.available.is_empty():
 			abilities.auto_cast(self)
 		abilities.advance(self, delta)
 		refresh_visibility()

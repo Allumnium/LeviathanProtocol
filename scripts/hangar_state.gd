@@ -1308,6 +1308,10 @@ func battle_support_context() -> Dictionary:
 	# No material drops, extraction, inventory-consuming abilities or grid bonuses.
 	var context := {"credits_only": true, "energy_efficiency": energy_efficiency(), "enemy_roles": encounter.get("enemy_roles", false), "doctrine_pool": battle_reserves.get(str(destination_node_id), {}), "encounter_plan": encounter if encounter.has("arena_layout") else {}}
 	context.missiles = missiles
+	context.ability_ids = research_grants().ability_ids
+	# Continue restarts the encounter; cooldowns and aim preferences are encounter-local.
+	context.ability_state = BattleAbilities.initial_state()
+	context.ability_state.auto["ion_pulse"] = false
 	context.research_effects = {}
 	var modifiers: Dictionary = research_grants().modifiers
 	for id: String in ResearchCombat.EFFECTS:
