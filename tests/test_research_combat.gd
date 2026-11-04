@@ -345,9 +345,14 @@ func ui() -> void:
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
-		for id: String in ["energy_manipulation", "siege_i", "bastion_ii"]:
+		for node: Dictionary in HangarResearch.view_registry().research:
+			var id: String = node.id
+			if id == "foundation":
+				continue
 			screen.research_panel._select(id)
 			await settle()
+			check(text_under(screen.details).contains(ResearchViewModel.description(HangarResearch.view_registry(), id)),
+				"Selected research displays its plain-language description at %s: %s" % [resolution, id])
 			check(text_under(screen.details).contains(ResearchViewModel.effect_summary(HangarResearch.view_registry(), id)),
 				"Actual research detail panel shows exact effect at %s: %s" % [resolution, id])
 			check(screen.details.size.x <= screen.details_panel.size.x,

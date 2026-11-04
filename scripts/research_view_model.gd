@@ -80,6 +80,33 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 		result.append(find(registry, domain, id).get("display_name", id))
 	return ", ".join(result)
 
+static func description(registry: Dictionary, id: String) -> String:
+	var explanations := {
+		"applied_energy": "Laser weapons damage enemies with beams. This research leads to Prismatic Lasers.",
+		"field_engineering": "Large Thrusters improve ship movement. This research leads to the Renewal repair path.",
+		"guided_munitions": "Missile Racks fire guided bursts; Point Defense Turrets intercept incoming missiles. This research opens the Siege and Carrier paths.",
+		"laboratory_ii": "Research Lab II produces 2 RP per travel day per installed lab.",
+		"laboratory_iii": "Research Lab III produces 3 RP per travel day per installed lab.",
+		"energy_manipulation": "Turns your Laser and Double Laser weapons into sustained beams that grow stronger while holding the same target.",
+		"civil_hospitality": "Passenger Cabins carry travelers between inhabited ports and earn credits on delivery.",
+		"optics_ii": "Beam Lances charge before firing powerful, long-range beams.",
+		"disruption_i": "Ion Emitters specialize in stripping shields but deal reduced hull damage.",
+		"bastion_ii": "Your shielded ships periodically recover shields, even while taking fire.",
+		"renewal_i": "Repair Drone Bays send drones to repair damaged allied hulls using a finite repair reserve.",
+		"siege_i": "Your Missile Rack shots split near their target, spreading damage across nearby enemies or converging on a single enemy.",
+		"siege_ii": "Railguns charge long-range shots that pierce Sentinel hull cover.",
+		"carrier_i": "Flight Decks launch a finite supply of interceptors that attack enemies and screen incoming missiles.",
+		"carrier_ii": "Bomber Bays launch a finite supply of bombers with interceptable torpedoes.",
+		"command_i": "Command Uplinks automatically mark enemies so allied attacks deal more damage to them.",
+		"command_ii": "Tactical Computers synchronize extra salvos against unshielded targets."
+	}
+	var text: String = explanations.get(id, "")
+	var node := find(registry, "research", id)
+	if registry.get("equipment_available_without_research", false) and not node.is_empty() \
+			and node.grants.modifiers.is_empty() and node.grants.ability_ids.is_empty():
+		text += "\n\nEquipment is already available for shipyard refits. Completing this research does not automatically refit ships or add a fleet bonus."
+	return text
+
 static func effect_summary(registry: Dictionary, id: String) -> String:
 	var node := find(registry, "research", id)
 	var lines: Array[String] = []

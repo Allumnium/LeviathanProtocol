@@ -17,6 +17,14 @@ func check(ok: bool, title: String) -> void:
 
 func run() -> void:
 	state = root.get_node("GameState")
+	var view_registry := HangarResearch.view_registry()
+	for node: Dictionary in view_registry.research:
+		if node.id != "foundation":
+			check(not ResearchViewModel.description(view_registry, node.id).is_empty(),
+				"Every visible research has a basic gameplay description: " + node.id)
+	check(ResearchViewModel.description(view_registry, "guided_munitions").contains("already available")
+		and not ResearchViewModel.description(view_registry, "energy_manipulation").contains("does not"),
+		"Descriptions distinguish existing equipment access from actual fleet upgrades")
 	state.run_save_path = "user://ranked-research.json"
 	check(state.start_new_run(1, 42), "Start rank fixture")
 	var bank: Dictionary = state.hangar_snapshot()

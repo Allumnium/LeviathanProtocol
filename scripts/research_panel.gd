@@ -151,6 +151,9 @@ func _refresh_summary() -> void:
 	var body := VBoxContainer.new()
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(body)
+	var description := ResearchViewModel.description(registry, selected_id)
+	if not description.is_empty():
+		body.add_child(_label(description))
 	body.add_child(_label(ResearchViewModel.effect_summary(registry, selected_id)))
 	var required: Dictionary = row.requirements
 	if not required.missing_prerequisites.is_empty():

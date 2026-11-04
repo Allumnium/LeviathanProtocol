@@ -67,6 +67,8 @@ Do this UI pass next, before D2-D5 or additional content depth. The world shows 
 
 ### U4 - Copy correctness and acceptance
 
+- [x] Selected research details retain basic plain-language gameplay descriptions alongside exact mechanics, prerequisites and branch consequences. Equipment-only nodes explicitly disclose that equipment is already selectable at shipyards and research does not automatically refit ships or add a fleet bonus. Keep the tree compact; meaningful descriptions are not redundant text. Focused research passes 150 checks; native research/UI passes 368 checks, selecting every visible node at 640x360, 1280x720 and 1920x1080. Completion toasts retain compact effect summaries. Isolated saves/logs: `.local/checks/research-descriptions`.
+
 - [x] Correct the charter briefing's retired equipment buying/drag-fitting/DEPART instructions to the current fitted Transport/loadout/Map course flow.
 - [x] Expose current demo event costs as clearly as rewards: explicit fuel/credit exchange, max-hull penalties alongside research rewards, and confirmation that unfocused RP is stored. Preserve existing rescue/debt notices and intentional uncertainty; do not hide known penalties behind action verbs.
 - [ ] ART DEPENDENCY: recognizable derelict/distress/anomaly/gate and remaining equipment artwork is not supplied/approved yet. Preserve full POI/equipment names, effects and the intentional pink missing-art marker; do not substitute unrelated ship/asteroid art or remove identifiers. Existing named map labels and fitted-equipment text fallbacks stay. Asset creation/approval is the only deferred content item in this UI pass.
