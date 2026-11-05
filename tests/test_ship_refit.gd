@@ -202,29 +202,30 @@ func run() -> void:
 	var offer: HBoxContainer = screen.shop_rows.get_child(0)
 	check(str(offer.get_child(1).find_child("ItemName", true, false).source_text).contains("("), "Ship offers name their loadout")
 	screen.selected_ship_id = state.fleet[2].id
-	screen.active_tab = "SHIPS"
+	screen.active_tab = "FLEET"
+	screen.ship_editor_open = true
 	screen.buy_open = false
 	screen._refresh()
 	await settle()
-	var panel: Control = screen.details.find_child("RefitPanel", true, false)
-	check(panel != null and screen.details.find_children("*", "ScrollContainer", true, false).is_empty(),
-			"Ships shows a refit panel without stock or scrolling")
+	var panel: Control = screen.refit_panel
+	check(panel != null and screen.ship_editor.is_visible_in_tree(),
+			"Fleet opens the refit panel without equipment stock")
 	check(panel.find_child("Loadout_striker", true, false) != null
 		and panel.find_child("Loadout_escort", true, false) != null, "Starting named fits are available without research")
 	screen.canvas.slot_selected.emit("port")
 	await settle()
-	check(screen.details.find_child("Part_laser", true, false) != null
-		and screen.details.find_child("Part_mini_turret", true, false) != null,
+	check(screen.refit_panel.find_child("Part_laser", true, false) != null
+		and screen.refit_panel.find_child("Part_mini_turret", true, false) != null,
 		"Mount options include lasers from the start")
 	screen.selected_slot = ""
 	screen.selected_ship_id = 2
 	screen._refresh()
 	await settle()
-	check(screen.details.find_child("Loadout_survey", true, false) != null,
+	check(screen.refit_panel.find_child("Loadout_survey", true, false) != null,
 		"Lab (XL) loadout is offered without research")
 	screen.canvas.slot_selected.emit("hold")
 	await settle()
-	check(screen.details.find_child("Part_research_lab_3", true, false) != null,
+	check(screen.refit_panel.find_child("Part_research_lab_3", true, false) != null,
 		"Lab (XL) part is offered without research")
 	var ui_research: Dictionary = state.hangar_snapshot()
 	ui_research.research.research_ids.append_array(["laboratory_ii", "laboratory_iii"])
@@ -233,12 +234,12 @@ func run() -> void:
 	screen.selected_slot = ""
 	screen._refresh()
 	await settle()
-	check(screen.details.find_child("Loadout_survey", true, false) != null,
+	check(screen.refit_panel.find_child("Loadout_survey", true, false) != null,
 		"Advanced loadout appears after its research is earned")
 	screen.selected_ship_id = state.fleet[2].id
 	screen._refresh()
 	await settle()
-	panel = screen.details.find_child("RefitPanel", true, false)
+	panel = screen.refit_panel
 	check(panel.find_child("Loadout_interceptor", true, false).disabled
 			and not panel.find_child("Loadout_striker", true, false).disabled, "Fitted loadout is marked; others can be chosen")
 	check(panel.find_child("Loadout_striker", true, false).text == "Striker",
@@ -248,29 +249,33 @@ func run() -> void:
 	check(state.ship_loadout_id(state.fleet[2].id) == "striker", "Loadout button refits the ship")
 	screen.canvas.slot_selected.emit("fore")
 	await settle()
-	panel = screen.details.find_child("RefitPanel", true, false)
+	panel = screen.refit_panel
 	var options: Control = panel.find_child("PartOptions", true, false)
 	check(options != null and options.get_child_count() >= 3, "Clicking a mount lists its compatible parts")
 	panel.find_child("Part_hull_plate", true, false).pressed.emit()
 	await settle()
 	check(state.fleet[2].mounts.fore.equipment_id == "hull_plate", "Part button swaps that mount")
-	screen.details.find_child("RemovePart", true, false).pressed.emit()
+	screen.refit_panel.find_child("RemovePart", true, false).pressed.emit()
 	await settle()
 	check(not state.fleet[2].mounts.has("fore") and screen.selected_slot == "fore"
-			and screen.details.find_child("PartOptions", true, false) != null, "An emptied mount stays selected with its part options")
-	screen.details.find_child("Part_laser", true, false).pressed.emit()
+			and screen.refit_panel.find_child("PartOptions", true, false) != null, "An emptied mount stays selected with its part options")
+	screen.refit_panel.find_child("Part_laser", true, false).pressed.emit()
 	await settle()
 	check(state.fleet[2].mounts.fore.equipment_id == "laser", "An empty mount can be filled from the picker")
 	for viewport_size: Vector2i in [Vector2i(640, 360), Vector2i(1920, 1080)]:
 		root.size = viewport_size
 		await settle()
-		panel = screen.details.find_child("RefitPanel", true, false)
-		check(screen.details_panel.get_global_rect().grow(1).encloses(panel.find_child("PartOptions", true, false).get_global_rect()),
-				"Part options fit the panel at %s" % viewport_size)
+		panel = screen.refit_panel
+		var scroll: ScrollContainer = panel.get_parent().get_parent()
+		var last: Control = panel.get_child(panel.get_child_count() - 1)
+		scroll.ensure_control_visible(last)
+		await settle()
+		check(scroll.get_global_rect().grow(1).encloses(last.get_global_rect()),
+				"Part options remain reachable at %s" % viewport_size)
 	root.size = Vector2i(1280, 720)
-	screen.details.find_child("BackToLoadouts", true, false).pressed.emit()
+	screen.refit_panel.find_child("BackToLoadouts", true, false).pressed.emit()
 	await settle()
-	check(screen.details.find_child("LoadoutHeading", true, false).text.ends_with("CUSTOM"),
+	check(screen.refit_panel.find_child("LoadoutHeading", true, false).text.ends_with("CUSTOM"),
 			"A ship matching no named loadout is labelled custom")
 	print("SHIP_REFIT_CHECKS=%d failures=%d" % [checks, failures])
 	quit(1 if failures else 0)

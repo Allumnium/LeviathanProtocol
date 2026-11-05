@@ -1154,6 +1154,28 @@ func move_ships(positions: Dictionary) -> bool:
 	HangarSquadrons.sync(data)
 	return _commit_hangar(data)
 
+func save_battle_deployment(positions: Dictionary) -> bool:
+	if not battle_pending or run_ended or completed or positions.size() != get_deployed_fleet().size():
+		last_save_error = "Battle deployment is unavailable."
+		return false
+	var area := BattleSimulation.deployment_area(pending_encounter)
+	var data := hangar_snapshot()
+	for ship: HangarShip in get_deployed_fleet():
+		var position: Variant = positions.get(ship.id)
+		if not position is Vector2 or not position.is_finite() or not area.has_point(position):
+			last_save_error = "Place every ship inside the deployment area."
+			return false
+		var radius := Vector2.ONE * ship.get_stats().collision_radius
+		if position != position.clamp(area.position + radius, area.end - radius):
+			last_save_error = "Place every ship inside the deployment area."
+			return false
+		var formation: Vector2 = (position - BattleSimulation.PLAYER_FORMATION_CENTER) / BattleSimulation.DEPLOYMENT_SCALE
+		for entry: Dictionary in data.ships:
+			if int(entry.id) == ship.id:
+				entry.formation = [formation.x, formation.y]
+	HangarSquadrons.sync(data)
+	return _commit_hangar(data)
+
 func fleet_repair_cost() -> int:
 	var cost := 0
 	for owned: HangarShip in fleet:

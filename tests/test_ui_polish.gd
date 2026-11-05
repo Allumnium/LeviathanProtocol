@@ -277,7 +277,7 @@ func run() -> void:
 	screen.tabs.get_child(1).pressed.emit()
 	await settle()
 	check(screen.active_tab == "FLEET", "Fleet tab opens the formation view")
-	check(screen.formation_view.exhaust_elapsed > 0, "Fleet view continuously animates preview thrust")
+	check(screen.formation_view.exhaust_elapsed == 0, "Docked Fleet does not advance travel thrust")
 	check(root.snap_2d_transforms_to_pixel and root.snap_2d_vertices_to_pixel,
 		"Active viewport snaps UI positions and vertices to pixels")
 	var credits_icon: TextureRect = screen.find_child("CreditsIcon", true, false)
@@ -434,33 +434,24 @@ func run() -> void:
 	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false) == null,
 		"Fleet side panel no longer lists ships; the formation sprites are the roster")
 	await drag(escort_point, escort_point)
-	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id,
-		"Single-click on a Fleet sprite selects the escort without opening the editor")
+	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id and screen.ship_editor_open,
+		"Single-click on a Fleet sprite opens its editor")
 	check(screen.formation_view.find_children("*", "Button", true, false).is_empty(),
 		"Selected formation ships have no floating Equip or Salvage buttons")
-	escort_point = screen.formation_view.global_position + screen.formation_view.ship_rect(escort).get_center()
-	motion(escort_point)
-	button(escort_point, true, true)
-	await process_frame
-	button(escort_point, false)
-	await settle()
-	check(screen.active_tab == "SHIPS" and screen.selected_ship_id == roster_escort_id
+	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id
 		and screen.canvas.owned_id == roster_escort_id and screen.selected_slot.is_empty(),
-		"Native Fleet sprite double-click opens the matching ship editor")
-	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false).button_pressed,
-		"Editor sprite tile marks the double-clicked ship")
-	screen.tabs.get_child(1).pressed.emit()
+		"Native Fleet sprite click opens the matching ship editor")
+	screen.ship_editor.find_child("CloseX", true, false).pressed.emit()
 	await settle()
 	check(screen.formation_view.camera == Vector2(25, -12) and is_equal_approx(screen.formation_view.zoom, 1.3),
-		"Returning from sprite double-click preserves formation pan and zoom")
-	screen.selected_ship_id = state.fleet[0].id
-	screen._refresh()
-	await settle()
-	screen.tabs.get_child(2).pressed.emit()
+		"Closing the ship editor preserves Fleet pan and zoom")
+	screen._open_ship_editor(state.fleet[0].id)
 	await settle()
 	check(screen.roster.find_child("BuyEquipment", true, false) == null
-		and screen.details.find_child("RefitPanel", true, false) != null,
-		"Ships shows loadout refits instead of an equipment shop")
+		and screen.refit_panel != null,
+		"Fleet editor shows loadout refits instead of an equipment shop")
+	screen._close_ship_editor()
+	await settle()
 	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
 	var before_purchase: int = state.fleet.size()
@@ -515,43 +506,20 @@ func run() -> void:
 	check(board._hit(second + Vector2(15, 0) * board.zoom) == 0,
 		"Escort hit target no longer covers its old full-size bounds")
 	var origin := board.global_position
-	var expected_selection: Array[int] = []
-	for owned: HangarShip in [state.fleet[0], state.fleet[1]]:
-		for id: int in HangarSquadrons.for_ship(state.squadrons, owned.id).members:
-			if id not in expected_selection:
-				expected_selection.append(id)
+	var before_layout: Dictionary = state.hangar_snapshot()
+	var display_before: Dictionary = board.display_positions.duplicate()
 	await drag(origin + first - Vector2(40, 50), origin + second + Vector2(40, 50))
 	board = screen.formation_view
-	check(board.selected_ids == expected_selection and screen.selected_ship_id == 0,
-		"Native box select expands both intersected squadrons, including the member outside its rectangle")
+	check(not screen.ship_editor_open and SaveValidation.same(before_layout, state.hangar_snapshot()),
+		"Dragging management space never edits tactical formation")
 	check(board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Selection preserves camera")
-	await capture("group-selected")
-	var before_a: Vector2 = state.fleet[0].formation
-	var before_b: Vector2 = state.fleet[1].formation
-	var background_position: Vector2 = board.starfield._get_star_position(board.starfield._stars[0])
-	var start: Vector2 = board.global_position + board.point(state.fleet[0])
-	check(board._hit(board.point(state.fleet[0])) == state.fleet[0].id, "Ship center is a native hit target")
-	await drag(start, start + Vector2(40, 20))
-	board = screen.formation_view
-	check(not state.fleet[0].formation.is_equal_approx(before_a), "Native group drag moves ships")
-	check((state.fleet[1].formation - state.fleet[0].formation).is_equal_approx(before_b - before_a), "Group drag preserves spacing")
-	check(board.selected_ids == expected_selection and board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Move retains squadron selection, pan and zoom")
-	check(board.starfield._get_star_position(board.starfield._stars[0]).is_equal_approx(background_position), "Moving ships does not reshuffle stationary stars")
+	await capture("orderly-fleet")
 	var saved: Dictionary = state.hangar_snapshot()
-	check(state.load_run_checkpoint(), "Load moved formation")
-	check(state.hangar_snapshot().ships == saved.ships, "Group positions persist")
-	saved = state.hangar_snapshot()
-	var blocker := FileAccess.open("user://blocked-save", FileAccess.WRITE)
-	blocker.store_string("not a directory")
-	blocker.close()
-	var save_path: String = state.run_save_path
-	state.run_save_path = "user://blocked-save/run.json"
-	check(not state.move_ships({1: Vector2.ZERO}), "Group move reports failed save")
-	check(state.hangar_snapshot() == saved, "Failed group save preserves whole fleet")
-	state.run_save_path = save_path
-	check(not state.move_ships({1: Vector2(6, 0)}) and state.hangar_snapshot() == saved, "Out-of-bounds group move is rejected atomically")
+	check(state.load_run_checkpoint(), "Reload tactical formation")
+	check(state.hangar_snapshot().ships == saved.ships, "Inspection preserves saved tactical positions")
 	await settle()
 	board = screen.formation_view
+	check(board.display_positions == display_before, "Continue preserves orderly management escorts")
 	var empty: Vector2 = board.global_position + Vector2(20, 120)
 	await drag(empty, empty)
 	check(screen.selected_ship_id == 0 and screen.formation_view.selected_ids.is_empty(), "Empty-space click deselects")
@@ -610,6 +578,10 @@ func run() -> void:
 	await settle()
 	var credits: int = state.credits
 	check(state.fleet_repair_cost() == 25, "Repair-all quote sums hull damage")
+	var save_path: String = state.run_save_path
+	var blocker := FileAccess.open("user://blocked-save", FileAccess.WRITE)
+	blocker.store_string("not a directory")
+	blocker.close()
 	state.run_save_path = "user://blocked-save/run.json"
 	var damaged: Dictionary = state.hangar_snapshot()
 	check(not state.repair_all_ships() and state.hangar_snapshot() == damaged, "Failed repair-all save restores credits and every ship")
@@ -663,7 +635,8 @@ func run() -> void:
 		screen._refresh()
 		await settle()
 		check(star_layout(screen.formation_view.starfield) == layout, "UI refresh preserves every generated star")
-	screen.active_tab = "SHIPS"
+	screen.active_tab = "FLEET"
+	screen.ship_editor_open = true
 	screen.selected_ship_id = 1
 	screen._refresh()
 	await settle()

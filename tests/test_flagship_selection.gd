@@ -93,12 +93,14 @@ func run() -> void:
 
 func _test_fitting_views() -> void:
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
-	screen.active_tab = "SHIPS"
+	screen.active_tab = "FLEET"
+	screen.ship_editor_open = true
 	root.add_child(screen)
 	current_scene = screen
 	for chassis: Dictionary in SlotCatalog.flagships():
 		check(state.start_new_run(1, 351, true, chassis.id), "Initialize flagship fitting view")
 		screen.selected_ship_id = state.fleet[0].id
+		screen.ship_editor_open = true
 		screen._refresh()
 		for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			root.size = resolution

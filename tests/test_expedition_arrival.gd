@@ -235,7 +235,7 @@ func run() -> void:
 			"Station actions fit their existing side panel")
 	screen.station_actions.find_child("StationShipyard", true, false).pressed.emit()
 	await settle()
-	check(screen.get_node_or_null("ArrivalDialog") == null and screen.active_tab == "SHIPS", "Shipyard opens Ships without a modal")
+	check(screen.get_node_or_null("ArrivalDialog") == null and screen.active_tab == "FLEET", "Shipyard opens Fleet without an arrival modal")
 	# A failed course save changes nothing and offers retry.
 	var before_route: Dictionary = state.hangar_snapshot()
 	state.run_save_path = "res://project.godot/no-save.json"

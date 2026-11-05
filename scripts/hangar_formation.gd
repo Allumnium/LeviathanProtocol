@@ -28,6 +28,7 @@ var starfield: Control
 var hit_images: Dictionary = {}
 var travel_distance_nu := 0.0
 var _last_travel_distance_nu := 0.0
+var display_positions: Dictionary[int, Vector2] = {}
 
 func _ready() -> void:
 	surface_material = SurfaceArt.apply(self)
@@ -54,6 +55,7 @@ func _ready() -> void:
 	if selected_ids.is_empty() and selected_id > 0:
 		selected_ids.append(selected_id)
 	_expand_squadrons()
+	_layout_escorts()
 	for owned: HangarShip in GameState.fleet:
 		hit_images[owned.id] = SurfaceArt.diffuse(owned.art_texture).get_image()
 		var glow := TextureRect.new()
@@ -69,8 +71,34 @@ func _ready() -> void:
 	resized.connect(queue_redraw)
 
 func point(owned: FleetShip) -> Vector2:
-	var position := owned.formation + (drag_delta if dragging and owned.id in selected_ids else Vector2.ZERO)
+	var position: Vector2 = display_positions.get(owned.id, Vector2.ZERO)
 	return size * 0.5 + (position * 52 - camera) * zoom
+
+func _layout_escorts() -> void:
+	display_positions.clear()
+	var escorts: Array[int] = []
+	for group: Dictionary in GameState.squadrons:
+		for id: int in group.members:
+			var ship: HangarShip = GameState.owned_ship(id)
+			if ship.flagship:
+				display_positions[id] = Vector2.ZERO
+			else:
+				escorts.append(id)
+	var columns := maxi(3, ceili(sqrt(escorts.size() + 1)))
+	if columns % 2 == 0:
+		columns += 1
+	var rows := maxi(3, ceili(float(escorts.size() + 1) / columns))
+	if rows % 2 == 0:
+		rows += 1
+	var index := 0
+	for row in range(rows):
+		for column in range(columns):
+			if row == rows / 2 and column == columns / 2:
+				continue
+			if index >= escorts.size():
+				return
+			display_positions[escorts[index]] = Vector2(column - columns / 2, row - rows / 2) * 1.2
+			index += 1
 
 func _world(position: Vector2) -> Vector2:
 	return (camera + (position - size * 0.5) / zoom) / 52
@@ -120,61 +148,20 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			var hit := _hit(event.position)
-			if hit > 0 and event.double_click:
+			if hit > 0:
 				ship_opened.emit(hit)
 				return
-			if hit > 0:
-				AudioManager.play_ui_sfx(&"select_tab")
-				if hit not in selected_ids:
-					selected_ids.assign([hit])
-				_expand_squadrons()
-				dragging = true
-				drag_start = _world(event.position)
-				drag_delta = Vector2.ZERO
-			else:
-				box_selecting = true
-				box_start = event.position
-				box_end = event.position
-				selected_ids.clear()
-				selected_id = 0
-				starfield._gui_input(event)
-		else:
-			if dragging:
-				dragging = false
-				if not drag_delta.is_zero_approx():
-					var positions := {}
-					for id in selected_ids:
-						positions[id] = GameState.owned_ship(id).formation + drag_delta
-					if not GameState.move_ships(positions):
-						action_failed.emit(GameState.last_save_error if not GameState.last_save_error.is_empty() else "Formation move failed.")
-				drag_delta = Vector2.ZERO
-			elif box_selecting:
-				box_selecting = false
-				var rect := Rect2(box_start, box_end - box_start).abs()
-				if rect.size.length() > 4:
-					for owned: HangarShip in GameState.fleet:
-						if rect.has_point(point(owned)):
-							selected_ids.append(owned.id)
-				_expand_squadrons()
-			ship_selected.emit(selected_id)
-		queue_redraw()
-	elif event is InputEventMouseMotion:
-		if dragging:
-			var delta := _world(event.position) - drag_start
-			var lower := Vector2(-INF, -INF)
-			var upper := Vector2(INF, INF)
-			for id in selected_ids:
-				var origin: Vector2 = GameState.owned_ship(id).formation
-				lower = lower.max(Vector2(-5, -4) - origin)
-				upper = upper.min(Vector2(5, 4) - origin)
-			drag_delta = delta.clamp(lower, upper)
-		elif box_selecting:
-			box_end = event.position
+			selected_ids.clear()
+			selected_id = 0
+			starfield._gui_input(event)
+			ship_selected.emit(0)
 		queue_redraw()
 
 func _process(delta: float) -> void:
 	if is_visible_in_tree():
-		exhaust_elapsed += delta
+		var simulation = GameState.expedition_simulation
+		if simulation != null and simulation.state != null:
+			exhaust_elapsed = simulation.state.simulation_seconds
 		station_angle = fmod(station_angle + TAU * delta / STATION_REVOLUTION_SECONDS, TAU)
 		_update_station()
 		if starfield != null and travel_distance_nu > _last_travel_distance_nu:
@@ -220,7 +207,11 @@ func _draw() -> void:
 	_draw_location()
 	for owned: HangarShip in GameState.fleet:
 		var rect := ship_rect(owned)
-		Exhaust.draw(self, owned, rect, exhaust_elapsed)
+		var simulation = GameState.expedition_simulation
+		if simulation != null and simulation.state != null \
+				and simulation.state.travel_state == ExpeditionState.TravelState.CRUISING \
+				and simulation.state.pause_reasons.is_empty():
+			Exhaust.draw(self, owned, rect, exhaust_elapsed)
 		draw_texture_rect(owned.art_texture, rect, false)
 		owned.draw_fitted_equipment(self, rect)
 		if glows.has(owned.id):

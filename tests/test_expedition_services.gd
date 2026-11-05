@@ -67,16 +67,19 @@ func run() -> void:
 	check(state.save_run_checkpoint(), "Persist damaged repair fixture")
 
 	screen = load("res://scenes/game_map.tscn").instantiate()
-	screen.active_tab = "SHIPS"
+	screen.active_tab = "FLEET"
+	screen.ship_editor_open = true
 	screen.selected_ship_id = flagship_id
 	root.add_child(screen)
 	current_scene = screen
 	screen.set_process(false)
 	await settle()
+	check(not screen.refit_panel.find_child("Loadout_gunline", true, false).disabled, "Docked refit panel is usable")
+	screen._close_ship_editor()
+	await settle()
 	screen._open_shop("SHIPS")
 	await settle()
 	check(screen.buy_open and screen.shop != null, "Docked ship shop uses the existing embedded panel")
-	check(not screen.details.find_child("Loadout_gunline", true, false).disabled, "Docked refit panel is usable")
 	screen._apply_expedition_action(func() -> bool:
 		return state.expedition_simulation.request_destination("refuel_station_1"))
 	await settle()
@@ -84,8 +87,10 @@ func run() -> void:
 	check(screen.roster.find_child("BuyShips", true, false).disabled
 			and screen.roster.find_child("StationServiceReason", true, false) != null,
 			"Ships retains its layout with a disabled purchase action and service reason")
-	check(screen.details.find_child("Loadout_gunline", true, false).disabled
-			and screen.details.find_child("RefitServiceReason", true, false) != null,
+	screen._open_ship_editor(flagship_id)
+	await settle()
+	check(screen.refit_panel.find_child("Loadout_gunline", true, false).disabled
+			and screen.refit_panel.find_child("RefitServiceReason", true, false) != null,
 			"Refits stay visible but disabled in flight, with a reason")
 	screen._inspect_chassis("fighter")
 	check(screen.inspection != null, "Ship inspection remains available in flight")
@@ -119,7 +124,7 @@ func run() -> void:
 	screen._refresh_expedition_controls()
 	await settle()
 	check(state.can_use_shipyard() and not screen.roster.find_child("BuyShips", true, false).disabled
-			and not screen.details.find_child("Loadout_gunline", true, false).disabled,
+			and not screen.refit_panel.find_child("Loadout_gunline", true, false).disabled,
 			"Shipyard arrival restores management actions automatically")
 	check(simulation.set_pause(Travel.PauseReason.USER, true) and state.can_use_shipyard(),
 			"User pause does not block docked management")

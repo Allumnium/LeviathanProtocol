@@ -34,6 +34,11 @@ const PLAYER_FORMATION_SPACING := Vector2(54.0, 54.0)
 const ALIEN_FORMATION_CENTER := Vector2(420.0, 0.0)
 const ALIEN_FORMATION_COLUMNS := 6
 const ALIEN_FORMATION_SPACING := Vector2(65.0, 65.0)
+const DEPLOYMENT_SCALE := 65.0
+
+static func deployment_area(plan: Dictionary) -> Rect2:
+	return Rect2(Vector2(-745, -140), Vector2(650, 280)) if plan.get("arena_layout", "open") == "corridor" \
+		else Rect2(Vector2(-745, -260), Vector2(650, 520))
 
 class Combatant:
 	var owned_ship: FleetShip
@@ -440,7 +445,7 @@ func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chan
 		for weapon in member.stats.weapons:
 			member.cooldowns.append(0.0)
 			member.weapon_damage[weapon.weapon_name] = 0.0
-		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * 65.0
+		member.position = PLAYER_FORMATION_CENTER + (Vector2(ships[index].formation) - formation_center) * DEPLOYMENT_SCALE
 		member.previous_position = member.position
 	_rebuild_member_cache()
 	SharedSupport.initialize(self)
@@ -1571,7 +1576,7 @@ func _escort_anchor(ship: Combatant) -> Vector2:
 		if host == null or candidate.position.distance_squared_to(ship.position) < host.position.distance_squared_to(ship.position):
 			host = candidate
 	if host == null:
-		return PLAYER_FORMATION_CENTER + ship.owned_ship.formation * 65.0
+		return PLAYER_FORMATION_CENTER + ship.owned_ship.formation * DEPLOYMENT_SCALE
 	return host.position - Vector2.from_angle(host.heading) * 90.0
 
 func _flagship_position() -> Vector2:
@@ -1583,7 +1588,7 @@ func _flagship_position() -> Vector2:
 func _guard_offset(ship: Combatant) -> Vector2:
 	for member: Combatant in players:
 		if member.owned_ship != null and member.owned_ship.is_flagship():
-			return (ship.owned_ship.formation - member.owned_ship.formation) * 65.0
+			return (ship.owned_ship.formation - member.owned_ship.formation) * DEPLOYMENT_SCALE
 	return Vector2.ZERO
 
 func _stance_move(ship: Combatant, destination: Vector2, delta: float) -> void:

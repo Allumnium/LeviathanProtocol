@@ -62,6 +62,14 @@ var enemy_readout: Control
 var battle_frame: VBoxContainer
 var battlefield: Control
 var footer_panel: PanelContainer
+var deploying := true
+var begin_button: Button
+var deployment_feedback: Label
+var _deployment_origins: Dictionary = {}
+var _deployment_press := Vector2.ZERO
+var _deployment_dragging := false
+var _deployment_box := false
+var _deployment_individual := false
 
 
 func _ready() -> void:
@@ -124,6 +132,18 @@ func _ready() -> void:
 	simulation.ship_destroyed.connect(_on_ship_destroyed)
 	simulation.projectile_impacted.connect(visuals.add_projectile_impact)
 	visuals.simulation = simulation
+	visuals.deployment_area = BattleSimulation.deployment_area(GameState.pending_encounter)
+	for member: BattleSimulation.Combatant in simulation.players:
+		member.position = (BattleSimulation.PLAYER_FORMATION_CENTER \
+			+ member.owned_ship.formation * BattleSimulation.DEPLOYMENT_SCALE).clamp(
+				visuals.deployment_area.position + Vector2.ONE * member.radius,
+				visuals.deployment_area.end - Vector2.ONE * member.radius)
+		member.previous_position = member.position
+	simulation.refresh_visibility()
+	battle_speed_controls.hide()
+	if ability_bar != null:
+		ability_bar.input_enabled = false
+		ability_bar.refresh()
 	visuals.camera_zoom = clampf(minf(visuals.size.x / 850.0, visuals.size.y / 600.0), 0.25, 2.5)
 	fast_forward_button.set_pressed_no_signal(GameState.battle_speed == 2)
 	five_times_button.set_pressed_no_signal(GameState.battle_speed == 5)
@@ -179,6 +199,17 @@ func _build_header() -> void:
 	objective_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	objective_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	command_header.course.add_child(objective_label)
+	begin_button = preload("res://scripts/ui_kit.gd").button("BEGIN COMBAT", _begin_combat)
+	begin_button.name = "BeginCombat"
+	begin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	command_header.course.add_child(begin_button)
+	objective_label.reparent(battle_readouts)
+	deployment_feedback = Label.new()
+	deployment_feedback.name = "DeploymentFeedback"
+	deployment_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	deployment_feedback.add_theme_color_override("font_color", Color("ffd28a"))
+	deployment_feedback.hide()
+	battle_readouts.add_child(deployment_feedback)
 	battle_readouts.add_child(repair_label)
 	var transport := preload("res://scripts/battle_transport_readout.gd").new()
 	transport.simulation = simulation
@@ -200,6 +231,8 @@ func _commit_asteroid_pickup(id: String, materials: Array, field: Dictionary) ->
 
 
 func _physics_process(delta: float) -> void:
+	if deploying:
+		return
 	if UiNavigation.settings_open():
 		return
 	if _finished:
@@ -264,6 +297,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
+	if deploying:
+		return
 	_simulation_accumulator += delta * speed_multiplier
 	var steps := 0
 	while (
@@ -304,6 +339,8 @@ func _on_destroy_neutral_targets_toggled(enabled: bool) -> void:
 
 
 func _on_speed_toggled(enabled: bool, speed: int) -> void:
+	if deploying:
+		return
 	GameState.battle_speed = speed if enabled else 1
 	fast_forward_button.set_pressed_no_signal(GameState.battle_speed == 2)
 	five_times_button.set_pressed_no_signal(GameState.battle_speed == 5)
@@ -356,7 +393,8 @@ func _process(delta: float) -> void:
 		visuals.camera_position += direction.normalized() * 400.0 * delta / visuals.camera_zoom
 	if _dragging and _pan_resume_seconds > 0:
 		_mark_manual_pan_input()
-	_update_auto_camera(delta)
+	if not deploying:
+		_update_auto_camera(delta)
 	visuals.queue_redraw()
 
 
@@ -393,6 +431,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and (focus is BaseButton or focus is Range):
 		return
 	if _report_open or _result_delay_remaining >= 0.0 or _cinematic_projectile != null:
+		return
+	if deploying and _deployment_input(event):
 		return
 	if event is InputEventMouseButton:
 		if not _battlefield_input(event.position):
@@ -445,6 +485,8 @@ func _battlefield_input(point: Vector2) -> bool:
 
 
 func _issue_target_at(point: Vector2) -> void:
+	if deploying:
+		return
 	var selected: BattleSimulation.Combatant
 	var nearest := INF
 	for actor in simulation._members:
@@ -539,6 +581,119 @@ func _update_battlefield_rect() -> void:
 		radar.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 		radar.position = corner - radar.size - Vector2(8, 8)
 	visuals.queue_redraw()
+	if deploying and _pan_resume_seconds == 0 and _zoom_resume_seconds == 0:
+		var bounds := visuals.deployment_area
+		for member: BattleSimulation.Combatant in simulation.aliens:
+			if not simulation.visibility_enabled or simulation.team_can_see(0, member):
+				bounds = bounds.expand(member.position + Vector2.ONE * member.radius)
+		visuals.camera_position = bounds.get_center()
+		visuals.camera_zoom = clampf(minf(battlefield.size.x / (bounds.size.x + 60),
+			battlefield.size.y / (bounds.size.y + 60)), 0.2, 3)
+
+func _begin_combat() -> void:
+	if not deploying:
+		return
+	var positions := {}
+	for member: BattleSimulation.Combatant in simulation.players:
+		positions[member.owned_ship.id] = member.position
+	if not GameState.save_battle_deployment(positions):
+		deployment_feedback.text = "Save failed: " + GameState.last_save_error
+		deployment_feedback.show()
+		return
+	for member: BattleSimulation.Combatant in simulation.players:
+		member.owned_ship = GameState.owned_ship(member.owned_ship.id)
+		member.previous_position = member.position
+	simulation._rebuild_member_cache()
+	simulation.refresh_visibility()
+	deploying = false
+	_deployment_dragging = false
+	_deployment_box = false
+	_deployment_origins.clear()
+	visuals.deployment_area = Rect2()
+	visuals.deployment_selection.clear()
+	visuals.deployment_box = Rect2()
+	begin_button.hide()
+	deployment_feedback.hide()
+	objective_label.reparent(command_header.course)
+	battle_speed_controls.show()
+	if ability_bar != null:
+		ability_bar.input_enabled = true
+		ability_bar.refresh()
+	_simulation_accumulator = 0
+	visuals.queue_redraw()
+
+func _select_deployment(point: Vector2, individual: bool, additive := false) -> bool:
+	var hit: BattleSimulation.Combatant
+	for member: BattleSimulation.Combatant in simulation.players:
+		if member.is_alive() and BattleSimulation.Collision.contains(BattleSimulation.Collision.actor_polygons(member), point):
+			hit = member
+			break
+	if not additive:
+		visuals.deployment_selection.clear()
+	if hit == null:
+		return false
+	for member: BattleSimulation.Combatant in simulation.players:
+		if member == hit or (not individual and member.squadron_id == hit.squadron_id):
+			if member.entity_id not in visuals.deployment_selection:
+				visuals.deployment_selection.append(member.entity_id)
+	return true
+
+func _move_deployment(delta: Vector2) -> void:
+	var area := visuals.deployment_area
+	var lower := Vector2(-INF, -INF)
+	var upper := Vector2(INF, INF)
+	for id: String in _deployment_origins:
+		var member: BattleSimulation.Combatant = simulation.entities[id]
+		var origin: Vector2 = _deployment_origins[id]
+		lower = lower.max(area.position + Vector2.ONE * member.radius - origin)
+		upper = upper.min(area.end - Vector2.ONE * member.radius - origin)
+	var shift := delta.clamp(lower, upper)
+	for id: String in _deployment_origins:
+		var member: BattleSimulation.Combatant = simulation.entities[id]
+		member.position = _deployment_origins[id] + shift
+		member.previous_position = member.position
+	simulation.refresh_visibility()
+	visuals.queue_redraw()
+
+func _deployment_input(event: InputEvent) -> bool:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if not _battlefield_input(event.position):
+				return false
+			_deployment_press = visuals.world_transform().affine_inverse() * event.position
+			_deployment_individual = event.alt_pressed
+			_deployment_dragging = _select_deployment(_deployment_press, event.alt_pressed, event.shift_pressed)
+			_deployment_box = not _deployment_dragging
+			visuals.deployment_box = Rect2()
+			_deployment_origins.clear()
+			for id: String in visuals.deployment_selection:
+				_deployment_origins[id] = simulation.entities[id].position
+		else:
+			if not _deployment_dragging and not _deployment_box:
+				return false
+			if _deployment_box:
+				var point: Vector2 = visuals.world_transform().affine_inverse() * event.position
+				var box := Rect2(_deployment_press, point - _deployment_press).abs()
+				for member: BattleSimulation.Combatant in simulation.players:
+					if box.has_point(member.position):
+						_select_deployment(member.position, _deployment_individual, true)
+			_deployment_dragging = false
+			_deployment_box = false
+			visuals.deployment_box = Rect2()
+			_deployment_origins.clear()
+		visuals.queue_redraw()
+		get_viewport().set_input_as_handled()
+		return true
+	if event is InputEventMouseMotion and (_deployment_dragging or _deployment_box):
+		var point: Vector2 = visuals.world_transform().affine_inverse() * event.position
+		if _deployment_dragging:
+			_move_deployment(point - _deployment_press)
+		else:
+			visuals.deployment_box = Rect2(_deployment_press, point - _deployment_press).abs()
+			visuals.queue_redraw()
+		get_viewport().set_input_as_handled()
+		return true
+	return false
 
 
 func _ability_targeting_changed(enabled: bool) -> void:

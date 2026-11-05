@@ -208,8 +208,7 @@ func battle_scene() -> void:
 			break
 	check(fitted, "Install Ion Emitter through the real atomic shipyard refit")
 	var enemy := fixture().aliens[0].alien
-	state.battle_pending = true
-	state.battle_aliens.assign([enemy])
+	check(state.travel_to(state.get_reachable_nodes(state.current_node_id)[0]), "Save a real ability-test deployment")
 	var battle: Control = load("res://scenes/auto_battle.tscn").instantiate()
 	root.size = Vector2i(1280, 720)
 	root.add_child(battle)
@@ -217,6 +216,13 @@ func battle_scene() -> void:
 	battle.set_physics_process(false)
 	battle.set_process(false)
 	await settle()
+	check(battle.deploying and not battle.ability_bar.input_enabled, "Abilities stay disabled during deployment")
+	battle._begin_combat()
+	check(not battle.deploying, "Ability interaction starts through atomic Begin Combat")
+	var context: Dictionary = state.battle_support_context()
+	context.encounter_plan = {}
+	check(battle.simulation.setup_owned(state.get_deployed_fleet(), [enemy], 0, 0, 9412, context),
+		"Use the controlled target after starting the real encounter")
 	battle.simulation.player.position = Vector2.ZERO
 	battle.simulation.aliens[0].position = Vector2(150, 0)
 	battle.visuals.camera_position = Vector2(75, 0)
@@ -322,8 +328,7 @@ func battle_scene() -> void:
 	battle.queue_free()
 	await settle()
 	check(state.start_new_run(1, 9413), "Start a battle without researched abilities")
-	state.battle_pending = true
-	state.battle_aliens.assign([enemy])
+	check(state.travel_to(state.get_reachable_nodes(state.current_node_id)[0]), "Save the no-ability deployment")
 	var empty_battle: Control = load("res://scenes/auto_battle.tscn").instantiate()
 	root.size = Vector2i(640, 360)
 	root.add_child(empty_battle)

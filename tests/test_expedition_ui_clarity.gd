@@ -322,7 +322,8 @@ func run() -> void:
 	for owned: HangarShip in state.fleet:
 		if owned.chassis_id == "transport":
 			transport = owned
-	screen.active_tab = "SHIPS"
+	screen.active_tab = "FLEET"
+	screen.ship_editor_open = true
 	screen.selected_ship_id = transport.id
 	screen.selected_slot = ""
 	screen._refresh()

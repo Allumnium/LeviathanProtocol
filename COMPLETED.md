@@ -2,6 +2,14 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Fleet inspection and battle deployment redesign
+
+- Encounters start frozen with the mission and visible opponents shown. Squadron dragging, Alt-individual placement, Shift-additive/box selection and sprite-fitting highlights respect the mission deployment bounds, including corridors. Top-center Begin Combat atomically saves formation/centroids and reconnects committed ship references before enabling combat, abilities and speed controls. Save failures retain setup and show an error. Continue returns to setup with the saved placement; no mid-fight restore is implied.
+- Fleet now opens the existing ship/mount editor directly from any escort or flagship, with the shared X and saved fitting camera. Retained loadouts, compatible part changes/removal, loads/details, travel repair rate, paid repair, confirmed salvage, split/join and group defaults/overrides/purchases with actual shipyard restrictions. Removed the separate Ships tab. Salvage errors remain visible inside confirmation.
+- Management escorts have an orderly, noneditable layout independent of tactical saves, preserving pan/zoom, selection, travel and source artwork.
+- Focused isolated native verification: Fleet 39 and deployment 50 checks, zero failures; reviewed 640x360/1280x720/1920x1080 captures and actual ship/mount/refit/salvage clicks, squadron/Alt/Shift dragging and box feedback. Covered invalid/failed atomic saves, cargo guards, refit/removal/loadouts, repair, membership, fitted group purchase, ability/setup clocks, Continue and one 13-vs-8 earned-ability fixture victory at 7.67 simulated seconds with production settlement. All 13 migrated fixtures compile-checked; no broad baseline, campaign sweep or scale profile. Native exit still emits renderer/resource cleanup diagnostics.
+- Updated [docs/HANGAR.md](docs/HANGAR.md) and [tests/README.md](tests/README.md); moved this request's four verified tasks out of [TODO.md](TODO.md). Delivered as one coherent task-only commit/push, preserving concurrent artwork changes.
+
 ## 2026-11-05 - Freeze stationary map time and passive repair
 
 - Expedition ticks advance only when cruising actually moves the fleet. Docked shipyards, stopped routes/POIs, pauses, fuel-empty movement attempts and encounter-blocked map states grant no time or passive repair, including fast-forward and Continue. Resumed travel retains the existing per-second repair rate and Renewal modifier; combat healing and paid shipyard repairs are unchanged.
@@ -15,7 +23,7 @@ Keep new entries brief: completion date, delivered behavior and focused verifica
 - Actual relay transfers render blue particle beams; alien shields/Sentinel cover use sprite-fitting alpha glows rather than the large circular cover halo. Removed the management research-complete banner; immediate card grants, readiness, explicit errors and Continue remain.
 - Focused isolated verification: fleet/encounter logic 266, both-faction flocking/relay/motion 29, particles 10, command progression 80 and all-flagship starting/loss checks 312; zero failures. Native opening 272 checks: 13-vs-10 victory at 19.5 simulated seconds with 13 survivors, settled and loaded through Continue. Native Fleet layering 46, relay/shield appearance/expiry 8 and choice-only research 75 checks; reviewed 640x360/1280x720/1920x1080 captures. Four related fixtures compile-checked without running their suites.
 - Expected invalid-flagship rejection and existing native shutdown texture diagnostics remain. No full baseline, campaign sweep, broad fleet profile or soak. Science remains a fixed victory reward, with lab RP earned during travel, not battle time.
-- Outlined battle deployment/Begin Combat, Ships-to-Fleet inspection parity and orderly management escorts in [TODO.md](TODO.md). The user requested discussion first; that redesign remains unimplemented.
+- Outlined battle deployment/Begin Combat, Ships-to-Fleet inspection parity and orderly management escorts in [TODO.md](TODO.md). The user requested discussion first at that milestone; the subsequent approved redesign is recorded above.
 
 ## 2026-11-05 - Relay shields and support clarity
 

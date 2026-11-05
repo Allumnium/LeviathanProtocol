@@ -3,6 +3,7 @@ extends PanelContainer
 signal targeting_changed(enabled: bool)
 
 var embedded := false
+var input_enabled := true
 var simulation: BattleSimulation
 var visuals: Control
 var targeting := false
@@ -93,14 +94,17 @@ func refresh() -> void:
 		var button: Button = action_buttons[id]
 		var cooldown: float = simulation.abilities.remaining(id)
 		button.text = GameDefinitions.find("abilities", id).display_name.to_upper() + (" %d" % ceili(cooldown) if cooldown > 0 else "")
-		button.disabled = simulation.phase != BattleSimulation.Phase.COMBAT or cooldown > 0 or simulation.abilities.sources(simulation, 0, id).is_empty()
+		button.disabled = not input_enabled or simulation.phase != BattleSimulation.Phase.COMBAT or cooldown > 0 or simulation.abilities.sources(simulation, 0, id).is_empty()
 		button.set_pressed_no_signal(targeting and selected_id == id)
 	if auto_button == null:
 		return
 	auto_button.set_pressed_no_signal(simulation.abilities.state.auto.get(selected_id, selected_id != "scan"))
-	auto_button.disabled = simulation.phase != BattleSimulation.Phase.COMBAT
+	auto_button.disabled = not input_enabled or simulation.phase != BattleSimulation.Phase.COMBAT
 	pause_aim.set_pressed_no_signal(simulation.abilities.state.pause_aim)
-	pause_aim.disabled = simulation.phase != BattleSimulation.Phase.COMBAT
+	pause_aim.disabled = not input_enabled or simulation.phase != BattleSimulation.Phase.COMBAT
+	source_picker.disabled = not input_enabled
+	if overflow_menu != null:
+		overflow_menu.disabled = not input_enabled
 	var ids: Array[String] = []
 	for source in simulation.abilities.sources(simulation, 0, selected_id):
 		ids.append(source.entity_id)
@@ -122,6 +126,8 @@ func refresh() -> void:
 		set_preview(visuals.ability_preview.position)
 
 func begin_targeting(id: String) -> void:
+	if not input_enabled:
+		return
 	if targeting:
 		var previous := selected_id
 		cancel_targeting()

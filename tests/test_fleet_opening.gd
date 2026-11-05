@@ -119,6 +119,8 @@ func native_opening() -> void:
 	await settle()
 	var sim: BattleSimulation = battle.simulation
 	check(sim.players.size() == 13 and sim.aliens.size() == enemy_count, "Both expanded fleets deploy")
+	battle._begin_combat()
+	check(not battle.deploying, "Opening battle starts through atomic Begin Combat")
 	var captured := false
 	for tick in range(30 * 120):
 		battle._advance_fixed_simulation(1.0 / 30, 1)

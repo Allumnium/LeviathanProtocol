@@ -141,7 +141,8 @@ func run() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/chassis-inspector.png")
-	scene.active_tab = "SHIPS"
+	scene.active_tab = "FLEET"
+	scene.ship_editor_open = true
 	scene.buy_open = false
 	scene._refresh()
 	await create_timer(0.25).timeout
@@ -150,7 +151,7 @@ func run() -> void:
 	await _click(scene.canvas.slot_buttons.port.get_global_rect().get_center())
 	await process_frame
 	check(scene.slot_info.visible and scene.slot_info.source_text.contains("Mini Turret"), "Art selection still updates installed-part details after inspection")
-	check(scene.inspected_item.is_empty() and scene.details.find_child("RefitPanel", true, false).visible,
+	check(scene.inspected_item.is_empty() and scene.refit_panel.visible,
 		"Art click exits catalog inspection and restores the refit panel")
 	check(state.swap_part(scene.selected_ship_id, "fore", ""), "Empty a mount for the stats check")
 	await process_frame

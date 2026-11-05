@@ -48,6 +48,9 @@ var ability_preview: Dictionary = {}
 var _surface_material: ShaderMaterial
 var _rock_texture: Texture2D
 var _shield_masks: Dictionary[Texture2D, Texture2D] = {}
+var deployment_area := Rect2()
+var deployment_selection: Array[String] = []
+var deployment_box := Rect2()
 
 
 func world_center() -> Vector2:
@@ -132,6 +135,12 @@ func _draw() -> void:
 		size / camera_zoom
 	).grow(80.0)
 	draw_set_transform_matrix(world_transform())
+	if deployment_area.has_area():
+		draw_rect(deployment_area, Color(0.2, 0.65, 0.85, 0.06))
+		draw_rect(deployment_area, Color(0.3, 0.75, 1, 0.45), false, 1)
+		if deployment_box.has_area():
+			draw_rect(deployment_box, Color(1, 1, 1, 0.08))
+			draw_rect(deployment_box, Color(1, 1, 1, 0.8), false, 1 / camera_zoom)
 	_draw_visibility()
 	if simulation.encounter.plan.get("arena_layout", "open") == "corridor":
 		for y in [-240, 240]:
@@ -690,6 +699,11 @@ func _draw_hangar_ship(member: BattleSimulation.Combatant, render_position: Vect
 	var heading := lerp_angle(member.previous_heading, member.heading, interpolation_alpha)
 	_set_ship_transform(render_position, heading + PI / 2)
 	var rect := hangar_ship_rect(owned)
+	if member.entity_id in deployment_selection:
+		var mask := _shield_mask(texture)
+		for index in range(8):
+			var offset := Vector2.from_angle(index * TAU / 8.0) * 2
+			draw_texture_rect(mask, Rect2(rect.position + offset, rect.size), false, Color(1, 1, 1, 0.6))
 	if member.shield_flash > 0:
 		_draw_shield_glow(texture, rect, member.shield_flash)
 	draw_texture_rect(texture, rect, false, Color.WHITE if member.is_alive() else Color(0.35, 0.35, 0.35, 0.7))

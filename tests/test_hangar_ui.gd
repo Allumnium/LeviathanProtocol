@@ -88,18 +88,16 @@ func run() -> void:
 	check(screen.name == "Hangar" and screen.active_tab == "MAP",
 		"Continue opens the existing hangar screen on the Map home page")
 	check(screen.travel_controls != null, "Fleet page includes compact expedition controls")
-	screen.selected_ship_id = 0
-	screen.active_tab = "SHIPS"
+	screen.selected_ship_id = state.fleet[0].id
+	screen.active_tab = "FLEET"
+	screen.ship_editor_open = true
 	screen._refresh()
 	await settle()
 	check(screen.canvas != null, "Actual game opens physical hangar")
-	var flagship_row: Button = screen.roster.find_child("Ship1", true, false)
-	check(screen.selected_ship_id == state.fleet[0].id and state.fleet[0].flagship, "Ships selects the flagship when no ship is selected")
-	check(flagship_row != null and flagship_row.text.is_empty() and flagship_row.get_parent().name == "ShipTiles",
-		"Ships roster shows ship sprites instead of a text list")
+	check(screen.selected_ship_id == state.fleet[0].id and state.fleet[0].flagship, "Fleet inspects the selected flagship")
+	check(screen.formation_view != null and screen.ship_editor.is_visible_in_tree(),
+		"Fleet sprites remain behind the ship editor")
 	var audio := root.get_node("AudioManager")
-	check(flagship_row.pressed.is_connected(Callable(audio, "play_ui_sfx").bind(&"select_tab")),
-		"Ship roster selection uses the former tab sound")
 	var tabs: HBoxContainer = screen.tabs
 	check(tabs.get_parent() == screen.command_header.left
 		and screen.header_wallet.get_parent() == screen.command_header.right
@@ -146,9 +144,8 @@ func run() -> void:
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
-		var named_row: Button = screen.roster.find_child("Ship1", true, false)
-		check(screen.roster_panel.get_global_rect().encloses(named_row.get_global_rect()),
-			"Flagship sprite tile fits the roster panel without canvas expansion")
+		check(screen.get_global_rect().encloses(screen.ship_editor.get_node("ShipEditorPanel").get_global_rect()),
+			"Fleet flagship editor stays inside the screen")
 		var buttons: Dictionary = screen.canvas.slot_buttons
 		check_callouts(screen.canvas)
 		check(screen.canvas.exhaust_elapsed > 0, "Ships view continuously animates preview thrust")
@@ -168,7 +165,7 @@ func run() -> void:
 	var replaced_uid: String = state.owned_ship(1).mounts.port.uid
 	screen.canvas.slot_selected.emit("port")
 	await settle()
-	screen.details.find_child("Part_laser", true, false).pressed.emit()
+	screen.refit_panel.find_child("Part_laser", true, false).pressed.emit()
 	await settle()
 	check(state.owned_ship(1).mounts.port.equipment_id == "laser", "Clicking a mount and a part refits that mount")
 	check(not state.equipment_inventory.has(replaced_uid), "Replaced part is scrapped; there is no stock")
@@ -181,6 +178,8 @@ func run() -> void:
 			continue
 		check(state.buy_ship(chassis.id), "Buy " + chassis.name + " for actual hangar review")
 		screen.selected_ship_id = state.fleet[-1].id
+		screen.ship_editor_open = true
+		screen._refresh()
 		await settle()
 		for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			root.size = resolution
@@ -192,30 +191,29 @@ func run() -> void:
 				check(screen.canvas.get_global_rect().encloses(rect), chassis.name + " mount in canvas")
 				check(not rectangles.any(func(other: Rect2) -> bool: return rect.intersects(other)), chassis.name + " mounts do not overlap")
 				rectangles.append(rect)
-			var loadouts: Control = screen.details.find_child("RefitPanel", true, false)
-			var scroll: ScrollContainer = screen.details.get_parent()
+			var loadouts: Control = screen.refit_panel
+			var scroll: ScrollContainer = loadouts.get_parent().get_parent()
 			var last_action: Control = loadouts.get_child(loadouts.get_child_count() - 1)
 			scroll.ensure_control_visible(last_action)
 			await settle()
 			check(loadouts != null and scroll.get_global_rect().grow(1).encloses(last_action.get_global_rect()),
 				chassis.name + " refit choices remain reachable inside the aspect-sized panel")
-			check(not scroll.get_v_scroll_bar().visible and not scroll.get_h_scroll_bar().visible,
-				"Aspect-sized side panels have no visible scrollbars")
+			check(not scroll.get_h_scroll_bar().visible,
+				"Ship actions never require horizontal scrolling")
 			scroll.scroll_vertical = 0
 			await settle()
-			var roster_view: ScrollContainer = screen.roster.get_parent()
-			for tile: Button in screen.roster.get_node("ShipTiles").get_children():
-				check(tile.get_global_rect().position.x >= roster_view.global_position.x
-					and tile.get_global_rect().end.x <= roster_view.get_global_rect().end.x,
-					"Ship tiles fit horizontally inside the proportioned frame")
+			check(screen.formation_view != null, "Orderly Fleet stays available behind inspection")
 		check(state.salvage_hangar_ship(screen.selected_ship_id), "Immediate fixture salvage")
 		await settle()
 	root.size = Vector2i(1280, 720)
 	await settle()
 	screen.selected_ship_id = 1
+	screen.ship_editor_open = true
 	screen._refresh()
 	await settle()
 	check(screen.roster.find_child("BuyEquipment", true, false) == null, "There is no equipment shop")
+	screen._close_ship_editor()
+	await settle()
 	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
 	check(screen.shop.visible, "Ship shop opens")
@@ -296,7 +294,7 @@ func run() -> void:
 	check(state.swap_part(science_ship, "hold", "research_lab@3"), "Lab (XL) UI fixture")
 	await settle()
 	screen.selected_ship_id = 1
-	for title in ["FLEET", "MAP", "SHIPS"]:
+	for title in ["FLEET", "MAP"]:
 		for tab: Button in screen.tabs.get_children():
 			if tab.text == title:
 				tab.pressed.emit()

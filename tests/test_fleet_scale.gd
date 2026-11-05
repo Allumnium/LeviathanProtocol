@@ -209,12 +209,10 @@ func large_fleet() -> void:
 	source_ship.mounts.spine = old_mount
 	source_ship.rebuild_units()
 	check(state.load_run_checkpoint(), "Restore fleet before the fixed-step pacing check")
-	state.battle_pending = true
-	state.battle_aliens.assign(enemies())
 	var battle: Control = load("res://scenes/auto_battle.tscn").instantiate()
-	root.add_child(battle)
-	battle.set_physics_process(false)
-	battle.set_process(false)
+	# Detached synthetic clock: deployment transactions are covered separately.
+	battle.deploying = false
+	battle.visuals = battle.get_node("BattleVisuals")
 	battle.simulation = ClockSimulation.new()
 	battle._advance_fixed_simulation(0.1, 5)
 	check(is_equal_approx(battle.simulation.elapsed + battle._simulation_accumulator, 0.5)
@@ -298,9 +296,16 @@ func click(button: Button) -> void:
 	if parent is ScrollContainer:
 		parent.ensure_control_visible(button)
 	await settle()
+	await click_point(button.get_global_rect().get_center())
+
+func click_point(point: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	root.push_input(motion, true)
+	await process_frame
 	for pressed: bool in [true, false]:
 		var event := InputEventMouseButton.new()
-		event.position = button.get_global_rect().get_center()
+		event.position = point
 		event.global_position = event.position
 		event.button_index = MOUSE_BUTTON_LEFT
 		event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
@@ -316,18 +321,18 @@ func native_management() -> void:
 	screen.set_process(false)
 	for resolution: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
-		screen.active_tab = "SHIPS"
-		screen._refresh()
-		await settle()
-		check(screen.roster.find_child("ShipSquadron_3", true, false) != null
-			and screen.roster.get_node("ShipTiles_3").get_child_count() == 30,
-			"Ships groups all thirty fighters under their named squadron")
-		var last: int = state.squadrons[2].members.back()
-		await click(screen.roster.find_child("Ship%d" % last, true, false))
-		check(screen.selected_ship_id == last and screen.canvas.owned_id == last, "Native pointer selects a scrolled large-squadron member")
-		await capture("scale-ships-%d" % resolution.x)
 		screen.active_tab = "FLEET"
 		screen._refresh()
+		await settle()
+		var last: int = state.squadrons[2].members.back()
+		var board: Control = screen.formation_view
+		board.camera = board.display_positions[last] * 52
+		board.queue_redraw()
+		await settle()
+		await click_point(board.global_position + board.point(state.owned_ship(last)))
+		check(screen.selected_ship_id == last and screen.canvas.owned_id == last, "Native pointer inspects a large-squadron member directly from Fleet")
+		await capture("scale-ships-%d" % resolution.x)
+		screen._close_ship_editor()
 		await settle()
 		await click(screen.roster.find_child("Squadron_3", true, false))
 		check(screen.formation_selection.size() == 30 and screen.details.find_child("SquadronStatBars", true, false) != null,
@@ -341,9 +346,7 @@ func native_ui() -> void:
 	if "--battle-only" not in OS.get_cmdline_user_args():
 		await native_management()
 	# Native battle profile includes the actual fixed-step runner, visuals and HUD.
-	state.fleet.pop_back()
-	state.battle_pending = true
-	state.battle_aliens.assign(enemies())
+	check(state.travel_to(state.get_reachable_nodes(state.current_node_id)[0]), "Save a real profile deployment")
 	state.battle_speed = 5
 	root.size = Vector2i(1280, 720)
 	var battle: Control = load("res://scenes/auto_battle.tscn").instantiate()
@@ -352,6 +355,13 @@ func native_ui() -> void:
 	battle.set_physics_process(false)
 	battle.set_process(false)
 	await settle()
+	battle._begin_combat()
+	check(not battle.deploying, "Native profile starts through atomic Begin Combat")
+	var members: Array[FleetShip] = []
+	members.assign(state.get_deployed_fleet().slice(0, 50))
+	check(battle.simulation.setup_owned(members, enemies(), 0, 0, 851,
+		{"credits_only": true, "missiles": 1000, "enemy_roles": true}),
+		"Apply the controlled fifty-versus-forty profile after deployment")
 	var objective_ids: Array[String] = []
 	for actor in battle.simulation.aliens:
 		objective_ids.append(actor.entity_id)

@@ -42,6 +42,8 @@ func _play(sim: BattleSimulation, batch: int, commands: Array[Dictionary]) -> Di
 	# Use the production 30 Hz fixed-step clock without entering the scene tree or
 	# starting a real deployment. Rendering callbacks never participate.
 	driver.simulation = sim
+	# This detached harness tests the combat clock, not deployment UI/persistence.
+	driver.deploying = false
 	driver.visuals = driver.get_node("BattleVisuals")
 	var budget := 6000
 	while sim.phase == BattleSimulation.Phase.COMBAT and budget > 0:

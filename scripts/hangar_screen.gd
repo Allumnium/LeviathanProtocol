@@ -87,6 +87,9 @@ var expedition_save_elapsed := 0.0
 var expedition_status_override := ""
 var shipyard_access_available := false
 var entering_battle := false
+var ship_editor: Control
+var ship_editor_open := false
+var editor_feedback: Label
 
 func _ready() -> void:
 	if GameState.run_id.is_empty():
@@ -207,11 +210,12 @@ func _ready() -> void:
 	research_progress_row.add_child(research_rate)
 	research_column.resized.connect(_resize_research_label)
 	flagship_icon = load("res://assets/flag.png")
-	for title in ["MAP", "FLEET", "SHIPS"]:
+	for title in ["MAP", "FLEET"]:
 		var tab := _button_with_sound(title, func() -> void:
 			if traveling:
 				return
 			active_tab = title
+			ship_editor_open = false
 			for tab_button: Button in tabs.get_children():
 				tab_button.set_pressed_no_signal(tab_button.text == title)
 			buy_open = false
@@ -445,7 +449,7 @@ func _advance_expedition(delta: float) -> void:
 	if result.repaired:
 		instrument_seconds.hull = 0.8
 		AudioManager.play_ui_sfx(&"repair")
-		if active_tab in ["FLEET", "SHIPS"]:
+		if active_tab == "FLEET":
 			_show_details()
 	_update_expedition_readouts()
 	if result.boundary:
@@ -701,6 +705,11 @@ func _refresh() -> void:
 		formation_station_angle = formation_view.station_angle
 		if formation_view.selected_id == selected_ship_id:
 			formation_selection.assign(formation_view.selected_ids)
+	if is_instance_valid(ship_editor):
+		remove_child(ship_editor)
+		ship_editor.queue_free()
+	ship_editor = null
+	editor_feedback = null
 	if is_instance_valid(graph) and graph.is_inside_tree() and graph.get("user_moved") != false:
 		map_camera = {"position": graph.camera_position, "zoom": graph.camera_zoom}
 	graph = null
@@ -720,15 +729,10 @@ func _refresh() -> void:
 	slot_info = null
 	if selected_ship_id > 0 and GameState.owned_ship(selected_ship_id) == null:
 		selected_ship_id = 0
-	if active_tab == "SHIPS" and selected_ship_id <= 0:
-		for owned: HangarShip in GameState.fleet:
-			if owned.flagship:
-				selected_ship_id = owned.id
-				formation_selection.assign([owned.id])
-				selected_slot = ""
-				break
-	elif selected_ship_id == -1 and not GameState.fleet.is_empty():
+	if selected_ship_id == -1 and not GameState.fleet.is_empty():
 		selected_ship_id = GameState.fleet[0].id
+	if selected_ship_id <= 0:
+		ship_editor_open = false
 	formation_selection = formation_selection.filter(func(id: int) -> bool: return GameState.owned_ship(id) != null)
 	if GameState.completed or GameState.run_ended:
 		_show_run_end()
@@ -738,22 +742,7 @@ func _refresh() -> void:
 		_build_station_actions()
 		_refresh_expedition_controls()
 		return
-	if active_tab == "SHIPS":
-		var tile_size := _ship_tile_size()
-		for group: Dictionary in GameState.squadrons:
-			var heading := _label("%s #%d x%d" % [group.name, group.id, group.members.size()])
-			heading.name = "ShipSquadron_%d" % group.id
-			roster.add_child(heading)
-			var ship_rows := GridContainer.new()
-			ship_rows.name = "ShipTiles" if group == GameState.squadrons[0] else "ShipTiles_%d" % group.id
-			ship_rows.columns = 2
-			ship_rows.add_theme_constant_override("h_separation", 4)
-			ship_rows.add_theme_constant_override("v_separation", 4)
-			ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
-			roster.add_child(ship_rows)
-			for id: int in group.members:
-				ship_rows.add_child(_ship_tile(GameState.owned_ship(id), tile_size))
-	elif active_tab == "FLEET":
+	if active_tab == "FLEET":
 		for group: Dictionary in GameState.squadrons:
 			var choose := _button("%s #%d x%d" % [group.name, group.id, group.members.size()],
 				_select_squadron.bind(int(group.id)))
@@ -794,48 +783,15 @@ func _refresh() -> void:
 			_queue_refresh())
 		board.ship_opened.connect(_open_ship_editor)
 		board.action_failed.connect(func(message: String) -> void: feedback.text = message)
-	else:
-		var owned: HangarShip = GameState.owned_ship(selected_ship_id)
-		if owned != null:
-			var stack := VBoxContainer.new()
-			center.add_child(stack)
-			stack.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-			canvas = load("res://scripts/hangar_canvas.gd").new()
-			var view: Dictionary = fitting_views.get(owned.id, {})
-			canvas.camera = view.get("camera", Vector2.ZERO)
-			canvas.zoom = view.get("zoom", 1.0)
-			canvas.auto_fit = view.is_empty()
-			canvas.size_flags_vertical = SIZE_EXPAND_FILL
-			stack.add_child(canvas)
-			canvas.selected_slot = selected_slot
-			canvas.set_owned(owned)
-			var bottom := Control.new()
-			bottom.name = "ShipOrPartDetails"
-			bottom.custom_minimum_size.y = 96
-			stack.add_child(bottom)
-			slot_info = _resource_label("")
-			bottom.add_child(slot_info)
-			slot_info.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-			stats_grid = StatBars.new()
-			stats_grid.columns = 2 if size.x < 1000 else 4
-			bottom.add_child(stats_grid)
-			stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-			_show_refit_panel()
-			var repair := _button("REPAIR %d cr" % owned.repair_cost(), _repair_selected_ship)
-			_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
-			roster.add_child(repair)
-			if not owned.flagship:
-				var salvage := _button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id))
-				_shipyard_action(salvage)
-				roster.add_child(salvage)
-			canvas.slot_selected.connect(func(key: String) -> void:
-				selected_slot = key
-				_show_details()
-				_render_refit_panel())
+	var reopen_editor := ship_editor_open
+	ship_editor_open = false
 	_show_details()
 	if buy_open:
 		_show_buy_panel()
 	_refresh_expedition_controls()
+	ship_editor_open = reopen_editor
+	if ship_editor_open:
+		_build_ship_editor()
 
 
 func _update_research_header(update_rate := false) -> void:
@@ -1267,7 +1223,7 @@ func _sync_station_actions() -> void:
 		actions.add_child(refuel)
 	if active_tab == "MAP" and docked and "shipyard" in location.services:
 		var yard := UiKit.button("SHIPYARD", func() -> void:
-			active_tab = "SHIPS"
+			active_tab = "FLEET"
 			_refresh(), &"animate_ui")
 		yard.name = "StationShipyard"
 		yard.disabled = not GameState.can_use_shipyard()
@@ -1567,10 +1523,10 @@ func _swap_part_to(slot_id: String, key: String) -> void:
 	_result(ok)
 
 func _show_details() -> void:
-	if (not inspected_item.is_empty() and active_tab != "SHIPS") or (buy_open and active_tab == "FLEET"):
+	if (not inspected_item.is_empty() and not ship_editor_open) or (buy_open and active_tab == "FLEET"):
 		return
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
-	if owned != null and active_tab == "FLEET":
+	if owned != null and active_tab == "FLEET" and not ship_editor_open:
 		_show_squadron_details(HangarSquadrons.for_ship(GameState.squadrons, owned.id))
 		return
 	if owned == null:
@@ -1607,7 +1563,7 @@ func _show_details() -> void:
 		fleet_stats.add_to_group("transport_readout")
 		details.add_child(fleet_stats)
 		return
-	if active_tab == "SHIPS":
+	if ship_editor_open:
 		if stats_grid == null:
 			return
 		var slot: Dictionary = {}
@@ -1626,6 +1582,9 @@ func _show_details() -> void:
 			var instance: Dictionary = owned.mounts.get(selected_slot, {})
 			var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
 			slot_info.set_content("%s\n%s %s\n%s" % [item.name, item.size, item.type.capitalize(), _part_effect(item)])
+			if HangarTrade.has_load(instance):
+				slot_info.set_content(slot_info.source_text + "\n%s %d / %d" % [str(instance.load.kind).capitalize(),
+					instance.load.quantity, HangarTrade.CARGO_CAPACITY if instance.load.kind == "cargo" else HangarTrade.PASSENGER_CAPACITY])
 			return
 		stats_grid.set_ship(owned, false)
 		return
@@ -1672,6 +1631,7 @@ func _select_squadron(id: int) -> void:
 	selected_ship_id = int(group.members[0])
 	formation_selection.assign(group.members)
 	selected_slot = ""
+	ship_editor_open = false
 	_queue_refresh()
 
 func _show_squadron_details(group: Dictionary) -> void:
@@ -1759,10 +1719,12 @@ func _render_squadron_assignment(owned: HangarShip) -> void:
 		var move := _button("Join #%d" % group.id, func() -> void:
 			_result(GameState.assign_squadron(owned.id, int(group.id))))
 		move.name = "JoinSquadron_%d" % group.id
+		move.disabled = not GameState._can_refit()
 		refit_panel.add_child(move)
 	if current.members.size() > 1:
 		var split := _button("New squadron", func() -> void: _result(GameState.assign_squadron(owned.id)))
 		split.name = "SplitSquadron"
+		split.disabled = not GameState._can_refit()
 		refit_panel.add_child(split)
 
 func _part_effect(item: Dictionary) -> String:
@@ -1820,6 +1782,8 @@ func _part_effect(item: Dictionary) -> String:
 
 func _result(ok: bool) -> void:
 	feedback.text = "" if ok else (GameState.last_save_error if not GameState.last_save_error.is_empty() else "Unavailable")
+	if is_instance_valid(editor_feedback):
+		editor_feedback.text = feedback.text
 	if ok:
 		_queue_refresh()
 		if shop != null and not buy_open:
@@ -1833,7 +1797,7 @@ func _modal(title: String) -> VBoxContainer:
 	shop = Control.new()
 	shop.name = "HangarShopModal"
 	shop.add_to_group("modal_ui")
-	shop.z_index = 30
+	shop.z_index = UiKit.DIALOG_Z + 1 if ship_editor_open else 30
 	add_child(shop)
 	shop.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var backdrop := ColorRect.new()
@@ -2036,9 +2000,107 @@ func _open_ship_editor(id: int) -> void:
 	selected_ship_id = id
 	formation_selection.assign([id])
 	selected_slot = ""
-	active_tab = "SHIPS"
+	active_tab = "FLEET"
+	ship_editor_open = true
 	buy_open = false
 	_queue_refresh()
+
+func _close_ship_editor() -> void:
+	ship_editor_open = false
+	selected_slot = ""
+	_queue_refresh()
+
+func _build_ship_editor() -> void:
+	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
+	if owned == null:
+		ship_editor_open = false
+		return
+	ship_editor = Control.new()
+	ship_editor.name = "FleetShipEditor"
+	ship_editor.add_to_group("modal_ui")
+	ship_editor.z_index = UiKit.DIALOG_Z
+	add_child(ship_editor)
+	ship_editor.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.65)
+	ship_editor.add_child(shade)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.name = "ShipEditorPanel"
+	panel.theme_type_variation = &"CompactPanel"
+	ship_editor.add_child(panel)
+	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	panel.offset_left = 12
+	panel.offset_top = 12
+	panel.offset_right = -12
+	panel.offset_bottom = -12
+	var column := VBoxContainer.new()
+	panel.add_child(column)
+	var title := _label(owned.display_name)
+	title.name = "ShipEditorTitle"
+	column.add_child(title)
+	var body := HBoxContainer.new()
+	body.size_flags_vertical = SIZE_EXPAND_FILL
+	column.add_child(body)
+	var stack := VBoxContainer.new()
+	stack.size_flags_horizontal = SIZE_EXPAND_FILL
+	body.add_child(stack)
+	canvas = load("res://scripts/hangar_canvas.gd").new()
+	var view: Dictionary = fitting_views.get(owned.id, {})
+	canvas.camera = view.get("camera", Vector2.ZERO)
+	canvas.zoom = view.get("zoom", 1.0)
+	canvas.auto_fit = view.is_empty()
+	canvas.size_flags_vertical = SIZE_EXPAND_FILL
+	stack.add_child(canvas)
+	canvas.selected_slot = selected_slot
+	canvas.set_owned(owned)
+	var bottom := Control.new()
+	bottom.name = "ShipOrPartDetails"
+	bottom.custom_minimum_size.y = 96
+	stack.add_child(bottom)
+	slot_info = _resource_label("")
+	bottom.add_child(slot_info)
+	slot_info.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	stats_grid = StatBars.new()
+	stats_grid.columns = 2 if size.x < 1000 else 4
+	bottom.add_child(stats_grid)
+	stats_grid.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var scroll := ScrollContainer.new()
+	scroll.name = "ShipActions"
+	scroll.custom_minimum_size.x = 180 if size.x < 1000 else 240
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(scroll)
+	var actions := VBoxContainer.new()
+	actions.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(actions)
+	refit_panel = VBoxContainer.new()
+	refit_panel.name = "RefitPanel"
+	actions.add_child(refit_panel)
+	_render_refit_panel()
+	var repair := _button("REPAIR %d cr" % owned.repair_cost(), _repair_selected_ship)
+	repair.name = "ShipRepair"
+	_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
+	actions.add_child(repair)
+	var repair_rate: float = GameState.self_repair_rate(owned)
+	if repair_rate > 0:
+		var regen := _label("Travel repair %.2f hull/s" % repair_rate)
+		regen.name = "SelfRepairRate"
+		actions.add_child(regen)
+	if not owned.flagship:
+		var salvage := _button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id))
+		salvage.name = "ShipSalvage"
+		_shipyard_action(salvage)
+		actions.add_child(salvage)
+	editor_feedback = _label("")
+	editor_feedback.name = "ShipEditorFeedback"
+	column.add_child(editor_feedback)
+	panel.add_child(UiKit.close_button(_close_ship_editor))
+	canvas.slot_selected.connect(func(key: String) -> void:
+		_clear_inspection()
+		selected_slot = key
+		_show_details()
+		_render_refit_panel())
+	_show_details()
 
 func _show_map() -> void:
 	if GameState.expedition_simulation != null:
@@ -2236,10 +2298,14 @@ func _confirm_salvage(id: int) -> void:
 	card.offset_right = 140
 	card.offset_top = -45
 	card.offset_bottom = 45
+	var error := _label("")
+	error.name = "SalvageError"
+	column.add_child(error)
 	column.add_child(_button("SALVAGE", func() -> void:
 		if GameState.salvage_hangar_ship(id):
 			selected_ship_id = 0
 			formation_selection.clear()
 			_result(true)
 		else:
-			_result(false)))
+			_result(false)
+			error.text = GameState.last_save_error))
