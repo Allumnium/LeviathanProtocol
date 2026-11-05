@@ -168,9 +168,9 @@ func run() -> void:
 	var arrival_tick: int = long_run.state.simulation_tick
 	var arrival_position: Vector2 = long_run.state.position_nu
 	check(not long_run.state.departure_choice_pending and long_run.state.destination_location_id.is_empty()
-			and long_run.advance(10) and long_run.state.simulation_tick > arrival_tick
+			and long_run.advance(10) and long_run.state.simulation_tick == arrival_tick
 			and long_run.state.position_nu.is_equal_approx(arrival_position),
-			"Arrival never forces a destination choice; docked time keeps running in place")
+			"Arrival never forces a destination choice; docked expedition time is frozen")
 	var invalid_choice: Dictionary = long_run.state.snapshot()
 	invalid_choice.departure_choice_pending = "yes"
 	check(not long_run.restore(invalid_choice), "Reject malformed pending-choice flag")

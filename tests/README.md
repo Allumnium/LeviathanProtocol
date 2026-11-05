@@ -21,6 +21,7 @@ Replace the example suite with the relevant test file. For a supported native ch
 
 Useful focused entry points:
 
+- [test_stationary_repair.gd](test_stationary_repair.gd): docked/stopped/paused/encounter/fuel-empty clocks and hulls, fast-forward, POI/shipyard arrivals, Continue, resumed moving repair with Renewal/Field Engineering and atomic save-failure rollback (headless).
 - [test_fleet_opening.gd](test_fleet_opening.gd): 13-ship starting mix, 24 base command, fitted UIDs/Continue, deterministic doubled ordinary enemies and unchanged boss bodies/rewards; native verifies every starter ship fits the Fleet canvas and settles one bounded natural opening battle. `-- --opening-only` skips logic checks; `-- --fleet-only` reviews only the management layout.
 - [test_squadron_flocking.gd](test_squadron_flocking.gd): both-faction membership, bounded cohesion/alignment, update-order/randomness independence, orders/stances/retreat, waves/boss exclusions, relay conservation and a three-second actual flight sample (velocity dot >= 0.8, spacing <= 180). Native captures blue relay particles and sprite-fitting alien shields; `-- --visual-only` skips unchanged logic.
 - [test_hangar_healing.gd](test_hangar_healing.gd): continuous shared/self repair, copy stacking, Renewal, range/faction/zero-hull/destruction boundaries, loads/UIDs, retired carrier content, fits and Continue. Replaces the retired carrier suite.

@@ -273,25 +273,19 @@ func advance(real_delta: float, fuel_multiplier := 1.0, cruise_multiplier := 1.0
 		return _fail("Invalid expedition fuel multiplier.")
 	if not is_finite(cruise_multiplier) or cruise_multiplier < 1.0 or cruise_multiplier > 2.0:
 		return _fail("Invalid expedition cruise multiplier.")
-	if _paused() or state.departure_choice_pending or state.travel_state == State.TravelState.DEFEAT:
+	if _paused() or state.departure_choice_pending or state.travel_state != State.TravelState.CRUISING:
 		return true
-	var effective_speed := 1 if state.travel_state in [State.TravelState.ENGAGED,
-			State.TravelState.SETTLING, State.TravelState.REGROUPING] else state.requested_speed
-	accumulator += real_delta * float(effective_speed)
+	accumulator += real_delta * float(state.requested_speed)
 	var tick := float(tuning.fixed_tick_seconds)
 	var prior_boundary_sequence := boundary_sequence
 	while accumulator + 0.000000001 >= tick:
 		accumulator -= tick
-		state.simulation_tick += 1
-		state.simulation_seconds += tick
 		if state.travel_state == State.TravelState.CRUISING:
 			if not _advance_cruise(tick, fuel_multiplier, cruise_multiplier):
 				return false
 			if boundary_sequence != prior_boundary_sequence:
 				accumulator = 0.0
 				break
-		elif state.travel_state == State.TravelState.STOPPED:
-			pass
 	if accumulator < 0.0:
 		accumulator = 0.0
 	return true
@@ -320,6 +314,8 @@ func _advance_cruise(delta: float, fuel_multiplier: float, cruise_multiplier: fl
 	var fuel_distance := state.fuel / fuel_rate
 	var distance := minf(minf(step_distance, fuel_distance), event_distance)
 	if distance > 0.0:
+		state.simulation_tick += 1
+		state.simulation_seconds += delta
 		var delta_position := to_target.normalized() * distance
 		state.position_nu += delta_position
 		state.fuel = maxf(0.0, state.fuel - distance * fuel_rate)

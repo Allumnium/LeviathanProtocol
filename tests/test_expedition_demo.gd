@@ -123,15 +123,14 @@ func run() -> void:
 			"Starter Transport fills armor-compatible mounts with plates")
 	var hold_uid: String = transport.mounts.hold.uid
 	check(not state.research_choice_ready(), "Research begins without a funded choice")
-	# Docked waiting repairs hulls for free and stays docked.
+	# Docked waiting freezes expedition time and passive repair.
 	var flagship: HangarShip = state.fleet[0]
 	flagship.hull_hp -= 50
 	check(expedition.state.travel_state == Travel.TravelState.DOCKED
 			and not expedition.state.departure_choice_pending, "Docked fleets are never forced to choose a destination")
 	var hull_before := flagship.hull_hp
 	state.advance_expedition(10.0)
-	check(flagship.hull_hp > hull_before and is_equal_approx(flagship.hull_hp - hull_before,
-			state.self_repair_rate(flagship) * 10.0), "Unpaused docked time self-repairs the hull")
+	check(flagship.hull_hp == hull_before, "Docked waiting cannot self-repair the hull")
 	check(state.research_points == 0.0, "Docked time earns no research")
 	flagship.hull_hp = flagship.hull_max
 	check(travel("refuel_station_1", {"derelict_signal": "continue"}), "First leg reaches Kessler")

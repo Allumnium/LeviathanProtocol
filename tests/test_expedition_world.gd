@@ -130,9 +130,9 @@ func run() -> void:
 	var arrival_clock: float = expedition.state.simulation_seconds
 	var arrival_point: Vector2 = expedition.state.position_nu
 	screen._process(2.0)
-	check(expedition.state.simulation_seconds > arrival_clock
+	check(expedition.state.simulation_seconds == arrival_clock
 			and expedition.state.position_nu.is_equal_approx(arrival_point),
-			"Arrival never holds the simulation for a destination choice")
+			"POI arrival freezes expedition time without forcing a destination choice")
 	screen._on_expedition_speed_pressed(20)
 	_select_destination(screen, "refuel_station_1")
 	screen._process(4.5)

@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Freeze stationary map time and passive repair
+
+- Expedition ticks advance only when cruising actually moves the fleet. Docked shipyards, stopped routes/POIs, pauses, fuel-empty movement attempts and encounter-blocked map states grant no time or passive repair, including fast-forward and Continue. Resumed travel retains the existing per-second repair rate and Renewal modifier; combat healing and paid shipyard repairs are unchanged.
+- Focused isolated checks: stationary repair 41 and navigation 167, zero failures. Covered clock/hull/yield/load invariants, moving repair, arrival clipping, stopped/docked Continue and atomic save-failure rollback. Updated two obsolete idle-time assertions and compile-checked their fixtures without running broad demo/world suites. Documentation updated; no native UI changes or broad campaigns.
+
 ## 2026-11-05 - Resume queued fleet and combat changes
 
 - Finished the interrupted fleet expansion: 13 fully fitted starters (selected flagship, ten Drones, Fighter, Transport), 24 base command across flagship choices, 15 used. Compact wings fit the native Fleet canvas; station artwork draws behind ships. Continue preserves ownership, formations and equipment UIDs.

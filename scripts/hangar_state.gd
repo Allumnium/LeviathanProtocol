@@ -738,8 +738,8 @@ func accept_rescue() -> bool:
 	travel_plan_changed.emit()
 	return true
 
-# Advances travel once per frame. Distance funds research; unpaused noncombat
-# simulation time repairs hulls; docking delivers trade loads. Returns facts
+# Advances travel once per frame. Distance funds research; moving expedition
+# time repairs hulls; docking delivers trade loads. Returns facts
 # for the UI. A failed boundary save rolls everything back to `before`.
 func advance_expedition(delta: float, force_save := false) -> Dictionary:
 	var result := {"ok": true, "boundary": false, "saved": false, "research_ready": false, "repaired": false,
