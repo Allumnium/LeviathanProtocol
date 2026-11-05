@@ -388,7 +388,7 @@
       "name": "Missile Rack",
       "part_type": 13,
       "rank": 1,
-      "revision": 2,
+      "revision": 3,
       "size": "M",
       "stats": {
         "integrity": 0,
@@ -397,10 +397,10 @@
         "weapons": [
           {
             "charge": 0,
-            "count": 3,
+            "count": 5,
             "damage": 12,
             "interceptable": true,
-            "interval": 5,
+            "interval": 8,
             "mount": [
               0,
               0

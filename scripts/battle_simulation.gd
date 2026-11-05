@@ -1525,10 +1525,16 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				projectile.rotation_phase = float(_next_projectile_id % 16) / 16.0 * TAU
 				_next_projectile_id += 1
 				projectile.source = ship
-				projectile.origin = weapon_origin
+				# Separate the real missiles at launch so a cluster reads as several
+				# guided rounds, each retaining collision, interception and ammo cost.
+				var launch_origin := weapon_origin
+				if weapon.missiles_per_projectile > 0:
+					var lateral := weapon_origin.direction_to(ship.target.position).orthogonal()
+					launch_origin += lateral * (shot_index - (weapon.projectiles_per_activation - 1) * 0.5) * 4
+				projectile.origin = launch_origin
 				projectile.weapon_name = weapon.weapon_name
-				projectile.position = weapon_origin
-				projectile.previous_position = weapon_origin
+				projectile.position = launch_origin
+				projectile.previous_position = launch_origin
 				projectile.target = ship.target
 				projectile.aim_position = ship.target.position
 				projectile.aim_radius = ship.target.radius

@@ -2,6 +2,13 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Battle feel audit, thin ship meters and missile clusters
+
+- Added one-pixel orange hull/blue shield fills following living visible ships, including bosses, with bounded widths across zoom and empty capacity tracks. Uses persistent owned hull, preserves zero-hull survival and omits shields without capacity. Removed duplicate boss meters; reviewed partial hull/empty shields and enemy meters natively.
+- Implemented the approved five 12-damage missiles per eight-second cluster (60 burst, 7.5 nominal DPS), distinct physical launch positions and warm heads/particle exhaust. Preserved per-parent ammo, partial final salvos, interception and splitting research; updated affected fixture expectations.
+- Recorded [BATTLE_FEEL_AUDIT.md](docs/BATTLE_FEEL_AUDIT.md). Two same-seed natural 13-vs-15 openings both won with 13 survivors around 21 seconds; reversing legal placement reduced hull damage 124.75 to 71.25. Normal purchases of two fitted Drones raised nominal DPS 35.6 to 41.6. First victory leaves 7.57/20 RP; Defensive starting research pool has six utility/defensive cards. Ion Pulse is the only offered active ability, with 300 cast range versus 900 emitter range. Remaining ability/pacing decisions stay in TODO.
+- Isolated checks passed: missile/ability logic 33, actual purchases/progression 3, native bounded comparison 22 and final native meters/clusters 7, zero failures. Reviewed 640x360/1280x720/1920x1080 captures and three zoom levels; rendering preserves authoritative state. Three affected fixtures compile-checked and document links checked. Known certificate/native shutdown diagnostics remain; no broad baseline, campaign sweep or performance/soak run. Preserved concurrent panel artwork.
+
 ## 2026-11-05 - Compact squadrons and larger enemy fleets
 
 - Replaced the starting drone surround with a tight 4/4/2 box ahead of the flagship, using 78-unit spacing and physical steering clearance. Fighter and Transport sit separately nearby. Fleet management packs each squadron into a distinct tight box without rewriting saved tactical placement; native ship inspection and squadron/Alt/Shift dragging still work.

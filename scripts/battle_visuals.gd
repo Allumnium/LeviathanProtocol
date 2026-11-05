@@ -208,6 +208,11 @@ func _draw() -> void:
 		var aim := projectile.aim_position if simulation.visibility_enabled else projectile.target.position
 		var direction := (aim - projectile_position).normalized()
 		_draw_shot_particles(projectile_position, direction, projectile)
+		if projectile.interceptable:
+			var missile_color := Color("ffd58b") if projectile.is_player else Color("d1ef9b")
+			draw_circle(projectile_position, 5, Color(missile_color, 0.12))
+			draw_line(projectile_position - direction * 4, projectile_position + direction * 2, missile_color, 2, true)
+			continue
 		_draw_bullet_glow(projectile_position, projectile.is_player)
 		if projectile.is_player and projectile.weapon_name == "Mini Turret":
 			var bullet_rotation := Collision.bullet_angle(projectile, simulation.elapsed)
@@ -260,6 +265,7 @@ func _draw() -> void:
 		if int(effect.faction) == 0:
 			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+	_draw_ship_integrity()
 	if not ability_preview.is_empty():
 		var point: Vector2 = world_transform() * ability_preview.position
 		var color := Color("8cd4e8") if ability_preview.valid else Color("ed8975")
@@ -268,6 +274,36 @@ func _draw() -> void:
 			for vertex: Vector2 in segment:
 				positioned.append(point + vertex)
 			draw_polyline(positioned, color, 1.5, true)
+
+func _draw_ship_integrity() -> void:
+	# Draw in canvas pixels so the thin meters remain readable when zooming.
+	var transform := world_transform()
+	for member: BattleSimulation.Combatant in simulation._members:
+		if not member.is_alive() or not member.has_tag("combatant"):
+			continue
+		if simulation.visibility_enabled and member.faction != BattleSimulation.Faction.PLAYER and not simulation.team_can_see(0, member):
+			continue
+		var position := member.previous_position.lerp(member.position, interpolation_alpha)
+		var width := clampf(member.radius * 2 * camera_zoom, 6, 22)
+		var point := transform * position + Vector2(-width * 0.5, member.radius * camera_zoom + 4)
+		if not Rect2(Vector2.ZERO, size).grow(32).has_point(point):
+			continue
+		var hull: float = member.owned_ship.hull_hp if member.owned_ship is HangarShip else member.integrity
+		var maximum: float = member.owned_ship.hull_max if member.owned_ship is HangarShip else member.stats.integrity
+		_draw_ship_meter(Rect2(point, Vector2(width, 1)), hull / maxf(1, maximum), Color("eea456"))
+		if member.stats.shields > 0:
+			_draw_ship_meter(Rect2(point + Vector2(0, 3), Vector2(width, 1)),
+				member.shields / member.stats.shields, Color("69c8f4"))
+
+
+func _draw_ship_meter(rect: Rect2, ratio: float, color: Color) -> void:
+	draw_rect(rect.grow(1), Color("070d15"))
+	draw_rect(rect, Color("34414c"))
+	var filled := rect
+	filled.size.x *= clampf(ratio, 0, 1)
+	if filled.size.x > 0:
+		draw_rect(filled, color)
+
 
 static func ability_reticle(id: String, valid: bool) -> Array[PackedVector2Array]:
 	var segments: Array[PackedVector2Array] = []
@@ -609,14 +645,6 @@ func _draw_alien_fleet() -> void:
 			var cue_color := Color("83c9dc") if alien.alien.role_id == "pylon" else Color("e1af69")
 			draw_polyline(PackedVector2Array([Vector2(-r, 0), Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0)]), cue_color, 1.5)
 	draw_set_transform_matrix(world_transform())
-	for alien in simulation.aliens:
-		if not alien.is_alive() or alien.alien.role_id not in ["warden", "pylon"] or (simulation.visibility_enabled and not simulation.team_can_see(0, alien)):
-			continue
-		var r := alien.radius + 4
-		var point := alien.previous_position.lerp(alien.position, interpolation_alpha) + Vector2(0, r + 5)
-		var color := Color("83c9dc") if alien.alien.role_id == "pylon" else Color("e1af69")
-		draw_line(point - Vector2(r, 0), point + Vector2(r, 0), Color("35434d"), 3)
-		draw_line(point - Vector2(r, 0), point + Vector2(-r + 2 * r * alien.integrity / alien.stats.integrity, 0), color, 3)
 	for link: Dictionary in simulation.enemy_roles.repair_links:
 		var source: BattleSimulation.Combatant = simulation.entities.get(link.source)
 		var target: BattleSimulation.Combatant = simulation.entities.get(link.target)

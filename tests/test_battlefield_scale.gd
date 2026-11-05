@@ -88,7 +88,7 @@ func weapons() -> void:
 		"Railgun uses doubled bullet speed")
 	sim = weapon_simulation(weapon_ship("missile_rack", "port"))
 	sim._update_ship(sim.player, 0.001)
-	check(sim.projectiles.size() == 3 and sim.projectiles[0].speed == 200 and sim.missile_supply == 27,
+	check(sim.projectiles.size() == 5 and sim.projectiles[0].speed == 200 and sim.missile_supply == 25,
 		"Missile travel/guidance, burst and ammo costs remain distinct from bullets")
 	sim = weapon_simulation(weapon_ship("mini_turret", "aft"))
 	check(sim.asteroid_field.add_root("cover", 8, Vector2(280, 0), Vector2.ZERO, [0, 0, 0, 0]),

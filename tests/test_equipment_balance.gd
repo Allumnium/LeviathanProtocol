@@ -175,7 +175,7 @@ func weapons() -> void:
 			check(is_equal_approx(after.damage, before.damage * 4), "Approved damage change is realized through actual hits: " + item + "/" + profile)
 			check(before.missiles_spent == after.missiles_spent, "Tuning never changes ammunition spending")
 			if item == "missile_rack":
-				check(after.missiles_spent == after.activations * 3 and after.missiles_spent > 0, "Each three-shot salvo spends exactly three missiles")
+				check(after.missiles_spent == after.activations * 5 and after.missiles_spent > 0, "Each five-shot cluster spends exactly five missiles")
 			if item == "beam_lance":
 				check(after.impacts > 0 if profile != "moving" else after.impacts < after.activations, "Lance charge hits stationary targets and can miss movers")
 	for item: String in ["double_laser", "railgun"]:
@@ -195,8 +195,8 @@ func weapons() -> void:
 	var defender := intercepted.aliens[0]
 	defender.tags["interceptor"] = true
 	var defense := ShipWeaponStats.new("Interception", 1, 1, 1, 500)
-	check(SharedSupport.intercept(intercepted, defender, defense, defender.position) and intercepted.projectiles.size() == 2
-		and intercepted.missile_supply == 27, "Stronger missiles remain interceptable without refunding spent ammunition")
+	check(SharedSupport.intercept(intercepted, defender, defense, defender.position) and intercepted.projectiles.size() == 4
+		and intercepted.missile_supply == 25, "Stronger missiles remain interceptable without refunding spent ammunition")
 
 func run() -> void:
 	marks()

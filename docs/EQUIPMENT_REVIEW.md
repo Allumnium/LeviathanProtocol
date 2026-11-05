@@ -2,6 +2,8 @@
 
 2026-11-05. The user approved additive uplink/relay effects and the first-pass weapon values below. They are implemented and verified with focused support checks, controlled firing samples and native equipment-detail review. Further tuning remains a user decision.
 
+Later approved tuning: Missile Rack now fires five 12-damage missiles every eight seconds (60 burst, 7.5 nominal DPS), with separate physical launch positions and particle trails. Weapon ranges were also tripled after the original comparison. The tables/samples below preserve that earlier pass; see [the current battle feel audit](BATTLE_FEEL_AUDIT.md) and [current gameplay](HANGAR.md) for current behavior.
+
 ## Support equipment
 
 Before this pass, Command Uplink used the first operational copy on each ship, marks one target for five seconds every 20 seconds, and grants +20% allied damage (+30% with Command I). When multiple ships mark the same target, the damage resolver returned the first matching mark rather than combining them. Extra uplinks on the same host did nothing.

@@ -10,6 +10,11 @@ Research changes fleet behavior, not access to ordinary equipment. Keep the earn
 
 - [ ] Fewer random encounters: deferred until a random-encounter system exists; do not suppress authored/story encounters.
 
+## Battle feel decisions
+
+- [ ] Discuss Ion Pulse after [the battle feel audit](docs/BATTLE_FEEL_AUDIT.md): it is the only offered active ability, has 300 cast range versus 900 emitter range, situational effects and a shared 24-second cooldown. Decide reach and intended role before changing it.
+- [ ] Decide the desired first research-choice milestone and whether the Defensive starter should qualify for offensive research. Measured first victory leaves 7.57/20 RP; initial matching pool contains six utility/defensive cards. Preserve matching-equipment eligibility until a specific change is approved.
+
 ## Art dependency
 
 - [ ] Recognizable derelict/distress/anomaly/gate and remaining equipment artwork is not supplied/approved yet. Preserve full names, effects and intentional pink missing-art markers; do not substitute unrelated ship/asteroid art or remove identifiers. Existing named map labels and fitted-equipment text fallbacks stay.
