@@ -340,8 +340,9 @@ func _test_stat_ranges() -> void:
 		root.add_child(panel)
 		panel.set_ship(flagship)
 		var bar: TextureProgressBar = panel.bars[key]
-		check(bar.texture_progress.resource_path == "res://assets/ui/Progress_Cp.png"
-			and bar.texture_under.resource_path == "res://assets/ui/Progress_Cp_Bg.png"
+		check(bar.texture_progress is AtlasTexture
+			and bar.texture_progress.atlas.resource_path == ("res://assets/ui/ProgressLv.png" if key == "shields" else "res://assets/ui/Progress_Cp.png")
+			and bar.texture_under.resource_path == ("res://assets/ui/ProgressLv_bg.png" if key == "shields" else "res://assets/ui/Progress_Cp_Bg.png")
 			and bar.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "Required native bar textures/filter: " + key)
 		for pair: Vector2 in [Vector2(limits.x, 10), Vector2((limits.x + limits.y) * 0.5, 55), Vector2(limits.y, 100)]:
 			bar.value = helper.percentage(pair.x, limits)

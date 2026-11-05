@@ -125,7 +125,10 @@ func _add_summary_table(parent: VBoxContainer, summaries: Array[Dictionary], tit
 		row.add_child(_create_summary_preview(summary))
 		var suffix := ""
 		if summary.destroyed > 0:
-			suffix = " · DESTROYED" if not summary.get("is_alien", false) else " · %d DESTROYED" % summary.destroyed
+			if summary.get("is_alien", false):
+				suffix = " · %d DESTROYED" % summary.destroyed
+			else:
+				suffix = " · %d LOST" % summary.destroyed if summary.get("count", 1) > 1 else " · DESTROYED"
 		var name_label := ResourceText.create(summary.name + suffix)
 		name_label.name = "ShipName"
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -137,7 +140,7 @@ func _add_summary_table(parent: VBoxContainer, summaries: Array[Dictionary], tit
 		for key: String in ["damage", "deflected", "repair_damage"]:
 			var amount := Label.new()
 			amount.name = key.capitalize().replace(" ", "") + "Value"
-			amount.text = "-" if key == "repair_damage" and (summary.destroyed > 0 or summary.get("is_alien", false)) else str(roundi(summary[key]))
+			amount.text = "-" if key == "repair_damage" and (summary.destroyed == summary.get("count", 1) or summary.get("is_alien", false)) else str(roundi(summary[key]))
 			amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			grid.add_child(amount)
@@ -283,14 +286,28 @@ func _add_grouped_reward(parent: HFlowContainer, category: int, count: int) -> v
 
 func _summarize_by_slot(entries: Array[Dictionary]) -> Array[Dictionary]:
 	var summaries: Array[Dictionary] = []
-	if entries.any(func(entry: Dictionary) -> bool: return entry.get("ship") is HangarShip):
-		for entry: Dictionary in entries:
-			if entry.get("ship") is HangarShip:
-				var summary := entry.duplicate()
-				summary["name"] = entry.ship.display_name
-				summary["destroyed"] = 1 if entry.destroyed else 0
-				summaries.append(summary)
-		return summaries
+	var groups := {}
+	for entry: Dictionary in entries:
+		if not entry.get("ship") is HangarShip:
+			continue
+		var ship: HangarShip = entry.ship
+		var key := ship.squadron_id if ship.squadron_id > 0 else -ship.id
+		if not groups.has(key):
+			var summary := {"ship": ship, "name": "", "count": 0, "destroyed": 0,
+				"damage": 0.0, "taken": 0.0, "deflected": 0.0, "repair_damage": 0.0}
+			groups[key] = summary
+			summaries.append(summary)
+		var summary: Dictionary = groups[key]
+		summary.count += 1
+		summary.destroyed += int(bool(entry.get("destroyed", false)))
+		for field: String in ["damage", "taken", "deflected"]:
+			summary[field] += float(entry.get(field, 0))
+		if not entry.get("destroyed", false):
+			summary.repair_damage += float(entry.get("repair_damage", 0))
+	for summary: Dictionary in summaries:
+		var ship: HangarShip = summary.ship
+		summary.name = "%s #%d x%d" % [ship.chassis.name, ship.squadron_id, summary.count] \
+			if ship.squadron_id > 0 else ship.display_name
 	return summaries
 
 
@@ -322,10 +339,10 @@ func _create_summary_preview(summary: Dictionary) -> Control:
 	if not bool(summary.get("is_alien", false)):
 		var preview := preload("res://scripts/fleet_ship_preview.gd").new()
 		preview.owned = summary.ship
-		preview.custom_minimum_size = Vector2(53, 53)
+		preview.custom_minimum_size = Vector2(40, 40)
 		return preview
 	var center := CenterContainer.new()
-	center.custom_minimum_size = Vector2(53, 53)
+	center.custom_minimum_size = Vector2(40, 40)
 	var alien: AlienShip = summary.alien
 	var texture := TextureRect.new()
 	var texture_size := alien.texture.get_size()

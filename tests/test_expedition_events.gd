@@ -146,7 +146,7 @@ func run() -> void:
 	for authored: Dictionary in state.expedition_simulation.events:
 		if authored.id != "derelict_signal":
 			state.expedition_simulation.state.event_receipts[authored.id] = true
-	await open_screen("RESEARCH")
+	await open_screen("FLEET")
 	screen._on_expedition_destination_selected("refuel_station_1")
 	screen.speed_buttons[10].pressed.emit()
 	var saved_before_signal: Dictionary = state.hangar_snapshot()
@@ -162,7 +162,7 @@ func run() -> void:
 	state.run_save_path = save_path
 	screen._on_expedition_retry_pressed()
 	screen._process(100)
-	check(is_instance_valid(screen.encounter_modal) and screen.active_tab == "RESEARCH"
+	check(is_instance_valid(screen.encounter_modal) and screen.active_tab == "FLEET"
 			and state.expedition_simulation.state.pending_event_id == "derelict_signal",
 			"Committed signal surfaces above management without changing the existing tab")
 	for viewport: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:

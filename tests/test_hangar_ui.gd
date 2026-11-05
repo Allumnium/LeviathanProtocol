@@ -132,7 +132,7 @@ func run() -> void:
 			"Tab switch uses the former ship-selection sound: " + tab.text)
 	var science_icon: TextureRect = screen.find_child("ScienceIcon", true, false)
 	check(science_icon != null and screen.header.text == str(state.credits), "Header shows credits and the science production icon")
-	check(screen.research_status.text == "Choose Research", "Research tab prompts for a focus")
+	check(screen.research_status.text == "0 / 20 RP", "Research header shows the shared bar")
 	check(absf(science_icon.global_position.y + science_icon.size.y / 2.0
 		- screen.research_status.global_position.y - screen.research_status.size.y / 2.0) <= 1.0,
 		"Research icon and status are vertically aligned")
@@ -235,7 +235,7 @@ func run() -> void:
 			"Shop close tracks the one-pixel top/right inset at every resolution")
 		check(not screen.shop.is_in_group("modal_ui") and not screen.shop.get_global_rect().intersects(screen.details_panel.get_global_rect()),
 			"Buy panel leaves the side panels accessible without a modal backdrop")
-		check(screen.find_child("ScienceIcon", true, false) != null and screen.research_status.text == "Choose Research",
+		check(screen.find_child("ScienceIcon", true, false) != null and screen.research_status.text == "0 / 20 RP",
 			"Research status remains visible on every tab")
 		check(screen.shop_rows.get_child_count() > 0, "Shop offers ships at every resolution")
 		for row: HBoxContainer in screen.shop_rows.get_children():
@@ -292,33 +292,24 @@ func run() -> void:
 		"Isolate ranked research UI fixture from preinstalled labs")
 	check(state.swap_part(state.fleet[1].id, "port", "") and state.swap_part(state.fleet[1].id, "starboard", ""),
 		"Isolate production from the starting Transport")
-	check(state.swap_part(science_ship, "port", "research_lab@2"), "Lab II UI fixture")
-	check(state.swap_part(science_ship, "hold", "research_lab@3"), "Lab III UI fixture")
+	check(not state.swap_part(science_ship, "port", "research_lab@2"), "Removed L lab is not offered")
+	check(state.swap_part(science_ship, "hold", "research_lab@3"), "Lab (XL) UI fixture")
 	await settle()
 	screen.selected_ship_id = 1
-	for title in ["RESEARCH", "FLEET", "MAP", "SHIPS"]:
-		if title == "RESEARCH":
-			screen.research_button.pressed.emit()
+	for title in ["FLEET", "MAP", "SHIPS"]:
 		for tab: Button in screen.tabs.get_children():
 			if tab.text == title:
 				tab.pressed.emit()
 				break
 		await settle()
 		check(screen.center.get_child_count() > 0, title + " is connected")
-		if title == "RESEARCH":
-			check(labels_under(screen.roster).contains("6 RP/day") and labels_under(screen.roster).contains("1 x Lab III"), "Native production panel explains ranked lab output")
-			screen.center.get_child(0)._select("laboratory_iii")
-			await settle()
-			check(labels_under(screen.details).contains("Unlocks more productive research labs.")
-				and not labels_under(screen.details).contains("3 RP/day"),
-				"Research details retain the concise Lab III description without duplicate production stats")
 		if title == "MAP":
 			check(screen.center.get_child(0).get_script().resource_path == "res://scripts/expedition_map.gd", "Pannable expedition map shows the live voyage")
 			screen._select_destination(state.get_reachable_nodes(0)[0])
 			await settle()
 		for tab: Button in screen.tabs.get_children():
 			check(tab.button_pressed == (tab.text == title), "Active tab styling follows every refresh")
-		check(screen.research_button.button_pressed == (title == "RESEARCH"), "Research tab reflects active screen")
+		check(not screen.research_button.toggle_mode, "Research control opens choices rather than switching tabs")
 		if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 			await create_timer(0.15).timeout
 			await RenderingServer.frame_post_draw

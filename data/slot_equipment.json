@@ -18,7 +18,8 @@
       "type": "defense",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "beam_lance",
@@ -52,7 +53,10 @@
       "type": "offense",
       "retired": false,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": [
+        "laser"
+      ]
     },
     {
       "id": "cargo_hold",
@@ -72,7 +76,8 @@
       "type": "civic",
       "retired": false,
       "price": 250,
-      "hit_points": 60
+      "hit_points": 60,
+      "research_capabilities": []
     },
     {
       "id": "crew_quarters",
@@ -91,7 +96,8 @@
       "type": "civic",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "double_laser",
@@ -125,7 +131,11 @@
       "type": "offense",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "laser",
+        "prismatic"
+      ]
     },
     {
       "id": "extraction_drill",
@@ -159,7 +169,8 @@
       "type": "offense",
       "retired": true,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "focusing_lens",
@@ -178,7 +189,8 @@
       "type": "offense",
       "retired": false,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": []
     },
     {
       "id": "gravitic_snare",
@@ -197,7 +209,8 @@
       "type": "offense",
       "retired": false,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": []
     },
     {
       "id": "ion_emitter",
@@ -231,7 +244,10 @@
       "type": "offense",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "ion"
+      ]
     },
     {
       "id": "large_thruster",
@@ -250,7 +266,8 @@
       "type": "tech",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "laser",
@@ -284,12 +301,20 @@
       "type": "offense",
       "retired": false,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": [
+        "laser",
+        "prismatic"
+      ]
     },
     {
       "id": "mini_turret",
       "art": "res://assets/equipment/miniTurret_d.png",
-      "art_mount": [62, 65, 82],
+      "art_mount": [
+        62,
+        65,
+        82
+      ],
       "name": "Mini Turret",
       "part_type": 5,
       "rank": 1,
@@ -320,7 +345,8 @@
       "type": "offense",
       "retired": false,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": []
     },
     {
       "id": "mining_laser",
@@ -354,7 +380,8 @@
       "type": "offense",
       "retired": true,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": []
     },
     {
       "id": "missile_rack",
@@ -389,7 +416,11 @@
       "type": "offense",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "guided_missile",
+        "splitting_missile"
+      ]
     },
     {
       "id": "nanoforge",
@@ -408,7 +439,8 @@
       "type": "tech",
       "retired": false,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": []
     },
     {
       "id": "observation_deck",
@@ -427,7 +459,8 @@
       "type": "civic",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "ore_processor",
@@ -446,7 +479,8 @@
       "type": "offense",
       "retired": true,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "passenger_cabin",
@@ -465,7 +499,8 @@
       "type": "civic",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "point_defense_turret",
@@ -499,7 +534,8 @@
       "type": "offense",
       "retired": false,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": []
     },
     {
       "id": "reactive_bulkhead",
@@ -518,7 +554,8 @@
       "type": "offense",
       "retired": false,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": []
     },
     {
       "id": "repair_drone_bay",
@@ -537,7 +574,10 @@
       "type": "tech",
       "retired": false,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": [
+        "repair_drone"
+      ]
     },
     {
       "id": "repair_station",
@@ -556,13 +596,18 @@
       "type": "tech",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "research_lab",
-      "name": "Research Lab 1",
+      "name": "Lab (M)",
       "art": "res://assets/equipment/research_lab_1_d.png",
-      "art_mount": [128, 128, 128],
+      "art_mount": [
+        128,
+        128,
+        128
+      ],
       "part_type": 10,
       "rank": 1,
       "revision": 2,
@@ -577,30 +622,14 @@
       "type": "civic",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "research"
+      ]
     },
     {
       "id": "research_lab",
-      "name": "Research Lab 2",
-      "part_type": 10,
-      "rank": 2,
-      "revision": 2,
-      "size": "L",
-      "stats": {
-        "integrity": 0,
-        "shields": 0,
-        "thrust": 0,
-        "weapons": [],
-        "weight": 9
-      },
-      "type": "civic",
-      "retired": false,
-      "price": 320,
-      "hit_points": 40
-    },
-    {
-      "id": "research_lab",
-      "name": "Research Lab 3",
+      "name": "Lab (XL)",
       "part_type": 10,
       "rank": 3,
       "revision": 2,
@@ -615,7 +644,10 @@
       "type": "civic",
       "retired": false,
       "price": 750,
-      "hit_points": 60
+      "hit_points": 60,
+      "research_capabilities": [
+        "research"
+      ]
     },
     {
       "id": "seismic_cutter",
@@ -634,7 +666,8 @@
       "type": "offense",
       "retired": true,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": []
     },
     {
       "id": "shield_generator",
@@ -653,7 +686,10 @@
       "type": "defense",
       "retired": false,
       "price": 85,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "shield"
+      ]
     },
     {
       "id": "shield_relay",
@@ -672,7 +708,10 @@
       "type": "defense",
       "retired": false,
       "price": 160,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": [
+        "shield"
+      ]
     },
     {
       "id": "hull_plate",
@@ -692,7 +731,8 @@
       "type": "defense",
       "retired": false,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": []
     },
     {
       "id": "thruster",
@@ -711,7 +751,8 @@
       "type": "tech",
       "retired": false,
       "price": 40,
-      "hit_points": 15
+      "hit_points": 15,
+      "research_capabilities": []
     },
     {
       "id": "flight_deck",
@@ -730,7 +771,10 @@
       "type": "offense",
       "retired": false,
       "price": 190,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "carrier"
+      ]
     },
     {
       "id": "torpedo_bomber_bay",
@@ -749,7 +793,10 @@
       "type": "offense",
       "retired": false,
       "price": 280,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": [
+        "carrier"
+      ]
     },
     {
       "id": "ammunition_magazine",
@@ -768,7 +815,8 @@
       "type": "tech",
       "retired": false,
       "price": 120,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": []
     },
     {
       "id": "railgun",
@@ -802,7 +850,10 @@
       "type": "offense",
       "retired": false,
       "price": 240,
-      "hit_points": 40
+      "hit_points": 40,
+      "research_capabilities": [
+        "railgun"
+      ]
     },
     {
       "id": "command_uplink",
@@ -821,7 +872,10 @@
       "type": "tech",
       "retired": false,
       "price": 140,
-      "hit_points": 25
+      "hit_points": 25,
+      "research_capabilities": [
+        "command"
+      ]
     },
     {
       "id": "tactical_computer",
@@ -840,7 +894,30 @@
       "type": "tech",
       "retired": false,
       "price": 220,
-      "hit_points": 35
+      "hit_points": 35,
+      "research_capabilities": [
+        "synchronization"
+      ]
+    },
+    {
+      "id": "armor_block",
+      "name": "Large Plate",
+      "part_type": 0,
+      "rank": 2,
+      "revision": 1,
+      "size": "L",
+      "stats": {
+        "integrity": 100,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 8
+      },
+      "type": "defense",
+      "retired": false,
+      "price": 160,
+      "hit_points": 40,
+      "research_capabilities": []
     }
   ],
   "version": 1

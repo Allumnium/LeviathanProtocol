@@ -1,0 +1,64 @@
+{
+  "ui_assets": [
+    {
+      "id": "b133823e-db9a-4c34-b473-9866a55421f9",
+      "name": null,
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, metal aesthetic.\n\nSleek, high-tech holographic displays inspired by spacecraft cockpit interfaces and futuristic tactical HUDs. Thin edges/borders leaving a lot of space for content inside.\n\nOccasional technical embellishments. \n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "template",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a.png",
+      "size": {
+        "width": 688,
+        "height": 384
+      },
+      "group_id": "b133823e-db9a-4c34-b473-9866a55421f9"
+    },
+    {
+      "id": "0aa2f768-05f9-4b65-bee3-e8ebd04ccd64",
+      "name": "element 2",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, metal aesthetic.\n\nSleek, high-tech holographic displays inspired by spacecraft cockpit interfaces and futuristic tactical HUDs. Thin edges/borders leaving a lot of space for content inside.\n\nOccasional technical embellishments. \n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_2.png",
+      "size": {
+        "width": 688,
+        "height": 118
+      },
+      "group_id": "b133823e-db9a-4c34-b473-9866a55421f9"
+    },
+    {
+      "id": "7b9db803-29db-4954-b6f8-47c665b96c89",
+      "name": "element 3",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, metal aesthetic.\n\nSleek, high-tech holographic displays inspired by spacecraft cockpit interfaces and futuristic tactical HUDs. Thin edges/borders leaving a lot of space for content inside.\n\nOccasional technical embellishments. \n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_3.png",
+      "size": {
+        "width": 208,
+        "height": 330
+      },
+      "group_id": "b133823e-db9a-4c34-b473-9866a55421f9"
+    },
+    {
+      "id": "eb127883-d3c9-4960-af72-e4c5efd67853",
+      "name": "element 4",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, metal aesthetic.\n\nSleek, high-tech holographic displays inspired by spacecraft cockpit interfaces and futuristic tactical HUDs. Thin edges/borders leaving a lot of space for content inside.\n\nOccasional technical embellishments. \n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_4.png",
+      "size": {
+        "width": 208,
+        "height": 330
+      },
+      "group_id": "b133823e-db9a-4c34-b473-9866a55421f9"
+    },
+    {
+      "id": "0bd77de4-97af-4437-a7dc-542db119c5df",
+      "name": "element 5",
+      "prompt": "Futuristic 2D pixel art spaceship interface with a vibrant, metal aesthetic.\n\nSleek, high-tech holographic displays inspired by spacecraft cockpit interfaces and futuristic tactical HUDs. Thin edges/borders leaving a lot of space for content inside.\n\nOccasional technical embellishments. \n\nThe overall appearance should feel elegant, immersive, energetic, and technologically sophisticated, with a slightly extravagant science-fiction character.\n\nAvoid bulky industrial framing, excessive mechanical details, cartoon styling, and overly cluttered decoration.",
+      "kind": "element",
+      "file": "Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_5.png",
+      "size": {
+        "width": 688,
+        "height": 25
+      },
+      "group_id": "b133823e-db9a-4c34-b473-9866a55421f9"
+    }
+  ]
+}

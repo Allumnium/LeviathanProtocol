@@ -22,14 +22,14 @@ static func origins(owned: HangarShip, rect: Rect2) -> PackedVector2Array:
 	return points
 
 static func draw(target: CanvasItem, owned: HangarShip, rect: Rect2, elapsed: float,
-		strength := 1.0, visible_at := Callable()) -> void:
+		strength := 1.0, visible_at := Callable(), particle_count := 12) -> void:
 	if not owned.is_alive():
 		return
 	var scale := rect.size / 512
 	var phase := float(owned.id % 11) / 11.0
 	for origin in origins(owned, rect):
-		for index in range(12):
-			var age := fposmod(elapsed * 8.0 + phase + index / 12.0, 1.0)
+		for index in range(particle_count):
+			var age := fposmod(elapsed * 8.0 + phase + float(index) / particle_count, 1.0)
 			var point := origin + Vector2(sin(index * 2.4) * age * 12,
 				age * (40 + strength * 56)) * scale
 			if visible_at.is_valid() and not visible_at.call(point):

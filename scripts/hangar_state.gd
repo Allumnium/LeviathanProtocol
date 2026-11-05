@@ -29,10 +29,8 @@ var destination_node_id := -1
 var planned_destination_node_id := -1
 var visited_nodes: Array[int] = [0]
 var current_research_ids: Array[String] = ["foundation"]
-var research_focus := ""
-var research_progress: Dictionary = {}
+var research_offer: Array[String] = []
 var research_points := 0.0
-var research_pricing_version := 1
 var story_flags: Dictionary[String, bool] = {}
 var research_branch_choices: Dictionary[String, String] = {}
 var campaign_active := true
@@ -106,10 +104,8 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	run_score = RunScore.initial()
 	current_research_ids = ["foundation"]
 	research_completion_notices.clear()
-	research_focus = ""
-	research_progress = {}
+	research_offer.clear()
 	research_points = 0.0
-	research_pricing_version = 1
 	story_flags.clear()
 	research_branch_choices.clear()
 	fleet.clear()
@@ -203,9 +199,9 @@ func hangar_snapshot() -> Dictionary:
 		"visited": visited_nodes.duplicate(), "pending": battle_pending, "ended": run_ended, "completed": completed,
 		"journey_rp": journey_rp, "pending_encounter": get_frozen_encounter(destination_node_id) if battle_pending else {},
 		"battle_reserves": battle_reserves.duplicate(true), "research": {"research_ids": current_research_ids.duplicate(),
-		"research_focus": research_focus, "research_progress": research_progress.duplicate(),
+		"research_offer": research_offer.duplicate(),
 		"research_points": research_points,
-		"research_pricing_version": 1, "story_flags": story_flags.duplicate(), "branch_choices": research_branch_choices.duplicate()}}
+		"story_flags": story_flags.duplicate(), "branch_choices": research_branch_choices.duplicate()}}
 	if not navigation.is_empty():
 		data.navigation = navigation.duplicate(true)
 	if not run_score.is_empty():
@@ -229,6 +225,7 @@ func _apply_hangar(data: Dictionary, restore_expedition := false, announce_resea
 	next_equipment_id = int(data.next_equipment_id)
 	equipment_inventory = data.equipment.duplicate(true)
 	fleet.clear()
+	var earned_modifiers: Dictionary = ResearchRules.resolve(data.research.research_ids, HangarResearch.catalog()).modifiers
 	for entry: Dictionary in data.ships:
 		var owned := HangarShip.new()
 		owned.initialize_chassis(entry.chassis, int(entry.id), entry.flagship)
@@ -237,6 +234,7 @@ func _apply_hangar(data: Dictionary, restore_expedition := false, announce_resea
 			owned.mounts[slot] = equipment_inventory[entry.mounts[slot]]
 		owned.rebuild_units()
 		owned.hull_hp = entry.hull_hp
+		owned.research_modifiers = earned_modifiers
 		fleet.append(owned)
 	squadrons = data.squadrons.duplicate(true) if data.has("squadrons") else HangarSquadrons.initial(data)
 	for group: Dictionary in squadrons:
@@ -255,8 +253,7 @@ func _apply_hangar(data: Dictionary, restore_expedition := false, announce_resea
 	navigation = data.get("navigation", {}).duplicate(true)
 	pending_encounter = data.get("pending_encounter", {}).duplicate(true)
 	current_research_ids.assign(data.research.research_ids)
-	research_focus = data.research.research_focus
-	research_progress = data.research.research_progress.duplicate()
+	research_offer.assign(data.research.research_offer)
 	research_points = float(data.research.get("research_points", 0.0))
 	story_flags.assign(data.research.story_flags)
 	research_branch_choices.assign(data.research.branch_choices)
@@ -591,7 +588,7 @@ func _rescue_ship(data: Dictionary, chassis_id: String) -> String:
 	for entry: Dictionary in data.ships:
 		var definition := SlotCatalog.find_chassis(str(entry.chassis))
 		if entry.flagship:
-			command = int(definition.command)
+			command = HangarResearch.command_limit(int(definition.command), data.research.research_ids)
 		else:
 			used += int(definition.command_cost)
 	if used + int(chassis.command_cost) > command:
@@ -664,7 +661,7 @@ func depart_expedition(location_id: String, engage := false) -> bool:
 	return true
 
 func self_repair_rate(owned: HangarShip) -> float:
-	return float(owned.chassis.get("self_repair_hp_per_second", 0.0))
+	return float(owned.chassis.get("self_repair_hp_per_second", 0.0)) * ResearchUpgrades.value(owned.research_modifiers, "passive_repair_multiplier")
 
 func expedition_fuel_multiplier() -> float:
 	return float(research_grants().modifiers.get("cruise_fuel_multiplier", {}).get("value", 1.0))
@@ -738,7 +735,7 @@ func accept_rescue() -> bool:
 # simulation time repairs hulls; docking delivers trade loads. Returns facts
 # for the UI. A failed boundary save rolls everything back to `before`.
 func advance_expedition(delta: float, force_save := false) -> Dictionary:
-	var result := {"ok": true, "boundary": false, "saved": false, "research_done": "", "repaired": false,
+	var result := {"ok": true, "boundary": false, "saved": false, "research_ready": false, "repaired": false,
 		"delivered": 0, "income": 0, "error": ""}
 	var simulation = expedition_simulation
 	if simulation == null or simulation.state == null or battle_pending or run_ended or completed:
@@ -760,12 +757,12 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 	var days: float = simulation.state.traveled_days - days_before
 	var seconds: float = simulation.state.simulation_seconds - seconds_before
 	var earned_rp := ScienceRules.production_rate(ScienceRules.snapshot(get_deployed_fleet())) * days
-	var previous_focus := research_focus
-	var completes_research := not research_focus.is_empty() and earned_rp > 0 \
-		and research_points + earned_rp + float(research_progress.get(research_focus, 0)) \
-			>= ResearchFocusRules.cost(research_focus, {"research_pricing_version": 1})
+	var progress := run_progress_snapshot()
+	_allocate_research(progress, earned_rp)
+	var offers_ready: bool = research_offer.is_empty() and not progress.research_offer.is_empty()
+	result.research_ready = offers_ready
 	result.boundary = simulation.boundary_sequence != sequence
-	if result.boundary or force_save or completes_research:
+	if result.boundary or force_save or offers_ready:
 		hangar_before = hangar_snapshot()
 		hangar_before.expedition = sim_before
 	if days > 0.0:
@@ -778,16 +775,8 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 				income.score = run_score
 			RunScore.earn_credits(income, int(result.income))
 			credits = int(income.credits)
-		var focus := research_focus
-		var progress := {"research_ids": current_research_ids, "research_focus": research_focus,
-			"research_progress": research_progress, "branch_choices": research_branch_choices,
-			"story_flags": story_flags, "research_pricing_version": 1, "research_points": research_points}
-		var known := current_research_ids.size()
-		_allocate_research(progress, earned_rp)
-		research_focus = progress.research_focus
-		research_points = progress.research_points
-		if current_research_ids.size() > known:
-			result.research_done = str(GameDefinitions.find("research", focus).get("display_name", focus))
+	research_points = progress.research_points
+	research_offer.assign(progress.research_offer)
 	if seconds > 0.0:
 		var damaged_before := false
 		var damaged_after := false
@@ -806,19 +795,19 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 			var boundary: Dictionary = emitted[index]
 			if int(boundary.kind) == ExpeditionSimulationScript.State.BoundaryKind.DOCK:
 				result.delivered += _deliver_loads(str(boundary.details.location_id))
-	if result.boundary or force_save or not result.research_done.is_empty():
+	if result.boundary or force_save or offers_ready:
 		if not save_expedition_checkpoint():
 			if not hangar_before.is_empty():
 				_apply_hangar(hangar_before)
 				simulation.restore(sim_before)
 			result.ok = false
+			result.research_ready = false
 			result.income = 0
 			result.delivered = 0
 			result.error = "Save failed: " + last_save_error
 			return result
 		result.saved = true
-		if not result.research_done.is_empty():
-			research_completion_notices.append(previous_focus)
+		if offers_ready:
 			research_changed.emit()
 	if result.delivered > 0 or result.income > 0:
 		credits_changed.emit()
@@ -1080,7 +1069,7 @@ func _require_shipyard() -> bool:
 func command_limit() -> int:
 	for owned: HangarShip in fleet:
 		if owned.flagship:
-			return int(owned.chassis.command)
+			return HangarResearch.command_limit(int(owned.chassis.command), current_research_ids)
 	return 0
 
 func used_command() -> int:
@@ -1182,41 +1171,33 @@ func repair_all_ships() -> bool:
 	_notify_hangar()
 	return true
 
-func set_research_focus(key: String) -> bool:
-	if not _can_refit() or not HangarResearch.eligible(key, hangar_snapshot().research):
+func research_choice_ready() -> bool:
+	return not research_offer.is_empty() and research_points >= HangarResearch.threshold(run_progress_snapshot())
+
+func choose_research(key: String) -> bool:
+	if battle_pending or run_ended or completed or not research_choice_ready() or key not in research_offer:
+		last_save_error = "Choose one of the offered upgrades."
 		return false
 	var data := hangar_snapshot()
-	data.research.research_focus = key
+	if not HangarResearch.eligible(key, data.research):
+		last_save_error = "This upgrade is no longer available."
+		return false
+	if not ResearchUpgrades.matches(key, get_deployed_fleet()):
+		last_save_error = ResearchUpgrades.requirement(key)
+		return false
+	data.research.research_points -= HangarResearch.threshold(data.research)
+	data.research.research_ids.append(key)
+	data.research.research_offer.clear()
+	var definition := GameDefinitions.find("research", key)
+	if not definition.family_id.is_empty():
+		data.research.branch_choices[definition.family_id] = definition.path_id
 	_allocate_research(data.research, 0.0)
 	return _commit_hangar(data)
 
 func _allocate_research(progress: Dictionary, amount: float) -> void:
-	var key: String = progress.research_focus
-	var available := float(progress.get("research_points", 0.0)) + amount
-	progress.research_points = available
-	if key.is_empty() or not HangarResearch.eligible(key, progress, true):
-		return
-	var required := ResearchFocusRules.cost(key, progress)
-	var value := float(progress.research_progress.get(key, 0))
-	# Preserve old fractional project progress as unspent earnings.
-	available += value - floorf(value)
-	value = floorf(value)
-	var remaining := required - value
-	var allocated := mini(floori(available), int(remaining))
-	progress.research_points = available - allocated
-	value += allocated
-	if value < required:
-		progress.research_progress[key] = value
-		return
-	progress.research_ids.append(key)
-	progress.research_progress.erase(key)
-	progress.research_focus = ""
-	var definition := GameDefinitions.find("research", key)
-	if not definition.family_id.is_empty():
-		progress.branch_choices[definition.family_id] = definition.path_id
-	for project in progress.research_progress.keys():
-		if not HangarResearch.eligible(project, progress, true):
-			progress.research_progress.erase(project)
+	progress.research_points = float(progress.research_points) + maxf(0, amount)
+	var deployed := get_deployed_fleet()
+	HangarResearch.prepare_offer(progress, run_seed, HangarResearch.option_count(deployed), deployed)
 
 func research_grants() -> Dictionary:
 	return ResearchRules.resolve(current_research_ids, HangarResearch.catalog())
@@ -1630,7 +1611,8 @@ func set_destroy_all_neutral_targets(enabled: bool) -> bool:
 	return true
 
 func run_progress_snapshot() -> Dictionary:
-	return hangar_snapshot().research
+	return {"research_ids": current_research_ids.duplicate(), "research_offer": research_offer.duplicate(),
+		"research_points": research_points, "story_flags": story_flags.duplicate(), "branch_choices": research_branch_choices.duplicate()}
 
 func is_shipyard_node(node_id: int) -> bool:
 	return node_id == current_node_id and can_use_shipyard()

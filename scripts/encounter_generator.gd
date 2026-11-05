@@ -5,7 +5,7 @@ const VERSION := 1
 const DIFFICULTY := [0.8, 1.0, 1.25]
 const MULTIPLIERS := {"standard": 1.0, "elite": 1.4, "boss": 1.8}
 const MAX_SHIPS := 24
-const MAX_ENEMY_ENTITIES := 40 # Leaves headroom within the 64-entity shared simulation budget.
+const MAX_ENEMY_ENTITIES := 40 # Authored enemy budgets stay separate from live spawn headroom.
 # The legacy map has 14 combat columns. Step 10 replaces this explicit bridge
 # with the actual 24 campaign rows, including noncombat stops.
 const LEGACY_COMBAT_ROWS := [1, 3, 5, 8, 9, 10, 12, 13, 16, 17, 18, 20, 21, 24]

@@ -51,11 +51,7 @@ func advance(sim, delta: float) -> void:
 		var entry: Dictionary = pending[0]
 		if clock + 0.000001 < int(entry.wave) * WAVE_INTERVAL:
 			break
-		var living := 0
-		for member in sim._members:
-			if member.is_alive() and member.has_tag("combatant"):
-				living += 1
-		if living >= 64:
+		if sim.living_combatant_count() >= BattleSimulation.MAX_LIVE_COMBATANTS:
 			break
 		var definition := AlienShip.from_snapshot(entry)
 		var member = sim._create_combatant(definition.stats)

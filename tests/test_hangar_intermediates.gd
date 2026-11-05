@@ -192,7 +192,7 @@ func transactions() -> void:
 	fixture.research.branch_choices["force_projection"] = "siege"
 	fixture.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(fixture), "Siege/command prerequisites and branch choices validate")
-	check(not state.set_research_focus("carrier_i"), "Siege choice excludes carrier research")
+	check(not state.choose_research("carrier_i"), "Siege choice excludes carrier research")
 	check(state.buy_ship("corsair") and state.buy_ship("drone"), "Buy intermediate hosts")
 	var drone_host: int = state.fleet[-1].id
 	var corsair_host: int = state.fleet[-2].id

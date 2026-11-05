@@ -41,7 +41,7 @@ func run() -> void:
 	state.run_save_path = "user://carrier-tests.json"
 	check(state.start_new_run(1, 1357), "Start physical carrier fixture")
 	var original: Dictionary = state.hangar_snapshot()
-	check(not state.set_research_focus("carrier_i"), "Carrier research requires Guided Munitions")
+	check(not state.choose_research("carrier_i"), "Carrier research requires a funded matching offer")
 	var fixture := original.duplicate(true)
 	fixture.credits = 5000
 	fixture.research.research_ids.append_array(["guided_munitions", "carrier_i", "carrier_ii", "bastion_ii"])
@@ -118,7 +118,7 @@ func run() -> void:
 		bomber.advance(1.0 / 30)
 	check(bomber.player.damage_dealt > 0 and bomber.player.weapon_damage.has("Bomber Torpedo"), "Natural simulated sorties damage enemies and enter host reports")
 	var capped := simulation(carrier())
-	for index in range(63):
+	for index in range(BattleSimulation.MAX_LIVE_COMBATANTS - capped.living_combatant_count()):
 		var actor := BattleSimulation.Combatant.new()
 		actor.entity_id = "cap/%d" % index
 		actor.stats = ShipStats.new()

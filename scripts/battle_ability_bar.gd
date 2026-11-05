@@ -2,6 +2,7 @@ extends PanelContainer
 
 signal targeting_changed(enabled: bool)
 
+var embedded := false
 var simulation: BattleSimulation
 var visuals: Control
 var targeting := false
@@ -18,8 +19,12 @@ var _source_ids: Array[String] = []
 func _ready() -> void:
 	if not simulation.abilities.available.has(selected_id) and not simulation.abilities.available.is_empty():
 		selected_id = simulation.abilities.available[0]
-	theme_type_variation = &"ContextPanel"
-	var contents := VBoxContainer.new()
+	if embedded:
+		add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	else:
+		theme_type_variation = &"ContextPanel"
+	var contents: BoxContainer = HBoxContainer.new() if embedded else VBoxContainer.new()
+	contents.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	contents.add_theme_constant_override("separation", 2)
 	add_child(contents)
 	var actions := HBoxContainer.new()

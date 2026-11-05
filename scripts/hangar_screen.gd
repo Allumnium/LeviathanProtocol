@@ -47,8 +47,8 @@ var formation_station_angle := 0.0
 var formation_selection: Array[int] = []
 var squadron_buy_count := 1
 var fitting_views: Dictionary = {}
-var research_view: Dictionary = {}
-var research_panel: Control
+var research_dialog: Control
+var dismissed_research_offer := ""
 var traveling := false
 var graph: Control
 var map_camera: Dictionary = {}
@@ -121,15 +121,10 @@ func _ready() -> void:
 	tabs.size_flags_vertical = SIZE_SHRINK_BEGIN
 	top.left.add_child(tabs)
 	research_button = _button_with_sound("", func() -> void:
-		if traveling:
-			return
-		active_tab = "RESEARCH"
-		buy_open = false
-		_refresh(), &"accept")
-	research_button.name = "ResearchTab"
+		_show_research_choices(), &"accept")
+	research_button.name = "ResearchChoicesButton"
 	research_button.theme_type_variation = &"NavigationTab"
-	research_button.toggle_mode = true
-	research_button.custom_minimum_size = Vector2(108, 27)
+	research_button.custom_minimum_size = Vector2(140, 27)
 	research_button.size_flags_vertical = SIZE_SHRINK_BEGIN
 	research_pulse = ShaderMaterial.new()
 	research_pulse.shader = preload("res://shaders/ui_research_pulse.gdshader")
@@ -323,7 +318,7 @@ func _resize_research_label() -> void:
 	var available := floorf((size.x - center_width) * 0.5) - 8 \
 			- header_wallet.get_combined_minimum_size().x - 4 - 36
 	research_status.custom_minimum_size.x = minf(text_width, maxf(1, available))
-	research_button.custom_minimum_size.x = maxf(108, research_status.custom_minimum_size.x + 36)
+	research_button.custom_minimum_size.x = maxf(140, research_status.custom_minimum_size.x + 36)
 	var text_height := research_status.get_theme_font("font").get_multiline_string_size(
 		research_status.text, HORIZONTAL_ALIGNMENT_CENTER, research_status.custom_minimum_size.x,
 		research_status.get_theme_font_size("font_size")).y
@@ -331,18 +326,19 @@ func _resize_research_label() -> void:
 	research_button.custom_minimum_size.y = maxf(27, maxf(12, ceilf(text_height)) + progress_height + (8 if research_progress.visible else 6))
 	var rate_width := research_rate.get_theme_font("font").get_string_size(
 		research_rate.text, HORIZONTAL_ALIGNMENT_LEFT, -1, research_rate.get_theme_font_size("font_size")).x
+	var row_width := research_button.custom_minimum_size.x - 20
 	research_progress.custom_minimum_size.x = maxf(8, minf(
-		floorf((research_status.custom_minimum_size.x + 16) * 0.5),
-		research_status.custom_minimum_size.x + 16 - rate_width - 4))
+		floorf(row_width * 0.5), row_width - rate_width - 4))
 
 func _process(delta: float) -> void:
 	if research_pulse != null:
-		if GameState.research_focus.is_empty():
+		if GameState.research_choice_ready():
 			research_pulse_time = fmod(research_pulse_time + delta, 1.0)
 			research_pulse.set_shader_parameter("white_mix", 0.08 * (1.0 - cos(TAU * research_pulse_time)) * 0.5)
 		else:
 			research_pulse_time = 0.0
 			research_pulse.set_shader_parameter("white_mix", 0.0)
+	_maybe_show_research_choices()
 	_advance_expedition(delta)
 	_sync_station_services()
 	_sync_station_actions()
@@ -430,7 +426,7 @@ func _shipyard_action(button: Button, eligible := true) -> Button:
 func _advance_expedition(delta: float) -> void:
 	var simulation = GameState.expedition_simulation
 	if simulation == null or simulation.state == null \
-			or is_instance_valid(encounter_modal) or entering_battle or GameState.completed or GameState.run_ended:
+			or is_instance_valid(encounter_modal) or is_instance_valid(research_dialog) or entering_battle or GameState.completed or GameState.run_ended:
 		return
 	expedition_save_elapsed += delta
 	var periodic: bool = expedition_save_elapsed >= EXPEDITION_SAVE_INTERVAL
@@ -698,7 +694,6 @@ func _refresh() -> void:
 		buy_open = false
 	for tab: Button in tabs.get_children():
 		tab.set_pressed_no_signal(tab.text == active_tab)
-	research_button.set_pressed_no_signal(active_tab == "RESEARCH")
 	if is_instance_valid(canvas) and not canvas.auto_fit:
 		fitting_views[canvas.owned_id] = {"camera": canvas.camera, "zoom": canvas.zoom}
 	if is_instance_valid(formation_view):
@@ -707,36 +702,12 @@ func _refresh() -> void:
 		formation_station_angle = formation_view.station_angle
 		if formation_view.selected_id == selected_ship_id:
 			formation_selection.assign(formation_view.selected_ids)
-	if is_instance_valid(research_panel):
-		research_view = {"selected_id": research_panel.selected_id,
-			"camera_position": research_panel.tree_canvas.camera_position,
-			"camera_zoom": research_panel.tree_canvas.camera_zoom}
 	if is_instance_valid(graph) and graph.is_inside_tree() and graph.get("user_moved") != false:
 		map_camera = {"position": graph.camera_position, "zoom": graph.camera_zoom}
 	graph = null
-	research_panel = null
 	formation_view = null
 	header.text = str(GameState.credits)
-	var focus: String = GameState.research_focus
-	if focus.is_empty():
-		research_status.text = "%s RP" % ScienceRules.format_points(GameState.research_points) \
-			if GameState.research_points > 0 else "Choose Research"
-		research_progress.value = 0
-		research_progress.hide()
-		research_progress_row.hide()
-	else:
-		var technology := GameDefinitions.find("research", focus)
-		var required := ResearchFocusRules.cost(focus, GameState.run_progress_snapshot())
-		research_status.text = technology.display_name
-		research_progress.max_value = required
-		research_progress.value = floorf(float(GameState.research_progress.get(focus, 0)))
-		research_progress.show()
-		research_rate.text = "+%s/day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.get_deployed_fleet())))
-		research_progress_row.show()
-	if not focus.is_empty():
-		research_pulse_time = 0.0
-		research_pulse.set_shader_parameter("white_mix", 0.0)
-	_resize_research_label.call_deferred()
+	_update_research_header(true)
 	_clear(roster)
 	_clear(details)
 	station_actions = null
@@ -763,35 +734,29 @@ func _refresh() -> void:
 	if GameState.completed or GameState.run_ended:
 		_show_run_end()
 		return
-	if active_tab == "RESEARCH":
-		var research: Control = load("res://scripts/research_panel.gd").new()
-		research.view_state = research_view
-		research_panel = research
-		research.registry = HangarResearch.view_registry()
-		center.add_child(research)
-		research.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-		research.bind_external_panels(roster, details)
-		research.focus_requested.connect(func(key: String) -> void: _result(GameState.set_research_focus(key)))
-		return
 	if active_tab == "MAP":
 		_show_map()
 		_build_station_actions()
 		_refresh_expedition_controls()
 		return
 	if active_tab == "SHIPS":
-		var ship_rows := GridContainer.new()
-		ship_rows.name = "ShipTiles"
-		ship_rows.columns = 2
-		ship_rows.add_theme_constant_override("h_separation", 4)
-		ship_rows.add_theme_constant_override("v_separation", 4)
-		ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
-		roster.add_child(ship_rows)
 		var tile_size := _ship_tile_size()
-		for owned: HangarShip in GameState.fleet:
-			ship_rows.add_child(_ship_tile(owned, tile_size))
+		for group: Dictionary in GameState.squadrons:
+			var heading := _label("%s #%d x%d" % [group.name, group.id, group.members.size()])
+			heading.name = "ShipSquadron_%d" % group.id
+			roster.add_child(heading)
+			var ship_rows := GridContainer.new()
+			ship_rows.name = "ShipTiles" if group == GameState.squadrons[0] else "ShipTiles_%d" % group.id
+			ship_rows.columns = 2
+			ship_rows.add_theme_constant_override("h_separation", 4)
+			ship_rows.add_theme_constant_override("v_separation", 4)
+			ship_rows.size_flags_horizontal = SIZE_EXPAND_FILL
+			roster.add_child(ship_rows)
+			for id: int in group.members:
+				ship_rows.add_child(_ship_tile(GameState.owned_ship(id), tile_size))
 	elif active_tab == "FLEET":
 		for group: Dictionary in GameState.squadrons:
-			var choose := _button("#%d x%d" % [group.id, group.members.size()],
+			var choose := _button("%s #%d x%d" % [group.name, group.id, group.members.size()],
 				_select_squadron.bind(int(group.id)))
 			choose.name = "Squadron_%d" % group.id
 			choose.icon = SurfaceArt.diffuse(GameState.owned_ship(int(group.members[0])).art_texture)
@@ -873,6 +838,50 @@ func _refresh() -> void:
 		_show_buy_panel()
 	_refresh_expedition_controls()
 
+
+func _update_research_header(update_rate := false) -> void:
+	var progress := GameState.run_progress_snapshot()
+	var required := HangarResearch.threshold(progress)
+	var ready := GameState.research_choice_ready()
+	var text := "Choose Upgrade" if ready else "%d / %d RP" % [floori(GameState.research_points), required]
+	if GameState.research_offer.is_empty() and GameState.research_points >= required:
+		text = "Research Banked"
+	research_button.disabled = not ready
+	if research_status.text != text:
+		research_status.text = text
+		_resize_research_label.call_deferred()
+	research_progress.max_value = required
+	research_progress.value = minf(GameState.research_points, required)
+	research_progress.show()
+	research_progress_row.show()
+	if update_rate:
+		research_rate.text = "+%s/day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.get_deployed_fleet())))
+
+func _research_signature() -> String:
+	return ",".join(GameState.research_offer) + "/" + str(GameState.current_research_ids.size())
+
+func _maybe_show_research_choices() -> void:
+	if not GameState.research_choice_ready() or dismissed_research_offer == _research_signature():
+		return
+	_show_research_choices()
+
+func _show_research_choices() -> void:
+	if is_instance_valid(research_dialog) or not GameState.research_choice_ready() or entering_battle \
+			or GameState.battle_pending or GameState.run_ended or GameState.completed or UiNavigation.settings_open():
+		return
+	for modal: Node in get_tree().get_nodes_in_group("modal_ui"):
+		if modal is CanvasItem and modal.is_visible_in_tree() and not modal.is_queued_for_deletion():
+			return
+	research_dialog = preload("res://scripts/research_choices.gd").new()
+	research_dialog.closed.connect(func() -> void:
+		dismissed_research_offer = _research_signature()
+		research_dialog = null)
+	research_dialog.chosen.connect(func() -> void:
+		research_dialog = null
+		dismissed_research_offer = ""
+		_update_research_header())
+	add_child(research_dialog)
+	research_dialog.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 
 func _show_run_end() -> void:
 	if is_instance_valid(get_node_or_null("RunEnd")):
@@ -976,9 +985,6 @@ func _show_encounter(intro: Dictionary = {}) -> void:
 		if option.get("effects", {}).has("combat"):
 			choice.add_theme_color_override("font_color", Color("ffb0a0"))
 		dialog.actions.add_child(choice)
-	if GameState.research_focus.is_empty() and simulation.Events.options(event).any(
-			func(option: Dictionary) -> bool: return float(option.get("effects", {}).get("research", 0.0)) > 0):
-		dialog.column.add_child(UiKit.label("RP stored until research is focused."))
 	encounter_error = UiKit.label("")
 	dialog.column.add_child(encounter_error)
 	encounter_retry = UiKit.button("RETRY SAVE", func() -> void:
@@ -1100,12 +1106,7 @@ func _update_expedition_readouts() -> void:
 	if not is_instance_valid(travel_controls) or GameState.expedition_simulation == null:
 		return
 	var simulation = GameState.expedition_simulation
-	if GameState.research_focus.is_empty():
-		var text := "%s RP" % ScienceRules.format_points(GameState.research_points) \
-			if GameState.research_points > 0 else "Choose Research"
-		if research_status.text != text:
-			research_status.text = text
-			_resize_research_label()
+	_update_research_header()
 	var state = simulation.state
 	_update_course_control()
 	travel_fuel.text = "FUEL %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)]
@@ -1766,13 +1767,14 @@ func _render_squadron_assignment(owned: HangarShip) -> void:
 		refit_panel.add_child(split)
 
 func _part_effect(item: Dictionary) -> String:
+	var modifiers: Dictionary = GameState.research_grants().modifiers
 	match item.id:
-		"research_lab": return "%d RP/day" % int(item.rank)
+		"research_lab": return "%s RP/day" % ScienceRules.format_rp(float(item.rank) * ResearchUpgrades.value(modifiers, "research_output_multiplier"))
 		"cargo_hold": return "%d cargo" % HangarTrade.CARGO_CAPACITY
 		"passenger_cabin": return "%d passengers" % HangarTrade.PASSENGER_CAPACITY
 		"ammunition_magazine": return "+20% weapon cycling"
-		"tactical_computer": return "Salvo / 12s per computer"
-		"command_uplink": return "Auto mark: +20% / 5s"
+		"tactical_computer": return "Salvo / %ss per computer" % ScienceRules.format_rp(12.0 / ResearchUpgrades.value(modifiers, "synchronization_multiplier"))
+		"command_uplink": return "Auto mark: +%d%% / 5s" % roundi((ResearchUpgrades.value(modifiers, "mark_damage_multiplier", 1.2) - 1) * 100)
 		"repair_station": return "Repair %.0f hull/s\n%.0f hull reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
 		"repair_drone_bay": return "Repair drones: 4 hull / 2s\n20 hull reserve per encounter"
 		"shield_relay": return "Share shields: 2/s\nRange 180"
@@ -1781,10 +1783,9 @@ func _part_effect(item: Dictionary) -> String:
 		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
 	var values: Dictionary = item.stats
 	var effects: PackedStringArray = []
-	var modifiers: Dictionary = GameState.research_grants().modifiers
-	if item.id in ["laser", "double_laser"] and modifiers.has("prismatic_lasers"):
+	if "prismatic" in item.get("research_capabilities", []) and modifiers.has("prismatic_lasers"):
 		effects.append("Continuous / 1x to 2x DPS over 4s")
-	if item.id == "missile_rack" and modifiers.has("splinter_missiles"):
+	if "splitting_missile" in item.get("research_capabilities", []) and modifiers.has("splinter_missiles"):
 		effects.append("Splits: 3 x half damage")
 	if float(values.shields) > 0 and modifiers.has("pulse_shields"):
 		effects.append("Pulse: 25% shields / 8s")
@@ -1792,6 +1793,7 @@ func _part_effect(item: Dictionary) -> String:
 		var dps := 0.0
 		var reach := 0.0
 		for weapon: ShipWeaponStats in SlotCatalog.stats_for(item.id, int(item.rank)).weapons:
+			ResearchUpgrades.apply_weapon(weapon, modifiers)
 			dps += weapon.get_dps()
 			reach = maxf(reach, weapon.range_units)
 		effects.append("DPS %.1f | Range %.0f" % [dps, reach])
@@ -2015,11 +2017,9 @@ func _ship_tile(owned: HangarShip, tile_size: float) -> Button:
 		button.draw_texture_rect(texture, Rect2(inner.position + (inner.size - drawn) * 0.5, drawn), false)
 		if owned.flagship and flagship_icon != null:
 			button.draw_texture_rect(flagship_icon, Rect2(Vector2(4, 3), Vector2(9, 9)), false)
-		var bar := Rect2(Vector2(6, button.size.y - 8), Vector2(button.size.x - 12, 3))
-		button.draw_rect(bar, Color(0, 0, 0, 0.6))
+		var bar := Rect2(Vector2(6, button.size.y - 8), Vector2(button.size.x - 12, 5))
 		var ratio := clampf(owned.hull_hp / maxf(1.0, owned.hull_max), 0.0, 1.0)
-		var color := Color("6be38a") if ratio > 0.6 else (Color("ffd28a") if ratio > 0.3 else Color("ff7a6b"))
-		button.draw_rect(Rect2(bar.position, Vector2(bar.size.x * ratio, bar.size.y)), color))
+		preload("res://scripts/integrity_bars.gd").draw_hull(button, bar, ratio))
 	return button
 
 func _open_ship_editor(id: int) -> void:

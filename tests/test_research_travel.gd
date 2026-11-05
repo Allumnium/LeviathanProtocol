@@ -261,31 +261,34 @@ func persistence_and_unlocks() -> void:
 
 	start()
 	proposal = state.hangar_snapshot()
-	proposal.research.research_focus = "civil_hospitality"
-	proposal.research.research_progress["civil_hospitality"] = 19
-	proposal.research.research_points = 0.6
+	proposal.research.research_points = 19.6
 	check(HangarCheckpoint.valid(proposal), "Nearly completed research fixture is valid: " + str(proposal.research))
 	check(state._commit_hangar(proposal), "Persist nearly completed income research: " + state.last_save_error)
 	check(state.depart_expedition("refuel_station_1"), "Depart with nearly completed income research: " + state.last_save_error)
 	before = state.hangar_snapshot()
 	var result: Dictionary = state.advance_expedition(1, true)
-	check(result.ok and not result.research_done.is_empty() and result.income == 0
-		and state.current_research_ids.has("civil_hospitality") and state.credits == before.credits,
+	check(result.ok and result.research_ready and result.income == 0
+		and not state.current_research_ids.has("civil_hospitality") and state.credits == before.credits,
 		"Completing research during travel does not pay for the preceding frame")
+	# Isolate this offered upgrade from the seeded draw; eligibility is still validated.
+	proposal = state.hangar_snapshot()
+	proposal.research.research_offer = ["civil_hospitality"]
+	check(state._commit_hangar(proposal) and state.choose_research("civil_hospitality"), "Choose earned income upgrade during cruise")
 	advance_seconds(1.5)
-	check(state.credits == before.credits + 1, "Newly completed research starts paying on subsequent travel")
+	check(state.credits == before.credits + 1, "Chosen research starts paying on subsequent travel")
 	start()
 	proposal = state.hangar_snapshot()
-	proposal.research.research_focus = "field_engineering"
-	proposal.research.research_progress["field_engineering"] = 19
-	proposal.research.research_points = 0.6
+	proposal.research.research_points = 19.6
 	check(state._commit_hangar(proposal) and state.depart_expedition("refuel_station_1"),
 		"Start cruise with nearly completed fuel research")
 	result = state.advance_expedition(1, true)
-	check(result.ok and not result.research_done.is_empty()
+	check(result.ok and result.research_ready
 		and is_equal_approx(state.expedition_simulation.state.fuel, 99.6)
 		and is_equal_approx(state.expedition_simulation.state.traveled_distance_nu, 4),
 		"Travel research neither discounts nor accelerates the frame that completed it")
+	proposal = state.hangar_snapshot()
+	proposal.research.research_offer = ["field_engineering"]
+	check(state._commit_hangar(proposal) and state.choose_research("field_engineering"), "Choose earned cruise upgrade")
 	advance_seconds(2)
 	check(is_equal_approx(state.expedition_simulation.state.fuel, 98.85),
 		"Travel research starts increasing speed and reducing consumption on subsequent travel")
@@ -368,19 +371,11 @@ func arrival_and_ui() -> void:
 	check(screen.graph == map and map.camera_position == Vector2(17, 29) and is_equal_approx(map.camera_zoom, 0.8)
 		and screen.header.text == str(state.credits) and not screen.refresh_queued,
 		"Income updates the wallet without rebuilding the Map or changing pan/zoom")
-	screen.active_tab = "RESEARCH"
-	screen._refresh()
+	check(state.advance_expedition(2, true).income == 1, "Further cruising earns the next income tick")
 	await settle()
-	var panel: Control = screen.research_panel
-	panel._select("field_engineering")
-	panel.tree_canvas.camera_position = Vector2(23, 31)
-	panel.tree_canvas.camera_zoom = 0.9
-	check(state.advance_expedition(2, true).income == 1, "Earn one visible income tick in Research")
-	await settle()
-	check(screen.research_panel == panel and panel.selected_id == "field_engineering"
-		and panel.tree_canvas.camera_position == Vector2(23, 31) and is_equal_approx(panel.tree_canvas.camera_zoom, 0.9)
+	check(screen.graph == map and map.camera_position == Vector2(17, 29) and is_equal_approx(map.camera_zoom, 0.8)
 		and screen.header.text == str(state.credits) and not screen.delivery_readout.visible,
-		"Income preserves research selection/pan/zoom without a recurring delivery toast")
+		"Income preserves the map view without a recurring delivery toast")
 	await capture_native("cruise-research.png")
 	screen.queue_free()
 	await settle()

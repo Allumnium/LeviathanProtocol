@@ -42,6 +42,7 @@ func run() -> void:
 		actor.position = Vector2(37, -21)
 		actor.heading = 0.7
 		var polygons := Collision.actor_polygons(actor)
+		check_bounds(actor, polygons)
 		check(not polygons.is_empty(), "Every player chassis has artwork polygons")
 		check_art_samples(ship.art_texture, Collision.hangar_rect(ship).size, actor.position, actor.heading + PI / 2, polygons)
 		var unchanged := Collision.actor_polygons(actor)
@@ -54,6 +55,7 @@ func run() -> void:
 		var actor := BattleSimulation.Combatant.new()
 		actor.alien = alien
 		actor.heading = 2.1
+		check_bounds(actor, Collision.actor_polygons(actor))
 		check_art_samples(alien.texture, Collision.alien_size(alien), actor.position, actor.heading + PI / 2,
 			Collision.actor_polygons(actor))
 	var region_indices := {}
@@ -68,6 +70,7 @@ func run() -> void:
 		actor.entity_id = id
 		actor.radius = 16
 		var polygons := Collision.actor_polygons(actor)
+		check_bounds(actor, polygons)
 		check(not polygons.is_empty(), "Each asteroid atlas frame has its own polygon")
 		var rock_image := Collision.ROCK_TEXTURE.get_image().get_region(region)
 		check_art_samples(ImageTexture.create_from_image(rock_image), Vector2(32, 32), Vector2.ZERO, 0, polygons)
@@ -115,6 +118,13 @@ func run() -> void:
 	check(target.integrity == 90 and sim.projectiles.is_empty(), "A shot ending in transparent artwork does not deal damage")
 	print("SPRITE COLLISION: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)
+
+func check_bounds(actor: BattleSimulation.Combatant, polygons: Array[PackedVector2Array]) -> void:
+	var covered := true
+	for polygon in polygons:
+		for point in polygon:
+			covered = covered and Collision.sweep_near_actor(point, point, 0, actor)
+	check(covered, "Projectile broad phase encloses the complete exact artwork silhouette")
 
 func check_art_samples(texture: Texture2D, size: Vector2, position: Vector2, angle: float, polygons: Array[PackedVector2Array]) -> void:
 	var image := SurfaceArt.diffuse(texture).get_image()

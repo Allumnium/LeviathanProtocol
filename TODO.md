@@ -1,24 +1,14 @@
 # Current slice TODO
 
-Priority: finish the remaining D4 research work, then D5 fleet scale. Preserve the implemented travel/research/trade -> battle -> report/refit loop.
+The current D4/D5 implementation is delivered. Open dependencies remain below; D4's random-encounter effect is deferred. Preserve the implemented travel/research/trade -> battle -> report/refit loop.
 
 Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS.md). Delivered work: [COMPLETED.md](COMPLETED.md).
 
-## Publishing cleanup
-
-- [ ] Push the committed cleanup work once a Git remote URL is supplied. No remote is configured; do not guess a destination or force-push.
-
 ## D4 - Research that you can feel
 
-Research changes fleet behavior, not access to ordinary equipment. Keep the earned Prismatic Lasers, Siege I, Bastion II, Field Engineering and Civil Hospitality effects. Do not grant completed research/branches to make starting fits legal.
+Research changes fleet behavior, not access to ordinary equipment. Keep the earned Prismatic Lasers, Siege I, Bastion I, Field Engineering and Civil Hospitality effects. Do not grant completed research/branches to make starting fits legal.
 
 - [ ] Fewer random encounters: deferred until a random-encounter system exists; do not suppress authored/story encounters.
-- [ ] Research raises the command limit as long-term fleet growth. Keep a few exclusive branch choices so runs differ.
-
-## D5 - Scale to large fleets
-
-- [ ] Support 20-30 fighters and 10-20 transports: raise the live battle-entity cap (currently 64 shared) and command budgets, profile 50-vs-40 battles at 5x, and cheapen distant AI if needed.
-- [ ] Squadron-level battle HUD, health and reports; squadron-grouped Ships/Fleet views.
 
 ## Art dependency
 

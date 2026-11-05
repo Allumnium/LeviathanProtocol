@@ -122,14 +122,14 @@ func prepare(trade: bool) -> void:
 			outfit(state.fleet[-1].id, trade)
 
 func focus(trade: bool) -> void:
-	if not state.research_focus.is_empty():
+	if not state.research_choice_ready():
 		return
 	var sequence := ["applied_energy", "civil_hospitality", "energy_manipulation", "guided_munitions", "field_engineering", "renewal_i", "optics_ii"] if trade else ["applied_energy", "guided_munitions", "energy_manipulation", "field_engineering", "renewal_i", "optics_ii"]
 	if science_build:
 		sequence = ["applied_energy", "laboratory_ii", "laboratory_iii", "energy_manipulation", "field_engineering", "renewal_i", "optics_ii", "guided_munitions"]
 	for key: String in sequence:
-		if HangarResearch.eligible(key, state.run_progress_snapshot()):
-			check(state.set_research_focus(key), "Set available research focus")
+		if key in state.research_offer:
+			check(state.choose_research(key), "Choose an offered research upgrade")
 			return
 
 func play(seed_value: int, trade: bool, science := false) -> void:
@@ -151,7 +151,7 @@ func play(seed_value: int, trade: bool, science := false) -> void:
 		var routes: Array = state.get_reachable_nodes(state.current_node_id).filter(func(id: int) -> bool:
 			return state.campaign_node(id).row > current_row)
 		var current: Dictionary = state.campaign_node(state.current_node_id)
-		if science and current.kind == "staging" and int(current.act) == 3 and state.research_focus == "laboratory_iii":
+		if science and current.kind == "staging" and int(current.act) == 3 and not state.current_research_ids.has("laboratory_iii"):
 			routes = state.get_reachable_nodes(state.current_node_id).filter(func(id: int) -> bool:
 				return state.campaign_node(id).row < current_row)
 		var target: int = routes[0]
@@ -189,7 +189,7 @@ func play(seed_value: int, trade: bool, science := false) -> void:
 	check(state.completed, "Natural campaign reaches final victory")
 	if science:
 		check(state.current_research_ids.has("laboratory_iii") and operated_lab_iii and peak_daily_rp >= 4.0,
-			"Science fleet purchases and operates Lab III alongside its existing labs")
+			"Science fleet purchases and operates Lab (XL) alongside its existing labs")
 
 func run() -> void:
 	state = root.get_node("GameState")

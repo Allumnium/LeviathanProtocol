@@ -258,17 +258,6 @@ func run() -> void:
 	board._update_station()
 	check(not board.station.visible and board.surface_material.get_shader_parameter("station_light") == Vector4.ZERO,
 		"Departure removes station scenery and light immediately")
-	screen.active_tab = "RESEARCH"
-	screen._refresh()
-	await settle()
-	var production := ""
-	for child: Node in screen.roster.get_children():
-		if child is ResourceText:
-			production += child.source_text + "\n"
-	check(production.contains("Travel only") and not production.contains("RP stored")
-		and not production.contains("on arrival") and not production.contains("Choose a destination")
-		and not production.contains("PRODUCTION"),
-		"Research explains distance-only accrual without duplicating the header bank or legacy arrival previews")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		screen.active_tab = "MAP"
@@ -315,57 +304,20 @@ func run() -> void:
 		await settle()
 	state.pending_encounter = encounter
 	var banked: Dictionary = state.hangar_snapshot()
-	banked.research.research_focus = ""
+	banked.research.research_offer = []
 	banked.research.research_points = 7.5
 	check(state._commit_hangar(banked), "Save banked RP UI fixture")
 	screen.entering_battle = false
 	screen._refresh()
 	await settle()
-	check(screen.research_status.text == "7 RP" and not screen.research_progress.visible,
-		"No-focus Research button shows only spendable whole RP without a project bar")
+	check(screen.research_status.text == "7 / 20 RP" and screen.research_progress.visible and screen.research_progress.value == 7.5,
+		"Research header shows the shared RP bar")
 	var graph_before: Control = screen.graph
 	state.research_points = 8.5
 	screen._update_expedition_readouts()
-	check(screen.research_status.text == "8 RP" and screen.graph == graph_before,
+	check(screen.research_status.text == "8 / 20 RP" and screen.graph == graph_before,
 		"Travel refreshes the RP balance in place without rebuilding the map")
-	screen.active_tab = "RESEARCH"
-	screen._refresh()
-	await settle()
-	var research: Control = screen.research_panel
-	research.state_override = {"research_ids": ["foundation"], "story_flags": {},
-		"branch_choices": {}, "research_focus": "applied_energy",
-		"research_progress": {"applied_energy": 2}}
-	research.refresh()
-	research._select("applied_energy")
-	check(not research.focus_button.visible and research.card_buttons.applied_energy.has_node("Focus"),
-		"Focused research uses a distinct shape on its tree node instead of a redundant disabled FOCUSED button")
-	research.show_failure()
-	check(research.feedback.visible and research.feedback.text == "Save failed. Retry.",
-		"Visual focus presentation retains explicit save failures")
-	var research_snapshot: Dictionary = state.hangar_snapshot()
-	var camera_before: Vector2 = research.tree_canvas.camera_position
-	var zoom_before: float = research.tree_canvas.camera_zoom
-	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
-		root.size = resolution
-		await settle()
-		var cue: Line2D = research.card_buttons.applied_energy.get_node("Focus")
-		check(cue.points.size() == 5 and cue.points[0] == cue.points[-1]
-			and Rect2(Vector2.ZERO, research.card_buttons.applied_energy.size).has_point(cue.points[2]),
-			"Research focus has a bounded closed shape independent of color at %s" % resolution)
-		var detail_viewport: ScrollContainer = research.summary_host.get_parent()
-		detail_viewport.ensure_control_visible(research.feedback)
-		await settle()
-		check(screen.details_panel.get_global_rect().encloses(detail_viewport.get_global_rect())
-			and detail_viewport.get_global_rect().encloses(research.feedback.get_global_rect()),
-			"Research details scroll within their frame and save errors remain reachable at %s" % resolution)
-		check(research.tree_canvas.camera_position == camera_before
-			and research.tree_canvas.camera_zoom == zoom_before and state.hangar_snapshot() == research_snapshot,
-			"Research presentation and resize preserve pan/zoom and saved state")
-	research.state_override.research_focus = ""
-	research.refresh()
-	check(research.focus_button.visible and research.focus_button.text == "SET FOCUS"
-		and not research.card_buttons.applied_energy.has_node("Focus"),
-		"Unfocused research restores the discoverable action and removes the focus shape")
+	# Card layout, choice failures and deferred offers are covered by test_research_choices.gd.
 	var transport: HangarShip
 	for owned: HangarShip in state.fleet:
 		if owned.chassis_id == "transport":
@@ -418,8 +370,8 @@ func run() -> void:
 	state.research_completion_notices.append("laboratory_ii")
 	notice._process(0)
 	notice._process(0.2)
-	check(notice.visible and notice.title.source_text.contains("Laboratory II")
-		and notice.effect.source_text == "Labs generate research while traveling.",
+	check(notice.visible and notice.title.source_text.contains("Research Methods I")
+		and notice.effect.source_text == "Operating labs produce 20% more research.",
 		"Research completion banner identifies the upgrade and its real gameplay effect")
 	check(notice.get_theme_stylebox("panel").texture.resource_path.ends_with("Popup_GameTips.png")
 		and notice.mouse_filter == Control.MOUSE_FILTER_IGNORE and not notice.is_in_group("modal_ui"),
@@ -442,7 +394,7 @@ func run() -> void:
 		"Ordinary refresh preserves the completion banner without changing speed or saved state")
 	state.research_completion_notices.append("laboratory_iii")
 	notice._process(5)
-	check(notice.visible and notice.title.source_text.contains("Laboratory III"),
+	check(notice.visible and notice.title.source_text.contains("Research Methods II"),
 		"Consecutive completions queue instead of overwriting the visible upgrade")
 	notice._process(6)
 	check(not notice.visible and state.research_completion_notices.is_empty(),

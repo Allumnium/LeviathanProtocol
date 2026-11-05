@@ -47,8 +47,8 @@ func run() -> void:
 	check(state._commit_hangar(fixture) and state.buy_ship("transport"), "Buy actual Transport")
 	var transport_id: int = state.fleet[-1].id
 	var uids: Array[String] = []
-	check(state.swap_part(transport_id, "port", ""), "Clear starting lab for transfer fixture")
-	for key in ["research_lab@2", "shield_relay", "tactical_computer"]:
+	check(state.swap_part(transport_id, "port", ""), "Clear starting plate for transfer fixture")
+	for key in ["armor_block@2", "shield_relay", "tactical_computer"]:
 		check(state.swap_part(transport_id, "port", key), "Transport left accepts " + key)
 		var uid: String = state.owned_ship(transport_id).mounts.port.uid
 		uids.append(uid)

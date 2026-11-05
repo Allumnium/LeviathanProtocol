@@ -13,7 +13,8 @@ static func group_for(node: Dictionary) -> String:
 		return "science"
 	if node.id in ["civil_hospitality", "luxury_habitation", "grand_hospitality"]:
 		return "civil"
-	if node.id in ["material_handling", "selective_recovery", "industrial_integration", "freight_engineering"]:
+	if node.id in ["material_handling", "selective_recovery", "industrial_integration", "freight_engineering",
+		"fleet_logistics_i", "fleet_logistics_ii", "fleet_logistics_iii"]:
 		return "logistics"
 	if node.id in ["sensor_networks", "cloaking_theory"]:
 		return "sensors"
@@ -82,23 +83,26 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 
 static func description(_registry: Dictionary, id: String) -> String:
 	var explanations := {
-		"applied_energy": "Lasers strike enemies with beams.",
+		"fleet_logistics_i": "Raises the research command bonus to 8.",
+		"fleet_logistics_ii": "Raises the research command bonus to 24.",
+		"fleet_logistics_iii": "Raises the research command bonus to 108.",
+		"applied_energy": "Lasers deal 15% more damage.",
 		"field_engineering": "Cruise faster using less fuel.",
-		"guided_munitions": "Guided missiles strike enemies; point defense intercepts incoming missiles.",
-		"laboratory_ii": "Labs generate research while traveling.",
-		"laboratory_iii": "Unlocks more productive research labs.",
+		"guided_munitions": "Guided missiles gain 25% range.",
+		"laboratory_ii": "Operating labs produce 20% more research.",
+		"laboratory_iii": "Operating labs produce 40% more research in total.",
 		"energy_manipulation": "Lasers become sustained beams that grow stronger over time.",
 		"civil_hospitality": "Travel earns credits for the expedition.",
-		"optics_ii": "Unlocks powerful, long-range beam weapons.",
+		"optics_ii": "Lasers gain 20% range and Beam Lance becomes available.",
 		"disruption_i": "Ion Pulse interrupts enemies and suppresses shield recovery.",
 		"bastion_ii": "Shields periodically recover, even under fire.",
-		"renewal_i": "Repair drones restore allied hulls.",
+		"renewal_i": "Hull repair and repair-drone flight become 25% faster.",
 		"siege_i": "Missiles split near their target.",
-		"siege_ii": "Railguns pierce Sentinel hull cover.",
-		"carrier_i": "Interceptors attack enemies and screen incoming missiles.",
-		"carrier_ii": "Unlocks bombers armed with torpedoes.",
-		"command_i": "Marked enemies take more damage from allies.",
-		"command_ii": "Unlocks synchronized salvos against unshielded enemies."
+		"siege_ii": "Fragments and railgun hull hits deal 20% more damage.",
+		"carrier_i": "Flight decks launch craft 25% faster.",
+		"carrier_ii": "Carrier craft deal 20% more damage and Bomber Bay becomes available.",
+		"command_i": "Uplink marks make enemies take 30% more allied damage.",
+		"command_ii": "Tactical Computers synchronize salvos 25% faster."
 	}
 	return explanations.get(id, "")
 
@@ -140,6 +144,7 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 			lines.append(ability.display_name)
 	for modifier: Dictionary in node.grants.modifiers:
 		match modifier.id:
+			"command_capacity_bonus": lines.append("+%d command capacity above flagship base" % int(modifier.value))
 			"cruise_fuel_multiplier": lines.append("Cruise fuel use reduced by %d%%" % roundi((1.0 - float(modifier.value)) * 100))
 			"cruise_speed_multiplier": lines.append("Cruise speed increased by %d%%" % roundi((float(modifier.value) - 1.0) * 100))
 			"travel_credits_per_day": lines.append("%d cr per travel day" % int(modifier.value))

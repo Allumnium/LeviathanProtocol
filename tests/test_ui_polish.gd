@@ -284,7 +284,7 @@ func run() -> void:
 	var science_icon: TextureRect = screen.find_child("ScienceIcon", true, false)
 	check(credits_icon != null and credits_icon.texture.resource_path == "res://assets/credits.png"
 		and science_icon != null and screen.header.text == str(state.credits)
-		and screen.research_status.text == "Choose Research",
+		and screen.research_status.text == "0 / 20 RP",
 		"Header uses the credits icon and explicit research status")
 	check(absf(science_icon.global_position.y + science_icon.size.y / 2.0
 		- screen.research_status.global_position.y - screen.research_status.size.y / 2.0) <= 1.0,
@@ -295,28 +295,27 @@ func run() -> void:
 			[screen.find_child("CommandFooter", true, false), "bottom_bar_d.png"]]:
 		check(SurfaceArt.diffuse(entry[0].art).resource_path.ends_with("/" + entry[1]),
 			"Management frame uses supplied " + entry[1])
-	check(not screen.research_progress.visible and screen.research_progress.value == 0,
-		"No focus hides and clears research progress")
+	check(screen.research_progress.visible and screen.research_progress.value == 0,
+		"Shared research bar is visible from the start")
 	screen.set_process(false)
 	screen.research_pulse_time = 0.0
 	screen._process(0.5)
-	check(is_equal_approx(screen.research_pulse.get_shader_parameter("white_mix"), 0.08),
-		"Research prompt gently fades toward white halfway through its one-second cycle")
+	check(is_zero_approx(screen.research_pulse.get_shader_parameter("white_mix")),
+		"An unfunded research bar does not prompt for a choice")
 	screen._process(0.5)
 	check(is_zero_approx(screen.research_pulse.get_shader_parameter("white_mix")),
 		"Research prompt returns to normal once per second")
 	# Advance the screen explicitly so periodic saves cannot race failed-save fixtures.
-	check(state.set_research_focus("applied_energy"), "Set focused research for header")
 	var focused: Dictionary = state.hangar_snapshot()
-	focused.research.research_progress["applied_energy"] = 1.5
+	focused.research.research_points = 1.5
 	check(state._commit_hangar(focused), "Save fractional header research progress")
 	await settle()
-	var required := ResearchFocusRules.cost("applied_energy", state.run_progress_snapshot())
-	check(screen.research_status.text == GameDefinitions.find("research", "applied_energy").display_name
-		and screen.research_progress.visible and screen.research_progress.value == 1
+	var required := HangarResearch.threshold(state.run_progress_snapshot())
+	check(screen.research_status.text == "1 / 20 RP"
+		and screen.research_progress.visible and screen.research_progress.value == 1.5
 		and screen.research_progress.max_value == required and not screen.research_progress.show_percentage,
-		"Header shows technology name and whole-number project progress in a bar")
-	check(screen.research_rate.text == "+9/day" and screen.research_progress.min_value == -1,
+		"Header shows shared research progress without a focused project")
+	check(screen.research_rate.text == "+1/day" and screen.research_progress.min_value == -1,
 		"Research progress has a UI-only negative minimum and adjacent daily production")
 	var progress_snapshot: Dictionary = state.hangar_snapshot()
 	screen.research_progress.value = 0
@@ -324,7 +323,7 @@ func run() -> void:
 		"Zero progress retains a thin visible fill without changing game state")
 	screen.research_progress.value = 1.5
 	check(is_zero_approx(screen.research_pulse.get_shader_parameter("white_mix")),
-		"Selecting a research focus stops the prompt pulse immediately")
+		"Partial research progress keeps the choice prompt inactive")
 	var progress_fill := screen.research_progress.get_theme_stylebox("fill") as StyleBoxTexture
 	check(progress_fill.texture.atlas.resource_path == "res://assets/ui/Progress_CharacterAttribute.png",
 		"Research bar uses the supplied progress artwork")
@@ -491,60 +490,17 @@ func run() -> void:
 	check(not screen.buy_open and screen.details.get_child(0).text == "%s #%d x%d" % [
 		selected_squadron.name, selected_squadron.id, selected_squadron.members.size()],
 		"Closing the ship shop restores squadron commands in Fleet")
-	await drag(screen.research_status.get_global_rect().get_center(), screen.research_status.get_global_rect().get_center())
-	check(screen.active_tab == "RESEARCH" and screen.research_button.button_pressed,
-		"Clicking embedded research content activates its tab")
+	var offer_fixture: Dictionary = state.hangar_snapshot()
+	state._allocate_research(offer_fixture.research, 20)
+	check(state._commit_hangar(offer_fixture), "Fund native card selection")
 	await settle()
-	var research: Control = screen.research_panel
-	research.tree_canvas.camera_position = Vector2(320, 180)
-	research.tree_canvas.camera_zoom = 1.4
-	research.tree_canvas._update_camera()
-	research.card_buttons["guided_munitions"].pressed.emit()
+	screen._maybe_show_research_choices()
 	await settle()
-	check(screen.research_panel.tree_canvas.camera_position == Vector2(320, 180)
-		and screen.research_panel.tree_canvas.camera_zoom == 1.4,
-		"Selecting research preserves pan and zoom")
-	var research_card: Button = research.card_buttons["guided_munitions"]
-	research.tree_canvas.camera_position = research.tree_canvas.positions["guided_munitions"] + research.tree_canvas.CARD_SIZE * 0.5
-	research.tree_canvas._update_camera()
-	var research_camera: Vector2 = research.tree_canvas.camera_position
+	check(is_instance_valid(screen.research_dialog) and screen.research_dialog.buttons.size() == 3,
+		"Filled research bar opens three upgrade cards over the current view")
+	await capture("research-cards")
+	screen.research_dialog._close()
 	await settle()
-	var card_center := research_card.get_global_rect().get_center()
-	motion(card_center)
-	button(card_center, true, true)
-	button(card_center, false)
-	await settle()
-	check(state.research_focus == "guided_munitions", "Native double-click sets the research focus")
-	var focus_snapshot: Dictionary = state.hangar_snapshot()
-	screen.research_panel._activate("guided_munitions")
-	screen.research_panel._activate("laboratory_iii")
-	check(state.hangar_snapshot() == focus_snapshot, "Double-click cannot refocus the same technology or bypass prerequisites")
-	var focus_blocker := FileAccess.open("user://focus-save-blocked", FileAccess.WRITE)
-	focus_blocker.store_string("not a directory")
-	focus_blocker.close()
-	var focus_save_path: String = state.run_save_path
-	state.run_save_path = "user://focus-save-blocked/run.json"
-	screen.research_panel._activate("applied_energy")
-	await settle()
-	var failed_focus_snapshot: Dictionary = state.hangar_snapshot()
-	failed_focus_snapshot.erase("expedition")
-	focus_snapshot.erase("expedition")
-	check(failed_focus_snapshot == focus_snapshot and not screen.feedback.text.is_empty(),
-		"Failed double-click focus save rolls back state and displays the existing failure notification")
-	state.run_save_path = focus_save_path
-	screen.research_panel._select("guided_munitions")
-	check(screen.research_panel.tree_canvas.camera_position == research_camera
-		and screen.research_panel.tree_canvas.camera_zoom == 1.4
-		and screen.research_panel.selected_id == "guided_munitions",
-		"Research focus refresh preserves camera and selection")
-	screen.tabs.get_child(1).pressed.emit()
-	await settle()
-	screen.research_button.pressed.emit()
-	await settle()
-	check(screen.research_panel.tree_canvas.camera_position == research_camera
-		and screen.research_panel.tree_canvas.camera_zoom == 1.4,
-		"Returning to Research preserves the user's view")
-	await capture("research-view-preserved")
 	screen.tabs.get_child(1).pressed.emit()
 	await settle()
 	var board: Control = screen.formation_view
@@ -607,7 +563,7 @@ func run() -> void:
 	check(repair_label != null and not repair_label.get_parsed_text().contains("cr")
 		and repair_label.icon_size == screen.find_child("FleetRepairAll", true, false).get_theme_font_size("font_size"),
 		"Repair cost renders a text-sized credits icon instead of cr")
-	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n9 RP / day\nCargo 0 / 20",
+	check(fleet_totals != null and fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1390 / 1390\n1 RP / day\nCargo 0 / 20",
 		"Empty selection shows summed fleet combat stats and research, without zero capacities: " + fleet_totals.source_text)
 	var summary_ship := HangarShip.new()
 	check(summary_ship.initialize_chassis("transport", 999), "Initialize fleet-summary fixture")
@@ -643,7 +599,7 @@ func run() -> void:
 	summary_ship.hull_hp = -1
 	screen._show_details()
 	fleet_totals = screen.details.find_child("FleetTotals", true, false)
-	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1090 / 1090\n9 RP / day\nCargo 0 / 20",
+	check(fleet_totals.source_text == "DPS 10.8\nShield 40\nHull 1390 / 1390\n1 RP / day\nCargo 0 / 20",
 		"Destroyed ships contribute no operational fleet totals")
 	state.fleet.erase(summary_ship)
 	screen._show_details()

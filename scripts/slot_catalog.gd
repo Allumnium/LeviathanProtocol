@@ -38,6 +38,8 @@ static func chassis_bonuses(entry: Dictionary) -> String:
 		lines.append("%.0f less hull damage per hit, after shields" % entry.flat_damage_reduction)
 	if entry.get("delivery_income_multiplier", 1.0) > 1:
 		lines.append("+%.0f%% cargo / passenger income" % ((entry.delivery_income_multiplier - 1) * 100))
+	if entry.get("research_option_bonus", 0) > 0:
+		lines.append("+%d research option" % entry.research_option_bonus)
 	if entry.get("research_rate_multiplier", 1.0) > 1:
 		lines.append("+%.0f%% installed-lab RP/day" % ((entry.research_rate_multiplier - 1) * 100))
 	if entry.get("dodge_chance", 0.0) > 0:
@@ -119,12 +121,14 @@ static func stats_for(id: String, rank := 1) -> ShipPartStats:
 		return null
 	var values: Dictionary = item.stats
 	var stats := ShipPartStats.new(values.shields, values.integrity, values.weight, values.thrust)
+	stats.research_capabilities.assign(item.get("research_capabilities", []))
 	for weapon: Dictionary in values.weapons:
 		var copy := ShipWeaponStats.new(weapon.name, weapon.interval, weapon.damage, int(weapon.count), weapon.range, Vector2(weapon.mount[0], weapon.mount[1]))
 		copy.is_projectile_weapon = weapon.projectile
 		copy.interceptable = weapon.interceptable
 		copy.charge_seconds = weapon.charge
 		copy.missiles_per_projectile = int(weapon.get("missiles", 0))
+		copy.research_capabilities.assign(item.get("research_capabilities", []))
 		stats.weapons.append(copy)
 	return stats
 
@@ -133,6 +137,13 @@ static func valid_equipment(data: Variant) -> bool:
 		return false
 	var seen := {}
 	for item: Variant in data.equipment:
+		if not item is Dictionary or not item.get("research_capabilities", []) is Array:
+			return false
+		var capabilities_seen := {}
+		for capability: Variant in item.get("research_capabilities", []):
+			if not capability is String or capability.is_empty() or capabilities_seen.has(capability):
+				return false
+			capabilities_seen[capability] = true
 		if not item is Dictionary or not item.get("id") is String or not item.get("name") is String or not _integer(item.get("rank")) or not _integer(item.get("revision")) or not _integer(item.get("part_type"), 0) or item.get("size") not in SIZES or item.get("type") not in TYPES or not item.get("stats") is Dictionary or not item.get("retired", false) is bool:
 			return false
 		var definition := GameDefinitions.find("equipment", item.id)
@@ -203,6 +214,8 @@ static func valid_chassis(data: Variant) -> bool:
 		for field in ["weapon_cycle_bonus", "flat_damage_reduction"]:
 			if not _nonnegative(entry.get(field, 0.0)):
 				return false
+		if not _integer(entry.get("research_option_bonus", 0), 0) or entry.get("research_option_bonus", 0) > 1:
+			return false
 		for field in ["delivery_income_multiplier", "research_rate_multiplier"]:
 			if not _nonnegative(entry.get(field, 1.0)) or entry.get(field, 1.0) < 1:
 				return false

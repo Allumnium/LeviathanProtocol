@@ -19,12 +19,17 @@ static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool
 	if not modifier is Dictionary:
 		return false
 	match modifier.get("id", ""):
+		"laser_damage_multiplier", "laser_range_multiplier", "missile_range_multiplier", "fragment_damage_multiplier", "railgun_hull_multiplier", "carrier_launch_multiplier", "carrier_damage_multiplier", "passive_repair_multiplier", "repair_drone_speed_multiplier", "mark_damage_multiplier", "synchronization_multiplier", "research_output_multiplier":
+			return _number(modifier.get("value")) and modifier.value > 1 and modifier.value <= 2
 		"cruise_fuel_multiplier":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value < 1
 		"cruise_speed_multiplier":
 			return _number(modifier.get("value")) and modifier.value > 1 and modifier.value <= 2
 		"travel_credits_per_day":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 100 \
+				and modifier.value == floor(modifier.value)
+		"command_capacity_bonus":
+			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 256 \
 				and modifier.value == floor(modifier.value)
 		"energy_efficiency":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 0.3 \
@@ -63,6 +68,8 @@ static func validate_registry(registry: Dictionary) -> Array[String]:
 	for item: Dictionary in registry.equipment:
 		equipment[item.id] = item
 	for node: Dictionary in registry.research:
+		if not node.get("equipment_capabilities_any", []) is Array or not _unique_strings(node.get("equipment_capabilities_any", [])):
+			errors.append("Invalid research equipment capabilities: %s" % node.id)
 		nodes[node.id] = node
 		for field in ["prerequisite_ids", "exclusion_ids", "story_gate_ids"]:
 			if not _unique_strings(node[field]):

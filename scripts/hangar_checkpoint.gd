@@ -120,7 +120,7 @@ static func valid(value: Variant) -> bool:
 			return false
 		if entry.flagship:
 			leads += 1
-			command = int(chassis.command)
+			command = HangarResearch.command_limit(int(chassis.command), progress.research_ids)
 			if command <= 0:
 				return false
 		else:

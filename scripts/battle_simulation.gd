@@ -5,7 +5,10 @@ const PROJECTILE_SPEED := 320.0
 const Collision = preload("res://scripts/sprite_collision.gd")
 const TARGET_REFRESH_INTERVAL := 0.2
 const SPATIAL_CELL_SIZE := 256.0
+const SEPARATION_CELL_SIZE := 64.0
+const EMPTY_CELL := []
 const WRECK_MOTION_SECONDS := 4.0
+const MAX_LIVE_COMBATANTS := 192
 
 signal weapon_fired
 signal shield_hit
@@ -82,6 +85,13 @@ class Combatant:
 	var wreck_angular_velocity := 0.0
 	var wreck_motion_remaining := 0.0
 	var target_refresh_remaining := 0.0
+	var weapon_search_remaining: Dictionary = {}
+	var indexed_cell := Vector2i.ZERO
+	var member_order := 0
+	var support_parts: Dictionary = {}
+	var support_parts_ready := false
+	var cached_lab_index := -1
+	var support_active := false
 	var flyby_side := 1.0
 	var thruster_activation_elapsed := 0.0
 	var analysis_target_id := ""
@@ -131,6 +141,7 @@ class Projectile:
 	var rotation_phase := 0.0
 	var splinter := false
 	var fragment := false
+	var hull_damage_multiplier := 1.0
 
 class Beam:
 	var source: Combatant
@@ -204,6 +215,9 @@ var _members: Array[Combatant] = []
 var _previous_velocities: Array[Vector2] = []
 var _pending_damage_by_target: Dictionary = {}
 var _spatial_cells: Dictionary = {}
+var _separation_cells: Dictionary = {}
+var _separation_radius := 0.0
+var _separation_motion := 0.0
 var battle_id := "battle"
 var tick_index := 0
 var _combat_elapsed := 0.0
@@ -224,6 +238,8 @@ func setup(
 ) -> bool:
 	if player_ship_count <= 0:
 		push_error("Battle requires at least one player ship.")
+		return false
+	if player_ship_count + fleet.size() > MAX_LIVE_COMBATANTS:
 		return false
 	if not _validate_stats(player_stats, allow_unarmed_player) or fleet.is_empty():
 		push_error("Battle requires an armed player ship and a nonempty alien fleet.")
@@ -270,6 +286,7 @@ func setup(
 	aliens.clear()
 	other_entities.clear()
 	_spatial_cells.clear()
+	_separation_cells.clear()
 	entities.clear()
 	objective_target_ids.clear()
 	destroy_all_neutral_targets = false
@@ -334,6 +351,13 @@ func _rebuild_member_cache() -> void:
 	for member in _members:
 		entities[member.entity_id] = member
 	_previous_velocities.resize(_members.size())
+
+func living_combatant_count() -> int:
+	var count := 0
+	for member in _members:
+		if member.is_alive() and member.has_tag("combatant"):
+			count += 1
+	return count
 
 
 func setup_owned(ships: Array[FleetShip], fleet: Array[RefCounted], salvage_chance: float, upgrade_level: int, seed_value: int = -1, shared_context: Dictionary = {}) -> bool:
@@ -439,6 +463,8 @@ func register_entity(entity: Combatant) -> bool:
 		return false
 	if entity.stats == null or not is_finite(entity.integrity) or entity.integrity <= 0.0:
 		return false
+	if entity.has_tag("combatant") and living_combatant_count() >= MAX_LIVE_COMBATANTS:
+		return false
 	if not entity.position.is_finite() or not is_finite(entity.shields) or entity.shields < 0.0:
 		return false
 	if entity.faction not in [Faction.PLAYER, Faction.ALIEN, Faction.NEUTRAL]:
@@ -452,6 +478,7 @@ func register_entity(entity: Combatant) -> bool:
 	other_entities.append(entity)
 	_rebuild_member_cache()
 	_spatial_cells.clear()
+	_separation_cells.clear()
 	return true
 
 
@@ -545,6 +572,8 @@ func _hostile(source: Combatant, target: Combatant) -> bool:
 
 
 func _auto_candidate(source: Combatant, target: Combatant) -> bool:
+	if source == null or target == null or source.faction == target.faction:
+		return false
 	if not can_attack(source, target) or not target.automatic_targetable:
 		return false
 	var ordered_source: Combatant = entities.get(source.carrier_source_id, source)
@@ -761,6 +790,7 @@ func authoritative_snapshot() -> Dictionary:
 			"velocity": [member.velocity.x, member.velocity.y] if member.is_alive() else null,
 			"heading": member.heading if member.is_alive() else null, "integrity": member.integrity, "shields": member.shields,
 			"cooldowns": member.cooldowns.duplicate(), "component_hp": hp,
+			"weapon_search": member.weapon_search_remaining.duplicate(),
 			"sortie_ammo": member.sortie_ammo, "carrier_source": member.carrier_source_id,
 			"target": member.target.entity_id if member.target != null else "",
 			"order": member.commanded_target.entity_id if member.commanded_target != null else "",
@@ -772,7 +802,8 @@ func authoritative_snapshot() -> Dictionary:
 		shots.append({"source": shot.source.entity_id if shot.source != null else "",
 			"target": shot.target.entity_id if shot.target != null else "", "damage": shot.damage,
 			"position": [shot.position.x, shot.position.y], "origin": [shot.origin.x, shot.origin.y], "weapon": shot.weapon_name,
-			"interceptable": shot.interceptable, "speed": shot.speed, "splinter": shot.splinter, "fragment": shot.fragment})
+			"interceptable": shot.interceptable, "speed": shot.speed, "splinter": shot.splinter, "fragment": shot.fragment,
+			"hull_damage_multiplier": shot.hull_damage_multiplier})
 		if visibility_enabled:
 			shots[-1]["aim"] = [shot.aim_position.x, shot.aim_position.y]
 			shots[-1]["guidance_lost"] = shot.guidance_lost
@@ -911,7 +942,7 @@ func advance(delta: float) -> void:
 		var previous_phase := phase
 		encounter.warden.advance(self, delta)
 		_rebuild_pending_projectile_damage()
-		_rebuild_spatial_index()
+		_rebuild_spatial_index(delta)
 		research_combat.begin_step(self, delta)
 		for index in range(_members.size()):
 			_previous_velocities[index] = _members[index].velocity
@@ -1028,7 +1059,7 @@ func _choose_target(ship: Combatant) -> Combatant:
 			for cell_y in range(center_cell.y - ring, center_cell.y + ring + 1):
 				if ring > 0 and abs(cell_x - center_cell.x) != ring and abs(cell_y - center_cell.y) != ring:
 					continue
-				var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
+				var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), EMPTY_CELL)
 				for enemy: Combatant in occupants:
 					if not _auto_candidate(ship, enemy):
 						continue
@@ -1102,15 +1133,15 @@ func _choose_weapon_target(
 		return fallback_best
 	var best: Combatant
 	var best_score := INF
-	var cell_radius := ceili(weapon_range / SPATIAL_CELL_SIZE)
-	var center_cell := _spatial_cell(weapon_origin)
-	for cell_x in range(center_cell.x - cell_radius, center_cell.x + cell_radius + 1):
-		for cell_y in range(center_cell.y - cell_radius, center_cell.y + cell_radius + 1):
-			var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
+	var first_cell := _spatial_cell(weapon_origin - Vector2.ONE * weapon_range)
+	var last_cell := _spatial_cell(weapon_origin + Vector2.ONE * weapon_range)
+	for cell_x in range(first_cell.x, last_cell.x + 1):
+		for cell_y in range(first_cell.y, last_cell.y + 1):
+			var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), EMPTY_CELL)
 			for enemy: Combatant in occupants:
 				if (
-					not _auto_candidate(ship, enemy)
-					or weapon_origin.distance_squared_to(enemy.position) > range_squared
+					weapon_origin.distance_squared_to(enemy.position) > range_squared
+					or not _auto_candidate(ship, enemy)
 				):
 					continue
 				var score := enemy.integrity + enemy.shields
@@ -1126,15 +1157,77 @@ func _spatial_cell(position: Vector2) -> Vector2i:
 	return Vector2i(floori(position.x / SPATIAL_CELL_SIZE), floori(position.y / SPATIAL_CELL_SIZE))
 
 
-func _rebuild_spatial_index() -> void:
+func _rebuild_spatial_index(delta := 1.0 / 30.0) -> void:
 	_spatial_cells.clear()
+	_separation_cells.clear()
+	_separation_radius = 0.0
+	_separation_motion = 0.0
 	for member in _members:
 		if not member.is_alive():
 			continue
 		var cell := _spatial_cell(member.position)
+		member.indexed_cell = cell
+		_separation_radius = maxf(_separation_radius, member.radius)
+		_separation_motion = maxf(_separation_motion, maxf(member.speed, member.velocity.length()) * delta)
 		if not _spatial_cells.has(cell):
 			_spatial_cells[cell] = []
 		(_spatial_cells[cell] as Array).append(member)
+		var near_cell := Vector2i((member.position / SEPARATION_CELL_SIZE).floor())
+		if not _separation_cells.has(near_cell):
+			_separation_cells[near_cell] = []
+		(_separation_cells[near_cell] as Array).append(member)
+	for index in range(_members.size()):
+		_members[index].member_order = index
+
+func _separation_velocity(ship: Combatant, desired: Vector2) -> Vector2:
+	var extent := Vector2.ONE * (ship.radius + _separation_radius + 12 + _separation_motion)
+	var first := Vector2i(((ship.position - extent) / SEPARATION_CELL_SIZE).floor())
+	var last := Vector2i(((ship.position + extent) / SEPARATION_CELL_SIZE).floor())
+	var original_cell := _spatial_cell(ship.position)
+	var neighbors: Array[Combatant] = []
+	for cell_x in range(first.x, last.x + 1):
+		for cell_y in range(first.y, last.y + 1):
+			for other: Combatant in _separation_cells.get(Vector2i(cell_x, cell_y), EMPTY_CELL):
+				if other == ship or absi(other.indexed_cell.x - original_cell.x) > 1 or absi(other.indexed_cell.y - original_cell.y) > 1:
+					continue
+				var clearance := ship.radius + other.radius + 12.0
+				if ship.position.distance_squared_to(other.position) < clearance * clearance and other.is_alive():
+					neighbors.append(other)
+	# Keep the original coarse-cell/insertion order, including floating-point sums.
+	if neighbors.is_empty():
+		return desired
+	if neighbors.size() > 1:
+		neighbors.sort_custom(_separation_less)
+	for other in neighbors:
+		var separation := ship.position - other.position
+		var separation_distance := sqrt(separation.length_squared())
+		if separation.is_zero_approx():
+			separation = Vector2.UP
+			separation_distance = 1.0
+		var clearance := ship.radius + other.radius + 12.0
+		desired += separation / separation_distance * ship.speed * (1.0 - separation_distance / clearance)
+	return desired
+
+static func _separation_less(a: Combatant, b: Combatant) -> bool:
+	if a.indexed_cell.x != b.indexed_cell.x:
+		return a.indexed_cell.x < b.indexed_cell.x
+	if a.indexed_cell.y != b.indexed_cell.y:
+		return a.indexed_cell.y < b.indexed_cell.y
+	return a.member_order < b.member_order
+
+func nearby_players(position: Vector2, radius: float) -> Array[Combatant]:
+	if _separation_cells.is_empty():
+		return players
+	var result: Array[Combatant] = []
+	var extent := Vector2.ONE * (radius + _separation_motion)
+	var first := Vector2i(((position - extent) / SEPARATION_CELL_SIZE).floor())
+	var last := Vector2i(((position + extent) / SEPARATION_CELL_SIZE).floor())
+	for cell_x in range(first.x, last.x + 1):
+		for cell_y in range(first.y, last.y + 1):
+			for member: Combatant in _separation_cells.get(Vector2i(cell_x, cell_y), EMPTY_CELL):
+				if member.faction == Faction.PLAYER and position.distance_squared_to(member.position) < radius * radius and players.has(member):
+					result.append(member)
+	return result
 
 
 func _pending_projectile_damage(target: Combatant) -> float:
@@ -1252,23 +1345,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	if ship.retreat_time > 0.0:
 		steering_direction = -direction
 	var desired := steering_direction * ship.speed
-	var ship_cell := _spatial_cell(ship.position)
-	for cell_x in range(ship_cell.x - 1, ship_cell.x + 2):
-		for cell_y in range(ship_cell.y - 1, ship_cell.y + 2):
-			var occupants: Array = _spatial_cells.get(Vector2i(cell_x, cell_y), [])
-			for other: Combatant in occupants:
-				if other == ship or not other.is_alive():
-					continue
-				var separation := ship.position - other.position
-				var clearance := ship.radius + other.radius + 12.0
-				var distance_squared := separation.length_squared()
-				if distance_squared >= clearance * clearance:
-					continue
-				var separation_distance := sqrt(distance_squared)
-				if separation.is_zero_approx():
-					separation = Vector2.UP
-					separation_distance = 1.0
-				desired += separation / separation_distance * ship.speed * (1.0 - separation_distance / clearance)
+	desired = _separation_velocity(ship, desired)
 	desired = encounter.steer(ship.position, desired, ship.speed)
 	var distance_from_center := ship.position.length()
 	if distance_from_center > ARENA_RADIUS - SOFT_BOUNDARY_MARGIN:
@@ -1326,9 +1403,18 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				ship.sortie_ammo -= 1
 			ship.cooldowns[index] = weapon.fire_interval_seconds
 			continue
+		ship.weapon_search_remaining[index] = maxf(0, float(ship.weapon_search_remaining.get(index, 0)) - delta)
+		if ship.commanded_target == null and ship.weapon_search_remaining[index] > 0 and ship.target != null \
+			and weapon_origin.distance_squared_to(ship.target.position) > pow(weapon.range_units + 64, 2):
+			continue
 		var weapon_target: Combatant = SharedSupport.weapon_target(self, ship, weapon, weapon_origin)
 		if weapon_target == null:
+			# Distant idle guns retry at the existing AI cadence. Interception and
+			# explicit attack orders remain immediate; nearby guns search every tick.
+			if ship.target != null and weapon_origin.distance_to(ship.target.position) > weapon.range_units + 64:
+				ship.weapon_search_remaining[index] = TARGET_REFRESH_INTERVAL
 			continue
+		ship.weapon_search_remaining[index] = 0.0
 		ship.target = weapon_target
 		if ship.sortie_ammo > 0:
 			ship.sortie_ammo -= 1
@@ -1360,7 +1446,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				beam.target = hit_target
 				beam.aim_position = hit_target.position
 				beams.append(beam)
-				_damage(hit_target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name, false, true)
+				_damage(hit_target, weapon.damage_per_shot, weapon_origin, ship, weapon.weapon_name, false, true, 1.0, weapon.hull_damage_multiplier)
 			else:
 				var projectile := Projectile.new()
 				projectile.rotation_phase = float(_next_projectile_id % 16) / 16.0 * TAU
@@ -1374,11 +1460,12 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 				projectile.aim_position = ship.target.position
 				projectile.aim_radius = ship.target.radius
 				projectile.damage = weapon.damage_per_shot
+				projectile.hull_damage_multiplier = weapon.hull_damage_multiplier
 				projectile.is_player = ship.is_player
 				projectile.interceptable = weapon.interceptable
 				projectile.speed = 200.0 if weapon.interceptable else PROJECTILE_SPEED
 				projectile.splinter = research_combat.enabled.get("splinter_missiles", false) \
-					and ship.owned_ship is HangarShip and ship.is_player and weapon.missiles_per_projectile > 0
+					and ship.owned_ship is HangarShip and ship.is_player and "splitting_missile" in weapon.research_capabilities
 				projectiles.append(projectile)
 				_add_pending_damage(projectile.target, projectile.damage)
 
@@ -1536,6 +1623,7 @@ func _get_weapon_origin(ship: Combatant, weapon: ShipWeaponStats) -> Vector2:
 
 func _update_projectiles(delta: float) -> void:
 	var rock_shapes: Dictionary = {}
+	var actor_shapes: Dictionary = {}
 	for actor: Combatant in other_entities:
 		if actor.has_tag("asteroid") and actor.is_alive():
 			rock_shapes[actor] = Collision.actor_polygons(actor)
@@ -1559,16 +1647,23 @@ func _update_projectiles(delta: float) -> void:
 		projectile.position = projectile.position.move_toward(destination, projectile.speed * delta)
 		var finish := projectile.position
 		projectile.position = start
-		var shape := Collision.bullet_polygons(projectile, elapsed)
+		var shape: Array[PackedVector2Array] = []
+		var bullet_radius := Collision.BULLET_TEXTURE.get_size().length() * Collision.BULLET_SCALE * 0.5 \
+			if projectile.is_player and projectile.weapon_name == "Mini Turret" else 2.5
 		var contact := INF
 		var struck: Combatant
-		if projectile.target.is_alive():
-			contact = Collision.sweep(shape, finish - start, Collision.actor_polygons(projectile.target))
+		if projectile.target.is_alive() and Collision.sweep_near_actor(start, finish, bullet_radius, projectile.target):
+			shape = Collision.bullet_polygons(projectile, elapsed)
+			if not actor_shapes.has(projectile.target):
+				actor_shapes[projectile.target] = Collision.actor_polygons(projectile.target)
+			contact = Collision.sweep(shape, finish - start, actor_shapes[projectile.target])
 			if contact < INF:
 				struck = projectile.target
 		for candidate: Combatant in rock_shapes:
-			if not candidate.is_alive():
+			if not candidate.is_alive() or not Collision.sweep_near_actor(start, finish, bullet_radius, candidate):
 				continue
+			if shape.is_empty():
+				shape = Collision.bullet_polygons(projectile, elapsed)
 			var fraction := Collision.sweep(shape, finish - start, rock_shapes[candidate])
 			if fraction < contact:
 				contact = fraction
@@ -1577,7 +1672,7 @@ func _update_projectiles(delta: float) -> void:
 		if struck != null:
 			_add_pending_damage(projectile.target, -projectile.damage)
 			projectile.position = start.lerp(finish, contact)
-			_damage(struck, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true)
+			_damage(struck, projectile.damage, projectile.origin, projectile.source, projectile.weapon_name, true, false, 1.0, projectile.hull_damage_multiplier)
 			projectile_impacted.emit(projectile.position)
 			projectiles.remove_at(index)
 		elif projectile.position.is_equal_approx(destination):
@@ -1628,6 +1723,9 @@ func get_finishing_projectile(maximum_time_to_impact := INF) -> Projectile:
 
 
 func _refresh_owned_stats(target: Combatant) -> void:
+	target.weapon_search_remaining.clear()
+	target.support_parts_ready = false
+	target.support_parts.clear()
 	var was_alive := target.is_alive()
 	# Match cooldowns by physical source rather than by the changing weapon index.
 	var cooldowns_by_source: Dictionary = {}
@@ -1684,13 +1782,14 @@ func point_visible(faction: int, point: Vector2) -> bool:
 
 func _update_analysis(delta: float) -> void:
 	for member in _members:
-		if not member.is_alive() or member.owned_ship == null or ScienceRules.active_lab(member.owned_ship) < 0:
+		var lab_index := _active_lab(member)
+		if lab_index < 0:
 			member.analysis_target_id = ""
 			continue
 		var marked: Combatant = entities.get(member.analysis_target_id)
 		if marked == null or not team_can_see(member.faction, marked):
 			member.analysis_target_id = ""
-		var lab_rate: float = AdjacencyRules.rates(member.owned_ship.units).get(ScienceRules.active_lab(member.owned_ship), 1.0)
+		var lab_rate: float = AdjacencyRules.rates(member.owned_ship.units).get(lab_index, 1.0)
 		member.analysis_remaining = maxf(0, member.analysis_remaining - delta * lab_rate)
 		if member.analysis_remaining > 0:
 			continue
@@ -1707,6 +1806,15 @@ func _update_analysis(delta: float) -> void:
 				member.analysis_target_id = target.entity_id
 
 
+func _active_lab(member: Combatant) -> int:
+	if not member.is_alive() or member.owned_ship == null:
+		return -1
+	if member.owned_ship is HangarShip:
+		if not member.support_parts_ready:
+			CombatDoctrines.operational(member, ShipPart.Type.RESEARCH_LAB)
+		return member.cached_lab_index
+	return ScienceRules.active_lab(member.owned_ship)
+
 func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
 	if source == null or not team_can_see(source.faction, target):
 		return 1.0
@@ -1715,12 +1823,12 @@ func _analysis_multiplier(source: Combatant, target: Combatant) -> float:
 		return mark
 	for member in _members:
 		if member.faction == source.faction and member.is_alive() and member.owned_ship != null \
-			and ScienceRules.active_lab(member.owned_ship) >= 0 and member.analysis_target_id == target.entity_id:
+			and _active_lab(member) >= 0 and member.analysis_target_id == target.entity_id:
 			return 1.05
 	return 1.0
 
 
-func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false, weapon_hit := false, hit_fraction := 1.0) -> void:
+func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, source: Combatant = null, weapon_name: String = "", projectile_hit := false, weapon_hit := false, hit_fraction: float = 1.0, hull_multiplier: float = 1.0) -> void:
 	if not target.is_alive() or not target.targetable or target.has_tag("drop") or not is_finite(damage) or damage <= 0.0:
 		return
 	if target.owned_ship is HangarShip and (weapon_hit or projectile_hit):
@@ -1747,7 +1855,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 	if target.owned_ship != null and damage > absorbed:
 		var owned := target.owned_ship
 		var local_origin := (origin - target.position).rotated(-target.heading)
-		var remaining := damage - absorbed
+		var remaining := (damage - absorbed) * hull_multiplier
 		for penetration in range(2 if weapon_name == "Beam Lance" else 1):
 			var cell := owned.hit_cell(local_origin, random)
 			if projectile_hit and owned.cell_units.has(cell) and CombatDoctrines.protected_unit(owned, owned.cell_units[cell]):
@@ -1768,7 +1876,7 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 				break
 		_refresh_owned_stats(target)
 	else:
-		var hull_damage := minf(target.integrity, damage - absorbed)
+		var hull_damage := minf(target.integrity, (damage - absorbed) * hull_multiplier)
 		target.integrity -= hull_damage
 		actual += hull_damage
 	if actual > 0.0:

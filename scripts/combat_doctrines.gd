@@ -1,6 +1,8 @@
 class_name CombatDoctrines
 extends RefCounted
 
+const NO_PARTS: Array[int] = []
+
 # Numeric tuning is deliberately local; later campaign pacing remains step 61.
 var pool: Dictionary = {}
 var charges: Dictionary = {}
@@ -58,9 +60,26 @@ func configure(sim, value: Variant) -> bool:
 	return carriers.configure(sim, pool.carriers)
 
 static func operational(member, type: int) -> Array[int]:
-	var result: Array[int] = []
 	if not member.is_alive() or member.owned_ship == null:
-		return result
+		return NO_PARTS
+	if member.owned_ship is HangarShip:
+		if not member.support_parts_ready:
+			for index in range(member.owned_ship.units.size()):
+				var unit: Dictionary = member.owned_ship.units[index]
+				if unit.hp <= 0 or unit.part == null:
+					continue
+				var part_type: int = unit.part.type
+				if not member.support_parts.has(part_type):
+					var indices: Array[int] = []
+					member.support_parts[part_type] = indices
+				member.support_parts[part_type].append(index)
+			member.support_parts_ready = true
+			member.cached_lab_index = ScienceRules.active_lab(member.owned_ship)
+			var parts: Dictionary = member.support_parts
+			member.support_active = parts.has(ShipPart.Type.SHIELD_RELAY) or parts.has(ShipPart.Type.COMMAND_UPLINK) \
+				or parts.has(ShipPart.Type.TACTICAL_COMPUTER) or parts.has(ShipPart.Type.NANOFORGE) or parts.has(ShipPart.Type.REPAIR_DRONE_BAY)
+		return member.support_parts.get(type, NO_PARTS)
+	var result: Array[int] = []
 	for index in range(member.owned_ship.units.size()):
 		var unit: Dictionary = member.owned_ship.units[index]
 		if unit.hp > 0 and unit.part != null and unit.part.type == type:
@@ -147,6 +166,12 @@ func advance(sim, delta: float) -> void:
 	for member in sim.players:
 		if member.owned_ship == null or not member.is_alive():
 			continue
+		if member.owned_ship is HangarShip:
+			if not member.support_parts_ready:
+				operational(member, ShipPart.Type.COMMAND_UPLINK)
+			if not member.support_active:
+				marks.erase(member.entity_id)
+				continue
 		_relay(sim, member, delta)
 		_mark(sim, member, delta)
 		_synchronize(sim, member, delta)
@@ -176,7 +201,8 @@ func mark_multiplier(sim, source, target) -> float:
 		var mark: Dictionary = marks[id]
 		if mark.remaining > 0 and mark.target == target.entity_id and host != null and host.is_alive() \
 			and host.faction == source.faction and host.owned_ship.units[mark.index].hp > 0:
-			return 1.2
+			return ResearchUpgrades.part_value(host.owned_ship, host.owned_ship.units[mark.index].part,
+				"command", "mark_damage_multiplier", 1.2)
 	return 1.0
 
 func _synchronize(sim, source, delta: float) -> void:
@@ -186,7 +212,11 @@ func _synchronize(sim, source, delta: float) -> void:
 	if computers == 0:
 		synchronization.erase(source.entity_id)
 		return
-	synchronization[source.entity_id] = minf(12, float(synchronization.get(source.entity_id, 0)) + delta * computers)
+	var rate := 0.0
+	for index: int in operational(source, ShipPart.Type.TACTICAL_COMPUTER):
+		rate += ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[index].part,
+			"synchronization", "synchronization_multiplier")
+	synchronization[source.entity_id] = minf(12, float(synchronization.get(source.entity_id, 0)) + delta * rate)
 	if synchronization[source.entity_id] < 12:
 		return
 	# Hold the synchronized salvo for a visible, unshielded target in reach.
@@ -285,7 +315,7 @@ func _launch(sim, member, delta: float) -> void:
 		for actor in sim._members:
 			if actor.is_alive() and actor.has_tag("combatant"):
 				alive += 1
-		if alive >= 64:
+		if alive >= BattleSimulation.MAX_LIVE_COMBATANTS:
 			return
 		var target: Variant = _repair_target(sim, member)
 		if target == null:
@@ -322,7 +352,9 @@ func _update_drones(sim, delta: float) -> void:
 			drone.integrity = 0
 			drones.remove_at(index)
 			continue
-		drone.position = drone.position.move_toward(target.position, delta * 100)
+		var multiplier := ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[job.index].part,
+			"repair_drone", "repair_drone_speed_multiplier")
+		drone.position = drone.position.move_toward(target.position, delta * 100 * multiplier)
 		if drone.position.distance_to(target.position) > target.radius:
 			continue
 		if target.owned_ship is HangarShip:

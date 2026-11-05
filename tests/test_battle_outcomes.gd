@@ -321,7 +321,7 @@ func _test_report_table(battle: Control) -> void:
 	check(grid != null and grid.columns == 4 and grid.get_child_count() == 16,
 		"Reports share four headings instead of repeating labels on every ship")
 	check(grid.get_child(4).get_node("ShipName").source_text.contains("DESTROYED")
-		and grid.get_child(8).get_node("ShipName").source_text.begins_with(state.fleet[2].display_name),
+		and grid.get_child(8).get_node("ShipName").source_text.begins_with("%s #%d" % [state.fleet[2].chassis.name, state.fleet[2].squadron_id]),
 		"Reports prioritize losses, then greatest repair need")
 	check(grid.get_child(5).text == "123457" and grid.get_child(6).text == "322"
 		and grid.get_child(7).text == "-" and grid.get_child(11).text == "40",

@@ -6,6 +6,7 @@ var integrity: float
 var weight: float
 var thrust: float
 var weapons: Array[ShipWeaponStats] = []
+var research_capabilities: Array[String] = []
 
 
 func _init(
@@ -22,6 +23,7 @@ func _init(
 
 func copy() -> ShipPartStats:
 	var copied_stats := ShipPartStats.new(shields, integrity, weight, thrust)
+	copied_stats.research_capabilities.assign(research_capabilities)
 	for weapon in weapons:
 		copied_stats.weapons.append(weapon.copy())
 	return copied_stats

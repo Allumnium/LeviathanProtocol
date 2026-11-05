@@ -51,6 +51,14 @@ func configure(context: Dictionary) -> bool:
 		available.append(id)
 	return true
 
+func _source_part(part: ShipPart, definition: Dictionary, owned: FleetShip) -> bool:
+	if part == null:
+		return false
+	var capability: String = definition.get("source_research_capability", "")
+	if owned is HangarShip and not capability.is_empty():
+		return capability in ResearchUpgrades.capabilities(part)
+	return part.definition_id == definition.get("source_equipment_id", "")
+
 func sources(sim, faction: int, id: String) -> Array:
 	var result: Array = []
 	var definition := GameDefinitions.find("abilities", id)
@@ -61,7 +69,7 @@ func sources(sim, faction: int, id: String) -> Array:
 			continue
 		if member.owned_ship != null:
 			for unit in member.owned_ship.units:
-				if unit.hp > 0 and unit.part != null and unit.part.definition_id == definition.source_equipment_id:
+				if unit.hp > 0 and _source_part(unit.part, definition, member.owned_ship):
 					result.append(member)
 					break
 		elif faction == 1 and id == "scan" and not member.has_tag("summon") and not member.has_tag("craft") and not member.has_tag("organ"):
@@ -88,7 +96,7 @@ func origin(source, id: String) -> Vector2:
 		return source.position
 	var definition := GameDefinitions.find("abilities", id)
 	for unit in source.owned_ship.units:
-		if unit.hp <= 0 or unit.part == null or unit.part.definition_id != definition.get("source_equipment_id", ""):
+		if unit.hp <= 0 or not _source_part(unit.part, definition, source.owned_ship):
 			continue
 		var local := Vector2.ZERO
 		for cell: Vector2i in unit.cells:

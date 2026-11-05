@@ -40,7 +40,7 @@ func run() -> void:
 	check(victories >= 4, "Starter fleet can win first encounter")
 	# Traverse the existing complete map, committing each outcome once.
 	check(state.start_new_run(1, 907), "Traversal start")
-	check(state.set_research_focus("applied_energy"), "Research focus")
+	check(not state.research_choice_ready(), "New run begins with a filling research bar")
 	var battles := 0
 	var arrivals := 0
 	while not state.completed and not state.run_ended:

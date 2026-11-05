@@ -217,6 +217,63 @@ func battle_scene() -> void:
 	battle.set_physics_process(false)
 	battle.set_process(false)
 	await settle()
+	battle.simulation.player.position = Vector2.ZERO
+	battle.simulation.aliens[0].position = Vector2(150, 0)
+	battle.visuals.camera_position = Vector2(75, 0)
+	battle.visuals.camera_zoom = 1.0
+	for resolution: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		root.size = resolution
+		await create_timer(0.25).timeout
+		await settle()
+		var viewport := root.get_visible_rect()
+		for panel: Control in [battle.squadron_readout.get_parent(), battle.enemy_readout.get_parent(), battle.footer_panel]:
+			check(viewport.encloses(panel.get_global_rect()), "Shared battle panel fits " + str(resolution))
+			check(not battle._battlefield_input(panel.get_global_rect().get_center()), "Frame consumes battlefield clicks")
+		check(battle.footer_panel.get_global_rect().encloses(battle.ability_bar.get_global_rect()),
+			"Ability controls fit inside the authored footer")
+		check(battle.battlefield.size.x > viewport.size.x * 0.4 and battle.battlefield.size.y > viewport.size.y * 0.5,
+			"Battlefield retains usable central space")
+		check(battle.visuals.world_center().is_equal_approx(battle.battlefield.get_global_rect().get_center()),
+			"Camera frames the open battlefield")
+		check(battle.enemy_readout.rows.size() == 1, "Enemy panel shows deployed ships")
+		await click(battle.pause_button.get_global_rect().get_center())
+		check(battle.pause_button.button_pressed, "Native top bar pause remains clickable")
+		await click(battle.pause_button.get_global_rect().get_center())
+		check(not battle.pause_button.button_pressed, "Native top bar resumes")
+		if DisplayServer.get_name() != "headless":
+			battle.visuals.queue_redraw()
+			await RenderingServer.frame_post_draw
+			check(root.get_texture().get_image().save_png("user://battle-frame-%d.png" % resolution.x) == OK,
+				"Capture shared battle frame")
+	root.size = Vector2i(1280, 720)
+	await settle()
+	var enemy_row: Dictionary = battle.enemy_readout.rows.values()[0]
+	battle.simulation.visibility_enabled = true
+	battle.enemy_readout.refresh()
+	check(not enemy_row.box.visible, "Enemy panel conceals ships outside current visibility")
+	battle.simulation.visibility_enabled = false
+	battle.enemy_readout.refresh()
+	check(enemy_row.box.visible, "Enemy panel restores visible ship readouts")
+	var wheel := InputEventMouseButton.new()
+	wheel.position = battle.battlefield.get_global_rect().get_center() + Vector2(20, 10)
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	var hover := InputEventMouseMotion.new()
+	hover.position = wheel.position
+	root.push_input(hover, true)
+	await process_frame
+	var world_point: Vector2 = battle.visuals.world_transform().affine_inverse() * wheel.position
+	battle._input(wheel)
+	check(battle.visuals.camera_zoom > 1 and world_point.is_equal_approx(
+		battle.visuals.world_transform().affine_inverse() * wheel.position), "Zoom keeps the world point under the pointer")
+	var drag := InputEventMouseMotion.new()
+	drag.position = wheel.position
+	drag.relative = Vector2(10, 5)
+	battle._dragging = true
+	var camera_before: Vector2 = battle.visuals.camera_position
+	battle._input(drag)
+	check(not battle.visuals.camera_position.is_equal_approx(camera_before), "Battlefield drag pans the camera")
+	battle._dragging = false
 	check(battle.ability_bar != null and not battle.simulation.visibility_enabled
 		and not battle.simulation.ability_commit.is_valid(),
 		"Production battle builds researched bar without global fog or a resource-save callback")
@@ -250,7 +307,39 @@ func battle_scene() -> void:
 		await RenderingServer.frame_post_draw
 		check(root.get_texture().get_image().save_png("user://ion-pulse-battle.png") == OK,
 			"Capture the actual native battle ability and effect")
+	var reinforcement := BattleSimulation.Combatant.new()
+	reinforcement.entity_id = "readout-reinforcement"
+	reinforcement.alien = battle.simulation.aliens[0].alien
+	reinforcement.stats = reinforcement.alien.stats
+	reinforcement.integrity = reinforcement.stats.integrity
+	reinforcement.position = Vector2(10000, 10000)
+	check(battle.simulation.register_entity(reinforcement), "Register a later enemy arrival")
+	battle.enemy_readout.refresh()
+	check(enemy_row.label.source_text.ends_with("2/2"), "Enemy readout includes later arrivals")
+	reinforcement.integrity = -1
+	battle.enemy_readout.refresh()
+	check(enemy_row.label.source_text.ends_with("1/2"), "Enemy readout retains losses and original capacity")
 	battle.queue_free()
+	await settle()
+	check(state.start_new_run(1, 9413), "Start a battle without researched abilities")
+	state.battle_pending = true
+	state.battle_aliens.assign([enemy])
+	var empty_battle: Control = load("res://scenes/auto_battle.tscn").instantiate()
+	root.size = Vector2i(640, 360)
+	root.add_child(empty_battle)
+	current_scene = empty_battle
+	empty_battle.set_physics_process(false)
+	empty_battle.set_process(false)
+	await create_timer(0.25).timeout
+	await settle()
+	check(empty_battle.ability_bar == null and empty_battle.footer_panel.is_visible_in_tree(),
+		"Authored footer stays visible when no abilities are available")
+	check(root.get_visible_rect().encloses(empty_battle.footer_panel.get_global_rect()),
+		"Empty ability footer fits the smallest supported viewport")
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		check(root.get_texture().get_image().save_png("user://battle-frame-empty.png") == OK, "Capture empty footer")
+	empty_battle.queue_free()
 	await settle()
 
 func run() -> void:

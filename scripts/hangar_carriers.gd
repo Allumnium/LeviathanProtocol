@@ -97,6 +97,8 @@ func _launch(sim, source, index: int, uid: String) -> void:
 		3.0 if bomber else 1.0, 12.0 if bomber else 2.0, 1, 200 if bomber else 150)
 	weapon.is_projectile_weapon = bomber
 	weapon.interceptable = bomber
+	weapon.damage_per_shot *= ResearchUpgrades.part_value(source.owned_ship,
+		source.owned_ship.units[index].part, "carrier", "carrier_damage_multiplier")
 	stats.weapons.append(weapon)
 	var actor = sim._create_combatant(stats)
 	serial += 1
@@ -111,7 +113,8 @@ func _launch(sim, source, index: int, uid: String) -> void:
 	if not sim.register_entity(actor):
 		return
 	reserves[uid].spent += 1
-	timers[uid] = LAUNCH_INTERVAL
+	timers[uid] = LAUNCH_INTERVAL / ResearchUpgrades.part_value(source.owned_ship,
+		source.owned_ship.units[index].part, "carrier", "carrier_launch_multiplier")
 	sorties.append({"uid": uid, "source": source.entity_id, "index": index,
 		"actor": actor, "remaining": SORTIE_SECONDS})
 	sim._record_event("carrier_launch", {"source": source.entity_id, "uid": uid, "craft": actor.entity_id,

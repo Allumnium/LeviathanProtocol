@@ -122,11 +122,7 @@ func _set_values(actual: Dictionary, hull_max: float, dps: float, summary: Dicti
 			continue
 		var bar := TextureProgressBar.new()
 		bar.name = key.capitalize() + "Bar"
-		bar.texture_progress = preload("res://assets/ui/Progress_Cp.png")
-		bar.texture_under = preload("res://assets/ui/Progress_Cp_Bg.png")
-		bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		bar.nine_patch_stretch = true
-		bar.custom_minimum_size = Vector2(0, 8)
+		preload("res://scripts/integrity_bars.gd").configure(bar, key == "shields")
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bar.step = 0.0

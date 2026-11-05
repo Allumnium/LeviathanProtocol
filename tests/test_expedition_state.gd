@@ -50,8 +50,8 @@ func run() -> void:
 	malformed.fuel = malformed.fuel_capacity + 1
 	check(not ExpeditionStateClass.valid(malformed), "Reject over-capacity fuel")
 	malformed = snapshot.duplicate(true)
-	malformed.research_progress = {"invalid": -0.5}
-	check(not ExpeditionStateClass.valid(malformed), "Reject negative research progress")
+	malformed.flags = {"invalid": -0.5}
+	check(not ExpeditionStateClass.valid(malformed), "Reject malformed expedition flags")
 	malformed = snapshot.duplicate(true)
 	malformed.pause_reasons = [ExpeditionStateClass.PauseReason.USER, ExpeditionStateClass.PauseReason.USER]
 	check(not ExpeditionStateClass.valid(malformed), "Reject duplicate pause reasons")

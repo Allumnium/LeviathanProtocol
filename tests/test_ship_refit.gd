@@ -59,7 +59,7 @@ func run() -> void:
 			if ShipLoadouts.equipment_available(item, ["foundation"]):
 				initial_parts += 1
 	check(initial_parts * 2 > eligible_parts, "Most obtainable equipment starts available")
-	for key: String in ["beam_lance", "torpedo_bomber_bay", "tactical_computer", "research_lab@3"]:
+	for key: String in ["beam_lance", "torpedo_bomber_bay"]:
 		check(not ShipLoadouts.equipment_available(ShipLoadouts.item_for(key), ["foundation"]),
 			"Advanced equipment still requires research: " + key)
 
@@ -74,6 +74,8 @@ func run() -> void:
 	check(state.start_new_run(1, 808), "Start refit fixture")
 	var previous: Dictionary = state.hangar_snapshot()
 	for slot_id: String in ["port", "starboard"]:
+		var removed: Dictionary = previous.equipment[previous.ships[1].mounts[slot_id]]
+		previous.ships[1].hull_hp -= float(SlotCatalog.find_equipment(removed.equipment_id, int(removed.rank)).stats.integrity)
 		previous.equipment.erase(previous.ships[1].mounts[slot_id])
 		previous.ships[1].mounts.erase(slot_id)
 	previous.research.research_ids.erase("laboratory_ii")
@@ -87,18 +89,16 @@ func run() -> void:
 	check(not state.has_method("buy_equipment") and not state.has_method("sell_equipment") and not state.has_method("buy_chassis"),
 			"Equipment buying/selling and chassis buying are gone")
 	var locked_before: Dictionary = state.hangar_snapshot()
-	check(not state.refit_ship(2, "survey")
-		and not state.swap_part(2, "hold", "research_lab@3")
-		and SaveValidation.same(locked_before, state.hangar_snapshot()), "Locked fits and parts fail without mutation")
+	check(state.refit_ship(2, "survey") and state.owned_ship(2).mounts.hold.rank == 3,
+		"Lab (XL) fits and parts are ordinary purchases")
+	check(state._commit_hangar(locked_before), "Restore pre-refit ownership fixture")
 	check(ShipLoadouts.available_for("fighter", state.current_research_ids).size() == 3
-		and ShipLoadouts.available_for("transport", state.current_research_ids).size() == 2,
-		"Starting fits are offered; only genuinely advanced fits are hidden")
+		and ShipLoadouts.available_for("transport", state.current_research_ids).size() == 3,
+		"Ordinary named fits include Lab (XL) without research")
 	var transport_group := HangarSquadrons.for_ship(state.squadrons, 2)
-	check(not state.refit_squadron(int(transport_group.id), "survey")
-		and not state.buy_ship("transport", "survey")
-		and not state.swap_part(2, "hold", "research_lab@3")
-		and SaveValidation.same(locked_before, state.hangar_snapshot()),
-		"Squadron refits, fitted purchases and higher ranks share atomic research gates")
+	check(state.refit_squadron(int(transport_group.id), "survey"),
+		"Squadron Lab (XL) refits use ordinary equipment access")
+	check(state._commit_hangar(locked_before), "Restore ordinary refit fixture")
 	var unlocked: Dictionary = state.hangar_snapshot()
 	unlocked.research.research_ids.append_array(["laboratory_ii", "laboratory_iii"])
 	unlocked.research.story_flags.boss_i_defeated = true
@@ -138,8 +138,8 @@ func run() -> void:
 		"Changing a researched mount preserves existing unresearched equipment and identity")
 	check(state.swap_part(2, "hold", ""), "Older unresearched equipment can be removed")
 	var removed: Dictionary = state.hangar_snapshot()
-	check(not state.swap_part(2, "hold", "research_lab@3") and SaveValidation.same(removed, state.hangar_snapshot()),
-		"Removing an older unresearched item does not permit a free replacement")
+	check(state.swap_part(2, "hold", "research_lab@3") and state.owned_ship(2).mounts.hold.uid != installed_lab,
+		"Ordinary Lab (XL) replacement receives a new equipment UID")
 	check(state.swap_part(2, "hold", "cargo_hold") and state.swap_part(2, "fore", "hull_plate"),
 		"Starting parts remain freely selectable without earned research")
 	# Loaded cargo must deliver before its hold is replaced.
@@ -220,12 +220,12 @@ func run() -> void:
 	screen.selected_ship_id = 2
 	screen._refresh()
 	await settle()
-	check(screen.details.find_child("Loadout_survey", true, false) == null,
-		"Advanced Lab III loadout is hidden before research")
+	check(screen.details.find_child("Loadout_survey", true, false) != null,
+		"Lab (XL) loadout is offered without research")
 	screen.canvas.slot_selected.emit("hold")
 	await settle()
-	check(screen.details.find_child("Part_research_lab@3", true, false) == null,
-		"Advanced Lab III part is hidden before research")
+	check(screen.details.find_child("Part_research_lab_3", true, false) != null,
+		"Lab (XL) part is offered without research")
 	var ui_research: Dictionary = state.hangar_snapshot()
 	ui_research.research.research_ids.append_array(["laboratory_ii", "laboratory_iii"])
 	ui_research.research.story_flags.boss_i_defeated = true

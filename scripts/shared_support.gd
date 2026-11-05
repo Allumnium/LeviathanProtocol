@@ -44,6 +44,8 @@ static func initialize(sim) -> void:
 	sim.repair_capacity = maxi(sim.repair_capacity, stations * int(REPAIR_RESERVE))
 
 static func repair(sim, delta: float) -> void:
+	if sim.repair_reserves.is_empty():
+		return
 	for member in sim.players:
 		var owned: FleetShip = member.owned_ship
 		if owned == null or not member.is_alive() or not owned.is_alive():

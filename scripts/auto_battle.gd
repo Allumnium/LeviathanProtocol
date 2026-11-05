@@ -19,7 +19,7 @@ const FINISHING_SHOT_CAMERA_ZOOM := 2.5
 const FINISHING_SHOT_CAMERA_TRANSITION_SECONDS := 0.4
 const RESULT_DELAY_SECONDS := 1.0
 const SIMULATION_TICK_SECONDS := 1.0 / 30.0
-const MAX_SIMULATION_STEPS_PER_FRAME := 6
+const MAX_SIMULATION_STEPS_PER_FRAME := 8
 
 @onready var visuals: BattleVisuals = $BattleVisuals
 @onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
@@ -57,6 +57,11 @@ var _settlement_error := false
 var command_header: Container
 var battle_readouts: VBoxContainer
 var missile_readout: Label
+var squadron_readout: Control
+var enemy_readout: Control
+var battle_frame: VBoxContainer
+var battlefield: Control
+var footer_panel: PanelContainer
 
 
 func _ready() -> void:
@@ -91,15 +96,7 @@ func _ready() -> void:
 		ability_bar.name = "AbilityBar"
 		ability_bar.simulation = simulation
 		ability_bar.visuals = visuals
-		add_child(ability_bar)
-		ability_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-		ability_bar.offset_left = 8
-		ability_bar.offset_top = -62
-		ability_bar.offset_right = minf(500, 8 + ability_bar.get_combined_minimum_size().x)
-		ability_bar.offset_bottom = -8
 		ability_bar.targeting_changed.connect(_ability_targeting_changed)
-		ability_bar.minimum_size_changed.connect(_layout_ability_bar.call_deferred)
-		_layout_ability_bar.call_deferred()
 	if not simulation.set_objective_targets(GameState.battle_objective_ids()):
 		push_error("Battle objective refers to an unknown target.")
 		GameState.cancel_battle()
@@ -111,6 +108,7 @@ func _ready() -> void:
 	objective_label = Label.new()
 	objective_label.text = simulation.encounter.label(simulation)
 	_build_header()
+	_build_battle_panels()
 	destroy_neutral_targets.set_pressed_no_signal(GameState.destroy_all_neutral_targets)
 	destroy_neutral_targets.hide()
 	destroy_neutral_targets.toggled.connect(_on_destroy_neutral_targets_toggled)
@@ -139,9 +137,10 @@ func _ready() -> void:
 
 func _build_header() -> void:
 	var column := VBoxContainer.new()
-	column.name = "BattleHeader"
+	column.name = "BattleFrame"
+	battle_frame = column
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.add_theme_constant_override("separation", 0)
 	add_child(column)
 	move_child(column, visuals.get_index() + 1)
@@ -276,7 +275,9 @@ func _advance_fixed_simulation(delta: float, speed_multiplier: float) -> void:
 		_simulation_accumulator -= SIMULATION_TICK_SECONDS
 		steps += 1
 	if steps == MAX_SIMULATION_STEPS_PER_FRAME:
-		_simulation_accumulator = minf(_simulation_accumulator, SIMULATION_TICK_SECONDS)
+		# Keep bounded catch-up time through a costly frame instead of losing
+		# requested fast-forward time every time the per-frame budget is reached.
+		_simulation_accumulator = minf(_simulation_accumulator, 1.0)
 	visuals.interpolation_alpha = clampf(
 		_simulation_accumulator / SIMULATION_TICK_SECONDS,
 		0.0,
@@ -414,7 +415,7 @@ func _input(event: InputEvent) -> void:
 			var world_under_cursor: Vector2 = visuals.world_transform().affine_inverse() * event.position
 			var zoom_factor := 1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15
 			visuals.camera_zoom = clampf(visuals.camera_zoom * zoom_factor, 0.2, 3.0)
-			visuals.camera_position = world_under_cursor - (event.position - visuals.size * 0.5) / visuals.camera_zoom
+			visuals.camera_position = world_under_cursor - (event.position - visuals.world_center()) / visuals.camera_zoom
 			_mark_manual_zoom_input()
 	elif event is InputEventMouseMotion and _dragging:
 		if _left_pressed and _left_press_screen.distance_to(event.position) > 5:
@@ -428,6 +429,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _battlefield_input(point: Vector2) -> bool:
+	if battlefield != null and not battlefield.get_global_rect().has_point(point):
+		return false
+	if squadron_readout != null and squadron_readout.visible and squadron_readout.get_global_rect().has_point(point):
+		return false
 	if command_header != null and command_header.get_global_rect().has_point(point):
 		return false
 	if ability_bar != null and ability_bar.visible and ability_bar.get_global_rect().has_point(point):
@@ -474,12 +479,66 @@ func _commit_battle_ability(proposal: Dictionary) -> bool:
 	return GameState.commit_battle_ability(simulation, proposal)
 
 
-func _layout_ability_bar() -> void:
-	if ability_bar == null:
+func _build_battle_panels() -> void:
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 0)
+	body.size_flags_vertical = SIZE_EXPAND_FILL
+	body.mouse_filter = MOUSE_FILTER_IGNORE
+	battle_frame.add_child(body)
+	squadron_readout = _fleet_panel(body, false)
+	battlefield = Control.new()
+	battlefield.name = "Battlefield"
+	battlefield.mouse_filter = MOUSE_FILTER_IGNORE
+	battlefield.size_flags_horizontal = SIZE_EXPAND_FILL
+	body.add_child(battlefield)
+	battlefield.item_rect_changed.connect(_update_battlefield_rect)
+	enemy_readout = _fleet_panel(body, true)
+	footer_panel = preload("res://scripts/ui_art_frame.gd").new()
+	footer_panel.name = "CommandFooter"
+	footer_panel.horizontal = true
+	footer_panel.theme_type_variation = &"CommandFooter"
+	battle_frame.add_child(footer_panel)
+	if ability_bar != null:
+		ability_bar.embedded = true
+		footer_panel.add_child(ability_bar)
+	else:
+		var empty := Label.new()
+		empty.text = "ACTIVE ABILITIES"
+		empty.theme_type_variation = &"ResearchDescriptionText"
+		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		footer_panel.add_child(empty)
+	body.resized.connect(_resize_battle_panels)
+	resized.connect(_resize_battle_panels)
+	_resize_battle_panels.call_deferred()
+
+func _fleet_panel(parent: Container, enemies: bool) -> Control:
+	var panel := preload("res://scripts/ui_art_frame.gd").new()
+	panel.name = "EnemyPanel" if enemies else "AlliedPanel"
+	panel.theme_type_variation = &"CommandRightPanel" if enemies else &"CommandLeftPanel"
+	parent.add_child(panel)
+	var readout := preload("res://scripts/battle_squadron_readout.gd").new()
+	readout.simulation = simulation
+	readout.enemies = enemies
+	panel.add_child(readout)
+	return readout
+
+func _resize_battle_panels() -> void:
+	if battlefield == null:
 		return
-	var minimum := ability_bar.get_combined_minimum_size()
-	ability_bar.offset_top = -8 - maxf(54, minimum.y)
-	ability_bar.offset_right = minf(500, 8 + minimum.x)
+	for readout: Control in [squadron_readout, enemy_readout]:
+		var panel = readout.get_parent()
+		if panel.art != null:
+			panel.custom_minimum_size.x = battlefield.get_parent().size.y * panel.art.get_width() / panel.art.get_height()
+	_update_battlefield_rect()
+
+func _update_battlefield_rect() -> void:
+	visuals.battlefield_rect = battlefield.get_global_rect()
+	var radar := get_node_or_null("Radar") as Control
+	if radar != null:
+		var corner := visuals.battlefield_rect.end
+		radar.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		radar.position = corner - radar.size - Vector2(8, 8)
+	visuals.queue_redraw()
 
 
 func _ability_targeting_changed(enabled: bool) -> void:
@@ -525,7 +584,7 @@ func _update_auto_camera(delta: float) -> void:
 		var alien_distance := (member.position - center).abs() + Vector2.ONE * member.radius
 		extent.x = maxf(extent.x, alien_distance.x)
 		extent.y = maxf(extent.y, alien_distance.y)
-	var raw_available_half := visuals.size * 0.5 - AUTO_CAMERA_MARGIN
+	var raw_available_half := battlefield.size * 0.5 - AUTO_CAMERA_MARGIN
 	var available_half := Vector2(
 		maxf(raw_available_half.x, 1.0),
 		maxf(raw_available_half.y, 1.0)
@@ -562,6 +621,10 @@ func _try_begin_finishing_shot() -> void:
 
 
 func _begin_result_delay(won: bool) -> void:
+	if squadron_readout != null:
+		squadron_readout.hide()
+		enemy_readout.hide()
+		footer_panel.hide()
 	if ability_bar != null:
 		ability_bar.cancel_targeting()
 		ability_bar.hide()
@@ -574,6 +637,10 @@ func _begin_result_delay(won: bool) -> void:
 
 
 func _finish_battle(won: bool) -> void:
+	if squadron_readout != null:
+		squadron_readout.hide()
+		enemy_readout.hide()
+		footer_panel.hide()
 	if ability_bar != null:
 		ability_bar.cancel_targeting()
 		ability_bar.hide()
@@ -586,6 +653,7 @@ func _finish_battle(won: bool) -> void:
 		_result_delay_remaining = RESULT_DELAY_SECONDS
 		return
 	_finished = true
+	battle_frame.hide()
 	destroy_neutral_targets.hide()
 	objective_label.hide()
 	repair_label.hide()

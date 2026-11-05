@@ -1,7 +1,7 @@
 class_name EnemyRoles
 extends RefCounted
 
-const ENTITY_LIMIT := 64
+const ENTITY_LIMIT := BattleSimulation.MAX_LIVE_COMBATANTS
 const PROTECTION_RADIUS := 140.0
 const PROTECTION := 0.2
 const REPAIR_RADIUS := 150.0
@@ -10,11 +10,13 @@ const DRONE_INTERVAL := 6.0
 var enabled := false
 var sources: Dictionary = {}
 var repair_links: Array[Dictionary] = []
+var _steering_anchors: Array[BattleSimulation.Combatant] = []
 
 func configure(sim, value: bool) -> void:
 	enabled = value
 	sources.clear()
 	repair_links.clear()
+	_steering_anchors.clear()
 	if not enabled:
 		return
 	for member in sim.aliens:
@@ -27,6 +29,8 @@ func register_source(member) -> void:
 		return
 	var role: String = member.alien.role_id
 	var rank: int = member.alien.tier
+	if role in ["fighter", "scout"] and not member.has_tag("craft") and not _steering_anchors.has(member):
+		_steering_anchors.append(member)
 	if role == "support":
 		sources[member.entity_id] = {"role": role, "reserve": 10.0 * AlienShip.TIER_HULL[rank]}
 	elif role == "chrysalis":
@@ -105,11 +109,11 @@ func choose_target(sim, source):
 				next -= 180
 			# Nearby armed escorts make a support hull less exposed. They do not
 			# make it untargetable or reveal an unseen ship's position/loadout.
-			for escort in sim.players:
-				if escort == candidate or not escort.is_alive() or not sim.can_attack(source, escort) or escort.stats.weapons.is_empty():
+			for escort in sim.nearby_players(candidate.position, 90.0):
+				if escort == candidate or escort.position.distance_squared_to(candidate.position) >= 8100 \
+					or not escort.is_alive() or escort.stats.weapons.is_empty() or not sim.can_attack(source, escort):
 					continue
-				if escort.position.distance_to(candidate.position) < 90:
-					next += 220
+				next += 220
 		if next < score:
 			best = candidate
 			score = next
@@ -124,10 +128,10 @@ func steering(sim, member, fallback: Vector2) -> Vector2:
 	elif kind in ["support", "sentinel", "chrysalis"]:
 		var anchor = null
 		var nearest := INF
-		for ally in sim.aliens:
-			if ally == member or not ally.is_alive() or role(ally) not in ["fighter", "scout"]:
-				continue
+		for ally in _steering_anchors:
 			var distance: float = member.position.distance_squared_to(ally.position)
+			if distance >= nearest or ally == member or not ally.is_alive() or role(ally) not in ["fighter", "scout"]:
+				continue
 			if distance < nearest:
 				anchor = ally
 				nearest = distance

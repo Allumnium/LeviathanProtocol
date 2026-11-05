@@ -72,6 +72,20 @@ static func actor_polygons(actor) -> Array[PackedVector2Array]:
 	# Synthetic regression combatants have no artwork.
 	return transformed([circle(actor.radius)], Vector2.ONE, actor.position, 0)
 
+# Conservative bounds only: exact silhouette sweeps still decide every contact.
+static func sweep_near_actor(start: Vector2, finish: Vector2, bullet_radius: float, actor) -> bool:
+	var radius: float = actor.radius
+	if actor.owned_ship is HangarShip:
+		radius = hangar_rect(actor.owned_ship).size.length() * 0.5
+	elif actor.has_tag("asteroid") or (actor.alien != null and actor.has_tag("craft")):
+		radius *= sqrt(2.0)
+	elif actor.alien != null:
+		radius = alien_size(actor.alien).length() * 0.5
+	elif actor.has_tag("interceptor") or actor.has_tag("bomber"):
+		radius *= 1.5
+	var closest := Geometry2D.get_closest_point_to_segment(actor.position, start, finish)
+	return actor.position.distance_squared_to(closest) <= (radius + bullet_radius) * (radius + bullet_radius)
+
 static func bullet_angle(projectile, elapsed: float) -> float:
 	return elapsed * BULLET_ROTATION_SPEED + projectile.rotation_phase
 

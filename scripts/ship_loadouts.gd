@@ -26,10 +26,9 @@ static func obtainable(item: Dictionary) -> bool:
 	if item.is_empty():
 		return false
 	if _obtainable.is_empty():
-		for node: Dictionary in HangarResearch.catalog():
-			for id: String in node.grants.equipment_ids:
-				if id not in HangarResearch.DEFERRED_PURCHASES:
-					_obtainable[id] = true
+		for entry: Dictionary in SlotCatalog.equipment():
+			if entry.id not in HangarResearch.DEFERRED_PURCHASES and entry.id not in HangarResearch.DEFERRED_EQUIPMENT:
+				_obtainable[entry.id] = true
 	return _obtainable.has(item.id)
 
 static func all() -> Dictionary:

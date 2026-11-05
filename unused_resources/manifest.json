@@ -4072,30 +4072,6 @@
       "sha256": "42697ec6cd62f154e4b7f188a15d3ddf550f3be305b33e168cf6b732312c5cc7"
     },
     {
-      "original_path": "assets/ui/ProgressLv.png",
-      "archived_path": "unused_resources/assets/ui/ProgressLv.png",
-      "bytes": 1173,
-      "sha256": "b9e3aec764f679b679bcfe304452a5d5718fd3a76fc3c8df1218153f489c5dce"
-    },
-    {
-      "original_path": "assets/ui/ProgressLv.png.import",
-      "archived_path": "unused_resources/assets/ui/ProgressLv.png.import",
-      "bytes": 944,
-      "sha256": "96a6475dfea9c2c2d6adce577bbed4539de4a574b88cee2a809a2b2872a1c741"
-    },
-    {
-      "original_path": "assets/ui/ProgressLv_bg.png",
-      "archived_path": "unused_resources/assets/ui/ProgressLv_bg.png",
-      "bytes": 1299,
-      "sha256": "5bc7905a138a2cd763bdfde47481882c1e36df57f569ec27aaf14d36809325b1"
-    },
-    {
-      "original_path": "assets/ui/ProgressLv_bg.png.import",
-      "archived_path": "unused_resources/assets/ui/ProgressLv_bg.png.import",
-      "bytes": 953,
-      "sha256": "b1b4db11a614d7d5fd673ab853c723bad229a1cc254e50eebc361fc17c27314b"
-    },
-    {
       "original_path": "assets/ui/Progress_Exp.png",
       "archived_path": "unused_resources/assets/ui/Progress_Exp.png",
       "bytes": 3139,

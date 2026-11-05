@@ -290,7 +290,7 @@ func persistence() -> void:
 		"Deployment uses all three researched behaviors instead of the old flat energy percentage")
 	check(state.load_run_checkpoint() and state.battle_support_context().research_effects.size() == 3,
 		"Continue derives effects from earned research, without new save fields")
-	check(not state.set_research_focus("carrier_i") and not state.set_research_focus("renewal_i"),
+	check(not state.choose_research("carrier_i") and not state.choose_research("renewal_i"),
 		"Behavioral upgrades retain exclusive branch choices")
 	var registry := HangarResearch.view_registry()
 	for pair: Array in [["energy_manipulation", "continuous"], ["siege_i", "splits into 3"], ["bastion_ii", "25%"]]:
@@ -335,52 +335,14 @@ func ui() -> void:
 	root.add_child(screen)
 	current_scene = screen
 	screen.set_process(false)
-	screen.active_tab = "RESEARCH"
+	screen.active_tab = "MAP"
 	screen._refresh()
 	await settle()
 	check(screen._part_effect(SlotCatalog.find_equipment("laser")).contains("Continuous")
 		and screen._part_effect(SlotCatalog.find_equipment("missile_rack")).contains("3 x half")
 		and screen._part_effect(SlotCatalog.find_equipment("shield_generator")).contains("25%"),
 		"Installed-part inspection reports researched behaviors, not only unchanged catalog DPS")
-	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
-		root.size = resolution
-		await settle()
-		for node: Dictionary in HangarResearch.view_registry().research:
-			var id: String = node.id
-			if id == "foundation":
-				continue
-			screen.research_panel._select(id)
-			await settle()
-			check(text_under(screen.details).contains(ResearchViewModel.description(HangarResearch.view_registry(), id)),
-				"Selected research displays its plain-language description at %s: %s" % [resolution, id])
-			var body: Control = screen.details.find_child("ResearchDescription", true, false)
-			var description: ResourceText = body.get_child(0)
-			check(description.get_theme_font_size("normal_font_size") == 11
-				and body.get_child_count() == 1,
-				"Research details contain only one compact gameplay description: " + id)
-			check(body.size.y >= description.size.y and description.size.y >= description.get_theme_font_size("normal_font_size"),
-				"Description has real readable height rather than a collapsed nested scroll: " + id)
-			var viewport: ScrollContainer = screen.details.get_parent()
-			viewport.scroll_vertical = 0
-			await settle()
-			check(viewport.get_global_rect().intersection(description.get_global_rect()).size.y
-				>= description.get_theme_font_size("normal_font_size"),
-				"Description is visibly inside the detail viewport at %s: %s" % [resolution, id])
-			check(not text_under(screen.details).contains("Requires:")
-				and not text_under(screen.details).contains("Locks other")
-				and not text_under(screen.details).contains("DPS"),
-				"Research panel omits requirements and detailed-stat prose at %s: %s" % [resolution, id])
-			check(screen.details.size.x <= screen.details_panel.size.x,
-				"Research behavioral details fit the frame at " + str(resolution))
-			if id == "applied_energy" and DisplayServer.get_name() != "headless":
-				await RenderingServer.frame_post_draw
-				root.get_texture().get_image().save_png("res://.local/research-description-%d.png" % resolution.x)
-	state.research_completion_notices.append("energy_manipulation")
-	await settle()
-	var notice := screen.find_child("ResearchCompletion", true, false)
-	check(notice != null and notice.visible and notice.title.source_text.contains("Prismatic Lasers")
-		and notice.effect.source_text == "Lasers become sustained beams that grow stronger over time.",
-		"Completion toast uses the same concise gameplay description")
+	# Card descriptions and layout are verified in test_research_choices.gd.
 	screen.queue_free()
 	await settle()
 	if DisplayServer.get_name() == "headless":

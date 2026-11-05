@@ -148,6 +148,7 @@
       "thrust": 25,
       "builtin_shield": "shield_generator",
       "research_rate_multiplier": 1.25,
+      "research_option_bonus": 1,
       "radius": 43,
       "command": 12,
       "command_cost": 0,

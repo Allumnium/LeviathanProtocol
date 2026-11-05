@@ -30,7 +30,7 @@ func configure(value: Dictionary) -> void:
 
 func is_prismatic(source, weapon: ShipWeaponStats) -> bool:
 	return enabled.get("prismatic_lasers", false) and source.owned_ship is HangarShip \
-		and source.faction == BattleSimulation.Faction.PLAYER and weapon.weapon_name in ["Laser", "Double Laser"]
+		and source.faction == BattleSimulation.Faction.PLAYER and "prismatic" in weapon.research_capabilities
 
 func begin_step(sim, delta: float) -> void:
 	for channel: Dictionary in channels.values():
@@ -42,7 +42,8 @@ func begin_step(sim, delta: float) -> void:
 	if not enabled.get("pulse_shields", false):
 		return
 	for member in sim.players:
-		if not member.owned_ship is HangarShip or not member.is_alive() or member.stats.shields <= 0:
+		if not member.owned_ship is HangarShip or not member.is_alive() or member.stats.shields <= 0 \
+				or not member.stats.research_capabilities.has("shield"):
 			shield_clocks.erase(member.entity_id)
 			continue
 		var clock: float = float(shield_clocks.get(member.entity_id, 0.0)) + delta
@@ -141,7 +142,11 @@ func split(sim, parent) -> bool:
 		child.target = targets[index % targets.size()]
 		child.aim_position = child.target.position
 		child.aim_radius = child.target.radius
-		child.damage = parent.damage * 0.5
+		var multiplier := 1.0
+		if parent.source != null and parent.source.owned_ship is HangarShip:
+			multiplier = ResearchUpgrades.value(parent.source.owned_ship.research_modifiers, "fragment_damage_multiplier")
+		child.damage = parent.damage * 0.5 * multiplier
+		child.hull_damage_multiplier = parent.hull_damage_multiplier
 		child.is_player = true
 		child.interceptable = true
 		child.speed = parent.speed * 1.5

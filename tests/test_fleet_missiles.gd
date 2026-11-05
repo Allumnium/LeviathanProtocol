@@ -193,7 +193,7 @@ func interface() -> void:
 	await settle()
 	for viewport: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = viewport
-		for tab: String in ["MAP", "FLEET", "SHIPS", "RESEARCH"]:
+		for tab: String in ["MAP", "FLEET", "SHIPS"]:
 			screen.active_tab = tab
 			screen._refresh()
 			await settle()

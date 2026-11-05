@@ -85,7 +85,7 @@ func run() -> void:
 			if id == "research_lab":
 				var lab := SlotCatalog.equipment_texture(item)
 				check(lab is CanvasTexture and SurfaceArt.diffuse(lab).resource_path == "res://assets/equipment/research_lab_1_d.png",
-					"Research Lab I uses supplied mapped art")
+					"Lab (M) uses supplied mapped art")
 				check(lab == SlotCatalog.equipment_texture(item), "Research lab texture is cached outside drawing")
 				var bounds := Rect2(10, 20, 28, 56)
 				var original := SlotCatalog.fitted_art_rect(lab, bounds)

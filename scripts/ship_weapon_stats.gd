@@ -12,6 +12,8 @@ var component_index := -1
 var interceptable := false
 var charge_seconds := 0.0
 var missiles_per_projectile := 0
+var research_capabilities: Array[String] = []
+var hull_damage_multiplier := 1.0
 
 
 func _init(
@@ -59,4 +61,6 @@ func copy() -> ShipWeaponStats:
 	copied_weapon.interceptable = interceptable
 	copied_weapon.charge_seconds = charge_seconds
 	copied_weapon.missiles_per_projectile = missiles_per_projectile
+	copied_weapon.research_capabilities.assign(research_capabilities)
+	copied_weapon.hull_damage_multiplier = hull_damage_multiplier
 	return copied_weapon

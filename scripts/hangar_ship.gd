@@ -12,6 +12,7 @@ var hull_hp := 0.0
 var hull_max := 0.0
 var mounts: Dictionary = {} # slot ID -> unique owned equipment instance
 var chassis: Dictionary = {}
+var research_modifiers: Dictionary = {} # Derived from earned research; never saved on equipment.
 var art_texture: Texture2D
 var equipment_art_mounts: Dictionary = {}
 var equipment_art: Dictionary[String, Texture2D] = {}
@@ -118,12 +119,16 @@ func get_stats(_laser_level := 0, energy_efficiency := 0.0) -> ShipStats:
 	for index in range(units.size()):
 		var unit: Dictionary = units[index]
 		var part: ShipPart = unit.part
+		if unit.hp > 0:
+			for capability: String in ResearchUpgrades.capabilities(part):
+				result.research_capabilities[capability] = true
 		result.weight += part.stats.weight
 		result.thrust += part.stats.thrust
 		result.shields += part.stats.shields
 		result.shield_recharge += part.stats.shields * (1 + energy_efficiency)
 		for weapon in part.stats.weapons:
 			var copy := weapon.copy()
+			ResearchUpgrades.apply_weapon(copy, research_modifiers)
 			copy.damage_per_shot *= float(chassis.get("weapon_damage_multiplier", 1.0))
 			copy.fire_interval_seconds /= weapon_cycle_rate()
 			if part.type in [ShipPart.Type.LASER, ShipPart.Type.DOUBLE_LASER, ShipPart.Type.BEAM_LANCE, ShipPart.Type.ION_EMITTER]:

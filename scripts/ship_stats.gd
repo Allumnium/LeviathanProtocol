@@ -26,6 +26,7 @@ var turn_rate: float:
 	get:
 		return lerpf(MIN_TURN_RATE, MAX_TURN_RATE, _thrust_fraction()) * engine_rate
 var weapons: Array[ShipWeaponStats] = []
+var research_capabilities: Dictionary = {}
 var dps: float:
 	get:
 		var total_dps := 0.0

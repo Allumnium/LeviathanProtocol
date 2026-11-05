@@ -27,7 +27,7 @@ func run() -> void:
 	var valid: Dictionary = state.hangar_snapshot()
 	check(valid.version == 2 and not valid.ships[0].has("builtins"), "Whole-ship checkpoint has schema 2 and no builtins")
 	check(valid.equipment.values().all(func(instance: Dictionary) -> bool: return not instance.has("hp")), "Equipment saves contain identity rather than durability")
-	for key in ["research_focus", "research_progress", "research_ids", "story_flags", "branch_choices"]:
+	for key in ["research_offer", "research_points", "research_ids", "story_flags", "branch_choices"]:
 		var broken: Dictionary = valid.duplicate(true)
 		broken.research.erase(key)
 		check(not HangarCheckpoint.valid(broken), "Reject missing " + key)

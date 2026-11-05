@@ -25,8 +25,6 @@ var fuel := 100.0
 var fuel_capacity := 100.0
 var traveled_distance_nu := 0.0
 var traveled_days := 0.0
-var research_focus := ""
-var research_progress: Dictionary = {}
 var discovered_location_ids: Array[String] = []
 var visited_location_ids: Array[String] = []
 var flags: Dictionary[String, bool] = {}
@@ -54,8 +52,6 @@ func snapshot() -> Dictionary:
 		"fuel_capacity": fuel_capacity,
 		"traveled_distance_nu": traveled_distance_nu,
 		"traveled_days": traveled_days,
-		"research_focus": research_focus,
-		"research_progress": research_progress.duplicate(true),
 		"discovered_location_ids": discovered_location_ids.duplicate(),
 		"visited_location_ids": visited_location_ids.duplicate(),
 		"flags": flags.duplicate(),
@@ -83,8 +79,6 @@ func restore(value: Dictionary) -> bool:
 	fuel_capacity = float(value.fuel_capacity)
 	traveled_distance_nu = float(value.traveled_distance_nu)
 	traveled_days = float(value.traveled_days)
-	research_focus = value.research_focus
-	research_progress = value.research_progress.duplicate(true)
 	discovered_location_ids.assign(value.discovered_location_ids)
 	visited_location_ids.assign(value.visited_location_ids)
 	flags.assign(value.flags)
@@ -195,10 +189,10 @@ static func valid(value: Variant) -> bool:
 	if not SaveValidation.number(value.get("simulation_seconds")) or value.simulation_seconds < 0 \
 			or not SaveValidation.vector(value.get("position_nu")):
 		return false
-	for key in ["docked_location_id", "destination_location_id", "research_focus"]:
+	for key in ["docked_location_id", "destination_location_id"]:
 		if not value.get(key) is String:
 			return false
-	if not value.get("pause_reasons") is Array or not value.get("research_progress") is Dictionary \
+	if not value.get("pause_reasons") is Array \
 			or not value.get("discovered_location_ids") is Array or not value.get("visited_location_ids") is Array \
 			or not value.get("flags") is Dictionary or not value.get("event_receipts") is Dictionary:
 		return false
@@ -254,11 +248,7 @@ static func valid(value: Variant) -> bool:
 	for key: Variant in value.event_receipts:
 		if not key is String or key.is_empty() or not value.event_receipts[key] is bool:
 			return false
-	for key: Variant in value.research_progress:
-		if not key is String or key.is_empty() or not SaveValidation.number(value.research_progress[key]) \
-				or value.research_progress[key] < 0:
-			return false
-	return SaveValidation.json_value(value.research_progress)
+	return true
 
 
 static func location_by_id(locations: Array, id: String) -> Dictionary:

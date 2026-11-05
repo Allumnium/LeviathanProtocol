@@ -91,7 +91,7 @@ func run() -> void:
 	check(screen.inspection != null, "Ship inspection remains available in flight")
 	check_no_shipyard("Cruising")
 	denied(func() -> bool: return state.refuel_expedition(), "Cruising refuel")
-	check(state.set_research_focus("guided_munitions"), "Research focus remains available in flight")
+	check(not state.choose_research("guided_munitions"), "Cruising cannot grant an unfunded or unoffered upgrade")
 	check(state.move_ships({escort_id: Vector2(-1, -1)}), "Formation edits remain available in flight")
 
 	var simulation = state.expedition_simulation

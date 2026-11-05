@@ -31,6 +31,7 @@ var _projectile_impacts: Array[Dictionary] = []
 
 var _part_patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 var simulation: BattleSimulation
+var battlefield_rect := Rect2()
 var camera_position := Vector2.ZERO
 var camera_zoom := 0.65
 var interpolation_alpha := 1.0
@@ -44,9 +45,13 @@ var _rock_texture: Texture2D
 var _shield_masks: Dictionary[Texture2D, Texture2D] = {}
 
 
+func world_center() -> Vector2:
+	return battlefield_rect.get_center() if battlefield_rect.has_area() else size * 0.5
+
+
 func world_transform() -> Transform2D:
 	return Transform2D(0.0, Vector2.ONE * camera_zoom, 0.0,
-		size * 0.5 - camera_position * camera_zoom)
+		world_center() - camera_position * camera_zoom)
 
 
 func _set_ship_transform(position: Vector2, angle: float, ship_scale: float = 1.0) -> void:
@@ -160,7 +165,7 @@ func _draw() -> void:
 		var end := beam.target.position if not simulation.visibility_enabled or simulation.team_can_see(BattleSimulation.Faction.PLAYER, beam.target) else beam.aim_position
 		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(end):
 			continue
-		var steps := maxi(1, ceili(beam.origin_position.distance_to(end) / 24.0))
+		var steps := maxi(1, ceili(beam.origin_position.distance_to(end) / 24.0)) if simulation.visibility_enabled else 1
 		for index in range(steps):
 			var start := beam.origin_position.lerp(end, float(index) / steps)
 			var finish := beam.origin_position.lerp(end, float(index + 1) / steps)
@@ -357,7 +362,8 @@ func _draw_thrust_particles(member: BattleSimulation.Combatant, position: Vector
 	_set_ship_transform(position, heading + PI / 2)
 	Exhaust.draw(self, member.owned_ship, hangar_ship_rect(member.owned_ship), simulation.elapsed, strength,
 		func(point: Vector2) -> bool:
-			return simulation.point_visible(BattleSimulation.Faction.PLAYER, transform * point))
+			return simulation.point_visible(BattleSimulation.Faction.PLAYER, transform * point),
+		clampi(ceili(12 * camera_zoom * member.owned_ship.fleet_view_scale()), 2, 12))
 	draw_set_transform_matrix(world_transform())
 
 func _draw_manual_target() -> void:
@@ -540,10 +546,14 @@ func _shield_mask(texture: Texture2D) -> Texture2D:
 		return _shield_masks[texture]
 	var image := texture.get_image()
 	image.convert(Image.FORMAT_RGBA8)
-	for y in range(image.get_height()):
-		for x in range(image.get_width()):
-			image.set_pixel(x, y, Color(1, 1, 1, image.get_pixel(x, y).a))
-	var mask := ImageTexture.create_from_image(image)
+	var source := image.get_data()
+	var pixels := PackedByteArray()
+	pixels.resize(source.size())
+	pixels.fill(255)
+	for index in range(3, source.size(), 4):
+		pixels[index] = source[index]
+	var mask := ImageTexture.create_from_image(Image.create_from_data(image.get_width(), image.get_height(),
+		false, Image.FORMAT_RGBA8, pixels))
 	_shield_masks[texture] = mask
 	return mask
 

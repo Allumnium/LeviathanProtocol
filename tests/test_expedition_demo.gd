@@ -122,7 +122,7 @@ func run() -> void:
 			return item.equipment_id in ["hull_plate", "armor_block"]).size() >= 2,
 			"Starter Transport fills armor-compatible mounts with plates")
 	var hold_uid: String = transport.mounts.hold.uid
-	check(state.set_research_focus("applied_energy"), "Focus research")
+	check(not state.research_choice_ready(), "Research begins without a funded choice")
 	# Docked waiting repairs hulls for free and stays docked.
 	var flagship: HangarShip = state.fleet[0]
 	flagship.hull_hp -= 50
@@ -132,11 +132,11 @@ func run() -> void:
 	state.advance_expedition(10.0)
 	check(flagship.hull_hp > hull_before and is_equal_approx(flagship.hull_hp - hull_before,
 			state.self_repair_rate(flagship) * 10.0), "Unpaused docked time self-repairs the hull")
-	check(state.research_progress.get("applied_energy", 0.0) == 0.0, "Docked time earns no research")
+	check(state.research_points == 0.0, "Docked time earns no research")
 	flagship.hull_hp = flagship.hull_max
 	check(travel("refuel_station_1", {"derelict_signal": "continue"}), "First leg reaches Kessler")
-	check(state.research_progress.get("applied_energy", 0.0) > 0.0
-		or state.current_research_ids.has("applied_energy"), "Travel distance advances or completes focused research")
+	check(state.research_points > 0.0
+		or state.current_research_ids.has("applied_energy"), "Travel distance fills the research bar")
 	check(not HangarTrade.has_load(state.equipment_inventory[hold_uid]), "Haven cargo delivered at Kessler")
 	check(state.expedition_simulation.state.event_receipts.get("first_contact", false), "First contact battle happened")
 	refit()

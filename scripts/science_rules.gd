@@ -20,13 +20,14 @@ static func journey_rp(science: Dictionary, travel_days: float) -> float:
 static func production_label(science: Dictionary) -> String:
 	if science.get("production_version", 1) != 2:
 		return "%d labs" % science.labs.size()
-	var counts := [0, 0, 0]
+	var counts := {1: 0, 3: 0}
 	for lab: Dictionary in science.labs:
-		counts[int(lab.rank) - 1] += 1
+		var rank := int(lab.rank)
+		counts[rank] = int(counts.get(rank, 0)) + 1
 	var lines: Array[String] = []
-	for index in range(3):
-		if counts[index] > 0:
-			lines.append("%d x Lab %s" % [counts[index], ["I", "II", "III"][index]])
+	for rank: int in [1, 3]:
+		if counts[rank] > 0:
+			lines.append("%d x Lab (%s)" % [counts[rank], "M" if rank == 1 else "XL"])
 	return "\n".join(lines) if not lines.is_empty() else "0 labs"
 
 static func active_lab(owned: FleetShip) -> int:
@@ -68,8 +69,11 @@ static func snapshot(deployed: Array[FleetShip], legacy := false) -> Dictionary:
 			var rp := 20 * lab.rank + (5 * lab.rank if analysis else 0) + (5 * lab.rank if observatory else 0)
 			result.labs.append({"ship_id": owned.id, "unit_index": index, "rank": lab.rank,
 				"analysis": analysis, "observatory": observatory, "rp": rp})
-			if owned is HangarShip and owned.chassis.get("research_rate_multiplier", 1.0) != 1.0:
-				result.labs[-1]["rate_multiplier"] = owned.chassis.research_rate_multiplier
+			if owned is HangarShip:
+				var multiplier: float = float(owned.chassis.get("research_rate_multiplier", 1.0)) \
+					* ResearchUpgrades.part_value(owned, lab, "research", "research_output_multiplier")
+				if multiplier != 1.0:
+					result.labs[-1]["rate_multiplier"] = multiplier
 			result.total_rp += rp
 	return result
 
