@@ -5,6 +5,13 @@ const Loadouts = preload("res://scripts/ship_loadouts.gd")
 const STANCES := ["seek", "defend", "evade"]
 const LABELS := {"seek": "Seek & Destroy", "defend": "Defend Flagship", "evade": "Evade"}
 
+static func box_offset(index: int, count: int, spacing: float) -> Vector2:
+	var columns := ceili(sqrt(count))
+	var rows := ceili(float(count) / columns)
+	var row := index / columns
+	var row_count := mini(columns, count - row * columns)
+	return Vector2(index % columns - (row_count - 1) * 0.5, row - (rows - 1) * 0.5) * spacing
+
 static func for_ship(groups: Array, ship_id: int) -> Dictionary:
 	for group: Dictionary in groups:
 		if group.members.any(func(id: Variant) -> bool: return int(id) == ship_id):

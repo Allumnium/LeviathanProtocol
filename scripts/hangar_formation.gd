@@ -76,29 +76,31 @@ func point(owned: FleetShip) -> Vector2:
 
 func _layout_escorts() -> void:
 	display_positions.clear()
-	var escorts: Array[int] = []
+	var groups: Array[Dictionary] = []
+	var total_height := 0.0
 	for group: Dictionary in GameState.squadrons:
+		var escorts: Array[int] = []
+		var extent := 0.0
 		for id: int in group.members:
 			var ship: HangarShip = GameState.owned_ship(id)
 			if ship.flagship:
 				display_positions[id] = Vector2.ZERO
 			else:
 				escorts.append(id)
-	var columns := maxi(3, ceili(sqrt(escorts.size() + 1)))
-	if columns % 2 == 0:
-		columns += 1
-	var rows := maxi(3, ceili(float(escorts.size() + 1) / columns))
-	if rows % 2 == 0:
-		rows += 1
-	var index := 0
-	for row in range(rows):
-		for column in range(columns):
-			if row == rows / 2 and column == columns / 2:
-				continue
-			if index >= escorts.size():
-				return
-			display_positions[escorts[index]] = Vector2(column - columns / 2, row - rows / 2) * 1.2
-			index += 1
+				extent = maxf(extent, ship.fleet_view_scale())
+		if escorts.is_empty():
+			continue
+		var spacing := extent + 0.12
+		var rows := ceili(float(escorts.size()) / ceili(sqrt(escorts.size())))
+		var height := (rows - 1) * spacing + extent
+		groups.append({"members": escorts, "height": height, "spacing": spacing})
+		total_height += height + 0.35
+	var y := -(total_height - 0.35) * 0.5
+	for group: Dictionary in groups:
+		for index in range(group.members.size()):
+			display_positions[group.members[index]] = Vector2(1.8, y + group.height * 0.5) \
+				+ HangarSquadrons.box_offset(index, group.members.size(), group.spacing)
+		y += group.height + 0.35
 
 func _world(position: Vector2) -> Vector2:
 	return (camera + (position - size * 0.5) / zoom) / 52

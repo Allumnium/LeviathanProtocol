@@ -124,7 +124,8 @@ func motion_checks() -> void:
 		var alignment := team[0].velocity.normalized().dot(team[1].velocity.normalized())
 		var separation := team[0].position.distance_to(team[1].position)
 		check(alignment >= 0.8 and separation <= 180,
-			"Same-squadron actual flight aligns and stays cohesive: dot %.3f, spacing %.1f" % [alignment, separation])
+			"Same-squadron actual flight aligns and stays cohesive (%s): dot %.3f, spacing %.1f" \
+				% ["player" if team[0].is_player else "alien", alignment, separation])
 
 func native_effects() -> void:
 	var sim := setup([owned(["shield_relay"]), owned(["shield_generator"], 2)], 100, true)
@@ -173,8 +174,9 @@ func blue_pixels(image: Image) -> int:
 
 func run() -> void:
 	if "--visual-only" not in OS.get_cmdline_user_args():
-		flock_checks()
-		relay_checks()
+		if "--motion-only" not in OS.get_cmdline_user_args():
+			flock_checks()
+			relay_checks()
 		motion_checks()
 	if DisplayServer.get_name() != "headless":
 		await native_effects()

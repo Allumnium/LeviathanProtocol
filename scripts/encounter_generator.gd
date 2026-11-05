@@ -6,6 +6,7 @@ const DIFFICULTY := [0.8, 1.0, 1.25]
 const MULTIPLIERS := {"standard": 1.0, "elite": 1.4, "boss": 1.8}
 const MAX_SHIPS := BattleSimulation.MAX_LIVE_COMBATANTS
 const MAX_ENEMY_ENTITIES := BattleSimulation.MAX_LIVE_COMBATANTS
+const ENEMY_FLEET_MULTIPLIER := 3
 # The legacy map has 14 combat columns. Step 10 replaces this explicit bridge
 # with the actual 24 campaign rows, including noncombat stops.
 const LEGACY_COMBAT_ROWS := [1, 3, 5, 8, 9, 10, 12, 13, 16, 17, 18, 20, 21, 24]
@@ -135,19 +136,20 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 static func _finish_fleet(result: Dictionary, expand_fleet: bool) -> Dictionary:
 	if expand_fleet:
 		var originals: Array = result.roster.duplicate(true)
-		for entry: Dictionary in originals:
-			if result.roster.size() >= MAX_ENEMY_ENTITIES:
-				break
-			if entry.kind != "ship" or entry.entity_id == result.get("warden", {}).get("body_id", ""):
-				continue
-			var copy := entry.duplicate(true)
-			copy.entity_id = str(entry.entity_id) + "/wingmate"
-			copy.copy_of = entry.entity_id
-			result.roster.append(copy)
-			result.spent += float(copy.threat_cost)
-			result.budget += float(copy.threat_cost)
-			if result.objective.type == "eliminate_targets":
-				result.objective.required_target_ids.append(copy.entity_id)
+		for wingmate in range(1, ENEMY_FLEET_MULTIPLIER):
+			for entry: Dictionary in originals:
+				if result.roster.size() >= MAX_ENEMY_ENTITIES:
+					break
+				if entry.kind != "ship" or entry.entity_id == result.get("warden", {}).get("body_id", ""):
+					continue
+				var copy := entry.duplicate(true)
+				copy.entity_id = str(entry.entity_id) + ("/wingmate" if wingmate == 1 else "/wingmate/%d" % wingmate)
+				copy.copy_of = entry.entity_id
+				result.roster.append(copy)
+				result.spent += float(copy.threat_cost)
+				result.budget += float(copy.threat_cost)
+				if result.objective.type == "eliminate_targets":
+					result.objective.required_target_ids.append(copy.entity_id)
 	if result.roster.size() >= MAX_ENEMY_ENTITIES:
 		# A full roster may deliberately leave budget unspent.
 		result.unspent_tolerance = maxf(result.unspent_tolerance, result.budget - result.spent + 0.001)
@@ -343,7 +345,10 @@ static func valid(encounter: Variant) -> bool:
 	for entry: Dictionary in encounter.roster:
 		if not entry.has("copy_of"):
 			continue
-		if not entry.copy_of is String or not by_id.has(entry.copy_of) or copied.has(entry.copy_of):
+		if not entry.copy_of is String or not by_id.has(entry.copy_of):
+			return false
+		copied[entry.copy_of] = int(copied.get(entry.copy_of, 0)) + 1
+		if copied[entry.copy_of] >= ENEMY_FLEET_MULTIPLIER:
 			return false
 		var original: Dictionary = by_id[entry.copy_of]
 		if original.has("copy_of") or original.kind != "ship" \
@@ -354,7 +359,6 @@ static func valid(encounter: Variant) -> bool:
 		copy.entity_id = original.entity_id
 		if not SaveValidation.same(copy, original):
 			return false
-		copied[entry.copy_of] = true
 		copy_cost += float(entry.threat_cost)
 	if not is_equal_approx(encounter.budget, base_budget + copy_cost):
 		return false

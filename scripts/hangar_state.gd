@@ -133,18 +133,14 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	lead.formation = Vector2.ZERO
 	_install_loadout(lead, ShipLoadouts.default_for(flagship_id))
 	var transport := _add_chassis("transport")
-	transport.formation = Vector2(0, 1.1)
+	transport.formation = Vector2(-0.85, 0)
 	_install_loadout(transport, ShipLoadouts.default_for("transport"))
 	var fighter := _add_chassis("fighter")
-	fighter.formation = Vector2(0, -1.25)
+	fighter.formation = Vector2(0, -0.8)
 	_install_loadout(fighter, ShipLoadouts.default_for("fighter"))
-	var drone_positions: Array[Vector2] = [
-		Vector2(-2.4, -1.35), Vector2(-1.2, -1.35), Vector2(1.2, -1.35), Vector2(2.4, -1.35),
-		Vector2(-2.4, 0), Vector2(2.4, 0),
-		Vector2(-2.4, 1.35), Vector2(-1.2, 1.35), Vector2(1.2, 1.35), Vector2(2.4, 1.35)]
-	for position: Vector2 in drone_positions:
+	for index in range(10):
 		var drone := _add_chassis("drone")
-		drone.formation = position
+		drone.formation = Vector2(1.6, 0) + HangarSquadrons.box_offset(index, 10, 0.6)
 		_install_loadout(drone, ShipLoadouts.default_for("drone"))
 	squadrons = HangarSquadrons.initial(hangar_snapshot())
 	_apply_squadron_orders()

@@ -8,12 +8,14 @@ var plan: Dictionary = {}
 var clock := 0.0
 var pending: Array[Dictionary] = []
 var wave := 1
+var wave_positions: Dictionary[String, Vector2] = {}
 
 func configure(sim, value: Dictionary) -> bool:
 	plan = value.duplicate(true)
 	clock = 0.0
 	wave = 1
 	pending.clear()
+	wave_positions.clear()
 	if plan.is_empty():
 		return warden.configure(sim, {})
 	if not EncounterGenerator.valid(plan) or not plan.has("arena_layout") or plan.legacy:
@@ -34,6 +36,14 @@ func configure(sim, value: Dictionary) -> bool:
 				return false
 	if initial.size() != sim.aliens.size():
 		return false
+	for wave_index in range(1, int(plan.wave_count)):
+		var fleet: Array[RefCounted] = []
+		for entry: Dictionary in pending:
+			if int(entry.wave) == wave_index:
+				fleet.append(AlienShip.from_snapshot(entry))
+		var positions := BattleSimulation.alien_formation_positions(fleet, Vector2(BattleSimulation.WAVE_ENTRY_X, 0))
+		for index in range(fleet.size()):
+			wave_positions[fleet[index].entity_id] = positions[index]
 	pending.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.wave) < int(b.wave) if int(a.wave) != int(b.wave) else str(a.entity_id) < str(b.entity_id))
 	sim.objective_target_ids = EncounterGenerator.objective_ids(plan)
@@ -57,7 +67,7 @@ func advance(sim, delta: float) -> void:
 		var member = sim._create_combatant(definition.stats)
 		member.alien = definition
 		member.entity_id = definition.entity_id
-		member.position = Vector2(BattleSimulation.WAVE_ENTRY_X, (int(entry.entity_id.get_slice("/", 3)) % 5 - 2) * 90)
+		member.position = wave_positions[entry.entity_id]
 		member.previous_position = member.position
 		member.heading = PI
 		member.previous_heading = PI

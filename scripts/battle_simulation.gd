@@ -30,10 +30,9 @@ const FLYBY_RANGE_FACTOR := 0.70
 const SOFT_BOUNDARY_MARGIN := 540.0
 const PLAYER_FORMATION_CENTER := Vector2(-1260.0, 0.0)
 const PLAYER_FORMATION_COLUMNS := 3
-const PLAYER_FORMATION_SPACING := Vector2(108.0, 108.0)
+const PLAYER_FORMATION_SPACING := Vector2(78.0, 78.0)
 const ALIEN_FORMATION_CENTER := Vector2(1260.0, 0.0)
-const ALIEN_FORMATION_COLUMNS := 6
-const ALIEN_FORMATION_SPACING := Vector2(130.0, 130.0)
+const ALIEN_FORMATION_SPACING := 36.0
 const DEPLOYMENT_SCALE := 130.0
 const WAVE_ENTRY_X := 1860.0
 const CORRIDOR_HALF_WIDTH := 720.0
@@ -322,6 +321,9 @@ func setup(
 		player_ship.previous_position = player_ship.position
 		players.append(player_ship)
 	player = players[0]
+	var alien_positions := alien_formation_positions(fleet, ALIEN_FORMATION_CENTER)
+	if alien_positions.size() != fleet.size():
+		return false
 	for index in range(fleet.size()):
 		var definition := fleet[index] as AlienShip
 		if definition == null:
@@ -336,13 +338,7 @@ func setup(
 			alien.tags["summon"] = true
 		elif definition.entity_kind == "organ":
 			alien.tags["organ"] = true
-		alien.position = _get_formation_position(
-			index,
-			fleet.size(),
-			ALIEN_FORMATION_COLUMNS,
-			ALIEN_FORMATION_CENTER,
-			ALIEN_FORMATION_SPACING
-		)
+		alien.position = alien_positions[index]
 		alien.heading = PI
 		alien.previous_position = alien.position
 		alien.previous_heading = alien.heading
@@ -875,6 +871,34 @@ func _remaining_target_ids() -> Array[String]:
 	return ids
 
 
+static func alien_formation_positions(fleet: Array[RefCounted], center: Vector2) -> Array[Vector2]:
+	var groups: Dictionary = {}
+	for index in range(fleet.size()):
+		var definition := fleet[index] as AlienShip
+		if definition == null or definition.stats == null:
+			push_error("Cannot arrange an invalid alien definition.")
+			return []
+		var key := "%s/%d/%d" % [definition.role_id, definition.tier, definition.wave_index] \
+			if definition.entity_kind == "ship" and definition.role_id not in ["warden", "pylon"] else "entity/%d" % index
+		if not groups.has(key):
+			groups[key] = {"indices": [], "spacing": ALIEN_FORMATION_SPACING}
+		groups[key].indices.append(index)
+		groups[key].spacing = maxf(groups[key].spacing, definition.stats.collision_radius * 2 + 12)
+	var height := 0.0
+	for group: Dictionary in groups.values():
+		var count: int = group.indices.size()
+		group.height = ceili(float(count) / ceili(sqrt(count))) * group.spacing
+		height += group.height + 48
+	var y := -(height - 48) * 0.5
+	var positions: Array[Vector2] = []
+	positions.resize(fleet.size())
+	for group: Dictionary in groups.values():
+		for slot in range(group.indices.size()):
+			positions[group.indices[slot]] = center + Vector2(0, y + group.height * 0.5) \
+				+ HangarSquadrons.box_offset(slot, group.indices.size(), group.spacing)
+		y += group.height + 48
+	return positions
+
 func _get_formation_position(
 	index: int,
 	count: int,
@@ -1223,7 +1247,7 @@ func _flock_velocity(ship: Combatant, desired: Vector2) -> Vector2:
 	var alignment: Vector2 = flock.velocity / float(flock.count)
 	var cohesion := (center - ship.position).limit_length(ship.speed * 0.45)
 	if not alignment.is_zero_approx():
-		desired = desired.lerp(alignment.normalized() * desired.length(), 0.45)
+		desired = desired.lerp(alignment.normalized() * desired.length(), 0.65)
 	return (desired + cohesion).limit_length(ship.speed)
 
 func _separation_velocity(ship: Combatant, desired: Vector2) -> Vector2:

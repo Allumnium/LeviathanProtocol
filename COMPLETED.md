@@ -2,6 +2,14 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Compact squadrons and larger enemy fleets
+
+- Replaced the starting drone surround with a tight 4/4/2 box ahead of the flagship, using 78-unit spacing and physical steering clearance. Fighter and Transport sit separately nearby. Fleet management packs each squadron into a distinct tight box without rewriting saved tactical placement; native ship inspection and squadron/Alt/Shift dragging still work.
+- Ordinary campaign/expedition enemies now have two identical wingmates each (3x original counts, previously 2x), including frozen waves. Preserved original stats, rank, wave, rewards, boss bodies/pylons/framework entities and shared 192-live-combatant safety ceiling. Initial and reinforcing alien squadrons use compact role/tier/wave boxes with distinct wingmate spawn positions. Copy validation permits two copies per original and rejects extras.
+- Strengthened both-faction velocity alignment so squadmates remain cohesive through current long-range flight arcs; orders, stances, retreat, withdrawal, collision avoidance and boss exclusions retain their checks.
+- Isolated focused verification: formation/count/production/waves/Continue 290, flocking/relays/motion 29, native opening 279, native Fleet/deployment interaction 89 and migrated arena/field geometry 39 checks, zero failures. Reviewed supported-resolution Fleet/battle views and close-up boxes for both factions. Final natural opening deployed 13 vs. 15, reached victory at 19.97 simulated seconds with 13 survivors and settled through Continue. Existing native shutdown texture diagnostics remain; no broad baseline, campaign sweep or soak.
+- Updated [docs/HANGAR.md](docs/HANGAR.md) and [tests/README.md](tests/README.md); moved the three verified request items out of [TODO.md](TODO.md). Preserved concurrent artwork changes.
+
 ## 2026-11-05 - Larger battlefields and localized asteroid fields
 
 - Tripled arena radius and faction separation, doubled initial ship spacing, and aligned deployment, corridors, reinforcements, boss placement and overview/manual cameras. Deployment limits stay within saved formation bounds, including edge dragging and Continue.

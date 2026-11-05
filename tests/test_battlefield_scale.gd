@@ -163,7 +163,8 @@ func fields() -> void:
 		0, 0, 7251, {"credits_only": true, "encounter_plan": waves}), "Configure a single frozen wave fixture")
 	wave_sim.encounter.advance(wave_sim, 6)
 	check(wave_sim.aliens.any(func(actor: BattleSimulation.Combatant) -> bool:
-		return actor.position.x == BattleSimulation.WAVE_ENTRY_X), "Wave entry moves to the larger arena's right side")
+		return actor.alien.wave_index == 1 and absf(actor.position.x - BattleSimulation.WAVE_ENTRY_X) <= 144),
+		"Compact wave squadrons enter at the larger arena's right side")
 	var field := AsteroidField.new()
 	check(field.add_root("edge", 1, Vector2(1200, 0), Vector2(3, 0), [0, 0, 0, 0]), "Create arena-edge drift fixture")
 	field.attach(sim)
@@ -213,7 +214,7 @@ func integration() -> void:
 	battle.set_physics_process(false)
 	await settle()
 	check(BattleSimulation.ARENA_RADIUS == 2400 and BattleSimulation.DEPLOYMENT_SCALE == 130,
-		"Battlefield radius triples and individual tactical spacing doubles")
+		"Expanded battlefield radius and saved tactical coordinate scale remain consistent")
 	var sim: BattleSimulation = battle.simulation
 	check(sim.other_entities.size() == 48 and sim.elapsed == 0 and battle.deploying,
 		"All 48 asteroid roots appear in frozen deployment")
