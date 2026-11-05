@@ -30,7 +30,7 @@ func simulation() -> Simulation:
 			sim.state.event_receipts[authored.id] = true
 	return sim
 
-func open_screen(tab := "FLEET") -> void:
+func open_screen(tab := "MAP") -> void:
 	screen = load("res://scenes/game_map.tscn").instantiate()
 	screen.active_tab = tab
 	root.add_child(screen)
@@ -146,9 +146,9 @@ func run() -> void:
 	for authored: Dictionary in state.expedition_simulation.events:
 		if authored.id != "derelict_signal":
 			state.expedition_simulation.state.event_receipts[authored.id] = true
-	await open_screen("FLEET")
+	await open_screen("MAP")
 	screen._on_expedition_destination_selected("refuel_station_1")
-	screen.speed_buttons[10].pressed.emit()
+	screen.travel_play_button.pressed.emit()
 	var saved_before_signal: Dictionary = state.hangar_snapshot()
 	var generation: int = state.hangar_generation
 	var save_path: String = state.run_save_path
@@ -221,7 +221,7 @@ func run() -> void:
 	check(not state.resolve_expedition_event("derelict_signal", "continue"),
 			"Backend rejects double submission after committed investigation")
 	check(state.fleet[0] == flagship, "Repeated decisions preserve live ship identity")
-	screen.speed_buttons[10].pressed.emit()
+	screen.travel_play_button.pressed.emit()
 	screen._process(100)
 	check(screen.get_node_or_null("ArrivalDialog") == null
 			and state.expedition_simulation.state.return_destination_id == "refuel_station_1",
@@ -243,7 +243,7 @@ func run() -> void:
 	screen._set_course("refuel_station_1")
 	check(state.expedition_simulation.state.return_destination_id.is_empty(),
 			"Explicit onward choice clears the detour return target")
-	screen.speed_buttons[10].pressed.emit()
+	screen.travel_play_button.pressed.emit()
 	screen._process(100)
 	check(state.expedition_simulation.state.docked_location_id == "refuel_station_1"
 			and state.expedition_simulation.state.pending_event_id.is_empty()

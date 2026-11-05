@@ -61,7 +61,7 @@ func run() -> void:
 	screen.graph.selected_id = "start_station"
 	screen.graph._place_go_button()
 	check(not screen.graph.go_button.visible, "The fleet's own location offers no GO TO")
-	check(expedition.set_speed(10) and expedition.set_pause(Travel.PauseReason.USER, true),
+	check(expedition.set_speed(8) and expedition.set_pause(Travel.PauseReason.USER, true),
 		"Remember paused fast-forward speed before selecting a course")
 	var original_position: Vector2 = expedition.state.position_nu
 	screen.graph.location_selected.emit("refuel_station_1")
@@ -79,8 +79,8 @@ func run() -> void:
 	screen._on_expedition_retry_pressed()
 	screen.departure_button.pressed.emit()
 	await settle()
-	check(expedition.state.requested_speed == 10 and Travel.PauseReason.USER not in expedition.state.pause_reasons,
-		"Engage clears only user pause and starts at the last set speed")
+	check(expedition.state.requested_speed == 8 and Travel.PauseReason.USER not in expedition.state.pause_reasons,
+		"Engage clears only user pause and starts at fixed 8x")
 	check(screen.course_readout.visible and not screen.departure_button.visible
 		and screen.course_readout.text.begins_with(expedition.locations["refuel_station_1"].name),
 		"In flight without selection, the lower recess shows destination and remaining distance")
@@ -98,20 +98,20 @@ func run() -> void:
 	screen.graph.location_selected.emit("")
 	check(expedition.state.destination_location_id == "refuel_station_1"
 			and expedition.state.travel_state == Travel.TravelState.CRUISING, "GO TO departs immediately")
-	screen.speed_buttons[10].pressed.emit()
+	screen.travel_play_button.pressed.emit()
 	screen._process(0.5)
 	var midway: Vector2 = expedition.state.position_nu
 	screen.graph.go_requested.emit("settlement_1")
 	await settle()
 	check(expedition.state.destination_location_id == "settlement_1"
-			and expedition.state.position_nu == midway and expedition.state.requested_speed == 10,
+			and expedition.state.position_nu == midway and expedition.state.requested_speed == 8,
 			"Double-click course changes reroute mid-flight from the current position at the same speed")
 	await map_go("refuel_station_1")
 	check(state.save_expedition_checkpoint(), "Save an in-flight checkpoint")
 	var position: Vector2 = expedition.state.position_nu
 	check(state.load_run_checkpoint() and state.prepare_checkpoint_resume(), "Prepare Continue transaction")
 	expedition = state.expedition_simulation
-	check(expedition.state.position_nu == position and expedition.state.requested_speed == 10
+	check(expedition.state.position_nu == position and expedition.state.requested_speed == 8
 			and Travel.PauseReason.USER in expedition.state.pause_reasons,
 			"Continue preserves exact position and requested speed but starts paused")
 	var tick: int = expedition.state.simulation_tick
@@ -123,7 +123,7 @@ func run() -> void:
 			"Failed Continue checkpoint preserves navigation and reports failure")
 	state.run_save_path = save_path
 	await reopen_checkpoint()
-	screen.speed_buttons[10].pressed.emit()
+	screen.travel_play_button.pressed.emit()
 	before = expedition.state.snapshot()
 	state.run_save_path = "res://project.godot/no-save.json"
 	screen._process(100)
@@ -137,7 +137,7 @@ func run() -> void:
 	check(expedition.state.docked_location_id == "refuel_station_1"
 			and screen.get_node_or_null("ArrivalDialog") == null
 			and screen.station_actions.find_child("StationRefuel", true, false) != null
-			and expedition.state.requested_speed == 10,
+			and expedition.state.requested_speed == 8,
 			"Retried arrival exposes station services without a popup and keeps fast-forward")
 	tick = expedition.state.simulation_tick
 	check(expedition.advance(1) and expedition.state.simulation_tick > tick,

@@ -68,7 +68,7 @@ var tabs: HBoxContainer
 var inspection: ScrollContainer
 var inspected_item: Dictionary = {}
 var travel_controls: PanelContainer
-var speed_buttons: Dictionary = {}
+var travel_play_button: Button
 var travel_pause_button: Button
 var travel_refuel_button: Button
 var travel_retry_button: Button
@@ -95,6 +95,11 @@ func _ready() -> void:
 	if GameState.run_id.is_empty():
 		get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 		return
+	var expedition = GameState.expedition_simulation
+	if expedition != null and expedition.state != null and expedition.state.pending_event_id.is_empty() \
+			and expedition.state.travel_state not in [ExpeditionStateData.TravelState.ENGAGED,
+				ExpeditionStateData.TravelState.SETTLING, ExpeditionStateData.TravelState.REGROUPING]:
+		expedition.set_speed(ExpeditionStateData.MAP_SPEED)
 	var margin := MarginContainer.new()
 	var background := ColorRect.new()
 	background.color = get_theme_color("background_color", "SlotCanvas")
@@ -429,7 +434,10 @@ func _shipyard_action(button: Button, eligible := true) -> Button:
 func _advance_expedition(delta: float) -> void:
 	var simulation = GameState.expedition_simulation
 	if simulation == null or simulation.state == null \
+			or active_tab != "MAP" or not is_visible_in_tree() \
 			or is_instance_valid(encounter_modal) or is_instance_valid(research_dialog) or entering_battle or GameState.completed or GameState.run_ended:
+		return
+	if simulation.state.requested_speed != ExpeditionStateData.MAP_SPEED and not simulation.set_speed(ExpeditionStateData.MAP_SPEED):
 		return
 	expedition_save_elapsed += delta
 	var periodic: bool = expedition_save_elapsed >= EXPEDITION_SAVE_INTERVAL
@@ -883,14 +891,12 @@ func _refresh_expedition_controls() -> void:
 		return
 	var simulation = GameState.expedition_simulation
 	var state = simulation.state
-	for speed: int in speed_buttons:
-		var speed_button: Button = speed_buttons[speed]
-		speed_button.set_pressed_no_signal(state.pause_reasons.is_empty() and state.requested_speed == speed)
-		speed_button.disabled = state.travel_state in [
-			ExpeditionStateData.TravelState.ENGAGED,
-			ExpeditionStateData.TravelState.SETTLING,
-			ExpeditionStateData.TravelState.REGROUPING
-		] and speed != 1
+	travel_play_button.set_pressed_no_signal(state.pause_reasons.is_empty())
+	travel_play_button.disabled = state.travel_state in [
+		ExpeditionStateData.TravelState.ENGAGED,
+		ExpeditionStateData.TravelState.SETTLING,
+		ExpeditionStateData.TravelState.REGROUPING
+	] or not state.pending_event_id.is_empty()
 	travel_pause_button.set_pressed_no_signal(
 			ExpeditionStateData.PauseReason.USER in state.pause_reasons)
 	travel_fuel.text = "FUEL %d / %d" % [roundi(state.fuel), roundi(state.fuel_capacity)]
@@ -1071,13 +1077,8 @@ func _update_expedition_readouts() -> void:
 		var destination: Dictionary = simulation.locations.get(state.destination_location_id, {})
 		var point := Vector2(destination.position[0], destination.position[1])
 		var distance: float = state.position_nu.distance_to(point)
-		var effective_speed: int = 1 if state.travel_state in [
-			ExpeditionStateData.TravelState.ENGAGED,
-			ExpeditionStateData.TravelState.SETTLING,
-			ExpeditionStateData.TravelState.REGROUPING
-		] else state.requested_speed
-		var eta: float = distance / (GameState.expedition_cruise_rate() * effective_speed)
-		var paused: bool = not state.pause_reasons.is_empty()
+		var eta: float = distance / (GameState.expedition_cruise_rate() * ExpeditionStateData.MAP_SPEED)
+		var paused: bool = active_tab != "MAP" or not is_visible_in_tree() or not state.pause_reasons.is_empty()
 		feedback.text = "TO %s · %d NU · %s" % [
 			str(destination.get("name", "UNKNOWN")).to_upper(), roundi(distance),
 			"PAUSED" if paused else "ETA %ds" % ceili(eta)]
@@ -1103,17 +1104,9 @@ func _build_travel_controls(top: Container, footer: HBoxContainer) -> void:
 			return GameState.expedition_simulation.set_pause(ExpeditionStateData.PauseReason.USER, true)))
 	travel_pause_button.name = "ExpeditionPause"
 	row.add_child(travel_pause_button)
-	for speed: int in [1, 10]:
-		var speed_button := _time_button("play" if speed == 1 else "fast",
-				_on_expedition_play_pressed.bind(speed))
-		speed_button.name = "ExpeditionSpeed%d" % speed
-		speed_buttons[speed] = speed_button
-		row.add_child(speed_button)
-	var multiplier := _label("10x")
-	multiplier.autowrap_mode = TextServer.AUTOWRAP_OFF
-	multiplier.size_flags_vertical = SIZE_SHRINK_CENTER
-	multiplier.mouse_filter = MOUSE_FILTER_IGNORE
-	row.add_child(multiplier)
+	travel_play_button = _time_button("play", _on_expedition_play_pressed)
+	travel_play_button.name = "ExpeditionPlay"
+	row.add_child(travel_play_button)
 	travel_fuel = _label("")
 	travel_fuel.name = "ExpeditionFuel"
 	travel_fuel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1284,7 +1277,7 @@ func _engage_course() -> void:
 		_set_course(map_selected_id, true)
 	elif not simulation.state.destination_location_id.is_empty() \
 			and (not simulation.state.pause_reasons.is_empty() or simulation.state.travel_state == ExpeditionStateData.TravelState.STOPPED):
-		_on_expedition_play_pressed(simulation.state.requested_speed)
+		_on_expedition_play_pressed()
 	else:
 		_open_map()
 
@@ -1317,10 +1310,10 @@ func _update_course_control() -> void:
 	departure_button.disabled = not state.pending_event_id.is_empty() \
 		or ExpeditionStateData.PauseReason.SAVE_ERROR in state.pause_reasons
 
-func _on_expedition_play_pressed(speed: int) -> void:
+func _on_expedition_play_pressed() -> void:
 	_apply_expedition_action(func() -> bool:
 		var simulation = GameState.expedition_simulation
-		if not simulation.set_speed(speed):
+		if not simulation.set_speed(ExpeditionStateData.MAP_SPEED):
 			return false
 		if not simulation.set_pause(ExpeditionStateData.PauseReason.USER, false):
 			return false
@@ -1346,11 +1339,6 @@ func _expedition_status_text() -> String:
 
 func _on_expedition_destination_selected(location_id: String) -> void:
 	_set_course(location_id)
-
-
-func _on_expedition_speed_pressed(speed: int) -> void:
-	_apply_expedition_action(func() -> bool:
-		return GameState.expedition_simulation.set_speed(speed))
 
 
 func _on_expedition_pause_pressed() -> void:

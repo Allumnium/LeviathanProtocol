@@ -56,19 +56,19 @@ func run() -> void:
 			"Travel header has no destination dropdown")
 	check(screen.travel_controls.get_parent() == screen.command_header.middle
 			and screen.tabs.get_parent() == screen.command_header.left
-			and screen.travel_controls.get_child(0).get_child_count() == 4
+			and screen.travel_controls.get_child(0).get_child_count() == 2
 			and screen.find_child("ExpeditionClearRoute", true, false) == null,
-			"Header groups only Pause, Play and 10x icons with the multiplier label")
+			"Header has Pause and Play without speed selectors")
 	screen.travel_pause_button.pressed.emit()
 	check(State.PauseReason.USER in expedition.state.pause_reasons, "Pause icon pauses simulation")
-	screen.speed_buttons[10].pressed.emit()
-	check(expedition.state.requested_speed == 10 and expedition.state.pause_reasons.is_empty(),
-			"Fast-forward icon unpauses at exactly 10x")
+	screen.travel_play_button.pressed.emit()
+	check(expedition.state.requested_speed == 8 and expedition.state.pause_reasons.is_empty(),
+			"Play unpauses at fixed 8x")
 	expedition.set_pause(State.PauseReason.EVENT, true)
-	screen.speed_buttons[1].pressed.emit()
-	check(expedition.state.requested_speed == 1
+	screen.travel_play_button.pressed.emit()
+	check(expedition.state.requested_speed == 8
 			and State.PauseReason.EVENT in expedition.state.pause_reasons,
-			"Play selects 1x without clearing a mandatory interruption")
+			"Play retains 8x without clearing a mandatory interruption")
 	expedition.set_pause(State.PauseReason.EVENT, false)
 	var starting_position: Vector2 = expedition.state.position_nu
 	var formation: Control = screen.formation_view
@@ -77,7 +77,7 @@ func run() -> void:
 	check(screen.departure_button.visible and screen.departure_button.text == "ENGAGE"
 			and not is_instance_valid(screen.get_node_or_null("DepartureChoices")),
 			"Docked fleets get a Set Course shortcut instead of a forced destination modal")
-	screen._on_expedition_speed_pressed(20)
+	screen.travel_play_button.pressed.emit()
 	_select_destination(screen, "refuel_station_1")
 	check(expedition.state.travel_state == State.TravelState.CRUISING
 			and expedition.state.destination_location_id == "refuel_station_1",
@@ -85,18 +85,21 @@ func run() -> void:
 	screen._process(0.25)
 	var first_position: Vector2 = expedition.state.position_nu
 	var distance_moved := first_position.distance_to(starting_position)
-	check(distance_moved > 0.0 and distance_moved < 240.0,
-			"Fleet moves continuously without teleporting to the destination")
+	check(distance_moved == 0,
+			"Fleet page suspends travel until Map becomes active")
 	await settle()
 	check(is_instance_valid(formation) and screen.formation_view == formation,
 			"Undocking updates station actions without rebuilding the Fleet view")
 	check(screen.station_actions.get_child_count() == 0,
 			"Departure removes contextual station services without changing the Fleet canvas")
-	check(not starfield._get_star_position(starfield._stars[0]).is_equal_approx(star_position),
-			"Existing Fleet background scrolls with travel distance")
+	check(starfield._get_star_position(starfield._stars[0]).is_equal_approx(star_position),
+			"Fleet background retains its travel offset while Map is inactive")
 	check(screen.feedback.text.contains("NU"),
 			"Existing Fleet page shows remaining course distance")
 	check(current_scene == screen, "Travel does not replace the expedition scene")
+	screen._open_map()
+	screen._process(0.25)
+	check(expedition.state.position_nu.distance_to(first_position) > 0, "Map resumes eligible travel at 8x")
 
 	screen._on_expedition_stop_pressed()
 	var stopped_position: Vector2 = expedition.state.position_nu
@@ -133,7 +136,7 @@ func run() -> void:
 	check(expedition.state.simulation_seconds == arrival_clock
 			and expedition.state.position_nu.is_equal_approx(arrival_point),
 			"POI arrival freezes expedition time without forcing a destination choice")
-	screen._on_expedition_speed_pressed(20)
+	screen.travel_play_button.pressed.emit()
 	_select_destination(screen, "refuel_station_1")
 	screen._process(4.5)
 	check(expedition.state.travel_state == State.TravelState.DOCKED
@@ -141,7 +144,7 @@ func run() -> void:
 			"Station arrival docks the fleet and opens its refueling service")
 	check(screen.get_node_or_null("ArrivalDialog") == null
 			and screen.station_actions.find_child("StationRefuel", true, false) != null
-			and not screen.roster.find_child("BuyShips", true, false).disabled,
+			and state.can_use_shipyard(),
 			"Docking exposes refueling and shipyard access without a popup")
 	var credits_before_refuel: int = state.credits
 	screen._on_expedition_refuel_pressed()

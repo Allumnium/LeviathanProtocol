@@ -21,6 +21,8 @@ Replace the example suite with the relevant test file. For a supported native ch
 
 Useful focused entry points:
 
+- [test_map_clock.gd](test_map_clock.gd): native fixed 8x travel clock/distance, Pause/Play without speed selectors, actual Fleet/Map pointer switches, hidden-page suspension, preserved manual/mandatory pauses, Continue pause and supported-resolution header captures. Checks frozen full snapshots while away; requires its explicit completion check. Low-level simulation speed APIs remain available for controlled model tests.
+
 - [test_deployment_selection.gd](test_deployment_selection.gd): native first-click squadron and second-click individual selection/dragging without Alt, repeated individual clicks, clicking another selected member, Shift/additive group retention, deselection/reselection, frozen setup and saved placement through Continue. Reviews group/individual sprite-fitting highlights at supported resolutions; requires its explicit completion check. Reuses production scene and existing pointer helpers without rerunning unrelated Fleet/refit/battle outcomes.
 
 - [test_missile_control.gd](test_missile_control.gd): exact 2x basic gun/laser range and research scaling, fleet-wide hold/resume, continued other-weapon fire/cooldowns/in-flight missiles, ammo conservation, enemy independence, command replay/idempotence and new-encounter reset. Native `-- --native-only` checks actual footer pointer toggles before Begin Combat and while paused, at supported resolutions; add `--ability-only` for the shared footer with an earned Ion Pulse and multiple sources. Requires the explicit native completion check; no broad battle suite needed.

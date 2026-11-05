@@ -3,7 +3,8 @@ extends RefCounted
 
 const FORMAT := "continuous_expedition"
 const VERSION := 1
-const SPEEDS := [1, 5, 10, 20]
+const MAP_SPEED := 8
+const SPEEDS := [1, 5, 8, 10, 20]
 const SERVICES := ["shipyard", "refuel", "trade", "communications"]
 const LOCATION_KINDS := ["station", "poi", "gate"]
 

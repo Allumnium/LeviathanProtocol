@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Fixed 8x Map travel and page suspension
+
+- Map now enforces fixed 8x travel with Pause/Play only, removing selectable speed buttons and the multiplier label. ETA uses the same fixed rate. Battle speed controls are unchanged; low-level model speeds remain available to focused simulation fixtures.
+- Inactive/hidden Map returns before any travel update, suspending clocks, movement and travel yields without adding/removing pause reasons or accumulating catch-up time. Returning resumes an eligible unpaused route; manual/mandatory interruptions and Continue's existing user pause remain intact.
+- Focused isolated native check passed 34 checks, zero failures: actual tab and Pause/Play clicks, exact eightfold clock/distance, full snapshot freeze on Fleet/hidden Map, manual/mandatory pause retention, Continue and header captures at all supported resolutions. Migrated three affected older UI fixtures and compile-checked them; document links checked. Known certificate/native texture shutdown diagnostics remain; no broad world/campaign/baseline rerun. Preserved concurrent artwork.
+
 ## 2026-11-05 - Click into individual deployment ships
 
 - First click selects a squadron; clicking any already selected member narrows its highlight and drag to that ship without Alt. Repeated individual clicks retain that ship. Shift/additive and box selection keep groups; empty-space deselection restores first-click squadron behavior. Existing placement bounds, pan/zoom and atomic Begin Combat remain.
