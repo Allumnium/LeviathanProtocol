@@ -58,6 +58,7 @@ var _settlement_error := false
 var command_header: Container
 var battle_readouts: VBoxContainer
 var missile_readout: Label
+var missile_button: Button
 var squadron_readout: Control
 var enemy_readout: Control
 var battle_frame: VBoxContainer
@@ -273,6 +274,7 @@ func _physics_process(delta: float) -> void:
 	visuals.queue_redraw()
 	if missile_readout != null:
 		missile_readout.text = "MISSILES %d" % simulation.missile_supply
+	_refresh_missile_control()
 	if objective_label != null:
 		objective_label.text = "Saving battle result failed. Retrying..." if _settlement_error else simulation.encounter.label(simulation)
 	if repair_label != null:
@@ -541,18 +543,40 @@ func _build_battle_panels() -> void:
 	footer_panel.horizontal = true
 	footer_panel.theme_type_variation = &"CommandFooter"
 	battle_frame.add_child(footer_panel)
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation", 8)
+	footer_panel.add_child(controls)
+	missile_button = preload("res://scripts/ui_kit.gd").button("MISSILES ON", _toggle_missiles)
+	missile_button.name = "MissileFire"
+	missile_button.toggle_mode = true
+	missile_button.size_flags_vertical = SIZE_SHRINK_CENTER
+	controls.add_child(missile_button)
+	_refresh_missile_control()
 	if ability_bar != null:
 		ability_bar.embedded = true
-		footer_panel.add_child(ability_bar)
+		controls.add_child(ability_bar)
 	else:
 		var empty := Label.new()
 		empty.text = "ACTIVE ABILITIES"
 		empty.theme_type_variation = &"ResearchDescriptionText"
 		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		footer_panel.add_child(empty)
+		controls.add_child(empty)
 	body.resized.connect(_resize_battle_panels)
 	resized.connect(_resize_battle_panels)
 	_resize_battle_panels.call_deferred()
+
+func _toggle_missiles() -> void:
+	simulation.issue_command("missile_fire", {"enabled": missile_button.button_pressed})
+	_refresh_missile_control()
+
+
+func _refresh_missile_control() -> void:
+	if missile_button == null:
+		return
+	missile_button.set_pressed_no_signal(simulation.missile_fire_enabled)
+	missile_button.text = "MISSILES ON" if simulation.missile_fire_enabled else "MISSILES OFF"
+	missile_button.disabled = simulation.phase != BattleSimulation.Phase.COMBAT
+
 
 func _fleet_panel(parent: Container, enemies: bool) -> Control:
 	var panel := preload("res://scripts/ui_art_frame.gd").new()

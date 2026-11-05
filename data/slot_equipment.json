@@ -408,7 +408,7 @@
             "name": "Missile Rack",
             "missiles": 1,
             "projectile": true,
-            "range": 1020
+            "range": 1320
           }
         ],
         "weight": 6

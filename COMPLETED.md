@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Missile range and combat fire control
+
+- Increased Missile Rack base range 1020 to 1320, exactly twice the basic gun/laser's 660; Guided Munitions now reaches 1650. Preserved approved five-shot/eight-second/12-damage clusters and updated affected range fixtures.
+- Added footer MISSILES ON/OFF for new allied launches fleet-wide, usable during deployment and paused combat. Existing rounds, cooldown progression, other weapons and enemy fire continue normally. Toggle commands replay deterministically; each fresh encounter/Continue restart defaults ON.
+- Focused isolated checks passed: logic 23, native pointer/layout without abilities 20 and with an earned Ion Pulse/multiple sources 27, zero failures. Reviewed all supported resolutions; compile-checked migrated range fixtures and document links. Existing certificate/native texture shutdown diagnostics remain; no broad baseline/campaign/profile rerun. Preserved concurrent artwork.
+
 ## 2026-11-05 - Battle feel audit, thin ship meters and missile clusters
 
 - Added one-pixel orange hull/blue shield fills following living visible ships, including bosses, with bounded widths across zoom and empty capacity tracks. Uses persistent owned hull, preserves zero-hull survival and omits shields without capacity. Removed duplicate boss meters; reviewed partial hull/empty shields and enemy meters natively.

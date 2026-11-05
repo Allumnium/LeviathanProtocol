@@ -184,6 +184,7 @@ var mining_enabled := false
 var credits_only := false
 var initial_missiles := -1
 var missile_supply := -1
+var missile_fire_enabled := true
 var mining_materials: Array[int] = []
 var encounter = preload("res://scripts/battle_encounter.gd").new()
 var enemy_roles = preload("res://scripts/enemy_roles.gd").new()
@@ -261,6 +262,7 @@ func setup(
 	withdrawing = false
 	initial_missiles = -1
 	missile_supply = -1
+	missile_fire_enabled = true
 	energy_efficiency = 0.0
 	research_combat.configure({})
 	doctrines = CombatDoctrines.new()
@@ -679,7 +681,7 @@ func _valid_command(command: Dictionary) -> bool:
 			return payload.get("source") is String and payload.get("target") is String
 		"clear_attack":
 			return payload.get("source") is String
-		"neutral_cleanup":
+		"neutral_cleanup", "missile_fire":
 			return payload.get("enabled") is bool
 		"withdraw":
 			return payload.is_empty()
@@ -732,6 +734,9 @@ func _execute_recorded_command(command: Dictionary, fingerprint: String) -> bool
 		_record_event("command", {"command_id": command.id, "accepted": false})
 		return false
 	match command.type:
+		"missile_fire":
+			missile_fire_enabled = payload.enabled
+			accepted = true
 		"pickup_rejection":
 			asteroid_field.replayed_rejections[payload.pickup] = command.id
 			_command_receipts[command.id] = {"fingerprint": fingerprint, "status": "accepted"}
@@ -828,6 +833,7 @@ func authoritative_snapshot() -> Dictionary:
 	var result := {"battle_id": battle_id, "tick": tick_index, "phase": phase, "elapsed": _combat_elapsed,
 		"swarm_damage": swarm_damage_dealt,
 		"missiles": missile_supply,
+		"missile_fire_enabled": missile_fire_enabled,
 		"research": research_combat.snapshot(),
 		"repair_reserves": repair_reserves.duplicate(true), "energy_efficiency": energy_efficiency,
 		"repair_pool": {"capacity": repair_capacity, "spent": repair_spent},
@@ -1467,6 +1473,8 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 		if ship.cooldowns[index] > 0.0:
 			continue
 		var missile_cost := weapon.missiles_per_projectile if ship.is_player and missile_supply >= 0 else 0
+		if ship.is_player and weapon.missiles_per_projectile > 0 and not missile_fire_enabled:
+			continue
 		if missile_cost > 0 and missile_supply < missile_cost:
 			continue
 		var weapon_origin := _get_weapon_origin(ship, weapon)

@@ -44,7 +44,7 @@ func weapon_simulation(ship: HangarShip) -> BattleSimulation:
 
 func weapons() -> void:
 	var previous := {"beam_lance": 360, "double_laser": 220, "extraction_drill": 45, "ion_emitter": 300,
-		"laser": 220, "mini_turret": 220, "mining_laser": 300, "missile_rack": 340,
+		"laser": 220, "mini_turret": 220, "mining_laser": 300,
 		"point_defense_turret": 160, "railgun": 500}
 	for id: String in previous:
 		var definition := SlotCatalog.find_equipment(id)
@@ -65,7 +65,7 @@ func weapons() -> void:
 	check(is_equal_approx(laser.range_units, 792), "Optics still multiplies the new base by 1.2")
 	var missile := SlotCatalog.stats_for("missile_rack").weapons[0]
 	ResearchUpgrades.apply_weapon(missile, {"missile_range_multiplier": {"value": 1.25}})
-	check(is_equal_approx(missile.range_units, 1275), "Guided Munitions still multiplies the new base by 1.25")
+	check(is_equal_approx(missile.range_units, 1650), "Guided Munitions still multiplies the new base by 1.25")
 	var sim := weapon_simulation(weapon_ship("mini_turret", "aft"))
 	sim._update_ship(sim.player, 0.001)
 	check(not sim.projectiles.is_empty(), "Turret fires at 550 units, beyond the former 220-unit range")
