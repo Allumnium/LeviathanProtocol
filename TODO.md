@@ -12,8 +12,8 @@ Research changes fleet behavior, not access to ordinary equipment. Keep the earn
 
 ## Individual experience and loadout-only fitting
 
-- [ ] Review [the first-pass experience proposal](docs/SHIP_EXPERIENCE.md): XP weights/thresholds, complete loadout mapping and rookie membership before implementing balance. Confirmed: XP belongs to individual ships; players choose complete loadouts, without custom part-by-part fitting. Preserve ship-owned XP on reassignment; never downgrade a veteran because a group average falls.
-- [ ] After approval, implement persistent XP and exactly-once battle/income awards, loadout level checks for refits/purchases/groups, loadout-only Fleet controls and focused verification.
+- [ ] Review [the five-level proposal](docs/SHIP_EXPERIENCE.md): cumulative XP 0/40/100/180/300, contribution weights, 36 candidate presets and rookie membership. Five chevron ranks, one/two starter options and at most four total presets per chassis are confirmed; later unlocks must offer meaningful strategy or clear power.
+- [ ] After balance review, implement persistent individual XP and exactly-once battle/income awards, chevron badges, level checks for refits/purchases/groups and focused verification. XP follows ships on reassignment; never downgrade a veteran because a group average falls. Player fitting is already complete-loadout only.
 
 ## Battle feel decisions
 

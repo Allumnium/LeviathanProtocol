@@ -1433,8 +1433,8 @@ func _show_refit_panel() -> void:
 	details.add_child(refit_panel)
 	_render_refit_panel()
 
-# Ships are refitted as a whole loadout, or one mount at a time after clicking
-# that mount on the ship. Both are free and happen only at a shipyard.
+# Player refits always apply a complete authored loadout. Mount clicks show
+# equipment information without exposing custom fitting or part removal.
 func _render_refit_panel() -> void:
 	if not is_instance_valid(refit_panel):
 		return
@@ -1443,56 +1443,19 @@ func _render_refit_panel() -> void:
 	if owned == null:
 		return
 	var access: bool = GameState.can_use_shipyard()
-	var slot := ShipLoadouts.slot_by_id(owned.chassis, selected_slot)
-	if slot.is_empty():
-		var current: String = GameState.ship_loadout_id(owned.id)
-		var heading := UiKit.label("LOADOUT" if not current.is_empty() else "LOADOUT \u00b7 CUSTOM", &"HeaderResearch")
-		heading.name = "LoadoutHeading"
-		refit_panel.add_child(heading)
-		for loadout: Dictionary in ShipLoadouts.available_for(owned.chassis_id, GameState.current_research_ids):
-			var fitted: bool = loadout.id == current
-			var option := UiKit.button(str(loadout.name) + ("  FITTED" if fitted else ""),
-				_refit_to.bind(loadout.id), &"")
-			option.name = "Loadout_" + str(loadout.id)
-			option.clip_text = true
-			option.disabled = fitted or not access
-			refit_panel.add_child(option)
-		_render_squadron_assignment(owned)
-	else:
-		refit_panel.add_child(UiKit.label(SlotCatalog.slot_label(slot).to_upper(), &"HeaderResearch"))
-		var instance: Dictionary = owned.mounts.get(slot.id, {})
-		var current_key := "" if instance.is_empty() else ShipLoadouts.key_for({"id": instance.equipment_id, "rank": int(instance.rank)})
-		var grid := GridContainer.new()
-		grid.name = "PartOptions"
-		grid.columns = 1
-		grid.add_theme_constant_override("h_separation", 4)
-		grid.add_theme_constant_override("v_separation", 4)
-		refit_panel.add_child(grid)
-		for item: Dictionary in ShipLoadouts.part_options(slot, GameState.current_research_ids):
-			var key := ShipLoadouts.key_for(item)
-			var option := UiKit.button(str(item.name),
-				_swap_part_to.bind(slot.id, key), &"")
-			option.name = "Part_" + key.replace("@", "_")
-			option.theme_type_variation = &"CompactButton"
-			option.custom_minimum_size.y = 24
-			option.clip_text = true
-			option.size_flags_horizontal = SIZE_EXPAND_FILL
-			option.disabled = key == current_key or not access
-			grid.add_child(option)
-		if not instance.is_empty():
-			var strip := UiKit.button("REMOVE PART", _swap_part_to.bind(slot.id, ""), &"")
-			strip.name = "RemovePart"
-			strip.disabled = not access
-			refit_panel.add_child(strip)
-		var back := UiKit.button("LOADOUTS", func() -> void:
-			selected_slot = ""
-			if is_instance_valid(canvas):
-				canvas.selected_slot = ""
-				canvas.queue_redraw()
-			_show_details()
-			_render_refit_panel(), &"detail")
-		back.name = "BackToLoadouts"
-		refit_panel.add_child(back)
+	var current: String = GameState.ship_loadout_id(owned.id)
+	var heading := UiKit.label("LOADOUT", &"HeaderResearch")
+	heading.name = "LoadoutHeading"
+	refit_panel.add_child(heading)
+	for loadout: Dictionary in ShipLoadouts.available_for(owned.chassis_id, GameState.current_research_ids):
+		var fitted: bool = loadout.id == current
+		var option := UiKit.button(str(loadout.name) + ("  FITTED" if fitted else ""),
+			_refit_to.bind(loadout.id), &"")
+		option.name = "Loadout_" + str(loadout.id)
+		option.clip_text = true
+		option.disabled = fitted or not access
+		refit_panel.add_child(option)
+	_render_squadron_assignment(owned)
 	if not access:
 		var reason := UiKit.label(GameState.station_service_error("shipyard"))
 		reason.name = "RefitServiceReason"
@@ -1500,12 +1463,6 @@ func _render_refit_panel() -> void:
 
 func _refit_to(loadout_id: String) -> void:
 	var ok: bool = GameState.refit_ship(selected_ship_id, loadout_id)
-	if ok:
-		AudioManager.play_ui_sfx(&"place")
-	_result(ok)
-
-func _swap_part_to(slot_id: String, key: String) -> void:
-	var ok: bool = GameState.swap_part(selected_ship_id, slot_id, key)
 	if ok:
 		AudioManager.play_ui_sfx(&"place")
 	_result(ok)
@@ -1558,8 +1515,7 @@ func _show_details() -> void:
 		for candidate: Dictionary in owned.chassis.slots:
 			if candidate.id == selected_slot and owned.mounts.has(selected_slot):
 				slot = candidate
-		# An empty mount stays selected so the refit panel can offer parts for it;
-		# only a mount that no longer exists clears the selection.
+		# Keep existing mounts available for read-only equipment inspection.
 		if ShipLoadouts.slot_by_id(owned.chassis, selected_slot).is_empty():
 			selected_slot = ""
 			canvas.selected_slot = ""

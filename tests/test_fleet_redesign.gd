@@ -134,9 +134,9 @@ func fleet_checks() -> void:
 	else:
 		await click(screen.canvas.slot_buttons.fore)
 	check(screen.inspected_item.is_empty() and screen.slot_info.source_text.contains("Mini Turret")
-		and screen.refit_panel.has_node("PartOptions"),
-		"Clicking a mount shows installed name/effects and compatible refit options")
-	var change: Button = screen.refit_panel.get_node("PartOptions/Part_laser")
+		and not screen.refit_panel.has_node("PartOptions") and not screen.refit_panel.has_node("RemovePart"),
+		"Clicking a mount shows read-only equipment details and complete loadouts")
+	var change: Button = screen.refit_panel.get_node("Loadout_laser_drone")
 	if DisplayServer.get_name() == "headless":
 		change.pressed.emit()
 	else:
@@ -144,22 +144,16 @@ func fleet_checks() -> void:
 	await settle()
 	check(state.owned_ship(ship_id).mounts.fore.equipment_id == "laser"
 		and ship_id in HangarSquadrons.for_ship(state.squadrons, ship_id).overrides,
-		"Fleet per-mount refit updates the real equipment UID and squadron override")
-	screen.refit_panel.get_node("RemovePart").pressed.emit()
-	await settle()
-	check(not state.owned_ship(ship_id).mounts.has("fore") and screen.selected_slot == "fore"
-		and screen.refit_panel.has_node("PartOptions"), "Fleet removal keeps the empty mount selected and refillable")
-	screen.refit_panel.get_node("BackToLoadouts").pressed.emit()
-	await settle()
+		"Fleet complete-preset refit updates equipment and squadron override")
 	var fit: String = state.ShipLoadouts.default_for("drone").id
 	screen.refit_panel.get_node("Loadout_" + fit).pressed.emit()
 	await settle()
 	check(state.ship_loadout_id(ship_id) == fit and state.owned_ship(ship_id).mounts.has("fore"),
-		"Fleet named loadout fills the emptied mount using the existing transaction")
+		"Fleet named loadout restores the complete starter fit")
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-fleet-refit.json"
 	before = state.hangar_snapshot()
-	screen._swap_part_to("fore", "laser")
+	screen._refit_to("laser_drone")
 	check(not screen.editor_feedback.text.is_empty() and SaveValidation.same(before, state.hangar_snapshot()),
 		"Failed Fleet refit stays in the editor and surfaces its save error without mutation")
 	state.run_save_path = path
@@ -198,9 +192,9 @@ func fleet_checks() -> void:
 	check(screen.slot_info.source_text.contains("Cargo Hold") and screen.slot_info.source_text.contains("Cargo 3 / 10"),
 		"Fleet editor includes equipment and carried-cargo details")
 	before = state.hangar_snapshot()
-	screen._swap_part_to("hold", "")
+	screen._refit_to("survey")
 	check(SaveValidation.same(before, state.hangar_snapshot()) and not screen.editor_feedback.text.is_empty(),
-		"Fleet rejects loaded-hold removal without losing cargo or hiding the error")
+		"Fleet rejects a preset replacing a loaded hold without losing cargo or hiding the error")
 	screen._close_ship_editor()
 	await settle()
 	check(not is_instance_valid(screen.ship_editor) and screen.active_tab == "FLEET", "Shared X returns to Fleet rather than switching tabs")

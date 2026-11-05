@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Complete-loadout fitting and five-rank design
+
+- Removed player part-by-part swap/removal controls and the custom fitting callback. Fleet inspection always offers complete named loadouts; mount clicks retain read-only equipment/load details. Existing preset transactions preserve UID/load guards, shipyard restrictions and visible save errors. Native Fleet-only integration passed 38 checks, zero failures; reviewed supported-resolution captures and actual ship/mount/preset clicks. No battle or broad campaign suites rerun; known certificate/native shutdown diagnostics remain.
+- Revised [SHIP_EXPERIENCE.md](docs/SHIP_EXPERIENCE.md) to the confirmed five chevron ranks and one/two starter choices growing to at most four per chassis. Added an original code-native [chevron preview](docs/SHIP_RANK_PREVIEW.svg) and a [36-preset hardware proposal](docs/loadout_progression_proposal.json), with role/power comparisons. All 36 candidates across nine chassis passed actual mount/equipment compatibility checks; SVG rendered and document links/catalog names checked. Corrected the earlier Frigate Lancer/Beam Lance mismatch. Active preset hardware and XP remain unchanged pending the documented balance review. Preserved concurrent artwork.
+
 ## 2026-11-05 - Individual experience and loadout-only proposal
 
 - Recorded the user's confirmed direction in [SHIP_EXPERIENCE.md](docs/SHIP_EXPERIENCE.md): XP follows individual ships and player fitting uses complete loadouts without custom part settings. Audited all 24 presets across nine chassis and existing damage, settlement, income, group-refit and UID/load paths.

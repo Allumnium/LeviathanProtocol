@@ -1,0 +1,521 @@
+{
+  "status": "proposal_not_active",
+  "version": 1,
+  "loadouts": {
+    "flagship_basic": [
+      {
+        "id": "command",
+        "name": "Command",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "mini_turret",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "spine": "research_lab",
+          "aft_port": "thruster",
+          "aft_starboard": "thruster",
+          "inner_port": "hull_plate",
+          "inner_starboard": "hull_plate"
+        }
+      },
+      {
+        "id": "bulwark",
+        "name": "Bulwark",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "hull_plate",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "spine": "shield_generator",
+          "aft_port": "hull_plate",
+          "aft_starboard": "hull_plate",
+          "inner_port": "hull_plate",
+          "inner_starboard": "hull_plate"
+        }
+      },
+      {
+        "id": "gunline",
+        "name": "Gunline",
+        "minimum_level": 3,
+        "mounts": {
+          "fore": "laser",
+          "port": "laser",
+          "starboard": "laser",
+          "spine": "double_laser",
+          "aft_port": "thruster",
+          "aft_starboard": "thruster",
+          "inner_port": "hull_plate",
+          "inner_starboard": "hull_plate"
+        }
+      },
+      {
+        "id": "fire_director",
+        "name": "Fire Director",
+        "minimum_level": 5,
+        "role": "Three small lasers plus allied damage marking, retaining two thrusters. Trades the double laser for fleet amplification.",
+        "mounts": {
+          "fore": "laser",
+          "port": "laser",
+          "starboard": "laser",
+          "spine": "command_uplink",
+          "aft_port": "thruster",
+          "aft_starboard": "thruster",
+          "inner_port": "hull_plate",
+          "inner_starboard": "hull_plate"
+        }
+      }
+    ],
+    "flagship_civic": [
+      {
+        "id": "merchant",
+        "name": "Merchant",
+        "minimum_level": 1,
+        "mounts": {
+          "cargo": "cargo_hold",
+          "outer_port": "armor_block@2",
+          "outer_starboard": "armor_block@2",
+          "upper_port": "passenger_cabin",
+          "upper_starboard": "passenger_cabin",
+          "spine": "research_lab",
+          "lower_starboard": "shield_generator",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "fore": "thruster"
+        }
+      },
+      {
+        "id": "repair_escort",
+        "name": "Repair Escort",
+        "minimum_level": 2,
+        "mounts": {
+          "cargo": "cargo_hold",
+          "outer_port": "repair_drone_bay",
+          "outer_starboard": "repair_drone_bay",
+          "upper_port": "shield_generator",
+          "upper_starboard": "shield_generator",
+          "spine": "research_lab",
+          "lower_starboard": "shield_generator",
+          "port": "laser",
+          "starboard": "laser",
+          "fore": "hull_plate"
+        }
+      },
+      {
+        "id": "command_tender",
+        "name": "Command Tender",
+        "minimum_level": 4,
+        "role": "Two shield relays and a command uplink while retaining cargo and passenger cabins. Trades 200 plate hull and lab output for fleet support.",
+        "mounts": {
+          "cargo": "cargo_hold",
+          "outer_port": "shield_relay",
+          "outer_starboard": "shield_relay",
+          "upper_port": "passenger_cabin",
+          "upper_starboard": "passenger_cabin",
+          "spine": "command_uplink",
+          "lower_starboard": "shield_generator",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "fore": "thruster"
+        }
+      },
+      {
+        "id": "fleet_hospital",
+        "name": "Fleet Hospital",
+        "minimum_level": 5,
+        "role": "Two continuous healing hangars, three shield generators, fleet damage marking, extra thrust and two point defenses. Trades lab output and laser damage for stronger fleet support.",
+        "mounts": {
+          "cargo": "cargo_hold",
+          "outer_port": "repair_drone_bay",
+          "outer_starboard": "repair_drone_bay",
+          "upper_port": "shield_generator",
+          "upper_starboard": "shield_generator",
+          "spine": "command_uplink",
+          "lower_starboard": "shield_generator",
+          "port": "point_defense_turret",
+          "starboard": "point_defense_turret",
+          "fore": "thruster"
+        }
+      }
+    ],
+    "flagship_science": [
+      {
+        "id": "survey",
+        "name": "Survey",
+        "minimum_level": 1,
+        "mounts": {
+          "central": "cargo_hold",
+          "outer_port": "armor_block@2",
+          "outer_starboard": "armor_block@2",
+          "spine": "research_lab",
+          "lower_port": "shield_generator",
+          "lower_starboard": "shield_generator",
+          "port": "mini_turret",
+          "starboard": "mini_turret"
+        }
+      },
+      {
+        "id": "observatory",
+        "name": "Observatory",
+        "minimum_level": 1,
+        "mounts": {
+          "central": "research_lab@3",
+          "outer_port": "armor_block@2",
+          "outer_starboard": "armor_block@2",
+          "spine": "research_lab",
+          "lower_port": "shield_generator",
+          "lower_starboard": "shield_generator",
+          "port": "laser",
+          "starboard": "laser"
+        }
+      },
+      {
+        "id": "field_laboratory",
+        "name": "Field Laboratory",
+        "minimum_level": 3,
+        "role": "Keeps cargo and its medium lab while adding two healing hangars. Trades 200 plate hull for fleet sustain.",
+        "mounts": {
+          "central": "cargo_hold",
+          "outer_port": "repair_drone_bay",
+          "outer_starboard": "repair_drone_bay",
+          "spine": "research_lab",
+          "lower_port": "shield_generator",
+          "lower_starboard": "shield_generator",
+          "port": "mini_turret",
+          "starboard": "mini_turret"
+        }
+      },
+      {
+        "id": "fleet_observatory",
+        "name": "Fleet Observatory",
+        "minimum_level": 5,
+        "role": "XL research, one healing hangar, Tactical Computer cooldown resets and allied damage marking. Trades the medium lab and plate armor for a combined science/control role.",
+        "mounts": {
+          "central": "research_lab@3",
+          "outer_port": "repair_drone_bay",
+          "outer_starboard": "tactical_computer",
+          "spine": "command_uplink",
+          "lower_port": "shield_generator",
+          "lower_starboard": "shield_generator",
+          "port": "laser",
+          "starboard": "laser"
+        }
+      }
+    ],
+    "flagship_offense": [
+      {
+        "id": "battleship",
+        "name": "Battleship",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "railgun",
+          "outer_port": "double_laser",
+          "outer_starboard": "double_laser",
+          "port": "laser",
+          "starboard": "laser",
+          "aft_port": "thruster",
+          "aft_starboard": "thruster",
+          "spine": "research_lab"
+        }
+      },
+      {
+        "id": "missile_cruiser",
+        "name": "Missile Cruiser",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "railgun",
+          "outer_port": "missile_rack",
+          "outer_starboard": "missile_rack",
+          "port": "point_defense_turret",
+          "starboard": "point_defense_turret",
+          "aft_port": "hull_plate",
+          "aft_starboard": "hull_plate",
+          "spine": "research_lab"
+        }
+      },
+      {
+        "id": "lance_battleship",
+        "name": "Lance Battleship",
+        "minimum_level": 3,
+        "role": "A charged 48-damage lance, two double lasers, two small lasers and fleet marking; also requires Beam Lance research.",
+        "mounts": {
+          "fore": "beam_lance",
+          "outer_port": "double_laser",
+          "outer_starboard": "double_laser",
+          "port": "laser",
+          "starboard": "laser",
+          "aft_port": "thruster",
+          "aft_starboard": "thruster",
+          "spine": "command_uplink"
+        }
+      },
+      {
+        "id": "siege_command",
+        "name": "Siege Command",
+        "minimum_level": 5,
+        "role": "Two five-missile racks, charged Beam Lance, fleet damage marking and point defense. Replaces the railgun/lab for stronger ranged burst and also requires Beam Lance research.",
+        "mounts": {
+          "fore": "beam_lance",
+          "outer_port": "missile_rack",
+          "outer_starboard": "missile_rack",
+          "port": "point_defense_turret",
+          "starboard": "point_defense_turret",
+          "aft_port": "hull_plate",
+          "aft_starboard": "hull_plate",
+          "spine": "command_uplink"
+        }
+      }
+    ],
+    "fighter": [
+      {
+        "id": "interceptor",
+        "name": "Interceptor",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "thruster",
+          "port": "mini_turret",
+          "starboard": "mini_turret"
+        }
+      },
+      {
+        "id": "escort",
+        "name": "Escort",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "hull_plate",
+          "port": "point_defense_turret",
+          "starboard": "point_defense_turret"
+        }
+      },
+      {
+        "id": "striker",
+        "name": "Striker",
+        "minimum_level": 3,
+        "mounts": {
+          "fore": "mini_turret",
+          "port": "laser",
+          "starboard": "laser"
+        }
+      },
+      {
+        "id": "ace_striker",
+        "name": "Ace Striker",
+        "minimum_level": 5,
+        "role": "Three small lasers deliver 9 nominal DPS versus Striker 7: a direct damage upgrade, still without Interceptor thrust or Escort protection.",
+        "mounts": {
+          "fore": "laser",
+          "port": "laser",
+          "starboard": "laser"
+        }
+      }
+    ],
+    "transport": [
+      {
+        "id": "freighter",
+        "name": "Freighter",
+        "minimum_level": 1,
+        "mounts": {
+          "hold": "cargo_hold",
+          "port": "armor_block@2",
+          "starboard": "armor_block@2",
+          "fore": "hull_plate",
+          "aft": "hull_plate"
+        }
+      },
+      {
+        "id": "survey",
+        "name": "Survey",
+        "minimum_level": 2,
+        "mounts": {
+          "hold": "research_lab@3",
+          "port": "armor_block@2",
+          "starboard": "armor_block@2",
+          "fore": "hull_plate",
+          "aft": "hull_plate"
+        }
+      },
+      {
+        "id": "tender",
+        "name": "Tender",
+        "minimum_level": 3,
+        "mounts": {
+          "hold": "cargo_hold",
+          "port": "repair_drone_bay",
+          "starboard": "repair_drone_bay",
+          "fore": "hull_plate",
+          "aft": "hull_plate"
+        }
+      },
+      {
+        "id": "research_tender",
+        "name": "Research Tender",
+        "minimum_level": 5,
+        "role": "Three RP/day from an XL lab plus four shared hull/second from two hangars; no cargo hold or large plates.",
+        "mounts": {
+          "hold": "research_lab@3",
+          "port": "repair_drone_bay",
+          "starboard": "repair_drone_bay",
+          "fore": "hull_plate",
+          "aft": "hull_plate"
+        }
+      }
+    ],
+    "corsair": [
+      {
+        "id": "raider",
+        "name": "Raider",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "railgun",
+          "port": "double_laser",
+          "starboard": "double_laser",
+          "aft": "thruster"
+        }
+      },
+      {
+        "id": "guardian",
+        "name": "Guardian",
+        "minimum_level": 2,
+        "mounts": {
+          "fore": "shield_relay",
+          "port": "shield_generator",
+          "starboard": "shield_generator",
+          "aft": "hull_plate"
+        }
+      },
+      {
+        "id": "missileer",
+        "name": "Missileer",
+        "minimum_level": 4,
+        "mounts": {
+          "fore": "railgun",
+          "port": "missile_rack",
+          "starboard": "missile_rack",
+          "aft": "hull_plate"
+        }
+      },
+      {
+        "id": "lance_raider",
+        "name": "Lance Raider",
+        "minimum_level": 5,
+        "role": "26.4 nominal DPS versus Raider 18.4, with existing laser equipment. Trades the railgun for a charged lance that can miss and requires research.",
+        "mounts": {
+          "fore": "beam_lance",
+          "port": "double_laser",
+          "starboard": "double_laser",
+          "aft": "thruster"
+        }
+      }
+    ],
+    "frigate": [
+      {
+        "id": "picket",
+        "name": "Picket",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "mini_turret",
+          "fore_2": "mini_turret",
+          "fore_3": "laser",
+          "fore_4": "laser",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "center": "missile_rack",
+          "aft": "thruster"
+        }
+      },
+      {
+        "id": "command_escort",
+        "name": "Command Escort",
+        "minimum_level": 2,
+        "mounts": {
+          "fore": "point_defense_turret",
+          "fore_2": "point_defense_turret",
+          "fore_3": "point_defense_turret",
+          "fore_4": "point_defense_turret",
+          "port": "hull_plate",
+          "starboard": "hull_plate",
+          "center": "command_uplink",
+          "aft": "hull_plate"
+        }
+      },
+      {
+        "id": "lancer",
+        "name": "Lancer",
+        "minimum_level": 3,
+        "mounts": {
+          "fore": "laser",
+          "fore_2": "laser",
+          "fore_3": "laser",
+          "fore_4": "laser",
+          "port": "laser",
+          "starboard": "laser",
+          "center": "double_laser",
+          "aft": "thruster"
+        }
+      },
+      {
+        "id": "missile_screen",
+        "name": "Missile Screen",
+        "minimum_level": 5,
+        "role": "Six point defenses can intercept hostile missiles around a five-round missile rack. Sacrifices laser damage for a dedicated defensive missile platform.",
+        "mounts": {
+          "fore": "point_defense_turret",
+          "fore_2": "point_defense_turret",
+          "fore_3": "point_defense_turret",
+          "fore_4": "point_defense_turret",
+          "port": "point_defense_turret",
+          "starboard": "point_defense_turret",
+          "center": "missile_rack",
+          "aft": "thruster"
+        }
+      }
+    ],
+    "drone": [
+      {
+        "id": "gun_drone",
+        "name": "Gun Drone",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "mini_turret",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "center": "armor_block"
+        }
+      },
+      {
+        "id": "shield_drone",
+        "name": "Shield Drone",
+        "minimum_level": 1,
+        "mounts": {
+          "fore": "thruster",
+          "port": "mini_turret",
+          "starboard": "mini_turret",
+          "center": "shield_generator"
+        },
+        "role": "Reworked armed starter: two mini turrets, shield generator and extra thrust. Trades Gun Drone plate hull and one turret for shields and mobility; does not transfer shields."
+      },
+      {
+        "id": "laser_drone",
+        "name": "Laser Drone",
+        "minimum_level": 2,
+        "mounts": {
+          "fore": "laser",
+          "port": "laser",
+          "starboard": "laser",
+          "center": "double_laser"
+        }
+      },
+      {
+        "id": "command_drone",
+        "name": "Command Drone",
+        "minimum_level": 5,
+        "role": "Cheap, small support hull with three point defenses and allied damage marking. Trades the medium plate for fleet-wide offense and missile protection.",
+        "mounts": {
+          "fore": "point_defense_turret",
+          "port": "point_defense_turret",
+          "starboard": "point_defense_turret",
+          "center": "command_uplink"
+        }
+      }
+    ]
+  }
+}

@@ -1,22 +1,29 @@
 # Individual ship experience and complete loadouts
 
-Draft for gameplay review, 2026-11-05. No XP system or fitting changes have been implemented yet.
+Draft for gameplay review, 2026-11-05. Player refitting now offers complete loadouts only, with read-only mount inspection. XP, chevron UI and the proposed level-gated preset catalog below are not implemented yet.
 
 ## Confirmed direction
 
 - Experience belongs to each ship. Reassigning, splitting or merging squadrons moves ships with their existing XP; it does not copy, average away or redistribute that XP.
 - Players choose complete named loadouts. Remove part-by-part fitting/removal and custom equipment settings from the player flow. Equipment/mount data remains internal for authored loadouts, combat stats, source artwork and physical load ownership.
 - Experience requirements belong to loadouts, not individual equipment. Existing research upgrades and the rare Beam Lance research requirement remain separate conditions.
+- Cap experience levels at five. Show compact chevron rank badges inspired by the supplied reference, without copying its military rank names. Most ships have one or two level-1 choices and at most four total choices by level 5. Later presets must offer a meaningful strategic role or demonstrable power increase.
 
-## Proposed first pass: three levels
+## Proposed first pass: five levels
 
 | Level | Cumulative XP | Purpose |
 | --- | ---: | --- |
-| 1 | 0 | Starter fit for every chassis |
-| 2 | 40 | Alternative specialist fits |
-| 3 | 120 | Veteran Beam Lance fit, also requiring its research |
+| 1 | 0 | One or two complete starter fits per chassis |
+| 2 | 40 | Early specialization, where the chassis has an unlock |
+| 3 | 100 | Stronger weapons or productive support fits |
+| 4 | 180 | Advanced support or missile specialization |
+| 5 | 300 | Veteran fit, reaching four total choices per chassis |
 
-All new ships, including the starting fleet, begin at zero XP. Each chassis keeps its current first/default loadout available at level 1, preserving legal starting fits and fitted purchase prices. Experience only unlocks loadouts; it does not secretly increase damage, hull, speed or research output. Thresholds and the mapping below are proposals, not approved balance.
+All new ships, including the starting fleet, begin at zero XP. Each chassis keeps its current first/default loadout available at level 1, preserving legal starting fits and fitted purchase prices. Experience only unlocks loadouts; it does not secretly increase damage, hull, speed or research output. Thresholds and the mapping below are proposals, not approved balance. Some ranks do not add another preset because the total is capped at four; no extra hidden stat bonus is implied.
+
+## Chevron presentation
+
+[Rank preview](SHIP_RANK_PREVIEW.svg): one through five stacked gold chevrons, with consistent width and spacing. Use code-native drawing for the actual small UI badge so it remains sharp at supported resolutions; no new bitmap artwork is required. Level numbers and an XP meter belong in ship details, while Fleet rows can use the compact badge. Keep mixed-group rank averages informational, never a fitting requirement. Battle badges should respect visibility and remain small enough to preserve the thin health bars; verify actual overview readability before deciding whether to show all badges or only selected/closely viewed ships.
 
 Battle awards, per surviving deployed ship:
 
@@ -36,19 +43,42 @@ Science and healing are not additional XP sources in this first proposal. Resear
 
 ## Proposed complete loadout mapping
 
-All 24 current presets in [ship_loadouts.json](../data/ship_loadouts.json) are covered. These levels express progression into alternate roles, not a promise that every higher-level fit is stronger in every situation.
+The [concrete candidate catalog](loadout_progression_proposal.json) expands the current [24 presets](../data/ship_loadouts.json) to 36: exactly four per chassis across nine chassis. It is a design artifact, not an active runtime catalog. All mount/equipment combinations have been validated against the actual chassis slots and existing purchasable equipment. No new equipment or physical mount layout is proposed.
 
-| Chassis | Level 1 | Level 2 | Level 3 |
-| --- | --- | --- | --- |
-| Defensive flagship | Command | Gunline, Bulwark | - |
-| Civic flagship | Merchant | Repair Escort | - |
-| Research flagship | Survey | Observatory | - |
-| Offensive flagship | Battleship | Missile Cruiser | - |
-| Fighter | Interceptor | Striker, Escort | - |
-| Transport | Freighter | Tender, Survey | - |
-| Corsair | Raider | Missileer, Guardian | - |
-| Frigate | Picket | Command Escort | Lancer, plus Beam Lance research |
-| Drone | Gun Drone | Laser Drone, Shield Drone | - |
+| Chassis | Level 1 | Level 2 | Level 3 | Level 4 | Level 5 |
+| --- | --- | --- | --- | --- | --- |
+| Defensive flagship | Command, Bulwark | - | Gunline | - | Fire Director |
+| Civic flagship | Merchant | Repair Escort | - | Command Tender | Fleet Hospital |
+| Research flagship | Survey, Observatory | - | Field Laboratory | - | Fleet Observatory |
+| Offensive flagship | Battleship, Missile Cruiser | - | Lance Battleship* | - | Siege Command* |
+| Fighter | Interceptor, Escort | - | Striker | - | Ace Striker |
+| Transport | Freighter | Survey | Tender | - | Research Tender |
+| Corsair | Raider | Guardian | - | Missileer | Lance Raider* |
+| Frigate | Picket | Command Escort | Lancer | - | Missile Screen |
+| Drone | Gun Drone, Shield Drone | Laser Drone | - | - | Command Drone |
+
+`*` Also requires Beam Lance research. Correction to the earlier draft: the existing Frigate Lancer is six small lasers plus a medium Double Laser; it neither mounts nor requires a Beam Lance. Its hull has no large mount. Actual new Beam Lance fits use the Corsair/offensive flagship's large combat mount.
+
+### Why the later options earn their level requirements
+
+| New preset | Concrete role or power increase |
+| --- | --- |
+| Fire Director | Three small lasers and a Command Uplink: trades its medium gun for fleet-wide damage marking. Retains both thrusters. |
+| Command Tender | Two shield relays and damage marking while retaining cargo and passenger cabins. Gives up large plates and its lab for commercial fleet support. |
+| Fleet Hospital | Dual-hangar healing, three shield generators, damage marking, two point defenses and extra thrust. Gives up lab output and laser damage for stronger coordinated fleet support. |
+| Field Laboratory | Retains cargo and its medium lab while replacing both large plates with healing hangars. Fleet sustain at a clear personal-hull cost. |
+| Fleet Observatory | XL lab, healing hangar, Tactical Computer and damage marking in one fit. Trades plate hull and its medium lab for science/control support; one hangar means two shared hull/second, not four. |
+| Lance Battleship | Charged Beam Lance, two Double Lasers, two small lasers and damage marking. Stronger heavy hit and allied amplification, with research/charge/miss conditions. |
+| Siege Command | Two missile racks, Beam Lance, point defense and damage marking. Two racks deliver 120 missile burst damage per full volley, consuming ten fleet missiles; strong ranged burst with a real ammo cost. |
+| Ace Striker | Three small lasers: nine nominal DPS versus Striker's seven. A direct firepower improvement, while Interceptor retains its mobility role and Escort its defensive role. |
+| Research Tender | XL lab plus two healing hangars: three RP per travel day and four shared hull/second in battle. Gives up cargo and large plates. |
+| Lance Raider | Beam Lance plus two Double Lasers: 26.4 nominal DPS versus Raider's 18.4, before research/marks and charge misses. Research remains required. |
+| Missile Screen | Six point-defense turrets surrounding a five-round missile rack. Gives up lasers to intercept hostile missiles and protect the larger fleet. |
+| Command Drone | Three point defenses and a Command Uplink on the smallest cheap hull. Gives up its medium plate for fleet damage amplification and missile protection. |
+
+The existing Shield Drone also needs a meaningful armed starter role: propose a small thruster, two mini turrets and a medium shield generator. It gains mobility and shields while giving up Gun Drone plate hull and one turret. Its shield is personal; it does not pretend to transfer shields to allies. This proposed change is included in the candidate catalog, without altering the active fit yet.
+
+Damage comparisons use current base equipment stats, not measured encounter outcomes. The candidate JSON records every actual mount and the new fits' tradeoffs. No higher-level entry should be justified solely by a new name or its level number; verify the documented benefit through focused combat/support comparisons when implementing.
 
 ## Squadrons, recruits and fitting
 
@@ -66,7 +96,7 @@ The ship inspection view retains hull/shields/stats, cargo/passenger details, re
 2. Add hostile-combat contribution accounting alongside existing per-combatant damage totals in [battle_simulation.gd](../scripts/battle_simulation.gd). Current totals can include nonship damage, so do not use them blindly for awards. Stage XP with battle receipts in [hangar_state.gd](../scripts/hangar_state.gd).
 3. Attribute delivery/income XP by ship in the existing atomic travel/delivery paths. Ensure frame partitioning, saves, retries and Continue cannot duplicate it.
 4. Add `minimum_level` metadata to presets and enforce it centrally for individual/group fitting and fresh purchases. Ensure every chassis has a legal level-1 purchase path. Keep research eligibility independent.
-5. Replace player equipment-setting controls with whole-loadout controls in [hangar_screen.gd](../scripts/hangar_screen.gd). Preserve the existing Fleet inspection, shared X, pan/zoom and shipyard restrictions. Keep concise names, level requirements, prices and errors visible without hover tooltips.
+5. Extend the now loadout-only controls in [hangar_screen.gd](../scripts/hangar_screen.gd) with rank/XP and minimum-level feedback. Preserve the existing Fleet inspection, shared X, pan/zoom and shipyard restrictions. Keep concise names, level requirements, prices and errors visible without hover tooltips.
 6. Focused checks: XP arithmetic/caps, hostile attribution, partial participation/withdrawal, income attribution, atomic failure/retry, Continue, destroyed/zero-hull boundaries, assignment/split/join, rookies, preset-only fitting restrictions and native Fleet/report feedback. No broad baseline or campaign sweep is implied.
 
-Review needed before implementation: approve/change the proposed XP rates and thresholds, the 24-preset level mapping, and the mixed-veteran/recruit rules. The confirmed individual-XP and loadout-only direction does not itself approve these balance values.
+Review needed before implementation: approve/change the proposed XP rates and five thresholds, the 36-preset hardware/mapping, and the mixed-veteran/recruit rules. Five levels, chevron badges, no custom loadouts and the one/two-to-four option progression are confirmed; the exact XP balance and new preset hardware remain proposals.
