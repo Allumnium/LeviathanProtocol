@@ -653,6 +653,10 @@ func _select_deployment(point: Vector2, individual: bool, additive := false) -> 
 		if member.is_alive() and BattleSimulation.Collision.contains(BattleSimulation.Collision.actor_polygons(member), point):
 			hit = member
 			break
+	# A second click drills into the selected squadron without a modifier.
+	# Additive selection is also used by box selection, which must keep groups.
+	if hit != null and not additive and hit.entity_id in visuals.deployment_selection:
+		individual = true
 	if not additive:
 		visuals.deployment_selection.clear()
 	if hit == null:

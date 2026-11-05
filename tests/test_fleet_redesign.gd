@@ -303,10 +303,10 @@ func battle_checks() -> void:
 		var neighbour: BattleSimulation.Combatant = sim.players[4]
 		var neighbour_position := neighbour.position
 		original = drone.position
-		await drag(battle, drone, Vector2(10, -10), true)
+		await drag(battle, drone, Vector2(10, -10))
 		check(drone.position.is_equal_approx(original + Vector2(10, -10))
 			and neighbour.position == neighbour_position and battle.visuals.deployment_selection.size() == 1,
-			"Native Alt-drag moves only the selected ship")
+			"Native second-click drag moves only the selected ship without Alt")
 		await drag(battle, sim.players[0], Vector2.ZERO, false, true)
 		check(battle.visuals.deployment_selection.size() == 2, "Native Shift selection adds a different squadron")
 		var empty: Vector2 = battle.visuals.world_transform() * Vector2(-1800, 450)

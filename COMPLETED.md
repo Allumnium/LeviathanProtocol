@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Click into individual deployment ships
+
+- First click selects a squadron; clicking any already selected member narrows its highlight and drag to that ship without Alt. Repeated individual clicks retain that ship. Shift/additive and box selection keep groups; empty-space deselection restores first-click squadron behavior. Existing placement bounds, pan/zoom and atomic Begin Combat remain.
+- Focused isolated native selection checks passed 54 checks, zero failures. Reviewed group and single-ship sprite-fitting highlights at 640x360/1280x720/1920x1080; actual pointer drags move only the intended ships and Continue preserves all 13 positions. Updated the existing integration expectation and documentation; no unrelated Fleet/refit/battle suites rerun. Known certificate/native texture shutdown diagnostics remain; preserved concurrent artwork.
+
 ## 2026-11-05 - Missile range and combat fire control
 
 - Increased Missile Rack base range 1020 to 1320, exactly twice the basic gun/laser's 660; Guided Munitions now reaches 1650. Preserved approved five-shot/eight-second/12-damage clusters and updated affected range fixtures.
