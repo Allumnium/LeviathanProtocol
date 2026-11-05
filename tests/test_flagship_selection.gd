@@ -89,25 +89,20 @@ func run() -> void:
 func _test_fitting_views() -> void:
 	var screen: Control = load("res://scenes/game_map.tscn").instantiate()
 	screen.active_tab = "FLEET"
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	root.add_child(screen)
 	current_scene = screen
 	for chassis: Dictionary in SlotCatalog.flagships():
 		check(state.start_new_run(1, 351, true, chassis.id), "Initialize flagship fitting view")
 		screen.selected_ship_id = state.fleet[0].id
-		screen.ship_editor_open = true
+		screen.selected_squadron_id = 0
 		screen._refresh()
 		for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			root.size = resolution
 			await settle()
-			var placed: Array[Rect2] = []
-			for button: Button in screen.canvas.slot_buttons.values():
-				var rect := button.get_global_rect()
-				check(screen.canvas.get_global_rect().encloses(rect)
-					and not placed.any(func(other: Rect2) -> bool: return rect.intersects(other)),
-					"Selected flagship fitting targets remain within art canvas without overlap")
-				placed.append(rect)
-			check(root.get_visible_rect().encloses(screen.details_panel.get_global_rect()),
+			for slot: String in state.fleet[0].mounts:
+				check(screen.details.has_node("ShipEquipment_" + slot), "Flagship equipment is listed in right panel")
+			check(root.get_visible_rect().encloses(screen.details.get_parent().get_global_rect()),
 				"Flagship details fit supported viewport")
 	screen.queue_free()
 	await settle()

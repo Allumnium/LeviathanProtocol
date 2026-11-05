@@ -90,12 +90,12 @@ func run() -> void:
 	check(screen.travel_controls != null, "Fleet page includes compact expedition controls")
 	screen.selected_ship_id = state.fleet[0].id
 	screen.active_tab = "FLEET"
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	screen._refresh()
 	await settle()
-	check(screen.canvas != null, "Actual game opens physical hangar")
+	check(screen.details.has_node("ShipStatBars"), "Actual game shows ship details in right panel")
 	check(screen.selected_ship_id == state.fleet[0].id and state.fleet[0].flagship, "Fleet inspects the selected flagship")
-	check(screen.formation_view != null and screen.ship_editor.is_visible_in_tree(),
+	check(screen.formation_view != null and screen.details.is_visible_in_tree(),
 		"Fleet sprites remain behind the ship editor")
 	var audio := root.get_node("AudioManager")
 	var tabs: HBoxContainer = screen.tabs
@@ -144,31 +144,14 @@ func run() -> void:
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
-		check(screen.get_global_rect().encloses(screen.ship_editor.get_node("ShipEditorPanel").get_global_rect()),
-			"Fleet flagship editor stays inside the screen")
-		var buttons: Dictionary = screen.canvas.slot_buttons
-		check_callouts(screen.canvas)
-		check(screen.canvas.exhaust_elapsed > 0, "Ships view continuously animates preview thrust")
-		var placed: Array[Rect2] = []
-		for id in buttons:
-			var button: Button = buttons[id]
-			check(not button is OptionButton, "Mounts have no dropdowns")
-			check(button.focus_mode == Control.FOCUS_NONE and button.tooltip_text.is_empty(), "Mount has no focus box or tooltip")
-			var rect := button.get_global_rect()
-			check(screen.canvas.get_global_rect().encloses(rect), "Mount stays in canvas")
-			check(not placed.any(func(other: Rect2) -> bool: return rect.intersects(other)), "Mount controls never overlap")
-			placed.append(rect)
-		check(screen.get_global_rect().encloses(screen.details.get_global_rect()), "Details fit screen")
-		check(screen.get_global_rect().encloses(screen.roster.get_global_rect()), "Roster fits screen")
+		check(screen.get_global_rect().encloses(screen.details.get_parent().get_global_rect()),
+			"Fleet flagship details stays inside the screen")
+		for slot: String in state.fleet[0].mounts:
+			check(screen.details.has_node("ShipEquipment_" + slot), "Fitted equipment is listed without a separate canvas")
+		check(screen.find_child("FleetShipEditor", true, false) == null, "No modal ship editor exists")
 	root.size = Vector2i(1280, 720)
 	await settle()
-	var replaced_uid: String = state.owned_ship(1).mounts.port.uid
-	screen.canvas.slot_selected.emit("port")
-	await settle()
-	screen.refit_panel.find_child("Part_laser", true, false).pressed.emit()
-	await settle()
-	check(state.owned_ship(1).mounts.port.equipment_id == "laser", "Clicking a mount and a part refits that mount")
-	check(not state.equipment_inventory.has(replaced_uid), "Replaced part is scrapped; there is no stock")
+	check(not screen.refit_panel.has_node("PartOptions"), "Only complete loadouts are offered")
 	state.credits = 5000
 	state.current_research_ids.append_array(["guided_munitions", "siege_i", "siege_ii"])
 	state.research_branch_choices.force_projection = "siege"
@@ -178,19 +161,14 @@ func run() -> void:
 			continue
 		check(state.buy_ship(chassis.id), "Buy " + chassis.name + " for actual hangar review")
 		screen.selected_ship_id = state.fleet[-1].id
-		screen.ship_editor_open = true
+		screen.selected_squadron_id = 0
 		screen._refresh()
 		await settle()
 		for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 			root.size = resolution
 			await settle()
-			var rectangles: Array[Rect2] = []
-			check_callouts(screen.canvas)
-			for mount: Button in screen.canvas.slot_buttons.values():
-				var rect := mount.get_global_rect()
-				check(screen.canvas.get_global_rect().encloses(rect), chassis.name + " mount in canvas")
-				check(not rectangles.any(func(other: Rect2) -> bool: return rect.intersects(other)), chassis.name + " mounts do not overlap")
-				rectangles.append(rect)
+			for slot: String in state.fleet[-1].mounts:
+				check(screen.details.has_node("ShipEquipment_" + slot), "Chassis equipment is listed in right panel")
 			var loadouts: Control = screen.refit_panel
 			var scroll: ScrollContainer = loadouts.get_parent().get_parent()
 			var last_action: Control = loadouts.get_child(loadouts.get_child_count() - 1)
@@ -208,11 +186,11 @@ func run() -> void:
 	root.size = Vector2i(1280, 720)
 	await settle()
 	screen.selected_ship_id = 1
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	screen._refresh()
 	await settle()
 	check(screen.roster.find_child("BuyEquipment", true, false) == null, "There is no equipment shop")
-	screen._close_ship_editor()
+	screen._select_ship(0)
 	await settle()
 	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
@@ -260,7 +238,7 @@ func run() -> void:
 		root.get_texture().get_image().save_png("res://.local/hangar/ui-buy-ships.png")
 	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
-	check(not screen.buy_open and screen.shop == null and screen.canvas != null, "Buy button toggles back to ship fitting")
+	check(not screen.buy_open and screen.shop == null and screen.formation_view != null, "Buy button toggles back to ship fitting")
 	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
 	var close: TextureButton = screen.shop.find_child("CloseX", true, false)

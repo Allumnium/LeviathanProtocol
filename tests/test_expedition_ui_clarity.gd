@@ -323,9 +323,9 @@ func run() -> void:
 		if owned.chassis_id == "transport":
 			transport = owned
 	screen.active_tab = "FLEET"
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	screen.selected_ship_id = transport.id
-	screen.selected_slot = ""
+	screen.selected_squadron_id = 0
 	screen._refresh()
 	await settle()
 	var hull_before: float = transport.hull_hp
@@ -333,32 +333,31 @@ func run() -> void:
 	transport.hull_hp = transport.hull_max * 0.25
 	transport.mounts.hold.load = {"kind": "cargo", "quantity": 3, "origin": 0, "unit_value": 3}
 	screen._show_details()
-	check(screen.stats_grid.bars.size() == 1 and is_equal_approx(screen.stats_grid.bars.hull.value, 25),
+	check(screen.details.get_node("ShipStatBars").bars.size() == 1 and is_equal_approx(screen.details.get_node("ShipStatBars").bars.hull.value, 25),
 		"Default ship hull instrument measures its own exact condition, not normalized chassis strength")
-	var cargo: ResourceText = screen.stats_grid.get_child(screen.stats_grid.get_child_count() - 1)
+	var cargo: ResourceText = screen.details.get_node("ShipStatBars").get_child(screen.details.get_node("ShipStatBars").get_child_count() - 1)
 	check(cargo.source_text == "Cargo 3 / 10",
 		"Default ship transport instrument shows carried cargo against capacity")
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
-		check(screen.center.get_global_rect().grow(1).encloses(screen.stats_grid.get_global_rect()),
+		check(screen.details.get_parent().get_global_rect().grow(1).encloses(screen.details.get_node("ShipStatBars").get_global_rect()),
 			"Operational ship stats fit at %s: center %s, stats %s" % [
-				resolution, screen.center.get_global_rect(), screen.stats_grid.get_global_rect()])
+				resolution, screen.details.get_parent().get_global_rect(), screen.details.get_node("ShipStatBars").get_global_rect()])
 	transport.hull_hp = 0
 	screen._show_details()
-	check(screen.stats_grid.bars.hull.value == 0,
+	check(screen.details.get_node("ShipStatBars").bars.hull.value == 0,
 		"Living zero-hull ships do not receive the comparison bar's misleading ten-percent floor")
 	transport.hull_hp = -1
 	screen._show_details()
-	check(screen.stats_grid.bars.hull.value == 0,
+	check(screen.details.get_node("ShipStatBars").bars.hull.value == 0,
 		"Destroyed ships retain an empty hull condition instrument")
 	transport.hull_hp = hull_before
 	transport.mounts.hold.load = load_before
 	screen._show_details()
-	screen.selected_slot = "hold"
 	screen._show_details()
 	screen._render_refit_panel()
-	check(screen.slot_info.source_text.contains("Cargo Hold") and screen.slot_info.source_text.contains("10 cargo"),
+	check(screen.details.get_node("ShipEquipment_hold").source_text.contains("Cargo Hold") and screen.details.get_node("ShipEquipment_hold").source_text.contains("10 cargo"),
 		"Selected equipment retains its full name and gameplay effect")
 	var duplicate_effect := false
 	for child in screen.refit_panel.get_children():

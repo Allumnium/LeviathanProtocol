@@ -134,7 +134,7 @@ func fleet_flag_checks() -> void:
 		point = board.global_position + board.point(ship)
 		await pointer(point, true)
 		await pointer(point, false)
-		check(screen.selected_squadron_id == 0 and screen.formation_selection == [ship.id] and not screen.ship_editor_open
+		check(screen.selected_squadron_id == 0 and screen.formation_selection == [ship.id] and screen.find_child("FleetShipEditor", true, false) == null
 			and screen.details.has_node("ShipStatBars") and screen.refit_panel.has_node("SplitSquadron")
 			and not screen.details.has_node("Stance_seek"), "Fleet ship click shows only individual settings in right panel")
 		await capture("fleet-ship-%d" % resolution.x)

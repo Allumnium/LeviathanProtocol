@@ -68,14 +68,14 @@ func run() -> void:
 
 	screen = load("res://scenes/game_map.tscn").instantiate()
 	screen.active_tab = "FLEET"
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	screen.selected_ship_id = flagship_id
 	root.add_child(screen)
 	current_scene = screen
 	screen.set_process(false)
 	await settle()
 	check(not screen.refit_panel.find_child("Loadout_gunline", true, false).disabled, "Docked refit panel is usable")
-	screen._close_ship_editor()
+	screen._select_ship(0)
 	await settle()
 	screen._open_shop("SHIPS")
 	await settle()
@@ -87,7 +87,7 @@ func run() -> void:
 	check(screen.roster.find_child("BuyShips", true, false).disabled
 			and screen.roster.find_child("StationServiceReason", true, false) != null,
 			"Ships retains its layout with a disabled purchase action and service reason")
-	screen._open_ship_editor(flagship_id)
+	screen._select_ship(flagship_id)
 	await settle()
 	check(screen.refit_panel.find_child("Loadout_gunline", true, false).disabled
 			and screen.refit_panel.find_child("RefitServiceReason", true, false) != null,

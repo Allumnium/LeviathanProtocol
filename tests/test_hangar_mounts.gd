@@ -94,31 +94,16 @@ func ui_checks(transport_id: int, uids: Array[String]) -> void:
 	root.add_child(screen)
 	current_scene = screen
 	screen.selected_ship_id = transport_id
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	screen._queue_refresh()
 	await settle()
 	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
 		for side in ["port", "starboard"]:
-			var button: Button = screen.canvas.slot_buttons[side]
-			screen.canvas.slot_selected.emit(side)
-			await settle()
-			var options: Control = screen.refit_panel.find_child("PartOptions", true, false)
-			for part in ["Part_research_lab_2", "Part_shield_relay", "Part_tactical_computer"]:
-				check(options != null and options.find_child(part, false, false) != null, "Both side mounts offer every matching-size category: " + part)
-			check(button.focus_mode == Control.FOCUS_NONE and button.tooltip_text.is_empty(), "General mount retains focus/tooltip preferences")
-		check(screen.canvas.slot_buttons.port.get_global_rect().intersects(screen.canvas.slot_buttons.starboard.get_global_rect()) == false, "Broader menus do not overlap controls")
-	root.size = Vector2i(1280, 720)
-	await settle()
-	screen.canvas.slot_selected.emit("port")
-	await settle()
-	screen.refit_panel.find_child("Part_research_lab_2", true, false).pressed.emit()
-	await settle()
-	check(state.owned_ship(transport_id).mounts.port.equipment_id == "research_lab", "Part picker fits civic equipment in the utility mount")
-	screen.selected_slot = "port"
-	screen._show_details()
-	check(not text_under(screen.ship_editor).contains("General |"), "General mount has no redundant category text")
+			check(screen.details.has_node("ShipEquipment_" + side), "Both side mounts expose fitted equipment in right panel")
+		check(not screen.refit_panel.has_node("PartOptions"), "General mounts do not expose custom part pickers")
+	check(not text_under(screen.details).contains("General |"), "Equipment has no redundant category text")
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/mounts/transport.png")

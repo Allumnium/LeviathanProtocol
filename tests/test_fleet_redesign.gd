@@ -68,6 +68,12 @@ func start() -> void:
 	check(state.start_new_run(1, 8302), "Start isolated redesign fixture")
 	state.pending_intro = false
 
+func text_under(node: Node) -> String:
+	var text := str(node.source_text) if node is ResourceText else (str(node.text) if node is Label else "")
+	for child in node.get_children():
+		text += "\n" + text_under(child)
+	return text
+
 func fleet_checks() -> void:
 	start()
 	var ship_id: int = state.fleet[3].id
@@ -100,43 +106,40 @@ func fleet_checks() -> void:
 		root.size = Vector2i(640, 360)
 		await settle()
 		await capture("shared-fleet-640")
-	screen._open_ship_editor(ship_id)
+	screen._select_ship(ship_id)
 	await settle()
-	check(screen.active_tab == "FLEET" and screen.ship_editor.is_visible_in_tree()
-		and screen.canvas.owned_id == ship_id and screen.formation_view.is_visible_in_tree(),
-		"Selecting a ship opens its existing editor over Fleet")
+	check(screen.active_tab == "FLEET" and screen.details.has_node("ShipStatBars")
+		and screen.find_child("FleetShipEditor", true, false) == null and screen.formation_view.is_visible_in_tree(),
+		"Selecting a ship uses right-panel details without a modal")
 	for resolution: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = resolution
 		await settle()
-		check(root.get_visible_rect().encloses(screen.ship_editor.get_node("ShipEditorPanel").get_global_rect())
-			and screen.canvas.size.x > 100 and screen.canvas.size.y > 80
-			and screen.ship_editor.find_child("CloseX", true, false).is_visible_in_tree(),
-			"Fleet ship editor, mount canvas and shared X fit at " + str(resolution))
-		await capture("fleet-editor-%d" % resolution.x)
+		check(root.get_visible_rect().encloses(screen.details.get_parent().get_global_rect())
+			and screen.details.get_node("ShipTitle").is_visible_in_tree(),
+			"Ship details fit right panel at " + str(resolution))
+		await capture("ship-right-panel-%d" % resolution.x)
 	var split: Button = screen.refit_panel.get_node("SplitSquadron")
 	if DisplayServer.get_name() == "headless":
 		split.pressed.emit()
 	else:
 		await click(split)
 	await settle()
-	check(HangarSquadrons.for_ship(state.squadrons, ship_id).members.size() == 1, "Fleet editor retains individual split action")
+	check(HangarSquadrons.for_ship(state.squadrons, ship_id).members.size() == 1, "Fleet right panel retains individual split action")
 	var original_group: Dictionary = HangarSquadrons.for_ship(state.squadrons, state.fleet[4].id)
 	var join: Button = screen.refit_panel.get_node("JoinSquadron_%d" % original_group.id)
 	join.pressed.emit()
 	await settle()
-	check(HangarSquadrons.for_ship(state.squadrons, ship_id).id == original_group.id, "Fleet editor retains compatible join action")
-	var repair: Button = screen.ship_editor.find_child("ShipRepair", true, false)
+	check(HangarSquadrons.for_ship(state.squadrons, ship_id).id == original_group.id, "Fleet right panel retains compatible join action")
+	var repair: Button = screen.details.find_child("ShipRepair", true, false)
 	repair.pressed.emit()
 	await settle()
-	check(not state.owned_ship(ship_id).needs_repair(), "Fleet editor retains individual paid repair")
+	check(not state.owned_ship(ship_id).needs_repair(), "Fleet right panel retains individual paid repair")
 	screen._inspect_chassis("fighter")
-	if DisplayServer.get_name() == "headless":
-		screen.canvas.slot_selected.emit("fore")
-	else:
-		await click(screen.canvas.slot_buttons.fore)
-	check(screen.inspected_item.is_empty() and screen.slot_info.source_text.contains("Mini Turret")
+	screen._select_ship(ship_id)
+	await settle()
+	check(screen.inspected_item.is_empty() and screen.details.get_node("ShipEquipment_fore").source_text.contains("Mini Turret")
 		and not screen.refit_panel.has_node("PartOptions") and not screen.refit_panel.has_node("RemovePart"),
-		"Clicking a mount shows read-only equipment details and complete loadouts")
+		"Ship selection replaces catalog inspection with equipment details and complete loadouts")
 	var change: Button = screen.refit_panel.get_node("Loadout_laser_drone")
 	if DisplayServer.get_name() == "headless":
 		change.pressed.emit()
@@ -155,16 +158,16 @@ func fleet_checks() -> void:
 	state.run_save_path = "res://project.godot/no-fleet-refit.json"
 	before = state.hangar_snapshot()
 	screen._refit_to("laser_drone")
-	check(not screen.editor_feedback.text.is_empty() and SaveValidation.same(before, state.hangar_snapshot()),
-		"Failed Fleet refit stays in the editor and surfaces its save error without mutation")
+	check(not screen.feedback.text.is_empty() and SaveValidation.same(before, state.hangar_snapshot()),
+		"Failed Fleet refit stays in the right panel and surfaces its save error without mutation")
 	state.run_save_path = path
 	var salvage_id: int = state.fleet[8].id
-	screen._open_ship_editor(salvage_id)
+	screen._select_ship(salvage_id)
 	await settle()
-	screen.ship_editor.find_child("ShipSalvage", true, false).pressed.emit()
+	screen.details.find_child("ShipSalvage", true, false).pressed.emit()
 	await settle()
-	check(screen.shop.z_index > screen.ship_editor.z_index and state.owned_ship(salvage_id) != null,
-		"Fleet salvage requires confirmation above the editor without removing a ship")
+	check(screen.shop.z_index > screen.details.z_index and state.owned_ship(salvage_id) != null,
+		"Fleet salvage requires confirmation above Fleet without removing a ship")
 	state.run_save_path = "res://project.godot/no-salvage.json"
 	var confirm: Button
 	for button: Button in screen.shop.find_children("*", "Button", true, false):
@@ -180,25 +183,25 @@ func fleet_checks() -> void:
 	else:
 		await click(confirm)
 	await settle()
-	check(state.owned_ship(salvage_id) == null and not screen.ship_editor_open,
+	check(state.owned_ship(salvage_id) == null and screen.find_child("FleetShipEditor", true, false) == null,
 		"Confirmed salvage removes only its selected ship and closes inspection")
 	var transport_id: int = state.fleet[1].id
 	var cargo: Dictionary = state.hangar_snapshot()
 	var cargo_uid: String = state.owned_ship(transport_id).mounts.hold.uid
 	cargo.equipment[cargo_uid].load = {"kind": "cargo", "quantity": 3, "origin": 0, "unit_value": 3}
 	check(state._commit_hangar(cargo), "Save cargo on its real transport equipment UID")
-	screen._open_ship_editor(state.fleet[1].id)
+	screen._select_ship(state.fleet[1].id)
 	await settle()
-	screen.canvas.slot_selected.emit("hold")
-	check(screen.slot_info.source_text.contains("Cargo Hold") and screen.slot_info.source_text.contains("Cargo 3 / 10"),
-		"Fleet editor includes equipment and carried-cargo details")
+	check(screen.details.get_node("ShipEquipment_hold").source_text.contains("Cargo Hold")
+		and text_under(screen.details).contains("Cargo 3 / 10"),
+		"Fleet right panel includes equipment and carried-cargo details")
 	before = state.hangar_snapshot()
 	screen._refit_to("survey")
-	check(SaveValidation.same(before, state.hangar_snapshot()) and not screen.editor_feedback.text.is_empty(),
+	check(SaveValidation.same(before, state.hangar_snapshot()) and not screen.feedback.text.is_empty(),
 		"Fleet rejects a preset replacing a loaded hold without losing cargo or hiding the error")
-	screen._close_ship_editor()
+	screen._select_ship(0)
 	await settle()
-	check(not is_instance_valid(screen.ship_editor) and screen.active_tab == "FLEET", "Shared X returns to Fleet rather than switching tabs")
+	check(screen.details.has_node("FleetTotals") and screen.active_tab == "FLEET", "Deselection restores Fleet totals in right panel")
 	var docked_group: Dictionary = HangarSquadrons.for_ship(state.squadrons, ship_id)
 	screen._select_squadron(int(docked_group.id))
 	await settle()
@@ -208,13 +211,13 @@ func fleet_checks() -> void:
 	check(state.fleet.size() == count + 1 and state.ship_loadout_id(state.fleet[-1].id) == docked_group.loadout,
 		"Fleet retains fitted group purchases using its default")
 	check(state.depart_expedition("refuel_station_1"), "Depart while Fleet remains accessible")
-	screen._open_ship_editor(ship_id)
+	screen._select_ship(ship_id)
 	await settle()
-	check(screen.ship_editor.find_child("ShipRepair", true, false).disabled
-		and screen.ship_editor.find_child("ShipSalvage", true, false).disabled
+	check(screen.details.find_child("ShipRepair", true, false).disabled
+		and screen.details.find_child("ShipSalvage", true, false).disabled
 		and screen.refit_panel.get_node("Loadout_" + state.ShipLoadouts.default_for("drone").id).disabled,
 		"Cruising inspection never grants shipyard repair/salvage/refit services")
-	screen._close_ship_editor()
+	screen._select_ship(0)
 	await settle()
 	var group: Dictionary = HangarSquadrons.for_ship(state.squadrons, ship_id)
 	screen._select_squadron(int(group.id))
@@ -233,7 +236,7 @@ func fleet_checks() -> void:
 		await pointer(screen.formation_view.global_position + local, true)
 		await pointer(screen.formation_view.global_position + local, false)
 	await settle()
-	check(not screen.ship_editor_open and screen.selected_squadron_id == 0 and screen.details.has_node("ShipStatBars")
+	check(screen.find_child("FleetShipEditor", true, false) == null and screen.selected_squadron_id == 0 and screen.details.has_node("ShipStatBars")
 		and SaveValidation.same(fleet_before, state.hangar_snapshot()),
 		"Clicking a management ship inspects it without moving its tactical formation")
 	screen.queue_free()

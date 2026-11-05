@@ -434,7 +434,7 @@ func ui() -> void:
 	await pointer(motion.position, false)
 	await settle()
 	check(screen.formation_view.selected_ids == [3, 4], "Box selection expands one member into a whole squadron")
-	screen._open_ship_editor(3)
+	screen._select_ship(3)
 	await settle()
 	await click(screen.refit_panel.find_child("SplitSquadron", true, false))
 	var split_id: int = HangarSquadrons.for_ship(state.squadrons, 3).id

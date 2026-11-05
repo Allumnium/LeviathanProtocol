@@ -327,9 +327,9 @@ func native_management() -> void:
 		board.queue_redraw()
 		await settle()
 		await click_point(board.global_position + board.point(state.owned_ship(last)))
-		check(screen.selected_ship_id == last and screen.canvas.owned_id == last, "Native pointer inspects a large-squadron member directly from Fleet")
+		check(screen.selected_ship_id == last and screen.details.get_node("ShipTitle").text == state.owned_ship(last).display_name, "Native pointer inspects a large-squadron member directly from Fleet")
 		await capture("scale-ships-%d" % resolution.x)
-		screen._close_ship_editor()
+		screen._select_ship(0)
 		await settle()
 		await click(screen.roster.find_child("Squadron_3", true, false))
 		check(screen.formation_selection.size() == 30 and screen.details.find_child("SquadronStatBars", true, false) != null,

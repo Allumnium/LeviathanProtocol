@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Right-panel ship details only
+
+- Deleted the remaining modal ship editor, its separate canvas/mount inspection, view cache and open/close state. Ship selection uses only the right panel for stats, complete loadouts, fitted equipment/effects/loads, repair, salvage and squadron membership. Selecting ships/groups clears catalog inspection; transaction errors stay in the existing feedback area. Salvage still requires its existing confirmation.
+- Migrated modal-dependent UI fixtures to right-panel selection and read-only equipment, removing obsolete custom part-picker assertions. Focused isolated native Fleet checks passed 37 and scrolling/visibility checks 13, zero failures. Reviewed equipment/loadout panels at supported resolutions; affected fixtures compile-checked and document links verified. No broad native/chassis/campaign sweep. Known certificate/renderer shutdown diagnostics remain; concurrent artwork preserved.
+
 ## 2026-11-05 - Shared Fleet and battle formation
 
 - Removed Fleet's separate escort layout. Both pages now render saved individual positions and share relative hull scale/spacing; Fleet ship and flag gestures preview movement, preserve group offsets and save atomically on release. Selection updates only the right panel during a gesture, keeping the canvas alive. Failed saves restore drawn positions and show an error; pan/zoom and selection details remain.

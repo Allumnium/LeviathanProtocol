@@ -434,23 +434,23 @@ func run() -> void:
 	check(screen.roster.find_child("Ship%d" % roster_escort_id, true, false) == null,
 		"Fleet side panel no longer lists ships; the formation sprites are the roster")
 	await drag(escort_point, escort_point)
-	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id and screen.ship_editor_open,
-		"Single-click on a Fleet sprite opens its editor")
+	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id and screen.details.has_node("ShipStatBars"),
+		"Single-click on a Fleet sprite shows its right-panel details")
 	check(screen.formation_view.find_children("*", "Button", true, false).is_empty(),
 		"Selected formation ships have no floating Equip or Salvage buttons")
 	check(screen.active_tab == "FLEET" and screen.selected_ship_id == roster_escort_id
-		and screen.canvas.owned_id == roster_escort_id and screen.selected_slot.is_empty(),
-		"Native Fleet sprite click opens the matching ship editor")
-	screen.ship_editor.find_child("CloseX", true, false).pressed.emit()
+		and screen.details.get_node("ShipTitle").text == state.owned_ship(roster_escort_id).display_name,
+		"Native Fleet sprite click shows the matching ship details")
+	screen._select_ship(0)
 	await settle()
 	check(screen.formation_view.camera == Vector2(25, -12) and is_equal_approx(screen.formation_view.zoom, 1.3),
-		"Closing the ship editor preserves Fleet pan and zoom")
-	screen._open_ship_editor(state.fleet[0].id)
+		"Deselecting preserves Fleet pan and zoom")
+	screen._select_ship(state.fleet[0].id)
 	await settle()
 	check(screen.roster.find_child("BuyEquipment", true, false) == null
 		and screen.refit_panel != null,
-		"Fleet editor shows loadout refits instead of an equipment shop")
-	screen._close_ship_editor()
+		"Fleet right panel shows loadout refits instead of an equipment shop")
+	screen._select_ship(0)
 	await settle()
 	screen.roster.find_child("BuyShips", true, false).pressed.emit()
 	await settle()
@@ -510,7 +510,7 @@ func run() -> void:
 	var display_before: Dictionary = board.display_positions.duplicate()
 	await drag(origin + first - Vector2(40, 50), origin + second + Vector2(40, 50))
 	board = screen.formation_view
-	check(not screen.ship_editor_open and SaveValidation.same(before_layout, state.hangar_snapshot()),
+	check(screen.find_child("FleetShipEditor", true, false) == null and SaveValidation.same(before_layout, state.hangar_snapshot()),
 		"Dragging empty Fleet space never edits formation")
 	check(board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Selection preserves camera")
 	await capture("orderly-fleet")
@@ -636,21 +636,21 @@ func run() -> void:
 		await settle()
 		check(star_layout(screen.formation_view.starfield) == layout, "UI refresh preserves every generated star")
 	screen.active_tab = "FLEET"
-	screen.ship_editor_open = true
+	screen.selected_squadron_id = 0
 	screen.selected_ship_id = 1
 	screen._refresh()
 	await settle()
-	check(star_layout(screen.canvas.starfield) == layout, "Ships uses the same area layout")
+	check(star_layout(screen.formation_view.starfield) == layout, "Ships uses the same area layout")
 	root.size = Vector2i(640, 360)
 	await settle()
-	check(star_layout(screen.canvas.starfield) == layout, "Resize preserves the area pool")
+	check(star_layout(screen.formation_view.starfield) == layout, "Resize preserves the area pool")
 	root.size = Vector2i(1280, 720)
 	await settle()
-	check(star_layout(screen.canvas.starfield) == layout, "Resize back restores the same stars")
-	screen.canvas.starfield.set_area(state.run_seed, state.current_node_id + 1)
-	check(star_layout(screen.canvas.starfield) != layout, "Another map node has its own layout")
-	screen.canvas.starfield.set_area(state.run_seed, state.current_node_id)
-	check(star_layout(screen.canvas.starfield) == layout, "Returning to a node recreates its original layout")
+	check(star_layout(screen.formation_view.starfield) == layout, "Resize back restores the same stars")
+	screen.formation_view.starfield.set_area(state.run_seed, state.current_node_id + 1)
+	check(star_layout(screen.formation_view.starfield) != layout, "Another map node has its own layout")
+	screen.formation_view.starfield.set_area(state.run_seed, state.current_node_id)
+	check(star_layout(screen.formation_view.starfield) == layout, "Returning to a node recreates its original layout")
 	check(state.load_run_checkpoint(), "Reload node checkpoint")
 	screen.queue_free()
 	await settle()

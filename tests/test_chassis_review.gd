@@ -142,32 +142,25 @@ func run() -> void:
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.local/chassis-inspector.png")
 	scene.active_tab = "FLEET"
-	scene.ship_editor_open = true
+	scene.selected_squadron_id = 0
 	scene.buy_open = false
 	scene._refresh()
 	await create_timer(0.25).timeout
 	scene._inspect_chassis("fighter")
 	await create_timer(0.25).timeout
-	await _click(scene.canvas.slot_buttons.port.get_global_rect().get_center())
-	await process_frame
-	check(scene.slot_info.visible and scene.slot_info.source_text.contains("Mini Turret"), "Art selection still updates installed-part details after inspection")
+	scene._select_ship(scene.selected_ship_id)
+	await create_timer(0.25).timeout
+	check(scene.details.has_node("ShipEquipment_port"), "Ship selection shows fitted equipment after catalog inspection")
 	check(scene.inspected_item.is_empty() and scene.refit_panel.visible,
-		"Art click exits catalog inspection and restores the refit panel")
-	check(state.swap_part(scene.selected_ship_id, "fore", ""), "Empty a mount for the stats check")
-	await process_frame
-	await process_frame
-	await _click(scene.canvas.slot_buttons.fore.get_global_rect().get_center())
-	await process_frame
-	check(scene.stats_grid.visible and not scene.slot_info.visible, "Empty mount restores ship stats without inspection interference")
+		"Ship selection exits catalog inspection and restores right-panel settings")
 	var ship: HangarShip = state.owned_ship(scene.selected_ship_id)
-	for key: String in scene.stats_grid.bars:
-		check(key == "hull" and is_equal_approx(scene.stats_grid.bars[key].value,
+	for key: String in scene.details.get_node("ShipStatBars").bars:
+		check(key == "hull" and is_equal_approx(scene.details.get_node("ShipStatBars").bars[key].value,
 			100.0 * clampf(ship.hull_hp / ship.hull_max, 0, 1)),
-			"Ships editor uses current/max hull condition, not chassis comparison")
-	check(_text(scene.stats_grid).contains("Hull %d / %d" % [roundi(ship.hull_hp), roundi(ship.hull_max)]),
-		"Ships editor displays rounded actual current/max hull")
-	scene.active_tab = "FLEET"
-	scene._refresh()
+			"Ship panel uses current/max hull condition, not chassis comparison")
+	check(_text(scene.details.get_node("ShipStatBars")).contains("Hull %d / %d" % [roundi(ship.hull_hp), roundi(ship.hull_max)]),
+		"Ship panel displays rounded actual current/max hull")
+	scene._select_squadron(ship.squadron_id)
 	await process_frame
 	await process_frame
 	var fleet_bars: ShipStatBars = scene.details.find_child("SquadronStatBars", true, false)
