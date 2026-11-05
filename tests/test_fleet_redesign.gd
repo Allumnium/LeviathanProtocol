@@ -232,7 +232,8 @@ func fleet_checks() -> void:
 		await pointer(screen.formation_view.global_position + local, true)
 		await pointer(screen.formation_view.global_position + local, false)
 	await settle()
-	check(screen.ship_editor_open and SaveValidation.same(fleet_before, state.hangar_snapshot()),
+	check(not screen.ship_editor_open and screen.selected_squadron_id == 0 and screen.details.has_node("ShipStatBars")
+		and SaveValidation.same(fleet_before, state.hangar_snapshot()),
 		"Clicking a management ship inspects it without moving its tactical formation")
 	screen.queue_free()
 	await settle()
@@ -292,17 +293,17 @@ func battle_checks() -> void:
 		await settle()
 		await drag(battle, drone, Vector2(15, 10))
 		check(drone.position.is_equal_approx(original + Vector2(15, 10))
-			and battle.visuals.deployment_selection.size() == 10 and sim.elapsed == 0,
-			"Native drag moves the squadron without advancing combat")
+			and battle.visuals.deployment_selection.size() == 1 and sim.elapsed == 0,
+			"Native ship drag moves only the individual without advancing combat")
 		var neighbour: BattleSimulation.Combatant = sim.players[4]
 		var neighbour_position := neighbour.position
 		original = drone.position
 		await drag(battle, drone, Vector2(10, -10))
 		check(drone.position.is_equal_approx(original + Vector2(10, -10))
 			and neighbour.position == neighbour_position and battle.visuals.deployment_selection.size() == 1,
-			"Native second-click drag moves only the selected ship without Alt")
+			"Native repeated ship drag remains individual")
 		await drag(battle, sim.players[0], Vector2.ZERO, false, true)
-		check(battle.visuals.deployment_selection.size() == 2, "Native Shift selection adds a different squadron")
+		check(battle.visuals.deployment_selection.size() == 2, "Native Shift selection adds another individual")
 		var empty: Vector2 = battle.visuals.world_transform() * Vector2(-1800, 450)
 		await pointer(empty, true)
 		var motion := InputEventMouseMotion.new()
@@ -315,14 +316,18 @@ func battle_checks() -> void:
 		check(battle.visuals.deployment_selection.is_empty() and not battle.visuals.deployment_box.has_area(),
 			"Empty-space box deselects and clears its feedback")
 		original = drone.position
-	check(battle._select_deployment(drone.position, false)
-		and battle.visuals.deployment_selection.size() == 10, "Default deployment selection operates on the complete squadron")
+	var flag: Dictionary
+	for candidate: Dictionary in battle.visuals.squadron_flags():
+		if candidate.id == drone.squadron_id:
+			flag = candidate
+	check(not flag.is_empty() and battle._select_flag(flag.rect.get_center())
+		and battle.visuals.deployment_selection.size() == 10, "Flag selection operates on the complete squadron")
 	battle._deployment_origins.clear()
 	for id: String in battle.visuals.deployment_selection:
 		battle._deployment_origins[id] = sim.entities[id].position
 	battle._move_deployment(Vector2(35, 15))
 	check(drone.position.is_equal_approx(original + Vector2(35, 15)), "Squadron movement preserves internal spacing")
-	check(battle._select_deployment(drone.position, true) and battle.visuals.deployment_selection.size() == 1,
+	check(battle._select_deployment(drone.position) and battle.visuals.deployment_selection.size() == 1,
 		"Individual deployment selection can override one member")
 	battle._deployment_origins = {drone.entity_id: drone.position}
 	battle._move_deployment(Vector2(10000, -10000))

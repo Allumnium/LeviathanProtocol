@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Squadron flags and selection details
+
+- Ship clicks always select one ship; numbered flags select entire friendly squadrons. Flags follow living visible groups in both factions and stay inside the battlefield frame. During battle setup, dragging a friendly flag moves its members together with one clamped displacement; Fleet's travel layout remains fixed. Shift/box selection adds individuals or explicitly clicked flags, with accurate mixed-selection details.
+- Fleet's right panel separates individual loadout/equipment/loads/repair/salvage/membership from squadron aggregate stats/stance/default loadout/override reset/repair/reinforcements/member selection. Ship clicks no longer open the modal editor. Battle selection shows live health, stance and individual equipment or group members in the right panel; shared X restores enemy readouts. Live inspection preserves attack orders and camera panning, with no combat refitting or rearrangement; selection hides for results.
+- Focused isolated native checks: selection/deployment/Fleet/Continue 127 and mixed selection/live targeting 12, zero failures. Reviewed actual flags, highlights and right panels at 640x360, 1280x720 and 1920x1080; checked affected fixture compilation and document links. Existing certificate/renderer shutdown diagnostics remain; the targeting fixture also logs resource/ObjectDB shutdown leaks. No broad campaign/outcome/scale suite. Preserved concurrent artwork.
+
 ## 2026-11-05 - Remove fleet command capacity and logistics research
 
 - Removed command capacity/cost metadata, purchase/group quantity/deployment/checkpoint budgets and Fleet/setup/shop readouts. Flagship chassis now use explicit boolean identity, retaining mandatory flagship validation. Affordability and actual shipyard restrictions remain; batch affordability is checked before multiplication/allocation. Rescue always adds its fitted ship instead of capacity-based compensation.

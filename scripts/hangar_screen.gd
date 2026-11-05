@@ -45,6 +45,7 @@ var formation_camera := Vector2.ZERO
 var formation_zoom := 1.0
 var formation_station_angle := 0.0
 var formation_selection: Array[int] = []
+var selected_squadron_id := 0
 var squadron_buy_count := 1
 var fitting_views: Dictionary = {}
 var research_dialog: Control
@@ -711,8 +712,6 @@ func _refresh() -> void:
 		formation_camera = formation_view.camera
 		formation_zoom = formation_view.zoom
 		formation_station_angle = formation_view.station_angle
-		if formation_view.selected_id == selected_ship_id:
-			formation_selection.assign(formation_view.selected_ids)
 	if is_instance_valid(ship_editor):
 		remove_child(ship_editor)
 		ship_editor.queue_free()
@@ -741,6 +740,13 @@ func _refresh() -> void:
 		selected_ship_id = GameState.fleet[0].id
 	if selected_ship_id <= 0:
 		ship_editor_open = false
+	if selected_squadron_id > 0:
+		var selected_group := HangarSquadrons.find(GameState.squadrons, selected_squadron_id)
+		if selected_group.is_empty():
+			selected_squadron_id = 0
+		else:
+			selected_ship_id = int(selected_group.members[0])
+			formation_selection.assign(selected_group.members)
 	formation_selection = formation_selection.filter(func(id: int) -> bool: return GameState.owned_ship(id) != null)
 	if GameState.completed or GameState.run_ended:
 		_show_run_end()
@@ -759,7 +765,7 @@ func _refresh() -> void:
 			choose.expand_icon = true
 			choose.add_theme_constant_override("icon_max_width", 24)
 			choose.toggle_mode = true
-			choose.button_pressed = selected_ship_id in group.members
+			choose.button_pressed = selected_squadron_id == int(group.id)
 			roster.add_child(choose)
 	var buy := _button_with_sound("Buy Ships", _open_shop.bind("SHIPS"), &"animate_ui")
 	buy.name = "BuyShips"
@@ -777,6 +783,7 @@ func _refresh() -> void:
 		var board: Control = load("res://scripts/hangar_formation.gd").new()
 		board.selected_id = selected_ship_id
 		board.selected_ids.assign(formation_selection)
+		board.selected_squadron_id = selected_squadron_id
 		board.camera = formation_camera
 		board.zoom = formation_zoom
 		board.station_angle = formation_station_angle
@@ -785,10 +792,8 @@ func _refresh() -> void:
 		formation_view = board
 		center.add_child(board)
 		board.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-		board.ship_selected.connect(func(id: int) -> void:
-			selected_ship_id = id
-			_queue_refresh())
-		board.ship_opened.connect(_open_ship_editor)
+		board.ship_selected.connect(_select_ship)
+		board.squadron_selected.connect(_select_squadron)
 		board.action_failed.connect(func(message: String) -> void: feedback.text = message)
 	var reopen_editor := ship_editor_open
 	ship_editor_open = false
@@ -1470,8 +1475,8 @@ func _show_details() -> void:
 	if (not inspected_item.is_empty() and not ship_editor_open) or (buy_open and active_tab == "FLEET"):
 		return
 	var owned: HangarShip = GameState.owned_ship(selected_ship_id)
-	if owned != null and active_tab == "FLEET" and not ship_editor_open:
-		_show_squadron_details(HangarSquadrons.for_ship(GameState.squadrons, owned.id))
+	if selected_squadron_id > 0 and active_tab == "FLEET" and not ship_editor_open:
+		_show_squadron_details(HangarSquadrons.find(GameState.squadrons, selected_squadron_id))
 		return
 	if owned == null:
 		_clear(details)
@@ -1559,18 +1564,36 @@ func _show_details() -> void:
 	details.add_child(_button("REPAIR %d cr" % owned.repair_cost(), _repair_selected_ship))
 	var repair := details.get_child(details.get_child_count() - 1) as Button
 	_shipyard_action(repair, owned.needs_repair() and GameState.credits >= owned.repair_cost())
-	if not owned.flagship and active_tab != "FLEET":
+	if not owned.flagship:
 		var salvage := _button("SALVAGE", func() -> void: _confirm_salvage(selected_ship_id))
 		_shipyard_action(salvage)
 		details.add_child(salvage)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = SIZE_EXPAND_FILL
-	details.add_child(spacer)
+	refit_panel = VBoxContainer.new()
+	details.add_child(refit_panel)
+	_render_refit_panel()
+	for mount: Dictionary in owned.mounts.values():
+		var item := SlotCatalog.find_equipment(mount.equipment_id, int(mount.rank))
+		details.add_child(_resource_label("%s\n%s" % [item.name, _part_effect(item)]))
+		if HangarTrade.has_load(mount):
+			details.add_child(_label("%s %d" % [str(mount.load.kind).capitalize(), mount.load.quantity]))
+
+func _select_ship(id: int) -> void:
+	selected_squadron_id = 0
+	selected_ship_id = id
+	formation_selection.clear()
+	if id > 0:
+		formation_selection.append(id)
+	selected_slot = ""
+	ship_editor_open = false
+	buy_open = false
+	_queue_refresh()
 
 func _select_squadron(id: int) -> void:
 	var group := HangarSquadrons.find(GameState.squadrons, id)
 	if group.is_empty():
 		return
+	selected_squadron_id = id
+	buy_open = false
 	selected_ship_id = int(group.members[0])
 	formation_selection.assign(group.members)
 	selected_slot = ""
@@ -1647,9 +1670,10 @@ func _show_squadron_details(group: Dictionary) -> void:
 		buy.name = "SquadronBuy"
 		_shipyard_action(buy, ShipLoadouts.available(loadout, GameState.current_research_ids) and GameState.credits >= price)
 		details.add_child(buy)
-	var inspect := _button("Inspect ships", _open_ship_editor.bind(int(group.members[0])))
-	inspect.name = "InspectSquadronShip"
-	details.add_child(inspect)
+	for id: int in group.members:
+		var inspect := _button(GameState.owned_ship(id).display_name, _select_ship.bind(id))
+		inspect.name = "SelectShip_%d" % id
+		details.add_child(inspect)
 
 func _render_squadron_assignment(owned: HangarShip) -> void:
 	var current := HangarSquadrons.for_ship(GameState.squadrons, owned.id)
@@ -1912,6 +1936,7 @@ func _ship_tile_size() -> float:
 
 func _ship_tile(owned: HangarShip, tile_size: float) -> Button:
 	var button := _button_with_sound("", func() -> void:
+		selected_squadron_id = 0
 		selected_ship_id = owned.id
 		formation_selection.assign([owned.id])
 		selected_slot = ""
@@ -1939,6 +1964,7 @@ func _ship_tile(owned: HangarShip, tile_size: float) -> Button:
 func _open_ship_editor(id: int) -> void:
 	if GameState.owned_ship(id) == null:
 		return
+	selected_squadron_id = 0
 	selected_ship_id = id
 	formation_selection.assign([id])
 	selected_slot = ""

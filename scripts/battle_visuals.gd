@@ -50,6 +50,8 @@ var _rock_texture: Texture2D
 var _shield_masks: Dictionary[Texture2D, Texture2D] = {}
 var deployment_area := Rect2()
 var deployment_selection: Array[String] = []
+var selected_squadron := ""
+const Flag = preload("res://scripts/squadron_flag.gd")
 var deployment_box := Rect2()
 
 
@@ -266,6 +268,8 @@ func _draw() -> void:
 			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	_draw_ship_integrity()
+	for flag: Dictionary in squadron_flags():
+		Flag.draw(self, flag.rect, flag.label, flag.id == selected_squadron, flag.enemy)
 	if not ability_preview.is_empty():
 		var point: Vector2 = world_transform() * ability_preview.position
 		var color := Color("8cd4e8") if ability_preview.valid else Color("ed8975")
@@ -274,6 +278,33 @@ func _draw() -> void:
 			for vertex: Vector2 in segment:
 				positioned.append(point + vertex)
 			draw_polyline(positioned, color, 1.5, true)
+
+func squadron_flags() -> Array[Dictionary]:
+	var groups := {}
+	var transform := world_transform()
+	for member: BattleSimulation.Combatant in simulation._members:
+		if not member.is_alive() or member.squadron_id.is_empty() or not member.has_tag("combatant"):
+			continue
+		if simulation.visibility_enabled and not simulation.team_can_see(0, member):
+			continue
+		var point := transform * member.previous_position.lerp(member.position, interpolation_alpha)
+		var bounds := Rect2(point - Vector2.ONE * member.radius * camera_zoom, Vector2.ONE * member.radius * camera_zoom * 2)
+		if groups.has(member.squadron_id):
+			groups[member.squadron_id].bounds = groups[member.squadron_id].bounds.merge(bounds)
+		else:
+			groups[member.squadron_id] = {"id": member.squadron_id, "bounds": bounds,
+				"label": str(member.owned_ship.squadron_id) if member.owned_ship is HangarShip else "E",
+				"enemy": member.faction != BattleSimulation.Faction.PLAYER}
+	var result: Array[Dictionary] = []
+	for group: Dictionary in groups.values():
+		if battlefield_rect.has_area() and not battlefield_rect.intersects(group.bounds):
+			continue
+		group.rect = Flag.rect(group.bounds)
+		if battlefield_rect.size.x > Flag.SIZE.x and battlefield_rect.size.y > Flag.SIZE.y:
+			group.rect.position = group.rect.position.clamp(battlefield_rect.position + Vector2.ONE * 2,
+				battlefield_rect.end - Flag.SIZE - Vector2.ONE * 2)
+		result.append(group)
+	return result
 
 func _draw_ship_integrity() -> void:
 	# Draw in canvas pixels so the thin meters remain readable when zooming.

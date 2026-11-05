@@ -1,7 +1,9 @@
 extends Control
 
 signal ship_selected(id: int)
-signal ship_opened(id: int)
+signal squadron_selected(id: int)
+const Flag = preload("res://scripts/squadron_flag.gd")
+var selected_squadron_id := 0
 signal action_failed(message: String)
 const GLOW = preload("res://shaders/ship_selection.gdshader")
 const Exhaust = preload("res://scripts/ship_exhaust.gd")
@@ -54,7 +56,6 @@ func _ready() -> void:
 		starfield.call("scroll_stationary", travel_distance_nu * 0.002)
 	if selected_ids.is_empty() and selected_id > 0:
 		selected_ids.append(selected_id)
-	_expand_squadrons()
 	_layout_escorts()
 	for owned: HangarShip in GameState.fleet:
 		hit_images[owned.id] = SurfaceArt.diffuse(owned.art_texture).get_image()
@@ -118,19 +119,11 @@ func _hit(position: Vector2) -> int:
 				return owned.id
 	return 0
 
-func _expand_squadrons() -> void:
-	var expanded: Array[int] = []
-	var groups := {}
-	for id: int in selected_ids:
-		var group := HangarSquadrons.for_ship(GameState.squadrons, id)
-		if group.is_empty():
-			continue
-		groups[int(group.id)] = true
-		for member: int in group.members:
-			if member not in expanded:
-				expanded.append(member)
-	selected_ids = expanded
-	selected_id = selected_ids[0] if groups.size() == 1 else 0
+func flag_rect(group: Dictionary) -> Rect2:
+	var bounds := ship_rect(GameState.owned_ship(int(group.members[0])))
+	for id: int in group.members:
+		bounds = bounds.merge(ship_rect(GameState.owned_ship(id)))
+	return Flag.rect(bounds)
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -149,9 +142,13 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+			for group: Dictionary in GameState.squadrons:
+				if flag_rect(group).has_point(event.position):
+					squadron_selected.emit(int(group.id))
+					return
 			var hit := _hit(event.position)
 			if hit > 0:
-				ship_opened.emit(hit)
+				ship_selected.emit(hit)
 				return
 			selected_ids.clear()
 			selected_id = 0
@@ -225,3 +222,6 @@ func _draw() -> void:
 		var rect := Rect2(box_start, box_end - box_start).abs()
 		draw_rect(rect, Color(1, 1, 1, 0.08))
 		draw_rect(rect, get_theme_color("selection_color", "SlotCanvas"), false)
+
+	for group: Dictionary in GameState.squadrons:
+		Flag.draw(self, flag_rect(group), str(group.id), selected_squadron_id == int(group.id))

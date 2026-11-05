@@ -1,5 +1,8 @@
 extends Control
 
+const UiKit = preload("res://scripts/ui_kit.gd")
+const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
+
 const MAP_SCENE_PATH := "res://scenes/game_map.tscn"
 const MAIN_MENU_SCENE_PATH := "res://scenes/main_menu.tscn"
 const SceneFadeScript = preload("res://scripts/scene_fade.gd")
@@ -61,6 +64,9 @@ var missile_readout: Label
 var missile_button: Button
 var squadron_readout: Control
 var enemy_readout: Control
+var selection_scroll: ScrollContainer
+var selection_details: VBoxContainer
+var selection_status: Label
 var battle_frame: VBoxContainer
 var battlefield: Control
 var footer_panel: PanelContainer
@@ -71,7 +77,6 @@ var _deployment_origins: Dictionary = {}
 var _deployment_press := Vector2.ZERO
 var _deployment_dragging := false
 var _deployment_box := false
-var _deployment_individual := false
 
 
 func _ready() -> void:
@@ -450,7 +455,11 @@ func _input(event: InputEvent) -> void:
 				_left_press_screen = event.position
 			else:
 				if _left_pressed and not _left_dragged and _left_press_screen.distance_to(event.position) <= 5:
-					_issue_target_at(visuals.world_transform().affine_inverse() * event.position)
+					if not _select_flag(event.position):
+						var point: Vector2 = visuals.world_transform().affine_inverse() * event.position
+						if not _select_deployment(point):
+							_issue_target_at(point)
+					visuals.queue_redraw()
 				_left_pressed = false
 		if event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
 			_dragging = event.pressed
@@ -538,6 +547,14 @@ func _build_battle_panels() -> void:
 	body.add_child(battlefield)
 	battlefield.item_rect_changed.connect(_update_battlefield_rect)
 	enemy_readout = _fleet_panel(body, true)
+	selection_scroll = ScrollContainer.new()
+	selection_scroll.name = "SelectionDetails"
+	selection_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	selection_scroll.hide()
+	enemy_readout.get_parent().add_child(selection_scroll)
+	selection_details = VBoxContainer.new()
+	selection_details.size_flags_horizontal = SIZE_EXPAND_FILL
+	selection_scroll.add_child(selection_details)
 	footer_panel = preload("res://scripts/ui_art_frame.gd").new()
 	footer_panel.name = "CommandFooter"
 	footer_panel.horizontal = true
@@ -564,6 +581,11 @@ func _build_battle_panels() -> void:
 	body.resized.connect(_resize_battle_panels)
 	resized.connect(_resize_battle_panels)
 	_resize_battle_panels.call_deferred()
+	var selection_timer := Timer.new()
+	selection_timer.wait_time = 0.1
+	selection_timer.autostart = true
+	selection_timer.timeout.connect(_refresh_selection_status)
+	add_child(selection_timer)
 
 func _toggle_missiles() -> void:
 	simulation.issue_command("missile_fire", {"enabled": missile_button.button_pressed})
@@ -635,7 +657,7 @@ func _begin_combat() -> void:
 	_deployment_box = false
 	_deployment_origins.clear()
 	visuals.deployment_area = Rect2()
-	visuals.deployment_selection.clear()
+	_clear_selection()
 	visuals.deployment_box = Rect2()
 	begin_button.hide()
 	deployment_feedback.hide()
@@ -647,25 +669,106 @@ func _begin_combat() -> void:
 	_simulation_accumulator = 0
 	visuals.queue_redraw()
 
-func _select_deployment(point: Vector2, individual: bool, additive := false) -> bool:
-	var hit: BattleSimulation.Combatant
-	for member: BattleSimulation.Combatant in simulation.players:
-		if member.is_alive() and BattleSimulation.Collision.contains(BattleSimulation.Collision.actor_polygons(member), point):
-			hit = member
-			break
-	# A second click drills into the selected squadron without a modifier.
-	# Additive selection is also used by box selection, which must keep groups.
-	if hit != null and not additive and hit.entity_id in visuals.deployment_selection:
-		individual = true
+func _select_deployment(point: Vector2, additive := false) -> bool:
 	if not additive:
 		visuals.deployment_selection.clear()
-	if hit == null:
-		return false
+	visuals.selected_squadron = ""
 	for member: BattleSimulation.Combatant in simulation.players:
-		if member == hit or (not individual and member.squadron_id == hit.squadron_id):
+		if member.is_alive() and BattleSimulation.Collision.contains(BattleSimulation.Collision.actor_polygons(member), point):
 			if member.entity_id not in visuals.deployment_selection:
 				visuals.deployment_selection.append(member.entity_id)
-	return true
+			_show_selection_details()
+			return true
+	_show_selection_details()
+	return false
+
+func _select_flag(screen_point: Vector2, additive := false) -> bool:
+	for flag: Dictionary in visuals.squadron_flags():
+		if flag.enemy or not flag.rect.has_point(screen_point):
+			continue
+		if not additive:
+			visuals.deployment_selection.clear()
+		visuals.selected_squadron = flag.id
+		for member: BattleSimulation.Combatant in simulation.players:
+			if member.is_alive() and member.squadron_id == flag.id and member.entity_id not in visuals.deployment_selection:
+				visuals.deployment_selection.append(member.entity_id)
+		for id: String in visuals.deployment_selection:
+			if simulation.entities[id].squadron_id != flag.id:
+				visuals.selected_squadron = ""
+		_show_selection_details()
+		return true
+	return false
+
+func _clear_selection() -> void:
+	visuals.deployment_selection.clear()
+	visuals.selected_squadron = ""
+	_show_selection_details()
+	visuals.queue_redraw()
+
+func _show_selection_details() -> void:
+	if selection_details == null:
+		return
+	for child in selection_details.get_children():
+		selection_details.remove_child(child)
+		child.queue_free()
+	selection_status = null
+	var selected := visuals.deployment_selection
+	selection_scroll.visible = not selected.is_empty()
+	enemy_readout.visible = selected.is_empty()
+	if selected.is_empty():
+		return
+	var close_row := Control.new()
+	close_row.custom_minimum_size.y = 24
+	selection_details.add_child(close_row)
+	close_row.add_child(UiKit.close_button(_clear_selection))
+	var actor: BattleSimulation.Combatant = simulation.entities[selected[0]]
+	var group := not visuals.selected_squadron.is_empty()
+	var multiple := selected.size() > 1 and not group
+	var title: String = actor.owned_ship.display_name if not group else "Squadron #%d" % actor.owned_ship.squadron_id
+	if multiple:
+		title = "Selected ships"
+	selection_details.add_child(UiKit.label(title, &"HeaderResearch"))
+	selection_status = UiKit.label("")
+	selection_details.add_child(selection_status)
+	if not multiple:
+		selection_details.add_child(UiKit.label("Stance: " + HangarSquadrons.LABELS.get(actor.owned_ship.stance, actor.owned_ship.stance)))
+	if deploying:
+		selection_details.add_child(UiKit.label("Drag flag to move squadron" if group else "Drag ship to move"))
+	if group or multiple:
+		for id: String in selected:
+			var member: BattleSimulation.Combatant = simulation.entities[id]
+			var option := UiKit.button(member.owned_ship.display_name + " #%d" % member.owned_ship.id, func() -> void:
+				visuals.deployment_selection.assign([id])
+				visuals.selected_squadron = ""
+				_show_selection_details()
+				visuals.queue_redraw())
+			selection_details.add_child(option)
+	else:
+		var ship: HangarShip = actor.owned_ship
+		var preset := ShipLoadouts.find(ship.chassis_id, GameState.ship_loadout_id(ship.id))
+		selection_details.add_child(UiKit.label(str(preset.get("name", "Loadout"))))
+		for mount: Dictionary in ship.mounts.values():
+			var item := SlotCatalog.find_equipment(mount.equipment_id, int(mount.rank))
+			selection_details.add_child(UiKit.label(str(item.name)))
+	_refresh_selection_status()
+
+func _refresh_selection_status() -> void:
+	if not is_instance_valid(selection_status):
+		return
+	var hull := 0.0
+	var maximum := 0.0
+	var shields := 0.0
+	var shield_max := 0.0
+	var living := 0
+	for id: String in visuals.deployment_selection:
+		var actor: BattleSimulation.Combatant = simulation.entities[id]
+		maximum += actor.owned_ship.hull_max
+		shield_max += actor.stats.shields
+		if actor.is_alive():
+			living += 1
+			hull += maxf(0, actor.owned_ship.hull_hp)
+			shields += actor.shields
+	selection_status.text = "%d / %d alive\nHull %.0f / %.0f\nShields %.0f / %.0f" % [living, visuals.deployment_selection.size(), hull, maximum, shields, shield_max]
 
 func _move_deployment(delta: Vector2) -> void:
 	var area := visuals.deployment_area
@@ -690,8 +793,9 @@ func _deployment_input(event: InputEvent) -> bool:
 			if not _battlefield_input(event.position):
 				return false
 			_deployment_press = visuals.world_transform().affine_inverse() * event.position
-			_deployment_individual = event.alt_pressed
-			_deployment_dragging = _select_deployment(_deployment_press, event.alt_pressed, event.shift_pressed)
+			_deployment_dragging = _select_flag(event.position, event.shift_pressed)
+			if not _deployment_dragging:
+				_deployment_dragging = _select_deployment(_deployment_press, event.shift_pressed)
 			_deployment_box = not _deployment_dragging
 			visuals.deployment_box = Rect2()
 			_deployment_origins.clear()
@@ -705,7 +809,7 @@ func _deployment_input(event: InputEvent) -> bool:
 				var box := Rect2(_deployment_press, point - _deployment_press).abs()
 				for member: BattleSimulation.Combatant in simulation.players:
 					if box.has_point(member.position):
-						_select_deployment(member.position, _deployment_individual, true)
+						_select_deployment(member.position, true)
 			_deployment_dragging = false
 			_deployment_box = false
 			visuals.deployment_box = Rect2()
@@ -808,6 +912,7 @@ func _begin_result_delay(won: bool) -> void:
 	if squadron_readout != null:
 		squadron_readout.hide()
 		enemy_readout.hide()
+		selection_scroll.hide()
 		footer_panel.hide()
 	if ability_bar != null:
 		ability_bar.cancel_targeting()
@@ -824,6 +929,7 @@ func _finish_battle(won: bool) -> void:
 	if squadron_readout != null:
 		squadron_readout.hide()
 		enemy_readout.hide()
+		selection_scroll.hide()
 		footer_panel.hide()
 	if ability_bar != null:
 		ability_bar.cancel_targeting()
