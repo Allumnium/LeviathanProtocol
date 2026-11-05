@@ -101,7 +101,7 @@ static func description(_registry: Dictionary, id: String) -> String:
 		"siege_ii": "Fragments and railgun hull hits deal 20% more damage.",
 		"carrier_i": "Flight decks launch craft 25% faster.",
 		"carrier_ii": "Carrier craft deal 20% more damage and Bomber Bay becomes available.",
-		"command_i": "Uplink marks make enemies take 30% more allied damage.",
+		"command_i": "Uplink marks add 30% allied damage per uplink.",
 		"command_ii": "Tactical Computers synchronize salvos 25% faster."
 	}
 	return explanations.get(id, "")

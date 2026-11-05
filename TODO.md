@@ -4,11 +4,6 @@ The current D4/D5 implementation is delivered. Open dependencies remain below; D
 
 Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS.md). Delivered work: [COMPLETED.md](COMPLETED.md).
 
-## Equipment review
-
-- [ ] Resolve the proposed uplink/relay stacking and Ion Emitter/Missile Rack/Beam Lance tuning in [docs/EQUIPMENT_REVIEW.md](docs/EQUIPMENT_REVIEW.md) with the user.
-- [ ] Implement the approved stacking/tuning decisions, then run focused effect checks and a bounded weapon comparison with isolated APPDATA. Preserve ammunition, hull and UID rules.
-
 ## D4 - Research that you can feel
 
 Research changes fleet behavior, not access to ordinary equipment. Keep the earned Prismatic Lasers, Siege I, Bastion I, Field Engineering and Civil Hospitality effects. Do not grant completed research/branches to make starting fits legal.

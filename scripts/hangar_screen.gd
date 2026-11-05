@@ -1774,10 +1774,15 @@ func _part_effect(item: Dictionary) -> String:
 		"passenger_cabin": return "%d passengers" % HangarTrade.PASSENGER_CAPACITY
 		"ammunition_magazine": return "+20% weapon cycling"
 		"tactical_computer": return "Salvo / %ss per computer" % ScienceRules.format_rp(12.0 / ResearchUpgrades.value(modifiers, "synchronization_multiplier"))
-		"command_uplink": return "Auto mark: +%d%% / 5s" % roundi((ResearchUpgrades.value(modifiers, "mark_damage_multiplier", 1.2) - 1) * 100)
+		"command_uplink": return "Mark: +%d%% per uplink\n5s / 20s" % roundi((ResearchUpgrades.value(modifiers, "mark_damage_multiplier", 1.2) - 1) * 100)
 		"repair_station": return "Repair %.0f hull/s\n%.0f hull reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
 		"repair_drone_bay": return "Repair drones: 4 hull / 2s\n20 hull reserve per encounter"
-		"shield_relay": return "Share shields: 2/s\nRange 180"
+		"shield_relay": return "Transfer own shields: 2/s each\nRange 180"
+		"ion_emitter":
+			var weapon: Dictionary = item.stats.weapons[0]
+			var base_dps: float = float(weapon.damage) * float(weapon.count) / float(weapon.interval)
+			return "Shield DPS %s | Hull DPS %s\nRange %s" % [ScienceRules.format_rp(base_dps * 2),
+				ScienceRules.format_rp(base_dps * 0.5), ScienceRules.format_rp(float(weapon.range))]
 		"nanoforge": return "Deferred"
 	if item.id in HangarCarriers.CAPACITIES:
 		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
@@ -1798,10 +1803,14 @@ func _part_effect(item: Dictionary) -> String:
 			reach = maxf(reach, weapon.range_units)
 		effects.append("DPS %.1f | Range %.0f" % [dps, reach])
 		var missile_cost := 0
+		var charge := 0.0
 		for weapon: Dictionary in values.weapons:
 			missile_cost += int(weapon.get("missiles", 0)) * int(weapon.count)
+			charge = maxf(charge, float(weapon.get("charge", 0)))
 		if missile_cost > 0:
 			effects.append("%d missiles / salvo" % missile_cost)
+		if charge > 0:
+			effects.append("%ss charge" % ScienceRules.format_rp(charge))
 	if values.shields > 0:
 		effects.append("Shields %.0f | %.1f recharge/s after 4s" % [values.shields, values.shields * 0.04])
 	if values.thrust > 0:

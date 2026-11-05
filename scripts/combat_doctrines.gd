@@ -196,14 +196,16 @@ func _mark(sim, source, delta: float) -> void:
 	sim._record_event("focus_mark", {"source": source.entity_id, "target": target.entity_id, "seconds": 5.0})
 
 func mark_multiplier(sim, source, target) -> float:
+	var bonus := 0.0
 	for id: String in marks:
 		var host = sim.entities.get(id)
 		var mark: Dictionary = marks[id]
 		if mark.remaining > 0 and mark.target == target.entity_id and host != null and host.is_alive() \
-			and host.faction == source.faction and host.owned_ship.units[mark.index].hp > 0:
-			return ResearchUpgrades.part_value(host.owned_ship, host.owned_ship.units[mark.index].part,
-				"command", "mark_damage_multiplier", 1.2)
-	return 1.0
+			and host.faction == source.faction and host.owned_ship != null:
+			for index: int in operational(host, ShipPart.Type.COMMAND_UPLINK):
+				bonus += ResearchUpgrades.part_value(host.owned_ship, host.owned_ship.units[index].part,
+					"command", "mark_damage_multiplier", 1.2) - 1.0
+	return 1.0 + bonus
 
 func _synchronize(sim, source, delta: float) -> void:
 	if not source.owned_ship is HangarShip:
@@ -246,7 +248,8 @@ func _synchronize(sim, source, delta: float) -> void:
 	sim._record_event("synchronized_salvo", {"source": source.entity_id, "target": target.entity_id, "computers": computers})
 
 func _relay(sim, source, delta: float) -> void:
-	if operational(source, ShipPart.Type.SHIELD_RELAY).is_empty() or source.shields <= 0 or source.stats.shields <= 0:
+	var relays := operational(source, ShipPart.Type.SHIELD_RELAY).size()
+	if relays == 0 or source.shields <= 0 or source.stats.shields <= 0:
 		return
 	var chosen = null
 	var ratio: float = source.shields / source.stats.shields
@@ -260,7 +263,7 @@ func _relay(sim, source, delta: float) -> void:
 	if chosen == null:
 		return
 	var equalization: float = (source.shields * chosen.stats.shields - chosen.shields * source.stats.shields) / (source.stats.shields + chosen.stats.shields)
-	var amount := minf(2 * delta, minf(source.shields, minf(chosen.stats.shields - chosen.shields, equalization)))
+	var amount := minf(2 * relays * delta, minf(source.shields, minf(chosen.stats.shields - chosen.shields, equalization)))
 	source.shields -= amount
 	chosen.shields += amount
 

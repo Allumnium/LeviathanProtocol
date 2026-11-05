@@ -2,6 +2,13 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Additive support and weapon first pass
+
+- Implemented the user-approved stacking: each uplink adds +20% allied damage (+30% with Command I), including copies and overlapping allied hosts; each relay adds two shields/s of transfer while conserving existing shields and respecting range/equalization/capacity. Retained mark timing/targeting and source-loss/hull rules.
+- Applied approved hit values: Ion Emitter 8, missile 12, Beam Lance 48. Preserved sizes, prices, ranges, ammo/interception and charge/miss rules. Equipment details show per-copy effects, ion shield/hull output and lance charge; Command I text specifies its per-uplink bonus.
+- Focused isolated verification: 126 support/weapon checks, 117 research-redesign checks and 208 combat checks, zero failures. Recorded 36 controlled 12-second firing samples: ion dealt 96 shield or 24 hull damage; missiles dealt 108 for nine ammo; lance dealt 144 to a stationary target but missed the scripted mover. Detailed results and limitations are in [EQUIPMENT_REVIEW.md](docs/EQUIPMENT_REVIEW.md).
+- Native equipment/Continue checks passed 66 checks; reviewed supported-resolution captures. Expected invalid-effect rejection, certificate-store and existing shutdown diagnostics remain. No campaign sweep, full baseline, broad acceptance or soak.
+
 ## 2026-11-05 - Support stacking and weapon audit
 
 - Reviewed actual uplink/relay consumers, ion shield/hull multipliers, missile expenditure/splitting, and lance cooldown/charge/miss behavior. Recorded a concrete [stacking and weapon proposal](docs/EQUIPMENT_REVIEW.md), including additive uplinks across hosts, relay transfer per copy and proposed damage values. No runtime balance changed; user decisions and implementation remain open in TODO.

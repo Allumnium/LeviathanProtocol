@@ -36,7 +36,7 @@
           {
             "charge": 1.2,
             "count": 1,
-            "damage": 12,
+            "damage": 48,
             "interceptable": false,
             "interval": 4,
             "mount": [
@@ -227,7 +227,7 @@
           {
             "charge": 0,
             "count": 1,
-            "damage": 2,
+            "damage": 8,
             "interceptable": false,
             "interval": 2,
             "mount": [
@@ -398,7 +398,7 @@
           {
             "charge": 0,
             "count": 3,
-            "damage": 3,
+            "damage": 12,
             "interceptable": true,
             "interval": 5,
             "mount": [

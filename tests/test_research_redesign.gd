@@ -64,7 +64,7 @@ func weapons() -> void:
 	check(part_stats.copy().research_capabilities == part_stats.research_capabilities, "Part-stat copies preserve the shared capability predicate")
 	var missiles := ship({"fore": "missile_rack"}, ["guided_munitions"])
 	check(is_equal_approx(missiles.get_stats().weapons[0].range_units, 425), "Guided Munitions increases missile range by 25%")
-	check(is_equal_approx(missiles.get_stats().weapons[0].damage_per_shot, 3), "Range research preserves missile damage and ammunition")
+	check(is_equal_approx(missiles.get_stats().weapons[0].damage_per_shot, 12), "Range research preserves missile damage and ammunition")
 	var ranged := simulation(missiles)
 	ranged.aliens[0].position = Vector2(380, 0)
 	ranged._update_ship(ranged.player, 0.01)
