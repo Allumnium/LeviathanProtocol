@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Individual experience and loadout-only proposal
+
+- Recorded the user's confirmed direction in [SHIP_EXPERIENCE.md](docs/SHIP_EXPERIENCE.md): XP follows individual ships and player fitting uses complete loadouts without custom part settings. Audited all 24 presets across nine chassis and existing damage, settlement, income, group-refit and UID/load paths.
+- Drafted explicit XP weights/caps, three level thresholds, every preset's proposed minimum level, rookie/group rules and a focused implementation/verification outline. These balance values remain unapproved and open in TODO; no runtime experience or fitting behavior changed. Checked local links and catalog-name coverage; documentation-only work did not run game suites.
+
 ## 2026-11-05 - Fixed 8x Map travel and page suspension
 
 - Map now enforces fixed 8x travel with Pause/Play only, removing selectable speed buttons and the multiplier label. ETA uses the same fixed rate. Battle speed controls are unchanged; low-level model speeds remain available to focused simulation fixtures.

@@ -10,6 +10,11 @@ Research changes fleet behavior, not access to ordinary equipment. Keep the earn
 
 - [ ] Fewer random encounters: deferred until a random-encounter system exists; do not suppress authored/story encounters.
 
+## Individual experience and loadout-only fitting
+
+- [ ] Review [the first-pass experience proposal](docs/SHIP_EXPERIENCE.md): XP weights/thresholds, complete loadout mapping and rookie membership before implementing balance. Confirmed: XP belongs to individual ships; players choose complete loadouts, without custom part-by-part fitting. Preserve ship-owned XP on reassignment; never downgrade a veteran because a group average falls.
+- [ ] After approval, implement persistent XP and exactly-once battle/income awards, loadout level checks for refits/purchases/groups, loadout-only Fleet controls and focused verification.
+
 ## Battle feel decisions
 
 - [ ] Discuss Ion Pulse after [the battle feel audit](docs/BATTLE_FEEL_AUDIT.md): it is the only offered active ability, has 300 cast range versus 900 emitter range, situational effects and a shared 24-second cooldown. Decide reach and intended role before changing it.
