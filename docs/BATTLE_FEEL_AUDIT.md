@@ -1,5 +1,7 @@
 # Battle feel audit
 
+Subsequent change: fleet command capacity and Fleet Logistics research are removed. The measured starting research pool below describes the earlier audit; its remaining five cards are utility/defensive choices. See [current gameplay](HANGAR.md).
+
 2026-11-05. Scope: the current Defensive opening, deployment consequences, readable ship health, early purchases/research and the available active ability. No campaign sweep or balance changes beyond the user-approved missile cluster. Source: [battle simulation](../scripts/battle_simulation.gd), [abilities](../scripts/battle_abilities.gd), [active research](../scripts/hangar_research.gd), [production battle scene](../scripts/auto_battle.gd).
 
 ## Deployment has consequences

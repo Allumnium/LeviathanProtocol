@@ -1,5 +1,7 @@
 # Research line redesign - implemented first pass
 
+Subsequent change: Fleet Logistics I/II/III and fleet command capacity are removed. The original design below records the earlier research pass; [HANGAR.md](HANGAR.md) describes current gameplay.
+
 2026-11-05. The user approved this 20-card first pass, including effects, stacking, dependencies and equipment access. It was implemented and verified with focused checks and a bounded opening playtest. The subsequent healing/carrier update at the end of this document supersedes carrier and repair-drone details in that first pass. Guided Munitions uses +25% missile range following the user's implementation-time decision. Later balance changes remain decisions to bring back to the user.
 
 The design requirement is that every research choice changes gameplay. Equipment access should be an occasional exception, and an ineffective card calls for reviewing its entire line. Keep the approved three/four-card selection, 20 RP then +20 per selection, excess RP, saved offers and science flagship bonuses.

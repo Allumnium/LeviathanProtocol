@@ -39,7 +39,7 @@ func mechanics() -> void:
 		"Continue preserves exact offer order and fractional excess")
 	var before: Dictionary = state.hangar_snapshot()
 	check(not state.choose_research("fleet_logistics_iii") and SaveValidation.same(before, state.hangar_snapshot()),
-		"Cannot select an unoffered higher tier")
+		"Cannot select removed research")
 	state.research_completion_notices.clear()
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/blocked-choice.json"
@@ -67,10 +67,10 @@ func mechanics() -> void:
 	check(not HangarCheckpoint.valid(invalid), "Reject unfunded saved offer")
 	var progress := {"research_ids": ["foundation"], "research_offer": [], "research_points": 10000.0,
 		"story_flags": {}, "branch_choices": {}}
-	check("fleet_logistics_i" in HangarResearch.available(progress) and "fleet_logistics_ii" not in HangarResearch.available(progress),
+	check("guided_munitions" in HangarResearch.available(progress) and "siege_i" not in HangarResearch.available(progress),
 		"Backend prerequisites hide later tiers")
-	progress.research_ids.append("fleet_logistics_i")
-	check("fleet_logistics_ii" in HangarResearch.available(progress) and "fleet_logistics_iii" not in HangarResearch.available(progress),
+	progress.research_ids.append("guided_munitions")
+	check("siege_i" in HangarResearch.available(progress) and "siege_ii" not in HangarResearch.available(progress),
 		"Level one permits level two, never level three")
 	progress.research_ids.append_array(["applied_energy", "optics_ii"])
 	progress.branch_choices.energy = "optics"
@@ -203,7 +203,7 @@ func native_saved_match() -> void:
 	start(true)
 	var fixture: Dictionary = state.hangar_snapshot()
 	fixture.research.research_points = 20
-	fixture.research.research_offer = ["laboratory_ii", "fleet_logistics_i", "field_engineering", "civil_hospitality"]
+	fixture.research.research_offer = ["laboratory_ii", "bastion_ii", "field_engineering", "civil_hospitality"]
 	check(state._commit_hangar(fixture), "Save a four-card lab offer before refitting")
 	var restore_ship := 0
 	var restore_slot := ""

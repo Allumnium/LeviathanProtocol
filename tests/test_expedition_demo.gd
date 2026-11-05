@@ -92,7 +92,7 @@ func refit() -> void:
 	state.repair_all_ships()
 	var fighter := SlotCatalog.find_chassis("fighter")
 	var fighter_price := ShipLoadouts.ship_price("fighter", ShipLoadouts.default_for("fighter"))
-	if state.credits > fighter_price + 200 and state.used_command() + int(fighter.command_cost) <= state.command_limit():
+	if state.credits > fighter_price + 200:
 		check(state.buy_ship("fighter"), "Buy an escort fighter")
 	if not state.current_research_ids.has("applied_energy"):
 		return

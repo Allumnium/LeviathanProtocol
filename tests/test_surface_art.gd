@@ -239,7 +239,7 @@ func bullet_glow_checks() -> void:
 	var exhaust = preload("res://scripts/ship_exhaust.gd")
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var candidate := HangarShip.new()
-		check(candidate.initialize_chassis(chassis.id, 1, int(chassis.command) > 0), "Exhaust chassis initializes")
+		check(candidate.initialize_chassis(chassis.id, 1, chassis.flagship), "Exhaust chassis initializes")
 		var full_rect := Rect2(Vector2(10, 20), Vector2(512, 512))
 		var small_rect := Rect2(Vector2(10, 20), Vector2(128, 128))
 		var full_origins: PackedVector2Array = exhaust.origins(candidate, full_rect)

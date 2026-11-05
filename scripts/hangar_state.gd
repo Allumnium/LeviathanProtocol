@@ -79,7 +79,7 @@ func _ready() -> void:
 
 func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, _use_campaign := true, flagship_id := "flagship_basic") -> bool:
 	var selected := SlotCatalog.find_chassis(flagship_id)
-	if selected_difficulty not in [0, 1, 2] or seed_value < -1 or selected.is_empty() or int(selected.command) <= 0:
+	if selected_difficulty not in [0, 1, 2] or seed_value < -1 or selected.is_empty() or not selected.flagship:
 		push_error("Cannot start a run with invalid difficulty, seed or flagship.")
 		return false
 	var before := hangar_snapshot()
@@ -586,18 +586,6 @@ func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
 func _rescue_ship(data: Dictionary, chassis_id: String) -> String:
 	var chassis := SlotCatalog.find_chassis(chassis_id)
 	var loadout := ShipLoadouts.default_for(chassis_id)
-	var command := 0
-	var used := 0
-	for entry: Dictionary in data.ships:
-		var definition := SlotCatalog.find_chassis(str(entry.chassis))
-		if entry.flagship:
-			command = HangarResearch.command_limit(int(definition.command), data.research.research_ids)
-		else:
-			used += int(definition.command_cost)
-	if used + int(chassis.command_cost) > command:
-		var compensation := ShipLoadouts.ship_price(chassis_id, loadout)
-		RunScore.earn_credits(data, compensation)
-		return "%s rescued / command full: +%d cr" % [chassis.name, compensation]
 	ShipLoadouts.append_ship(data, chassis_id, loadout)
 	HangarSquadrons.add_ship(data, data.ships.back())
 	return "%s joined the fleet" % chassis.name
@@ -996,18 +984,19 @@ func buy_ships(key: String, count: Variant, group_id := 0, loadout_id := "") -> 
 	var chassis := SlotCatalog.find_chassis(key)
 	var loadout := ShipLoadouts.purchase_for(key, current_research_ids) if loadout_id.is_empty() else ShipLoadouts.find(key, loadout_id)
 	var price := ShipLoadouts.ship_price(key, loadout)
-	if not _can_refit() or chassis.is_empty() or int(chassis.command) > 0 or loadout.is_empty():
+	if not _can_refit() or chassis.is_empty() or chassis.flagship or loadout.is_empty():
 		last_save_error = "Ships are unavailable."
 		return false
 	if not ShipLoadouts.available(loadout, current_research_ids):
 		last_save_error = "Research this loadout's equipment first."
 		return false
+	# Bound the batch by its real price before multiplying or allocating ships.
+	if int(count) > credits / maxi(1, price):
+		last_save_error = "Not enough credits."
+		return false
 	price *= int(count)
 	if credits < price:
 		last_save_error = "Not enough credits. Cost: %d." % price
-		return false
-	if used_command() + int(chassis.command_cost) * int(count) > command_limit():
-		last_save_error = "Not enough command capacity."
 		return false
 	var data := hangar_snapshot()
 	for index in range(int(count)):
@@ -1069,19 +1058,6 @@ func _require_shipyard() -> bool:
 	last_save_error = station_service_error("shipyard")
 	return last_save_error.is_empty()
 
-func command_limit() -> int:
-	for owned: HangarShip in fleet:
-		if owned.flagship:
-			return HangarResearch.command_limit(int(owned.chassis.command), current_research_ids)
-	return 0
-
-func used_command() -> int:
-	var total := 0
-	for owned: HangarShip in fleet:
-		if not owned.flagship:
-			total += int(owned.chassis.command_cost)
-	return total
-
 func get_deployed_fleet() -> Array[FleetShip]:
 	return fleet.filter(func(owned: FleetShip) -> bool: return owned.is_alive())
 
@@ -1093,8 +1069,6 @@ func deployment_error() -> String:
 		return "Run ended"
 	if not fleet.any(func(owned: FleetShip) -> bool: return owned.is_flagship() and owned.is_alive()):
 		return "Flagship lost"
-	if used_command() > command_limit():
-		return "Command limit"
 	if not fleet.any(func(owned: FleetShip) -> bool: return not owned.get_stats().weapons.is_empty() or HangarCarriers.has_bay(owned)):
 		return "Equip a weapon"
 	for owned: HangarShip in fleet:

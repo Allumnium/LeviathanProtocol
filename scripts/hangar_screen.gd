@@ -528,14 +528,14 @@ func _render_inspection() -> void:
 	if inspected_item.kind == "chassis":
 		var chassis := SlotCatalog.find_chassis(inspected_item.id)
 		var ship := HangarShip.new()
-		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
+		ship.initialize_chassis(chassis.id, 0, chassis.flagship)
 		body.add_child(_resource_label(chassis.name))
 		var bars := StatBars.new()
 		body.add_child(bars)
 		bars.set_ship(ship)
-		var price := int(chassis.price) if chassis.command > 0 else ShipLoadouts.ship_price(chassis.id, ShipLoadouts.purchase_for(chassis.id, GameState.current_research_ids))
-		body.add_child(_resource_label("Command %d\nFitted price %d cr" %
-			[chassis.command if chassis.command > 0 else chassis.command_cost, price]))
+		var price := int(chassis.price) if chassis.flagship else ShipLoadouts.ship_price(chassis.id, ShipLoadouts.purchase_for(chassis.id, GameState.current_research_ids))
+		body.add_child(_resource_label("Fitted price %d cr" %
+			price))
 		body.add_child(_resource_label(SlotCatalog.chassis_bonuses(chassis)))
 	else:
 		var item := SlotCatalog.find_equipment(inspected_item.id, int(inspected_item.rank))
@@ -761,7 +761,6 @@ func _refresh() -> void:
 			choose.toggle_mode = true
 			choose.button_pressed = selected_ship_id in group.members
 			roster.add_child(choose)
-	roster.add_child(_label("Command %d / %d" % [GameState.used_command(), GameState.command_limit()]))
 	var buy := _button_with_sound("Buy Ships", _open_shop.bind("SHIPS"), &"animate_ui")
 	buy.name = "BuyShips"
 	buy.toggle_mode = true
@@ -1621,7 +1620,7 @@ func _show_squadron_details(group: Dictionary) -> void:
 	_shipyard_action(repair, cost > 0 and GameState.credits >= cost)
 	details.add_child(repair)
 	var chassis := SlotCatalog.find_chassis(group.chassis)
-	if int(chassis.command) <= 0:
+	if not chassis.flagship:
 		var quantity := HBoxContainer.new()
 		quantity.name = "SquadronQuantity"
 		details.add_child(quantity)
@@ -1640,14 +1639,13 @@ func _show_squadron_details(group: Dictionary) -> void:
 			squadron_buy_count += 1
 			_show_squadron_details(group))
 		upper.name = "BuyMore"
-		upper.disabled = squadron_buy_count >= maxi(1, (GameState.command_limit() - GameState.used_command()) / maxi(1, int(chassis.command_cost)))
+		upper.disabled = squadron_buy_count >= maxi(1, GameState.credits / maxi(1, ShipLoadouts.ship_price(group.chassis, loadout)))
 		quantity.add_child(upper)
 		var price := ShipLoadouts.ship_price(group.chassis, loadout) * squadron_buy_count
 		var buy := _button("Buy %d / %d cr" % [squadron_buy_count, price],
 			func() -> void: _result(GameState.buy_ships(group.chassis, squadron_buy_count, int(group.id))))
 		buy.name = "SquadronBuy"
-		_shipyard_action(buy, ShipLoadouts.available(loadout, GameState.current_research_ids) and GameState.credits >= price
-			and GameState.used_command() + int(chassis.command_cost) * squadron_buy_count <= GameState.command_limit())
+		_shipyard_action(buy, ShipLoadouts.available(loadout, GameState.current_research_ids) and GameState.credits >= price)
 		details.add_child(buy)
 	var inspect := _button("Inspect ships", _open_ship_editor.bind(int(group.members[0])))
 	inspect.name = "InspectSquadronShip"
@@ -1860,7 +1858,7 @@ func _shop_ships() -> void:
 	_clear(shop_rows)
 	var all_ids: Array = []
 	for chassis in SlotCatalog.chassis():
-		if int(chassis.command) <= 0:
+		if not chassis.flagship:
 			all_ids.append(chassis.id)
 	var capacity := _shop_capacity(48)
 	shop_rows.columns = capacity.x
@@ -1869,7 +1867,7 @@ func _shop_ships() -> void:
 		if shown >= capacity.x * capacity.y:
 			break
 		var chassis := SlotCatalog.find_chassis(str(id))
-		if chassis.is_empty() or int(chassis.command) > 0:
+		if chassis.is_empty() or chassis.flagship:
 			continue
 		var row := HBoxContainer.new()
 		row.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -1882,9 +1880,9 @@ func _shop_ships() -> void:
 		if not ShipLoadouts.available(loadout, GameState.current_research_ids):
 			row.queue_free()
 			continue
-		var available_to_buy := GameState.credits >= price and GameState.used_command() + int(chassis.command_cost) <= GameState.command_limit()
+		var available_to_buy := GameState.credits >= price
 		var button := _shop_button(
-			"%s (%s)" % [chassis.name, loadout.get("name", "")], "%d command" % chassis.command_cost, price, true, available_to_buy,
+			"%s (%s)" % [chassis.name, loadout.get("name", "")], "", price, true, available_to_buy,
 			func() -> void:
 				var ok := GameState.buy_ship(chassis.id, loadout.id)
 				if ok:

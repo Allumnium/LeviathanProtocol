@@ -73,7 +73,7 @@ func run() -> void:
 		for fit: Dictionary in ShipLoadouts.for_chassis(chassis.id):
 			check(not fit.mounts.values().any(func(key: String) -> bool: return key in ["flight_deck", "torpedo_bomber_bay"]), "Named fits contain no retired carrier modules")
 	var drone := SlotCatalog.find_chassis("drone")
-	check(drone.command_cost == 1 and drone.slots.all(func(slot: Dictionary) -> bool: return slot.type == "general"), "Drone retains its inexpensive flexible fleet role")
+	check(drone.slots.all(func(slot: Dictionary) -> bool: return slot.type == "general"), "Drone retains its inexpensive flexible fleet role")
 	check(state.swap_part(2, "port", "repair_drone_bay") and state.load_run_checkpoint()
 		and state.owned_ship(2).mounts.port.equipment_id == "repair_drone_bay", "Repair Drone Hangar fits normally and survives Continue")
 	print("HANGAR HEALING: %d checks, %d failures" % [checks, failures])

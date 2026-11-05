@@ -136,7 +136,7 @@ static func valid_rewards(rewards: Dictionary, allow_fuel_cost := false) -> bool
 		if not rewards.rescue_ship is String:
 			return false
 		var chassis := SlotCatalog.find_chassis(rewards.rescue_ship)
-		if chassis.is_empty() or int(chassis.command) > 0 or preload("res://scripts/ship_loadouts.gd").default_for(rewards.rescue_ship).is_empty():
+		if chassis.is_empty() or chassis.flagship or preload("res://scripts/ship_loadouts.gd").default_for(rewards.rescue_ship).is_empty():
 			return false
 	return true
 

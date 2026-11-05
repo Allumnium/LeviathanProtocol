@@ -26,7 +26,7 @@ static func find_chassis(id: String) -> Dictionary:
 	return {}
 
 static func flagships() -> Array[Dictionary]:
-	return chassis().filter(func(entry: Dictionary) -> bool: return int(entry.command) > 0)
+	return chassis().filter(func(entry: Dictionary) -> bool: return entry.flagship)
 
 static func chassis_bonuses(entry: Dictionary) -> String:
 	var lines: Array[String] = []
@@ -200,10 +200,11 @@ static func valid_chassis(data: Variant) -> bool:
 	for entry: Variant in data.chassis:
 		if not entry is Dictionary or not entry.get("id") is String or ids.has(entry.id) or not entry.get("name") is String or not entry.get("art") is String or not ResourceLoader.exists(entry.art) or not entry.get("slots") is Array or entry.slots.is_empty():
 			return false
+		if not entry.get("flagship") is bool:
+			return false
 		ids[entry.id] = true
-		for field in ["price", "command", "command_cost"]:
-			if not _integer(entry.get(field), 0):
-				return false
+		if not _integer(entry.get("price"), 0):
+			return false
 		for field in ["integrity", "mass", "thrust", "radius"]:
 			if not _nonnegative(entry.get(field)) or entry[field] <= 0:
 				return false

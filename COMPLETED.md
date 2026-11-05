@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Remove fleet command capacity and logistics research
+
+- Removed command capacity/cost metadata, purchase/group quantity/deployment/checkpoint budgets and Fleet/setup/shop readouts. Flagship chassis now use explicit boolean identity, retaining mandatory flagship validation. Affordability and actual shipyard restrictions remain; batch affordability is checked before multiplication/allocation. Rescue always adds its fitted ship instead of capacity-based compensation.
+- Removed Fleet Logistics I/II/III and their modifier/descriptions. Fifteen active upgrade cards remain, with normal 20/+20 progression and matching/dependency rules. Retired the command-capacity suite and migrated affected fixture assumptions; historical design/audit notes identify superseded behavior.
+- Focused isolated checks passed: expanded 39-ship purchase/rescue/deployment/Continue and research logic 27, remaining research choices 35, native Fleet/group purchase/setup 14, zero failures. Reviewed supported-resolution Fleet captures and flagship selection without capacity text. Twelve affected fixtures compile-checked, not broadly rerun; document links checked. Existing certificate/native shutdown diagnostics remain; no baseline, campaign sweep or scale profile. Preserved concurrent artwork.
+
 ## 2026-11-05 - Complete-loadout fitting and five-rank design
 
 - Removed player part-by-part swap/removal controls and the custom fitting callback. Fleet inspection always offers complete named loadouts; mount clicks retain read-only equipment/load details. Existing preset transactions preserve UID/load guards, shipyard restrictions and visible save errors. Native Fleet-only integration passed 38 checks, zero failures; reviewed supported-resolution captures and actual ship/mount/preset clicks. No battle or broad campaign suites rerun; known certificate/native shutdown diagnostics remain.

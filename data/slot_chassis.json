@@ -15,8 +15,6 @@
       "builtin_shield_count": 2,
       "flat_damage_reduction": 1,
       "radius": 43,
-      "command": 24,
-      "command_cost": 0,
       "slots": [
         {
           "id": "fore",
@@ -106,7 +104,8 @@
             38
           ]
         }
-      ]
+      ],
+      "flagship": true
     },
     {
       "id": "flagship_civic",
@@ -121,8 +120,6 @@
       "builtin_shield": "shield_generator",
       "delivery_income_multiplier": 1.2,
       "radius": 45,
-      "command": 24,
-      "command_cost": 0,
       "slots": [
         {
           "id": "cargo",
@@ -234,7 +231,8 @@
             44
           ]
         }
-      ]
+      ],
+      "flagship": true
     },
     {
       "id": "flagship_science",
@@ -250,8 +248,6 @@
       "research_rate_multiplier": 1.25,
       "research_option_bonus": 1,
       "radius": 43,
-      "command": 24,
-      "command_cost": 0,
       "slots": [
         {
           "id": "central",
@@ -341,7 +337,8 @@
             40
           ]
         }
-      ]
+      ],
+      "flagship": true
     },
     {
       "id": "flagship_offense",
@@ -357,8 +354,6 @@
       "weapon_cycle_bonus": 0.15,
       "flat_damage_reduction": 1,
       "radius": 43,
-      "command": 24,
-      "command_cost": 0,
       "slots": [
         {
           "id": "fore",
@@ -448,7 +443,8 @@
             64
           ]
         }
-      ]
+      ],
+      "flagship": true
     },
     {
       "id": "corsair",
@@ -506,8 +502,7 @@
       "mass": 32,
       "thrust": 50,
       "radius": 35,
-      "command": 0,
-      "command_cost": 4
+      "flagship": false
     },
     {
       "id": "fighter",
@@ -556,8 +551,7 @@
       "weapon_damage_multiplier": 1.3,
       "dodge_chance": 0.2,
       "radius": 31,
-      "command": 0,
-      "command_cost": 2
+      "flagship": false
     },
     {
       "id": "transport",
@@ -626,8 +620,7 @@
       "mass": 55,
       "thrust": 18,
       "radius": 40,
-      "command": 0,
-      "command_cost": 3
+      "flagship": false
     },
     {
       "id": "frigate",
@@ -729,8 +722,7 @@
       "mass": 45,
       "thrust": 40,
       "radius": 40,
-      "command": 0,
-      "command_cost": 4
+      "flagship": false
     },
     {
       "id": "drone",
@@ -788,8 +780,7 @@
       "mass": 15,
       "thrust": 24,
       "radius": 30,
-      "command": 0,
-      "command_cost": 1
+      "flagship": false
     }
   ]
 }

@@ -13,8 +13,7 @@ static func group_for(node: Dictionary) -> String:
 		return "science"
 	if node.id in ["civil_hospitality", "luxury_habitation", "grand_hospitality"]:
 		return "civil"
-	if node.id in ["material_handling", "selective_recovery", "industrial_integration", "freight_engineering",
-		"fleet_logistics_i", "fleet_logistics_ii", "fleet_logistics_iii"]:
+	if node.id in ["material_handling", "selective_recovery", "industrial_integration", "freight_engineering"]:
 		return "logistics"
 	if node.id in ["sensor_networks", "cloaking_theory"]:
 		return "sensors"
@@ -83,9 +82,6 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 
 static func description(_registry: Dictionary, id: String) -> String:
 	var explanations := {
-		"fleet_logistics_i": "Raises the research command bonus to 8.",
-		"fleet_logistics_ii": "Raises the research command bonus to 24.",
-		"fleet_logistics_iii": "Raises the research command bonus to 108.",
 		"applied_energy": "Lasers deal 15% more damage.",
 		"field_engineering": "Cruise faster using less fuel.",
 		"guided_munitions": "Guided missiles gain 25% range.",
@@ -144,7 +140,6 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 			lines.append(ability.display_name)
 	for modifier: Dictionary in node.grants.modifiers:
 		match modifier.id:
-			"command_capacity_bonus": lines.append("+%d command capacity above flagship base" % int(modifier.value))
 			"cruise_fuel_multiplier": lines.append("Cruise fuel use reduced by %d%%" % roundi((1.0 - float(modifier.value)) * 100))
 			"cruise_speed_multiplier": lines.append("Cruise speed increased by %d%%" % roundi((float(modifier.value) - 1.0) * 100))
 			"travel_credits_per_day": lines.append("%d cr per travel day" % int(modifier.value))

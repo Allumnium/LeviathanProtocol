@@ -17,7 +17,6 @@ var flagship_preview: Control
 var flagship_stats: GridContainer
 var flagship_description: ResourceText
 var flagship_bonuses: ResourceText
-var flagship_command: Label
 var status: Label
 
 
@@ -127,8 +126,6 @@ func _build_carousel() -> void:
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(details)
-	flagship_command = Label.new()
-	details.add_child(flagship_command)
 	flagship_stats = preload("res://scripts/ship_stat_bars.gd").new()
 	flagship_stats.columns = 2
 	details.add_child(flagship_stats)
@@ -157,7 +154,6 @@ func _update_flagship() -> void:
 	flagship_preview.owned = ship
 	flagship_preview.queue_redraw()
 	flagship_name.text = "%s   %d / %d" % [chassis.name, selected_flagship + 1, flagship_choices.size()]
-	flagship_command.text = "Command Points %d" % chassis.command
 	flagship_stats.set_ship(ship)
 	flagship_bonuses.set_content(SlotCatalog.chassis_bonuses(chassis))
 	flagship_description.set_content(chassis.description)

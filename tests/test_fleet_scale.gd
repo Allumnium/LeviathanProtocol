@@ -28,10 +28,8 @@ func fixture(persist := false) -> void:
 				data.equipment.erase(instance.uid)
 	data.ships = data.ships.filter(func(ship: Dictionary) -> bool: return ship.chassis != "drone")
 	HangarSquadrons.sync(data)
-	data.research.research_ids.append_array(["fleet_logistics_i", "fleet_logistics_ii", "fleet_logistics_iii"])
 	if persist:
-		check(state._commit_hangar(data), "Persist earned fleet logistics")
-		check(state.command_limit() == 132, "Top research supports the fixed fifty-ship fixture with spare capacity")
+		check(state._commit_hangar(data), "Persist funded fleet without capacity research")
 		check(state.buy_ships("fighter", 29) and state.buy_ships("transport", 19), "Buy full large squadrons atomically")
 		data = state.hangar_snapshot()
 	else:
@@ -99,10 +97,9 @@ func profile() -> void:
 
 func large_fleet() -> void:
 	fixture(true)
-	check(state.fleet.size() == 51 and state.used_command() == 120, "Fixed thirty-fighter/twenty-transport fixture retains its original workload")
+	check(state.fleet.size() == 51, "Fixed thirty-fighter/twenty-transport fixture retains its original workload")
 	var before: Dictionary = state.hangar_snapshot()
 	check(state.load_run_checkpoint() and SaveValidation.same(before, state.hangar_snapshot()), "Continue retains large squadrons, fits, ownership and formation")
-	check(not state.buy_ship("fighter") and SaveValidation.same(before, state.hangar_snapshot()), "Large fleet command boundary still rejects extra purchases")
 	var sim := simulation(51)
 	check(sim.players.size() == 51 and sim.living_combatant_count() == 91, "All ninety-one combatants deploy")
 	# Chrysalis and reinforcement paths share the same larger live budget.

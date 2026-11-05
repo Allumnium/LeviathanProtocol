@@ -132,7 +132,7 @@ func access_and_offers() -> void:
 	malformed.research[1].equipment_capabilities_any = ["laser", "laser"]
 	check(not GameDefinitions.validate(malformed).is_empty(), "Reject duplicate research capabilities")
 	var registry := HangarResearch.view_registry()
-	check(registry.research.size() == 19, "Eighteen meaningful cards remain plus Foundation")
+	check(registry.research.size() == 16, "Fifteen meaningful research nodes remain plus Foundation")
 	for node: Dictionary in registry.research:
 		if node.id == "foundation":
 			continue

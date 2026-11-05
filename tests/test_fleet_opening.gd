@@ -20,7 +20,7 @@ func settle() -> void:
 func fleet_checks() -> void:
 	for flagship: String in ["flagship_basic", "flagship_science"]:
 		check(state.start_new_run(1, 7341, true, flagship), "Start the expanded fleet")
-		check(state.fleet.size() == 13 and state.used_command() == 15 and state.command_limit() == 24, "Thirteen ships leave nine command points for purchases")
+		check(state.fleet.size() == 13, "Thirteen ships start without a command budget")
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.chassis_id == "drone").size() == 10
 			and state.fleet.filter(func(ship: HangarShip) -> bool: return ship.chassis_id == "fighter").size() == 1
 			and state.fleet.filter(func(ship: HangarShip) -> bool: return ship.chassis_id == "transport").size() == 1, "Approved starting class mix")

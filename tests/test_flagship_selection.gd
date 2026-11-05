@@ -23,7 +23,6 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://flagship-selection.json"
 	check(SlotCatalog.flagships().size() == 4, "Four flagship choices including original")
-	var budgets := {}
 	for chassis: Dictionary in SlotCatalog.flagships():
 		check(state.start_new_run(1, 351, true, chassis.id), "Start selected " + chassis.id)
 		check(state.credits == 700 and state.run_score.credits_earned == 0, "Starting credits are 700, excluded from score")
@@ -34,8 +33,6 @@ func run() -> void:
 		check(state.fleet[0].formation == Vector2.ZERO and state.fleet[1].formation == Vector2(0, 1.1)
 			and state.fleet[2].formation == Vector2(0, -1.25),
 			"Starter formation centers flagship with forward Fighter and rear Transport")
-		check(state.command_limit() == int(chassis.command) and state.used_command() == 15, "Selected command budget covers all starter escorts")
-		budgets[int(chassis.command)] = true
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.flagship).size() == 1
 			and state.get_deployed_fleet().size() == 13, "Exactly one mandatory flagship and all starter ships deploy")
 		var fitted := 0
@@ -64,8 +61,6 @@ func run() -> void:
 		simulation.advance(1.0 / 30.0)
 		check(simulation.phase == BattleSimulation.Phase.DEFEAT and simulation.living_player_count() == 12,
 			"Every flagship loss ends battle even with all twelve escorts alive")
-	check(budgets.size() == 1 and budgets.has(24),
-		"All flagship choices have room for the expanded starting fleet")
 	var defensive := HangarShip.new()
 	defensive.initialize_chassis("flagship_basic", 99, true)
 	var ordinary := HangarShip.new()
@@ -208,9 +203,8 @@ func _test_carousel() -> void:
 			setup._update_flagship()
 			await settle()
 			var chassis: Dictionary = setup.flagship_choices[index]
-			check(setup.flagship_preview.owned.chassis_id == chassis.id
-				and setup.flagship_command.text == "Command Points %d" % chassis.command,
-				"Carousel refreshes correct preview, command and stats")
+			check(setup.flagship_preview.owned.chassis_id == chassis.id,
+				"Carousel refreshes correct preview and stats")
 			check(not setup.flagship_bonuses.source_text.contains("Built-in")
 				and not setup.flagship_description.source_text.to_lower().contains("shield generator")
 				and setup.find_child("FlagshipDetails", true, false).find_children("*", "ResourceText", true, false).all(

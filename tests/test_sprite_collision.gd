@@ -36,7 +36,7 @@ func run() -> void:
 		"Bullet silhouette can graze a surface when its center misses")
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var ship := HangarShip.new()
-		check(ship.initialize_chassis(chassis.id, 1, int(chassis.command) > 0), "Initialize collision chassis " + chassis.id)
+		check(ship.initialize_chassis(chassis.id, 1, chassis.flagship), "Initialize collision chassis " + chassis.id)
 		var actor := BattleSimulation.Combatant.new()
 		actor.owned_ship = ship
 		actor.position = Vector2(37, -21)

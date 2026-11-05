@@ -112,7 +112,7 @@
       "trigger": "arrival",
       "location_id": "distress_1",
       "title": "Distress call",
-      "text": "A merchant hauler is pinned down by alien craft. Its captain offers to join your fleet if you clear the attackers. If command capacity is full, the crew pays the fitted ship's value instead.",
+      "text": "A merchant hauler is pinned down by alien craft. Its captain offers to join your fleet if you clear the attackers.",
       "art": "",
       "options": [
         {"id": "defend", "label": "DEFEND THE HAULER", "effects": {"combat": {"template": "relay_defense", "row": 6, "strength": 5.0, "credits": 240, "rescue_ship": "transport"}}},

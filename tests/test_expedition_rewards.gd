@@ -97,18 +97,15 @@ func run() -> void:
 
 	admit("distress_call")
 	state.credits = 100000
-	while state.used_command() < state.command_limit():
-		if not state.buy_ship("drone"):
-			check(false, "Fill command budget for compensation test")
-			break
-	check(state.resolve_expedition_event("distress_call", "defend"), "Rescue allowed at full command")
+	check(state.buy_ships("drone", 20), "Expand fleet before rescue")
+	check(state.resolve_expedition_event("distress_call", "defend"), "Rescue allowed for an expanded fleet")
 	before = state.hangar_snapshot()
 	sim = battle()
-	var price := Loadouts.ship_price("transport", Loadouts.default_for("transport"))
-	check(state.settle_battle(sim) and state.fleet.size() == before.ships.size()
-		and state.credits == int(before.credits) + 240 + price
-		and state.last_equipment_loot.contains("command full: +%d cr" % price),
-		"Full command grants exact fitted credit value without an undeployable ship")
+
+	check(state.settle_battle(sim) and state.fleet.size() == before.ships.size() + 1
+		and state.credits == int(before.credits) + 240
+		and state.last_equipment_loot.contains("joined the fleet"),
+		"Expanded fleet rescue adds a fitted ship rather than credit compensation")
 
 	for phase: int in [BattleSimulation.Phase.WITHDRAWN, BattleSimulation.Phase.DEFEAT]:
 		admit("distress_call")

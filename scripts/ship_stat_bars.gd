@@ -16,7 +16,7 @@ static func maneuverability(stats: ShipStats) -> float:
 		assert(not chassis.is_empty(), "Maneuverability requires chassis reference stats")
 		for entry: Dictionary in chassis:
 			var ship := HangarShip.new()
-			var initialized := ship.initialize_chassis(entry.id, 0, int(entry.command) > 0)
+			var initialized := ship.initialize_chassis(entry.id, 0, entry.flagship)
 			assert(initialized, "Maneuverability requires valid chassis")
 			_movement_average += movement_total(ship.get_stats()) / chassis.size()
 		assert(_movement_average > 0.0, "Maneuverability requires positive reference movement")
@@ -33,7 +33,7 @@ static func comparison_ranges() -> Dictionary:
 		return _ranges.duplicate(true)
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var ship := HangarShip.new()
-		var initialized := ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
+		var initialized := ship.initialize_chassis(chassis.id, 0, chassis.flagship)
 		assert(initialized, "Ship stat comparison requires valid base chassis")
 		var base := values(ship)
 		for key: String in KEYS:

@@ -109,8 +109,6 @@ static func valid(value: Variant) -> bool:
 	var grants := ResearchRules.resolve(progress.research_ids, HangarResearch.catalog())
 	var ids := {}
 	var leads := 0
-	var command := 0
-	var cost := 0
 	for entry: Variant in value.ships:
 		if not entry is Dictionary or not _integer(entry.get("id"), 1) or entry.id >= value.next_ship_id or ids.has(int(entry.id)) or not entry.get("chassis") is String or not entry.get("flagship") is bool or not _number(entry.get("hull_hp")) or not entry.get("mounts") is Dictionary or entry.has("builtins") or not entry.get("formation") is Array or entry.formation.size() != 2:
 			return false
@@ -118,15 +116,10 @@ static func valid(value: Variant) -> bool:
 		var chassis := SlotCatalog.find_chassis(entry.chassis)
 		if chassis.is_empty() or (not value.pending and entry.hull_hp < 0):
 			return false
+		if entry.flagship != chassis.flagship:
+			return false
 		if entry.flagship:
 			leads += 1
-			command = HangarResearch.command_limit(int(chassis.command), progress.research_ids)
-			if command <= 0:
-				return false
-		else:
-			cost += int(chassis.command_cost)
-			if int(chassis.command) > 0:
-				return false
 		for coordinate: Variant in entry.formation:
 			if not _number(coordinate) or absf(coordinate) > 5:
 				return false
@@ -152,7 +145,7 @@ static func valid(value: Variant) -> bool:
 			return false
 	if not HangarSquadrons.valid(value):
 		return false
-	return (leads == 1 and cost <= command) if not value.ended else leads <= 1
+	return leads == 1 if not value.ended else leads <= 1
 
 static func _number(value: Variant) -> bool:
 	return (value is float or value is int) and is_finite(float(value))

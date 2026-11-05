@@ -174,7 +174,7 @@ func run() -> void:
 	state.research_branch_choices.force_projection = "siege"
 	check(state.save_run_checkpoint(), "Fund ship layout fixtures")
 	for chassis in SlotCatalog.chassis():
-		if int(chassis.command) > 0:
+		if chassis.flagship:
 			continue
 		check(state.buy_ship(chassis.id), "Buy " + chassis.name + " for actual hangar review")
 		screen.selected_ship_id = state.fleet[-1].id

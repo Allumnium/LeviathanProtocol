@@ -28,9 +28,6 @@ static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool
 		"travel_credits_per_day":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 100 \
 				and modifier.value == floor(modifier.value)
-		"command_capacity_bonus":
-			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 256 \
-				and modifier.value == floor(modifier.value)
 		"energy_efficiency":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 0.3 \
 				and modifier.get("ordinary_efficiency_cap") == 0.3 and modifier.get("targets") is Array \

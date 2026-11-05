@@ -269,13 +269,13 @@ func _test_stat_ranges() -> void:
 	var movement_average := 0.0
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var ship := HangarShip.new()
-		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
+		ship.initialize_chassis(chassis.id, 0, chassis.flagship)
 		var stats := ship.get_stats()
 		movement_average += (stats.top_speed + stats.acceleration + stats.turn_rate) / SlotCatalog.chassis().size()
 	var score_average := 0.0
 	for chassis: Dictionary in SlotCatalog.chassis():
 		var ship := HangarShip.new()
-		ship.initialize_chassis(chassis.id, 0, int(chassis.command) > 0)
+		ship.initialize_chassis(chassis.id, 0, chassis.flagship)
 		var stats := ship.get_stats()
 		var score := 50.0 * (stats.top_speed + stats.acceleration + stats.turn_rate) / movement_average
 		check(is_equal_approx(helper.maneuverability(stats), score), "Maneuverability normalizes against aggregated chassis-wide means")

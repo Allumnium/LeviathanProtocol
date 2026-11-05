@@ -42,12 +42,6 @@ static func catalog() -> Array[Dictionary]:
 	result.assign(registry().research)
 	return result
 
-static func command_limit(base: int, research_ids: Array) -> int:
-	if base <= 0:
-		return 0
-	var grants := ResearchRules.resolve(research_ids, catalog())
-	return base + int(grants.modifiers.get("command_capacity_bonus", {}).get("value", 0))
-
 static func eligible(key: String, progress: Dictionary, include_deferred := false) -> bool:
 	if not include_deferred and key in DEFERRED_RESEARCH:
 		return false

@@ -89,13 +89,9 @@ func run() -> void:
 	state.run_save_path = real_path
 	var hull_before: float = state.owned_ship(1).hull_hp
 	check(state.swap_part(1, "fore", "laser") and state.owned_ship(1).hull_hp == hull_before, "Refitting a damaged host keeps its hull damage")
-	# Command budget is independent of credits and cannot be bypassed by direct calls.
 	state.credits = 10000
-	check(state.save_run_checkpoint(), "Fund command test")
-	for index in range(state.command_limit() - state.used_command()):
-		check(state.buy_ship("drone"), "Buy within command budget")
-	check(state.used_command() == state.command_limit(), "Command budget filled")
-	check(not state.buy_ship("drone"), "Command overflow rejected")
+	check(state.save_run_checkpoint(), "Fund larger fleet purchase")
+	check(state.buy_ships("drone", 20), "Purchase beyond former capacity without research")
 	check(not state.buy_ship("flagship_basic"), "Cannot buy second flagship")
 	var slowest := 0
 	for index in range(20):

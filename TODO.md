@@ -18,7 +18,7 @@ Research changes fleet behavior, not access to ordinary equipment. Keep the earn
 ## Battle feel decisions
 
 - [ ] Discuss Ion Pulse after [the battle feel audit](docs/BATTLE_FEEL_AUDIT.md): it is the only offered active ability, has 300 cast range versus 900 emitter range, situational effects and a shared 24-second cooldown. Decide reach and intended role before changing it.
-- [ ] Decide the desired first research-choice milestone and whether the Defensive starter should qualify for offensive research. Measured first victory leaves 7.57/20 RP; initial matching pool contains six utility/defensive cards. Preserve matching-equipment eligibility until a specific change is approved.
+- [ ] Decide the desired first research-choice milestone and whether the Defensive starter should qualify for offensive research. Measured first victory leaves 7.57/20 RP; after removing Logistics, its matching pool contains five utility/defensive cards. Preserve matching-equipment eligibility until a specific change is approved.
 
 ## Art dependency
 
