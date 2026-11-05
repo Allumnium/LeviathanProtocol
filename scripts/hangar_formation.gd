@@ -42,6 +42,7 @@ func _ready() -> void:
 	starfield.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	station = Sprite2D.new()
 	station.name = "DockedStation"
+	station.show_behind_parent = true
 	station.texture = SurfaceArt.texture(STATION_ART)
 	station.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var station_material := SurfaceArt.apply(station)

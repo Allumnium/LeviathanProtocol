@@ -22,7 +22,7 @@ func start() -> void:
 	var data: Dictionary = state.hangar_snapshot()
 	data.credits = 100000
 	check(state._commit_hangar(data), "Fund isolated ship purchases")
-	check(state.command_limit() == 16 and state.current_research_ids == ["foundation"]
+	check(state.command_limit() == 24 and state.current_research_ids == ["foundation"]
 		and state.research_branch_choices.is_empty(), "New Run retains base capacity and no free research/branches")
 
 # Explicit offered cards isolate capacity effects from seeded draw distribution.
@@ -64,7 +64,7 @@ func progression_and_capacity() -> void:
 	check(not state.choose_research(TIERS[1]) and not state.choose_research(TIERS[2]), "Cannot skip logistics tiers")
 	fund_research(19.5)
 	check(not state.choose_research(TIERS[0]) and state.research_points == 19.5
-		and state.command_limit() == 16, "Partial research gives no command capacity")
+		and state.command_limit() == 24, "Partial research gives no command capacity")
 	var before: Dictionary = state.hangar_snapshot()
 	check(state.load_run_checkpoint() and SaveValidation.same(before, state.hangar_snapshot()), "Continue preserves partial research")
 	fund_research(20, TIERS[0])
@@ -72,11 +72,11 @@ func progression_and_capacity() -> void:
 	before = state.hangar_snapshot()
 	state.research_completion_notices.clear()
 	state.run_save_path = "res://project.godot/no-command-research.json"
-	check(not state.choose_research(TIERS[0]) and state.command_limit() == 16
+	check(not state.choose_research(TIERS[0]) and state.command_limit() == 24
 		and state.research_completion_notices.is_empty() and SaveValidation.same(before, state.hangar_snapshot()),
 		"Failed completion leaves RP, capacity, research and notices unchanged")
 	state.run_save_path = path
-	check(state.choose_research(TIERS[0]) and state.command_limit() == 24
+	check(state.choose_research(TIERS[0]) and state.command_limit() == 32
 		and state.research_branch_choices.is_empty() and state.research_completion_notices == [TIERS[0]],
 		"Completion grants capacity once without committing a combat branch")
 	var group: Dictionary = HangarSquadrons.for_ship(state.squadrons, 3)
@@ -86,7 +86,7 @@ func progression_and_capacity() -> void:
 		if not state.buy_ship("drone"):
 			check(false, "Fill final command point")
 			break
-	check(state.used_command() == 24 and state.deployment_error().is_empty(), "Fleet can deploy exactly at researched capacity")
+	check(state.used_command() == 32 and state.deployment_error().is_empty(), "Fleet can deploy exactly at researched capacity")
 	before = state.hangar_snapshot()
 	check(not state.buy_ship("drone") and state.last_save_error.contains("command")
 		and SaveValidation.same(before, state.hangar_snapshot()), "Single purchase over capacity is atomic")
@@ -96,7 +96,7 @@ func progression_and_capacity() -> void:
 	invalid.research.research_ids = ["foundation"]
 	check(not HangarCheckpoint.valid(invalid), "Checkpoint rejects expanded fleet without earned capacity")
 	check(state.load_run_checkpoint() and SaveValidation.same(before, state.hangar_snapshot())
-		and state.command_limit() == 24, "Continue accepts expanded fleet and derives capacity")
+		and state.command_limit() == 32, "Continue accepts expanded fleet and derives capacity")
 	var rescue := before.duplicate(true)
 	var compensation := ShipLoadouts.ship_price("transport", ShipLoadouts.default_for("transport"))
 	check(state._rescue_ship(rescue, "transport").contains("command full")
@@ -104,8 +104,8 @@ func progression_and_capacity() -> void:
 		"Full researched fleet receives disclosed rescue compensation")
 	for index in [1, 2]:
 		fund_research(HangarResearch.threshold(state.run_progress_snapshot()), TIERS[index])
-		check(state.choose_research(TIERS[index]) and state.command_limit() == 16 + BONUSES[index], "Earn next logistics tier")
-		check(state.load_run_checkpoint() and state.command_limit() == 16 + BONUSES[index], "Continue retains higher tier capacity")
+		check(state.choose_research(TIERS[index]) and state.command_limit() == 24 + BONUSES[index], "Earn next logistics tier")
+		check(state.load_run_checkpoint() and state.command_limit() == 24 + BONUSES[index], "Continue retains higher tier capacity")
 		if index == 1:
 			rescue = state.hangar_snapshot()
 			check(state._rescue_ship(rescue, "transport").contains("joined") and HangarCheckpoint.valid(rescue)
@@ -124,7 +124,7 @@ func progression_and_capacity() -> void:
 			check(state.swap_part(1, "fore", "laser"), "Fit laser capability for energy choice")
 		fund_research(HangarResearch.threshold(state.run_progress_snapshot()), pair[1])
 		check(state.choose_research(pair[1]) and not state.choose_research(pair[2])
-			and state.command_limit() == 124, "Exclusive combat branch remains exclusive beside shared fleet growth")
+			and state.command_limit() == 132, "Exclusive combat branch remains exclusive beside shared fleet growth")
 
 func settle() -> void:
 	for index in range(5):
@@ -171,11 +171,11 @@ func native_ui() -> void:
 			"Logistics card is available in native offer at " + str(resolution))
 		await capture("command-research-%d.png" % resolution.x)
 	await click(screen.research_dialog.buttons[TIERS[0]])
-	check(state.current_research_ids.has(TIERS[0]) and state.command_limit() == 24, "Native Choose grants logistics capacity")
+	check(state.current_research_ids.has(TIERS[0]) and state.command_limit() == 32, "Native Choose grants logistics capacity")
 	screen.active_tab = "FLEET"
 	screen._refresh()
 	await settle()
-	check(text_under(screen.roster).contains("Command %d / 24" % state.used_command()), "Fleet displays earned command capacity")
+	check(text_under(screen.roster).contains("Command %d / 32" % state.used_command()), "Fleet displays earned command capacity")
 	await capture("command-fleet.png")
 	screen.queue_free()
 	await settle()

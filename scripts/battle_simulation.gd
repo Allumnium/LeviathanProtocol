@@ -88,6 +88,7 @@ class Combatant:
 	var weapon_search_remaining: Dictionary = {}
 	var indexed_cell := Vector2i.ZERO
 	var member_order := 0
+	var squadron_id := ""
 	var support_parts: Dictionary = {}
 	var support_parts_ready := false
 	var cached_lab_index := -1
@@ -219,6 +220,7 @@ var _spatial_cells: Dictionary = {}
 var _separation_cells: Dictionary = {}
 var _separation_radius := 0.0
 var _separation_motion := 0.0
+var _flocks: Dictionary = {}
 var battle_id := "battle"
 var tick_index := 0
 var _combat_elapsed := 0.0
@@ -288,6 +290,7 @@ func setup(
 	other_entities.clear()
 	_spatial_cells.clear()
 	_separation_cells.clear()
+	_flocks.clear()
 	entities.clear()
 	objective_target_ids.clear()
 	destroy_all_neutral_targets = false
@@ -351,6 +354,12 @@ func _rebuild_member_cache() -> void:
 	entities.clear()
 	for member in _members:
 		entities[member.entity_id] = member
+		member.squadron_id = ""
+		if member.owned_ship is HangarShip and member.owned_ship.squadron_id > 0:
+			member.squadron_id = "player/squadron/%d" % member.owned_ship.squadron_id
+		elif member.alien != null and member.alien.entity_kind == "ship" \
+				and member.alien.role_id not in ["warden", "pylon"]:
+			member.squadron_id = "alien/squadron/%s/%d/%d" % [member.alien.role_id, member.alien.tier, member.alien.wave_index]
 	_previous_velocities.resize(_members.size())
 
 func living_combatant_count() -> int:
@@ -1161,6 +1170,7 @@ func _spatial_cell(position: Vector2) -> Vector2i:
 func _rebuild_spatial_index(delta := 1.0 / 30.0) -> void:
 	_spatial_cells.clear()
 	_separation_cells.clear()
+	_flocks.clear()
 	_separation_radius = 0.0
 	_separation_motion = 0.0
 	for member in _members:
@@ -1177,8 +1187,36 @@ func _rebuild_spatial_index(delta := 1.0 / 30.0) -> void:
 		if not _separation_cells.has(near_cell):
 			_separation_cells[near_cell] = []
 		(_separation_cells[near_cell] as Array).append(member)
+		var flock_key := _flock_key(member)
+		if not flock_key.is_empty():
+			if not _flocks.has(flock_key):
+				_flocks[flock_key] = {"count": 0, "position": Vector2.ZERO, "velocity": Vector2.ZERO}
+			var flock: Dictionary = _flocks[flock_key]
+			flock.count += 1
+			flock.position += member.position
+			flock.velocity += member.velocity
 	for index in range(_members.size()):
 		_members[index].member_order = index
+
+func _flock_key(ship: Combatant) -> String:
+	if ship.squadron_id.is_empty() or not ship.is_alive() or ship.speed <= 0 \
+			or ship.retreat_time > 0 or (withdrawing and ship.is_player) or encounter.warden.braced(ship):
+		return ""
+	var stance: String = ship.owned_ship.stance if ship.owned_ship is HangarShip else "seek"
+	var order := ship.commanded_target.entity_id if ship.commanded_target != null else ""
+	return "%d/%s/%s/%s" % [ship.faction, ship.squadron_id, stance, order]
+
+func _flock_velocity(ship: Combatant, desired: Vector2) -> Vector2:
+	var flock: Dictionary = _flocks.get(_flock_key(ship), {})
+	if flock.is_empty() or flock.count < 2:
+		return desired
+	# Per-step aggregates avoid order-dependent steering and quadratic group scans.
+	var center: Vector2 = flock.position / float(flock.count)
+	var alignment: Vector2 = flock.velocity / float(flock.count)
+	var cohesion := (center - ship.position).limit_length(ship.speed * 0.45)
+	if not alignment.is_zero_approx():
+		desired = desired.lerp(alignment.normalized() * desired.length(), 0.45)
+	return (desired + cohesion).limit_length(ship.speed)
 
 func _separation_velocity(ship: Combatant, desired: Vector2) -> Vector2:
 	var extent := Vector2.ONE * (ship.radius + _separation_radius + 12 + _separation_motion)
@@ -1346,6 +1384,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	if ship.retreat_time > 0.0:
 		steering_direction = -direction
 	var desired := steering_direction * ship.speed
+	desired = _flock_velocity(ship, desired)
 	desired = _separation_velocity(ship, desired)
 	desired = encounter.steer(ship.position, desired, ship.speed)
 	var distance_from_center := ship.position.length()
@@ -1497,6 +1536,7 @@ func _investigate_contacts(ship: Combatant, delta: float) -> void:
 	if pickup != null:
 		destination = pickup
 	var desired := MiningRules.avoidance(self, ship, ship.position.direction_to(destination) * ship.speed)
+	desired = _separation_velocity(ship, _flock_velocity(ship, desired))
 	desired = encounter.steer(ship.position, desired, ship.speed)
 	desired = encounter.warden.avoidance(self, ship, desired)
 	direction = desired.normalized()
@@ -1549,6 +1589,7 @@ func _guard_offset(ship: Combatant) -> Vector2:
 func _stance_move(ship: Combatant, destination: Vector2, delta: float) -> void:
 	var offset := destination - ship.position
 	var desired := offset.limit_length(ship.speed)
+	desired = _separation_velocity(ship, _flock_velocity(ship, desired))
 	desired = encounter.steer(ship.position, desired, ship.speed)
 	desired = MiningRules.avoidance(self, ship, desired)
 	desired = encounter.warden.avoidance(self, ship, desired)

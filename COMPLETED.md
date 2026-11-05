@@ -2,6 +2,16 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Resume queued fleet and combat changes
+
+- Finished the interrupted fleet expansion: 13 fully fitted starters (selected flagship, ten Drones, Fighter, Transport), 24 base command across flagship choices, 15 used. Compact wings fit the native Fleet canvas; station artwork draws behind ships. Continue preserves ownership, formations and equipment UIDs.
+- Doubled ordinary enemy ships deterministically without the proposed 24-enemy cap. Preserved original stats, roles, tiers/waves, rewards, hazards, boss bodies/pylons and boss timing; wingmate provenance survives production encounter snapshot round-trips. The shared 192-live-combatant safety ceiling remains.
+- Added deterministic squadron cohesion/alignment for allies and aliens, including frozen reinforcements. Orders/stances, retreat/withdrawal, collision/obstacle avoidance and boss anchors remain distinct. Actual alien membership drives enemy readouts.
+- Actual relay transfers render blue particle beams; alien shields/Sentinel cover use sprite-fitting alpha glows rather than the large circular cover halo. Removed the management research-complete banner; immediate card grants, readiness, explicit errors and Continue remain.
+- Focused isolated verification: fleet/encounter logic 266, both-faction flocking/relay/motion 29, particles 10, command progression 80 and all-flagship starting/loss checks 312; zero failures. Native opening 272 checks: 13-vs-10 victory at 19.5 simulated seconds with 13 survivors, settled and loaded through Continue. Native Fleet layering 46, relay/shield appearance/expiry 8 and choice-only research 75 checks; reviewed 640x360/1280x720/1920x1080 captures. Four related fixtures compile-checked without running their suites.
+- Expected invalid-flagship rejection and existing native shutdown texture diagnostics remain. No full baseline, campaign sweep, broad fleet profile or soak. Science remains a fixed victory reward, with lab RP earned during travel, not battle time.
+- Outlined battle deployment/Begin Combat, Ships-to-Fleet inspection parity and orderly management escorts in [TODO.md](TODO.md). The user requested discussion first; that redesign remains unimplemented.
+
 ## 2026-11-05 - Relay shields and support clarity
 
 - Each Shield Relay now adds the user-requested 10 shields to its host, stacking capacity and the existing two-shield/second transfer per copy. Normal four-percent recovery applies after the existing four-second delay. Empty donors cannot transfer; fraction equalization and shield conservation remain.

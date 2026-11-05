@@ -23,6 +23,7 @@ var threat_cost := 0.0
 var entity_id := ""
 var entity_kind := "ship"
 var wave_index := 0
+var copy_of := ""
 
 const ROLE_COSTS := {"scout": 16.0, "fighter": 22.0, "sentinel": 30.0, "support": 26.0, "chrysalis": 32.0}
 const TIER_COST := [1.0, 2.25, 3.75]
@@ -99,9 +100,12 @@ func to_snapshot() -> Dictionary:
 	for weapon in stats.weapons:
 		weapons.append([weapon.weapon_name, weapon.fire_interval_seconds, weapon.damage_per_shot,
 			weapon.projectiles_per_activation, weapon.range_units, weapon.is_projectile_weapon, weapon.interceptable])
-	return {"name": display_name, "stats": [stats.shields, stats.integrity, stats.weight, stats.thrust],
+	var result := {"name": display_name, "stats": [stats.shields, stats.integrity, stats.weight, stats.thrust],
 		"weapons": weapons, "definition_id": definition_id, "role": role_id, "tier": tier,
 		"threat_cost": threat_cost, "entity_id": entity_id, "kind": entity_kind, "wave": wave_index}
+	if not copy_of.is_empty():
+		result.copy_of = copy_of
+	return result
 
 
 static func from_snapshot(entry: Variant) -> AlienShip:
@@ -136,6 +140,7 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 	result.entity_id = entry.get("entity_id", "")
 	result.entity_kind = entry.get("kind", "ship")
 	result.wave_index = int(entry.get("wave", 0))
+	result.copy_of = entry.get("copy_of", "")
 	result._apply_tier_art()
 	return result
 
@@ -161,7 +166,7 @@ static func snapshot_valid(entry: Variant) -> bool:
 			return false
 	if entry.stats[1] <= 0:
 		return false
-	for key in ["definition_id", "role", "entity_id", "kind"]:
+	for key in ["definition_id", "role", "entity_id", "kind", "copy_of"]:
 		if entry.has(key) and not entry[key] is String:
 			return false
 	for key in ["tier", "wave"]:

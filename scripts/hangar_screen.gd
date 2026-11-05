@@ -265,7 +265,6 @@ func _ready() -> void:
 	feedback.size_flags_horizontal = SIZE_EXPAND_FILL
 	footer.add_child(feedback)
 	_build_travel_controls(top, footer)
-	add_child(load("res://scripts/research_notice.gd").new())
 	GameState.fleet_changed.connect(_queue_refresh)
 	GameState.research_changed.connect(_queue_refresh)
 	GameState.credits_changed.connect(_on_credits_changed)

@@ -4,8 +4,8 @@ extends RefCounted
 const VERSION := 1
 const DIFFICULTY := [0.8, 1.0, 1.25]
 const MULTIPLIERS := {"standard": 1.0, "elite": 1.4, "boss": 1.8}
-const MAX_SHIPS := 24
-const MAX_ENEMY_ENTITIES := 40 # Authored enemy budgets stay separate from live spawn headroom.
+const MAX_SHIPS := BattleSimulation.MAX_LIVE_COMBATANTS
+const MAX_ENEMY_ENTITIES := BattleSimulation.MAX_LIVE_COMBATANTS
 # The legacy map has 14 combat columns. Step 10 replaces this explicit bridge
 # with the actual 24 campaign rows, including noncombat stops.
 const LEGACY_COMBAT_ROWS := [1, 3, 5, 8, 9, 10, 12, 13, 16, 17, 18, 20, 21, 24]
@@ -29,7 +29,7 @@ static func threat(global_row: int, difficulty: int, encounter_type := "standard
 	return 100.0 * pow(5.0, proximity) * DIFFICULTY[difficulty] * MULTIPLIERS[encounter_type]
 
 
-static func generate(run_seed: int, node_id: int, global_row: int, difficulty: int, template_id := "patrol", combat_index := 1, rocks := false, environment: Dictionary = {}) -> Dictionary:
+static func generate(run_seed: int, node_id: int, global_row: int, difficulty: int, template_id := "patrol", combat_index := 1, rocks := false, environment: Dictionary = {}, expand_fleet := true) -> Dictionary:
 	if not environment.is_empty() and not NodeEnvironment.valid(environment):
 		push_error("Cannot generate an encounter with invalid node conditions.")
 		return {}
@@ -38,7 +38,7 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 	if not TEMPLATES.has(template_id) or combat_index < 1 or combat_index > 14:
 		return {}
 	if template_id in ["bastion_warden", "pylon_escort"]:
-		return _generate_warden(run_seed, node_id, global_row, difficulty, template_id, combat_index, rocks, environment)
+		return _generate_warden(run_seed, node_id, global_row, difficulty, template_id, combat_index, rocks, environment, expand_fleet)
 	var template: Dictionary = TEMPLATES[template_id]
 	var budget := threat(global_row, difficulty, template.type)
 	if budget <= 0.0:
@@ -129,12 +129,34 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		result.environment_ids = ["asteroid_drift"]
 	if not environment.is_empty():
 		result["environment"] = environment.duplicate(true)
+	return _finish_fleet(result, expand_fleet)
+
+
+static func _finish_fleet(result: Dictionary, expand_fleet: bool) -> Dictionary:
+	if expand_fleet:
+		var originals: Array = result.roster.duplicate(true)
+		for entry: Dictionary in originals:
+			if result.roster.size() >= MAX_ENEMY_ENTITIES:
+				break
+			if entry.kind != "ship" or entry.entity_id == result.get("warden", {}).get("body_id", ""):
+				continue
+			var copy := entry.duplicate(true)
+			copy.entity_id = str(entry.entity_id) + "/wingmate"
+			copy.copy_of = entry.entity_id
+			result.roster.append(copy)
+			result.spent += float(copy.threat_cost)
+			result.budget += float(copy.threat_cost)
+			if result.objective.type == "eliminate_targets":
+				result.objective.required_target_ids.append(copy.entity_id)
+	if result.roster.size() >= MAX_ENEMY_ENTITIES:
+		# A full roster may deliberately leave budget unspent.
+		result.unspent_tolerance = maxf(result.unspent_tolerance, result.budget - result.spent + 0.001)
 	return result
 
 
-static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: int, template_id: String, combat_index: int, rocks: bool, environment: Dictionary) -> Dictionary:
+static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: int, template_id: String, combat_index: int, rocks: bool, environment: Dictionary, expand_fleet := true) -> Dictionary:
 	var boss := template_id == "bastion_warden"
-	var result := generate(run_seed, node_id, row, difficulty, "boss_patrol" if boss else "patrol", combat_index, rocks, environment)
+	var result := generate(run_seed, node_id, row, difficulty, "boss_patrol" if boss else "patrol", combat_index, rocks, environment, false)
 	if result.is_empty():
 		return {}
 	var budget: float = result.budget - result.get("hazard_budget", 0.0)
@@ -179,7 +201,7 @@ static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: 
 	result["warden"] = {"body_id": body.entity_id, "pylon_ids": pylons, "lance": boss,
 		"cycle_seconds": 12.0, "warning_seconds": 3.0, "vulnerability_seconds": 6.0,
 		"lance_damage": 6.0 * DIFFICULTY[difficulty], "range": 520.0, "half_width": 22.0}
-	return result
+	return _finish_fleet(result, expand_fleet)
 
 
 static func material_bundle(total: int) -> Array[int]:
@@ -290,11 +312,11 @@ static func valid(encounter: Variant) -> bool:
 	var proximity := float(encounter.global_row - 1) / 23.0
 	if not is_equal_approx(encounter.proximity, proximity) or encounter.difficulty_multiplier <= 0 or encounter.encounter_multiplier <= 0:
 		return false
-	if not is_equal_approx(encounter.budget, 100.0 * pow(5.0, proximity) * encounter.difficulty_multiplier * encounter.encounter_multiplier):
-		return false
+	var base_budget: float = 100.0 * pow(5.0, proximity) * encounter.difficulty_multiplier * encounter.encounter_multiplier
 	if not encounter.get("roster") is Array or encounter.roster.is_empty() or encounter.roster.size() > MAX_ENEMY_ENTITIES:
 		return false
 	var ids: Dictionary = {}
+	var by_id: Dictionary = {}
 	var waves: Dictionary = {}
 	var spent := 0.0
 	var ships := 0
@@ -309,12 +331,33 @@ static func valid(encounter: Variant) -> bool:
 		if not AlienShip._finite_number(entry.get("threat_cost")) or entry.threat_cost < 0:
 			return false
 		ids[entry.entity_id] = true
+		by_id[entry.entity_id] = entry
 		waves[int(entry.wave)] = true
 		spent += entry.threat_cost
 		ships += 1 if entry.kind == "ship" else 0
 		present_roles[entry.get("role", "")] = true
 		if not encounter.legacy and entry.threat_cost <= 0:
 			return false
+	var copy_cost := 0.0
+	var copied := {}
+	for entry: Dictionary in encounter.roster:
+		if not entry.has("copy_of"):
+			continue
+		if not entry.copy_of is String or not by_id.has(entry.copy_of) or copied.has(entry.copy_of):
+			return false
+		var original: Dictionary = by_id[entry.copy_of]
+		if original.has("copy_of") or original.kind != "ship" \
+				or original.entity_id == encounter.get("warden", {}).get("body_id", ""):
+			return false
+		var copy := entry.duplicate(true)
+		copy.erase("copy_of")
+		copy.entity_id = original.entity_id
+		if not SaveValidation.same(copy, original):
+			return false
+		copied[entry.copy_of] = true
+		copy_cost += float(entry.threat_cost)
+	if not is_equal_approx(encounter.budget, base_budget + copy_cost):
+		return false
 	if not encounter.legacy:
 		for role in encounter.get("required_roles", []):
 			if not present_roles.has(role):
@@ -340,7 +383,7 @@ static func valid(encounter: Variant) -> bool:
 		return false
 	if encounter.has("asteroids"):
 		if not AsteroidField.valid(encounter.asteroids) or not AlienShip._finite_number(encounter.get("hazard_budget")) \
-			or not is_equal_approx(encounter.hazard_budget, encounter.budget * 0.15) or spent + encounter.hazard_budget > encounter.budget + 0.000001:
+			or not is_equal_approx(encounter.hazard_budget, base_budget * 0.15) or spent + encounter.hazard_budget > encounter.budget + 0.000001:
 			return false
 	if not encounter.legacy and encounter.budget - spent >= encounter.unspent_tolerance + 0.000001:
 		return false

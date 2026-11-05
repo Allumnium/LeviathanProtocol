@@ -27,16 +27,17 @@ func run() -> void:
 	for chassis: Dictionary in SlotCatalog.flagships():
 		check(state.start_new_run(1, 351, true, chassis.id), "Start selected " + chassis.id)
 		check(state.credits == 700 and state.run_score.credits_earned == 0, "Starting credits are 700, excluded from score")
-		check(state.fleet.size() == 4 and state.fleet[0].chassis_id == chassis.id
+		check(state.fleet.size() == 13 and state.fleet[0].chassis_id == chassis.id
 			and state.fleet[1].chassis_id == "transport" and state.fleet[2].chassis_id == "fighter"
-			and state.fleet[3].chassis_id == "fighter", "Starting fleet includes selected flagship, Transport and two Fighters")
+			and state.fleet.slice(3).all(func(ship: HangarShip) -> bool: return ship.chassis_id == "drone"),
+			"Starting fleet includes selected flagship, Transport, Fighter and ten Drones")
 		check(state.fleet[0].formation == Vector2.ZERO and state.fleet[1].formation == Vector2(0, 1.1)
-			and state.fleet[2].formation == Vector2(-1.25, -1.25) and state.fleet[3].formation == Vector2(1.25, -1.25),
-			"Starter triangle centers flagship with level forward Fighter flanks and rear Transport")
-		check(state.command_limit() == int(chassis.command) and state.used_command() == 7, "Selected command budget covers all starter escorts")
+			and state.fleet[2].formation == Vector2(0, -1.25),
+			"Starter formation centers flagship with forward Fighter and rear Transport")
+		check(state.command_limit() == int(chassis.command) and state.used_command() == 15, "Selected command budget covers all starter escorts")
 		budgets[int(chassis.command)] = true
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.flagship).size() == 1
-			and state.get_deployed_fleet().size() == 4, "Exactly one mandatory flagship and all starter ships deploy")
+			and state.get_deployed_fleet().size() == 13, "Exactly one mandatory flagship and all starter ships deploy")
 		var fitted := 0
 		for owned: HangarShip in state.fleet:
 			fitted += owned.mounts.size()
@@ -50,22 +51,21 @@ func run() -> void:
 		check(HangarCheckpoint.valid(state.hangar_snapshot()) and state.save_run_checkpoint()
 			and state.load_run_checkpoint() and state.fleet[0].chassis_id == chassis.id, "Selected flagship roundtrips atomically")
 		check(state.fleet[1].formation.is_equal_approx(Vector2(0, 1.1))
-			and state.fleet[2].formation == Vector2(-1.25, -1.25) and state.fleet[3].formation == Vector2(1.25, -1.25),
-			"Continue retains starter triangle positions")
+			and state.fleet[2].formation == Vector2(0, -1.25),
+			"Continue retains starter formation positions")
 		check(not state.buy_ship(chassis.id), "Cannot buy a second flagship")
 		check(state.fleet[0].art_texture is CanvasTexture, "New flagship uses supplied mapped artwork")
 		var simulation := BattleSimulation.new()
 		var enemies: Array[RefCounted] = [AlienShip.threat_variant("fighter", 0)]
 		check(simulation.setup_owned(state.get_deployed_fleet(), enemies, 0, 0, 351, state.battle_support_context()),
-			"Selected flagship and all three escorts enter combat")
+			"Selected flagship and all twelve escorts enter combat")
 		simulation.player.shields = 0
 		simulation._damage(simulation.player, state.fleet[0].hull_hp + 2, Vector2.ZERO, null, "Environment")
 		simulation.advance(1.0 / 30.0)
-		check(simulation.phase == BattleSimulation.Phase.DEFEAT and simulation.living_player_count() == 3,
-			"Every flagship loss ends battle even with all three escorts alive")
-	check(budgets.size() == 3 and budgets.has(20) and budgets.has(16) and budgets.has(12)
-		and SlotCatalog.find_chassis("flagship_basic").command == 16,
-		"Defensive and Combat share 16 Command Points; Civic remains highest")
+		check(simulation.phase == BattleSimulation.Phase.DEFEAT and simulation.living_player_count() == 12,
+			"Every flagship loss ends battle even with all twelve escorts alive")
+	check(budgets.size() == 1 and budgets.has(24),
+		"All flagship choices have room for the expanded starting fleet")
 	var defensive := HangarShip.new()
 	defensive.initialize_chassis("flagship_basic", 99, true)
 	var ordinary := HangarShip.new()

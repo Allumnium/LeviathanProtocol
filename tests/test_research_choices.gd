@@ -185,6 +185,8 @@ func native_ui() -> void:
 		await click(dialog.buttons[offer[0]])
 		check(state.current_research_ids.has(offer[0]) and not is_instance_valid(screen.research_dialog),
 			"Native Choose grants the selected upgrade and dismisses selection")
+		check(screen.get_node_or_null("ResearchCompletion") == null,
+			"Choosing research does not add a redundant completion banner")
 		check(screen.research_status.text == "%d / 40 RP" % floori(state.research_points)
 			and screen.research_progress.visible and screen.research_progress.max_value == 40,
 			"Header advances to the next shared threshold with exact RP progress")
@@ -248,6 +250,7 @@ func run() -> void:
 		mechanics()
 	else:
 		await native_ui()
-		await native_saved_match()
+		if "--choice-only" not in OS.get_cmdline_user_args():
+			await native_saved_match()
 	print("RESEARCH CHOICES: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

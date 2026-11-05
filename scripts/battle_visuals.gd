@@ -161,6 +161,7 @@ func _draw() -> void:
 	_draw_manual_target()
 	draw_set_transform_matrix(world_transform())
 	_draw_healing_particles()
+	_draw_relay_particles()
 	_draw_weapon_particles()
 	for pulse: Dictionary in simulation.research_combat.pulse_rings:
 		var source: BattleSimulation.Combatant = simulation.entities.get(pulse.source)
@@ -386,6 +387,31 @@ func _beam_tint(beam: BattleSimulation.Beam) -> Color:
 		return Color(1, 0.85, 0.4)
 	return Color(1, 0.03, 0.06)
 
+func _draw_relay_particles() -> void:
+	if simulation.phase != BattleSimulation.Phase.COMBAT:
+		return
+	var visible_links := 0
+	for link: Dictionary in simulation.doctrines.shield_links:
+		if visible_links >= 32:
+			break
+		var source: BattleSimulation.Combatant = simulation.entities.get(link.source)
+		var target: BattleSimulation.Combatant = simulation.entities.get(link.target)
+		if source == null or target == null or not source.is_alive() or not target.is_alive() \
+				or not simulation.point_visible(0, source.position) or not simulation.point_visible(0, target.position) \
+				or not _visible_world_rect.intersects(Rect2(source.position, target.position - source.position).abs().grow(4)):
+			continue
+		visible_links += 1
+		var phase := float((str(link.source) + str(link.target)).hash() % 101) / 101.0
+		var normal := source.position.direction_to(target.position).orthogonal()
+		for index in range(16):
+			var progress := fposmod(simulation.elapsed * 1.4 + phase + index / 16.0, 1.0)
+			var point := source.position.lerp(target.position, progress) \
+				+ normal * sin(index * 2.1 + simulation.elapsed * 8) * 2
+			if not _visible_world_rect.has_point(point) or not simulation.point_visible(0, point):
+				continue
+			draw_circle(point, 3, Color(0.15, 0.55, 1, 0.16))
+			draw_rect(Rect2(point - Vector2.ONE, Vector2.ONE * 2), Color(0.4, 0.8, 1, 0.9))
+
 func _draw_beam_particles(beam: BattleSimulation.Beam, end: Vector2) -> void:
 	var tint := _beam_tint(beam)
 	var normal := beam.origin_position.direction_to(end).orthogonal()
@@ -559,14 +585,12 @@ func _draw_alien_fleet() -> void:
 		if not _visible_world_rect.has_point(render_position):
 			continue
 		_draw_command_mark(alien, render_position)
-		if simulation.enemy_roles.role(alien) == "sentinel":
-			draw_arc(render_position, 140, 0, TAU, 48, Color(0.4, 0.7, 0.85, 0.25), 1)
 		var draw_size := Collision.alien_size(alien.alien)
 		var render_heading := lerp_angle(alien.previous_heading, alien.heading, interpolation_alpha)
 		_set_ship_transform(render_position, render_heading + PI * 0.5)
 		var rect := Rect2(-draw_size * 0.5, draw_size)
-		if alien.shield_flash > 0:
-			_draw_shield_glow(alien.alien.texture, rect, alien.shield_flash)
+		if alien.shield_flash > 0 or (simulation.enemy_roles.role(alien) == "sentinel" and alien.shields > 0):
+			_draw_shield_glow(alien.alien.texture, rect, maxf(alien.shield_flash, 0.06))
 		draw_texture_rect(alien.alien.texture, rect, false)
 		if simulation.player != null and simulation._analysis_multiplier(simulation.player, alien) > 1.0:
 			draw_arc(Vector2.ZERO, alien.radius + 3, 0, TAU, 24, Color("88ddec"), 1.0)

@@ -7,6 +7,7 @@ const NO_PARTS: Array[int] = []
 var pool: Dictionary = {}
 var charges: Dictionary = {}
 var healing_links: Array[Dictionary] = []
+var shield_links: Array[Dictionary] = []
 var carriers := HangarCarriers.new()
 var synchronization: Dictionary = {}
 var mark_timers: Dictionary = {}
@@ -40,6 +41,7 @@ func configure(sim, value: Variant) -> bool:
 	pool = value.duplicate(true)
 	charges.clear()
 	healing_links.clear()
+	shield_links.clear()
 	synchronization.clear()
 	mark_timers.clear()
 	marks.clear()
@@ -159,6 +161,7 @@ func advance(sim, delta: float) -> void:
 			sim._damage(hit, charge.weapon.damage_per_shot, charge.origin, source, charge.weapon.weapon_name, false, true)
 		sim._record_event("beam_impact", {"source": source.entity_id, "target": hit.entity_id})
 	healing_links.clear()
+	shield_links.clear()
 	for member in sim.players:
 		if member.owned_ship == null or not member.is_alive():
 			continue
@@ -262,6 +265,8 @@ func _relay(sim, source, delta: float) -> void:
 	var amount := minf(2 * relays * delta, minf(source.shields, minf(chosen.stats.shields - chosen.shields, equalization)))
 	source.shields -= amount
 	chosen.shields += amount
+	if amount > 0:
+		shield_links.append({"source": source.entity_id, "target": chosen.entity_id, "shields": amount})
 
 func _rebuild(sim, member) -> void:
 	var owned: FleetShip = member.owned_ship

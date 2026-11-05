@@ -361,7 +361,7 @@ func _test_defeat() -> void:
 	await settle()
 	check(state.run_ended and battle.defeat_dialog.visible and battle.find_child("VictoryBanner", true, false) == null,
 		"Flagship loss goes directly to Game Over, even without a report")
-	check(state.fleet.size() == 4 and state.fleet.all(func(ship: HangarShip) -> bool: return ship.is_alive() and not ship.flagship),
+	check(state.fleet.size() == 13 and state.fleet.all(func(ship: HangarShip) -> bool: return ship.is_alive() and not ship.flagship),
 		"Surviving escorts do not prevent flagship-loss Game Over")
 	check(state.run_score.swarm_damage == 432 and state.load_run_checkpoint() and state.run_score.swarm_damage == 432,
 		"Defeat damage persists once")

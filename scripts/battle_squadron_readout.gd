@@ -33,8 +33,8 @@ func _register(actor: BattleSimulation.Combatant) -> void:
 	if enemies:
 		if actor.alien == null:
 			return
-		key = actor.alien.display_name
-		title = key
+		key = actor.squadron_id if not actor.squadron_id.is_empty() else actor.entity_id
+		title = actor.alien.display_name
 	elif actor.owned_ship is HangarShip:
 		var ship: HangarShip = actor.owned_ship
 		key = ship.squadron_id if ship.squadron_id > 0 else -ship.id

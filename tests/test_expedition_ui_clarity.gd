@@ -364,41 +364,8 @@ func run() -> void:
 		if child is ResourceText and child.source_text.contains("10 cargo"):
 			duplicate_effect = true
 	check(not duplicate_effect, "Refit options do not repeat the installed-part effect already shown below the ship")
-	var notice: Control = screen.get_node("ResearchCompletion")
-	notice.set_process(false)
-	state.research_completion_notices.clear()
-	state.research_completion_notices.append("laboratory_ii")
-	notice._process(0)
-	notice._process(0.2)
-	check(notice.visible and notice.title.source_text.contains("Research Methods I")
-		and notice.effect.source_text == "Operating labs produce 20% more research.",
-		"Research completion banner identifies the upgrade and its real gameplay effect")
-	check(notice.get_theme_stylebox("panel").texture.resource_path.ends_with("Popup_GameTips.png")
-		and notice.mouse_filter == Control.MOUSE_FILTER_IGNORE and not notice.is_in_group("modal_ui"),
-		"Completion uses supplied popup artwork without blocking input or becoming a modal")
-	var banner_state: Dictionary = state.hangar_snapshot()
-	for resolution in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
-		root.size = resolution
-		await settle()
-		notice._process(0)
-		check(screen.get_global_rect().grow(1).encloses(notice.get_global_rect())
-			and notice.size.x >= screen.size.x - 17
-			and notice.get_global_rect().grow(1).encloses(notice.effect.get_global_rect()),
-			"Wide completion banner and effect fit at %s" % resolution)
-		if DisplayServer.get_name() != "headless":
-			await RenderingServer.frame_post_draw
-			root.get_texture().get_image().save_png("res://.local/checks/research-notice/banner-%d.png" % resolution.x)
-	screen._refresh()
-	await settle()
-	check(notice.visible and notice.remaining > 0 and state.hangar_snapshot() == banner_state,
-		"Ordinary refresh preserves the completion banner without changing speed or saved state")
-	state.research_completion_notices.append("laboratory_iii")
-	notice._process(5)
-	check(notice.visible and notice.title.source_text.contains("Research Methods II"),
-		"Consecutive completions queue instead of overwriting the visible upgrade")
-	notice._process(6)
-	check(not notice.visible and state.research_completion_notices.is_empty(),
-		"Completion banner expires without requiring dismissal")
+	check(screen.get_node_or_null("ResearchCompletion") == null,
+		"Immediate research choices no longer add a redundant completion banner")
 	print("EXPEDITION_UI_CLARITY_CHECKS=%d failures=%d" % [checks, failures])
 	screen.queue_free()
 	await settle()

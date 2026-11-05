@@ -19,17 +19,23 @@ func check(ok: bool, message: String) -> void:
 		push_error(message)
 
 func fixture(persist := false) -> void:
-	check(state.start_new_run(1, 851, true, "flagship_science"), "Start large fleet with the smallest base command budget")
+	check(state.start_new_run(1, 851, true, "flagship_science"), "Start the fixed large-fleet fixture")
 	var data: Dictionary = state.hangar_snapshot()
 	data.credits = 1000000
+	for ship: Dictionary in data.ships:
+		if ship.chassis == "drone":
+			for instance: Dictionary in ship.mounts.values():
+				data.equipment.erase(instance.uid)
+	data.ships = data.ships.filter(func(ship: Dictionary) -> bool: return ship.chassis != "drone")
+	HangarSquadrons.sync(data)
 	data.research.research_ids.append_array(["fleet_logistics_i", "fleet_logistics_ii", "fleet_logistics_iii"])
 	if persist:
 		check(state._commit_hangar(data), "Persist earned fleet logistics")
-		check(state.command_limit() == 120, "Top research supports thirty fighters plus twenty transports")
-		check(state.buy_ships("fighter", 28) and state.buy_ships("transport", 19), "Buy full large squadrons atomically")
+		check(state.command_limit() == 132, "Top research supports the fixed fifty-ship fixture with spare capacity")
+		check(state.buy_ships("fighter", 29) and state.buy_ships("transport", 19), "Buy full large squadrons atomically")
 		data = state.hangar_snapshot()
 	else:
-		for index in range(28):
+		for index in range(29):
 			Loadouts.append_ship(data, "fighter", Loadouts.default_for("fighter"))
 		for index in range(19):
 			Loadouts.append_ship(data, "transport", Loadouts.default_for("transport"))
@@ -93,7 +99,7 @@ func profile() -> void:
 
 func large_fleet() -> void:
 	fixture(true)
-	check(state.fleet.size() == 51 and state.used_command() == 120, "Flagship plus thirty fighters and twenty transports fits exactly")
+	check(state.fleet.size() == 51 and state.used_command() == 120, "Fixed thirty-fighter/twenty-transport fixture retains its original workload")
 	var before: Dictionary = state.hangar_snapshot()
 	check(state.load_run_checkpoint() and SaveValidation.same(before, state.hangar_snapshot()), "Continue retains large squadrons, fits, ownership and formation")
 	check(not state.buy_ship("fighter") and SaveValidation.same(before, state.hangar_snapshot()), "Large fleet command boundary still rejects extra purchases")
