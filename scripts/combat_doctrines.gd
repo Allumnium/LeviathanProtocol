@@ -6,9 +6,7 @@ const NO_PARTS: Array[int] = []
 # Numeric tuning is deliberately local; later campaign pacing remains step 61.
 var pool: Dictionary = {}
 var charges: Dictionary = {}
-var drones: Array[Dictionary] = []
-var launch_timers: Dictionary = {}
-var serial := 0
+var healing_links: Array[Dictionary] = []
 var carriers := HangarCarriers.new()
 var synchronization: Dictionary = {}
 var mark_timers: Dictionary = {}
@@ -41,9 +39,7 @@ func configure(sim, value: Variant) -> bool:
 		return false
 	pool = value.duplicate(true)
 	charges.clear()
-	drones.clear()
-	launch_timers.clear()
-	serial = 0
+	healing_links.clear()
 	synchronization.clear()
 	mark_timers.clear()
 	marks.clear()
@@ -52,7 +48,6 @@ func configure(sim, value: Variant) -> bool:
 		for member in sim.players:
 			if member.owned_ship == null or not member.is_alive():
 				continue
-			pool.repair_capacity += operational(member, ShipPart.Type.REPAIR_DRONE_BAY).size() * 20
 			if not operational(member, ShipPart.Type.NANOFORGE).is_empty():
 				pool.rebuild_capacity += 1
 	if not pool.has("carriers"):
@@ -155,6 +150,7 @@ func advance(sim, delta: float) -> void:
 			hit = target
 		var beam := BattleSimulation.Beam.new()
 		beam.source = source
+		beam.weapon_name = charge.weapon.weapon_name
 		beam.origin_position = charge.origin
 		beam.target = hit
 		beam.aim_position = charge.aim
@@ -162,7 +158,7 @@ func advance(sim, delta: float) -> void:
 		for shot in range(charge.weapon.projectiles_per_activation):
 			sim._damage(hit, charge.weapon.damage_per_shot, charge.origin, source, charge.weapon.weapon_name, false, true)
 		sim._record_event("beam_impact", {"source": source.entity_id, "target": hit.entity_id})
-	_update_drones(sim, delta)
+	healing_links.clear()
 	for member in sim.players:
 		if member.owned_ship == null or not member.is_alive():
 			continue
@@ -176,7 +172,7 @@ func advance(sim, delta: float) -> void:
 		_mark(sim, member, delta)
 		_synchronize(sim, member, delta)
 		_rebuild(sim, member)
-		_launch(sim, member, delta)
+		_heal(sim, member, delta)
 
 func _mark(sim, source, delta: float) -> void:
 	if not source.owned_ship is HangarShip:
@@ -285,96 +281,41 @@ func _rebuild(sim, member) -> void:
 		sim._record_event("reconstruction", {"ship": member.entity_id, "unit": index, "hp": unit.hp})
 		break
 
-func _repair_target(sim, source):
-	var chosen = null
-	var largest := 0.0
-	for member in sim.players:
-		if not member.is_alive() or member.owned_ship == null or source.position.distance_to(member.position) > 220:
-			continue
-		if member.owned_ship is HangarShip:
-			var damage: float = member.owned_ship.hull_max - member.owned_ship.hull_hp
-			if damage > largest:
-				largest = damage
-				chosen = {"member": member, "index": -1}
-			continue
-		for index in range(member.owned_ship.units.size()):
-			var unit: Dictionary = member.owned_ship.units[index]
-			if unit.hp > 0 and unit.max_hp - unit.hp > largest:
-				largest = unit.max_hp - unit.hp
-				chosen = {"member": member, "index": index}
-	return chosen
+const HEAL_RANGE := 220.0
+const HEAL_RATE := 2.0
 
-func _launch(sim, member, delta: float) -> void:
-	var bays := operational(member, ShipPart.Type.REPAIR_DRONE_BAY)
-	if bays.is_empty():
+func _heal(sim, source, delta: float) -> void:
+	if delta <= 0 or not source.is_alive():
 		return
-	var rates := AdjacencyRules.rates(member.owned_ship.units)
-	for index in bays:
-		var key := "%s/%d" % [member.entity_id, index]
-		launch_timers[key] = maxf(0, float(launch_timers.get(key, 0)) - delta * float(rates.get(index, 1.0)))
-		if launch_timers[key] > 0 or pool.repair_spent >= pool.repair_capacity:
-			continue
-		var alive := 0
-		for actor in sim._members:
-			if actor.is_alive() and actor.has_tag("combatant"):
-				alive += 1
-		if alive >= BattleSimulation.MAX_LIVE_COMBATANTS:
-			return
-		var target: Variant = _repair_target(sim, member)
-		if target == null:
-			continue
-		var drone := BattleSimulation.Combatant.new()
-		drone.stats = ShipStats.new()
-		drone.stats.integrity = 2
-		drone.stats.weight = 1
-		drone.integrity = 2
-		drone.radius = 4
-		drone.faction = member.faction
-		drone.tags.assign({"combatant": true, "craft": true, "summon": true, "repair_drone": true})
-		drone.position = member.position
-		serial += 1
-		drone.entity_id = "repair_drone/%d" % serial
-		if not sim.register_entity(drone):
-			continue
-		var amount := minf(4, pool.repair_capacity - pool.repair_spent)
-		pool.repair_spent += amount # Interception spends the launched payload too.
-		launch_timers[key] = 2
-		drones.append({"actor": drone, "source": member.entity_id, "index": index, "target": target.member.entity_id,
-			"unit": target.index, "amount": amount, "remaining": 6.0})
-		sim._record_event("repair_launch", {"source": member.entity_id, "drone": drone.entity_id, "amount": amount})
-
-func _update_drones(sim, delta: float) -> void:
-	for index in range(drones.size() - 1, -1, -1):
-		var job := drones[index]
-		var drone = job.actor
-		var source = sim.entities.get(job.source)
-		var target = sim.entities.get(job.target)
-		job.remaining -= delta
-		if not drone.is_alive() or job.remaining <= 0 or source == null or not source.is_alive() \
-			or source.owned_ship.units[job.index].hp <= 0 or target == null or not target.is_alive():
-			drone.integrity = 0
-			drones.remove_at(index)
-			continue
-		var multiplier := ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[job.index].part,
-			"repair_drone", "repair_drone_speed_multiplier")
-		drone.position = drone.position.move_toward(target.position, delta * 100 * multiplier)
-		if drone.position.distance_to(target.position) > target.radius:
-			continue
-		if target.owned_ship is HangarShip:
-			var amount: float = target.owned_ship.repair_hull(job.amount)
-			target.repaired_hp += amount
-			sim._refresh_owned_stats(target)
-			sim._record_event("repair_delivery", {"target": target.entity_id, "hp": amount})
-		else:
-			var unit: Dictionary = target.owned_ship.units[job.unit]
-			if unit.hp > 0:
-				var amount := minf(job.amount, unit.max_hp - unit.hp)
-				unit.hp += amount
+	var rate := 0.0
+	for index: int in operational(source, ShipPart.Type.REPAIR_DRONE_BAY):
+		rate += HEAL_RATE * ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[index].part,
+			"repair_aura", "repair_aura_multiplier")
+	if rate <= 0:
+		return
+	var targets: Array = []
+	for target in sim.players:
+		if target.faction == source.faction and target.is_alive() and target.owned_ship is HangarShip \
+				and source.position.distance_to(target.position) <= HEAL_RANGE \
+				and target.owned_ship.hull_hp < target.owned_ship.hull_max:
+			targets.append(target)
+	var budget := rate * delta
+	# Redistribute unused shares when a lightly damaged ally fills up.
+	while budget > 0.0000001 and not targets.is_empty():
+		var share: float = budget / targets.size()
+		var remaining: Array = []
+		for target in targets:
+			var amount: float = target.owned_ship.repair_hull(share)
+			budget -= amount
+			if amount > 0:
 				target.repaired_hp += amount
 				sim._refresh_owned_stats(target)
-				sim._record_event("repair_delivery", {"target": target.entity_id, "unit": job.unit, "hp": amount})
-		drone.integrity = 0
-		drones.remove_at(index)
+				healing_links.append({"source": source.entity_id, "target": target.entity_id, "hp": amount})
+			if target.owned_ship.hull_hp < target.owned_ship.hull_max:
+				remaining.append(target)
+		if remaining.size() == targets.size():
+			break
+		targets = remaining
 
 func snapshot() -> Dictionary:
 	var pending := {}
@@ -382,10 +323,6 @@ func snapshot() -> Dictionary:
 		var c: Dictionary = charges[key]
 		pending[key] = {"source": c.source, "target": c.target, "index": c.index, "remaining": c.remaining,
 			"origin": [c.origin.x, c.origin.y], "aim": [c.aim.x, c.aim.y], "damage": c.weapon.damage_per_shot}
-	var jobs: Array = []
-	for job in drones:
-		jobs.append({"actor": job.actor.entity_id, "source": job.source, "index": job.index,
-			"target": job.target, "unit": job.unit, "amount": job.amount, "remaining": job.remaining})
-	return {"pool": pool.duplicate(true), "charges": pending, "drones": jobs, "timers": launch_timers.duplicate(), "serial": serial,
+	return {"pool": pool.duplicate(true), "charges": pending, "healing": healing_links.duplicate(true),
 		"carriers": carriers.snapshot(), "synchronization": synchronization.duplicate(),
 		"marks": marks.duplicate(true), "mark_timers": mark_timers.duplicate()}

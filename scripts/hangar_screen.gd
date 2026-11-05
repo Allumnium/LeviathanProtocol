@@ -1776,7 +1776,7 @@ func _part_effect(item: Dictionary) -> String:
 		"tactical_computer": return "Salvo / %ss per computer" % ScienceRules.format_rp(12.0 / ResearchUpgrades.value(modifiers, "synchronization_multiplier"))
 		"command_uplink": return "Mark: +%d%% per uplink\n5s / 20s" % roundi((ResearchUpgrades.value(modifiers, "mark_damage_multiplier", 1.2) - 1) * 100)
 		"repair_station": return "Repair %.0f hull/s\n%.0f hull reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
-		"repair_drone_bay": return "Repair drones: 4 hull / 2s\n20 hull reserve per encounter"
+		"repair_drone_bay": return "%s hull/s shared per hangar\nSelf + allies | Range 220" % ScienceRules.format_rp(2.0 * ResearchUpgrades.value(modifiers, "repair_aura_multiplier"))
 		"shield_relay": return "Transfer own shields: 2/s each\nRange 180"
 		"ion_emitter":
 			var weapon: Dictionary = item.stats.weapons[0]

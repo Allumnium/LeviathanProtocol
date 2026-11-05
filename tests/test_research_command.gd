@@ -116,15 +116,12 @@ func progression_and_capacity() -> void:
 		"Failed expanded-fleet purchase rolls back money, ownership, equipment and squadrons")
 	state.run_save_path = path
 	# Logistics stays independent of the active mutually exclusive combat families.
-	for pair: Array in [["applied_energy", "optics_ii", "disruption_i"], ["field_engineering", "renewal_i", "bastion_ii"],
-		["guided_munitions", "siege_i", "carrier_i"]]:
+	for pair: Array in [["applied_energy", "optics_ii", "disruption_i"], ["field_engineering", "renewal_i", "bastion_ii"]]:
 		var data: Dictionary = state.hangar_snapshot()
 		data.research.research_ids.append(pair[0])
 		check(state._commit_hangar(data), "Earn combat branch prerequisite beside logistics")
 		if pair[0] == "applied_energy":
 			check(state.swap_part(1, "fore", "laser"), "Fit laser capability for energy choice")
-		elif pair[0] == "guided_munitions":
-			check(state.swap_part(1, "spine", "missile_rack"), "Fit missile capability for siege choice")
 		fund_research(HangarResearch.threshold(state.run_progress_snapshot()), pair[1])
 		check(state.choose_research(pair[1]) and not state.choose_research(pair[2])
 			and state.command_limit() == 124, "Exclusive combat branch remains exclusive beside shared fleet growth")

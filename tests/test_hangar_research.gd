@@ -31,7 +31,7 @@ func run() -> void:
 				and not description.contains("DPS") and not description.contains("RP/day"),
 				"Every research uses a short gameplay sentence without progression or stat prose: " + node.id)
 	check(not ResearchViewModel.description(view_registry, "guided_munitions").contains("Unlocks")
-		and ResearchViewModel.description(view_registry, "carrier_ii").contains("Bomber Bay")
+		and not view_registry.research.any(func(node: Dictionary) -> bool: return node.id in ["carrier_i", "carrier_ii"])
 		and ResearchViewModel.description(view_registry, "laboratory_iii").contains("research")
 		and ResearchViewModel.description(view_registry, "energy_manipulation").contains("sustained beams"),
 		"Descriptions retain actual advanced unlocks and gameplay upgrades")

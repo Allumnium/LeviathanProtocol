@@ -6,7 +6,7 @@ const DEFERRED_EQUIPMENT := ["crew_quarters", "focusing_lens", "reactive_bulkhea
 const OMITTED_NODES := ["basic_extraction", "deep_extraction", "optics_i", "bastion_i"]
 const DEFERRED_PURCHASES := ["gravitic_snare", "nanoforge"]
 const DEFERRED_RESEARCH := ["disruption_ii", "renewal_ii"]
-const RESEARCH_ONLY_EQUIPMENT := ["beam_lance", "torpedo_bomber_bay"]
+const RESEARCH_ONLY_EQUIPMENT := ["beam_lance"]
 
 static func starting_equipment(item: Dictionary) -> bool:
 	return not item.is_empty() and item.id not in RESEARCH_ONLY_EQUIPMENT

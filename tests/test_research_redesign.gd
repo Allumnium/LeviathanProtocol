@@ -107,16 +107,7 @@ func weapons() -> void:
 	check(sim.player.stats.weapons[0].hull_damage_multiplier == unchanged, "Damage refresh does not multiply research a second time")
 
 func support() -> void:
-	var carrier := ship({"spine": "flight_deck"}, ["carrier_i", "carrier_ii"])
-	var sim := simulation(carrier)
-	sim.doctrines.advance(sim, 0.1)
-	var carriers := sim.doctrines.carriers
-	check(carriers.sorties.size() == 1 and carriers.reserves.values()[0].spent == 1, "Carrier launch spends one UID-bound replacement")
-	check(is_equal_approx(carriers.timers.values()[0], 3.2), "Carrier I produces a 3.2-second launch interval")
-	check(is_equal_approx(carriers.sorties[0].actor.stats.weapons[0].damage_per_shot, 2.4), "Carrier II improves interceptor damage")
-	check(carriers.reserves.values()[0].capacity == 6 and carriers.sorties[0].actor.sortie_ammo == 12,
-		"Research preserves finite replacements and weapon activations")
-	check(is_equal_approx(carriers.sorties[0].remaining, 25), "Research preserves sortie lifetime")
+	var sim: BattleSimulation
 	var command := ship({"spine": "command_uplink", "fore": "laser"}, ["command_i"])
 	sim = simulation(command)
 	sim.doctrines._mark(sim, sim.player, 0)
@@ -129,29 +120,10 @@ func support() -> void:
 	check(is_zero_approx(sim.doctrines.synchronization[sim.player.entity_id]), "One computer triggers at 9.6 seconds")
 	var repair := ship({"spine": "repair_drone_bay", "fore": "laser"}, ["renewal_i"])
 	sim = simulation(repair)
-	var target := ship({"fore": "laser"})
-	var actor := BattleSimulation.Combatant.new()
-	actor.owned_ship = target
-	actor.stats = target.get_stats()
-	actor.integrity = actor.stats.integrity
-	actor.entity_id = "repair-target"
-	actor.faction = 0
-	actor.position = Vector2(200, 0)
-	check(sim.register_entity(actor), "Register repair target")
-	var drone := BattleSimulation.Combatant.new()
-	drone.stats = ShipStats.new()
-	drone.stats.integrity = 2
-	drone.integrity = 2
-	drone.entity_id = "repair-flight"
-	drone.faction = 0
-	check(sim.register_entity(drone), "Register repair drone")
-	var index := CombatDoctrines.operational(sim.player, ShipPart.Type.REPAIR_DRONE_BAY)[0]
-	sim.doctrines.drones.append({"actor": drone, "source": sim.player.entity_id, "index": index,
-		"target": actor.entity_id, "unit": 0, "amount": 4, "remaining": 6.0})
-	var reserve_before := sim.doctrines.pool.duplicate(true)
-	sim.doctrines._update_drones(sim, 0.1)
-	check(is_equal_approx(drone.position.x, 12.5), "Renewal speeds drone travel by 25%")
-	check(sim.doctrines.pool == reserve_before, "Faster flight does not refill or spend additional repair reserves")
+	repair.hull_hp -= 10
+	var before_hp := repair.hull_hp
+	sim.doctrines._heal(sim, sim.player, 1)
+	check(is_equal_approx(repair.hull_hp - before_hp, 2.5), "Renewal boosts shared hangar healing by 25%")
 	check(is_equal_approx(state.self_repair_rate(repair), float(repair.chassis.self_repair_hp_per_second) * 1.25), "Renewal increases passive hull repair")
 
 func access_and_offers() -> void:
@@ -160,17 +132,17 @@ func access_and_offers() -> void:
 	malformed.research[1].equipment_capabilities_any = ["laser", "laser"]
 	check(not GameDefinitions.validate(malformed).is_empty(), "Reject duplicate research capabilities")
 	var registry := HangarResearch.view_registry()
-	check(registry.research.size() == 21, "Twenty meaningful cards remain plus Foundation")
+	check(registry.research.size() == 19, "Eighteen meaningful cards remain plus Foundation")
 	for node: Dictionary in registry.research:
 		if node.id == "foundation":
 			continue
 		check(not node.grants.modifiers.is_empty() or not node.grants.ability_ids.is_empty(), "Every card grants an active modifier or ability: " + node.id)
-		check(node.grants.equipment_ids.all(func(id: String) -> bool: return id in ["beam_lance", "torpedo_bomber_bay"]),
-			"Only two rare equipment unlocks: " + node.id)
+		check(node.grants.equipment_ids.all(func(id: String) -> bool: return id in ["beam_lance"]),
+			"Only Beam Lance remains a rare equipment unlock: " + node.id)
 	check(ShipLoadouts.equipment_available(SlotCatalog.find_equipment("research_lab", 3), ["foundation"])
 		and ShipLoadouts.equipment_available(SlotCatalog.find_equipment("tactical_computer"), ["foundation"]), "Lab (XL) and computer are ordinary purchases")
 	check(not ShipLoadouts.equipment_available(SlotCatalog.find_equipment("beam_lance"), ["foundation"])
-		and not ShipLoadouts.equipment_available(SlotCatalog.find_equipment("torpedo_bomber_bay"), ["foundation"]), "Rare equipment stays research-locked")
+		and not ShipLoadouts.equipment_available(SlotCatalog.find_equipment("torpedo_bomber_bay"), ["foundation"]), "Beam Lance stays locked and retired Bomber Bay stays unavailable")
 	state.run_save_path = "user://redesign.json"
 	check(state.start_new_run(1, 7341), "Start matching-offer fixture")
 	var deployed: Array[FleetShip] = state.get_deployed_fleet()

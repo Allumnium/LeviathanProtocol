@@ -96,7 +96,7 @@ static func description(_registry: Dictionary, id: String) -> String:
 		"optics_ii": "Lasers gain 20% range and Beam Lance becomes available.",
 		"disruption_i": "Ion Pulse interrupts enemies and suppresses shield recovery.",
 		"bastion_ii": "Shields periodically recover, even under fire.",
-		"renewal_i": "Hull repair and repair-drone flight become 25% faster.",
+		"renewal_i": "Hull repair and Repair Drone Hangar healing become 25% faster.",
 		"siege_i": "Missiles split near their target.",
 		"siege_ii": "Fragments and railgun hull hits deal 20% more damage.",
 		"carrier_i": "Flight decks launch craft 25% faster.",
@@ -126,7 +126,7 @@ static func effect_summary(registry: Dictionary, id: String) -> String:
 				"gravitic_snare": lines.append("35% slow, 5s")
 				"reactive_bulkhead": lines.append("2 adjacent components\n-30% projectile hull damage")
 				"shield_relay": lines.append("2 shields/s to ally\n180 range; host pays")
-				"repair_drone_bay": lines.append("4 HP / drone, 20 HP reserve\n220 range; interceptable")
+				"repair_drone_bay": lines.append("2 hull/s shared healing\n220 range; continuous")
 				"nanoforge": lines.append("1 component / host\n25% HP; empty contents")
 				"repair_station": lines.append("2 HP/s, 2 adjacent\n20 HP reserve")
 				"point_defense_turret": lines.append("Missile defense")

@@ -89,6 +89,7 @@ func fire_laser(sim, source, index: int, weapon: ShipWeaponStats, origin: Vector
 		if not channel.is_empty():
 			sim.beams.erase(channel.beam)
 		var beam := BattleSimulation.Beam.new()
+		beam.weapon_name = weapon.weapon_name
 		beam.source = source
 		beam.prismatic = true
 		channel = {"target": target.entity_id, "held": 0.0, "active": true, "beam": beam}

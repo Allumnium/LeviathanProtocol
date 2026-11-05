@@ -101,7 +101,7 @@ func mechanics() -> void:
 	start()
 	for event: Dictionary in state.expedition_simulation.events:
 		state.expedition_simulation.state.event_receipts[event.id] = true
-	fund(19.75)
+	fund(19.95) # Current starter fleet earns 0.1 RP during this travel second.
 	check(state.depart_expedition("refuel_station_1"), "Depart with a nearly full research bar")
 	before = state.hangar_snapshot()
 	state.run_save_path = "res://project.godot/blocked-ready.json"

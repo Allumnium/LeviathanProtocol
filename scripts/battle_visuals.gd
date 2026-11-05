@@ -28,6 +28,11 @@ const IMPACT_SECONDS := 0.22
 const MAX_PROJECTILE_IMPACTS := 96
 const IMPACT_COLORS := [Color(1.0, 0.24, 0.06), Color(1.0, 0.58, 0.1), Color(1.0, 0.96, 0.85)]
 var _projectile_impacts: Array[Dictionary] = []
+const MAX_WEAPON_PARTICLES := 384
+var _weapon_particles: Array[Dictionary] = []
+var _particle_tracks: Dictionary = {}
+var _particle_simulation: BattleSimulation
+var _particle_clock := -1.0
 
 var _part_patterns_by_type: Dictionary[String, ShipPartPattern] = {}
 var simulation: BattleSimulation
@@ -83,6 +88,7 @@ func _process(_delta: float) -> void:
 			_shield_mask(member.alien.texture)
 	_projectile_impacts = _projectile_impacts.filter(func(impact: Dictionary) -> bool:
 		return simulation.elapsed - impact.time < IMPACT_SECONDS)
+	_update_weapon_particles()
 	var flashes := PackedVector4Array()
 	var transform := get_global_transform_with_canvas() * world_transform()
 	for explosion in simulation.explosions:
@@ -154,6 +160,8 @@ func _draw() -> void:
 	_draw_other_entities()
 	_draw_manual_target()
 	draw_set_transform_matrix(world_transform())
+	_draw_healing_particles()
+	_draw_weapon_particles()
 	for pulse: Dictionary in simulation.research_combat.pulse_rings:
 		var source: BattleSimulation.Combatant = simulation.entities.get(pulse.source)
 		if source == null or not source.is_alive() or not simulation.point_visible(BattleSimulation.Faction.PLAYER, source.position):
@@ -161,10 +169,14 @@ func _draw() -> void:
 		var progress := 1 - float(pulse.remaining) / 0.6
 		draw_arc(source.position, source.radius + 6 + progress * 35, 0, TAU, 48,
 			Color(0.2, 0.85, 1, 1 - progress), 2, true)
+	var beam_particle_budget := 32
 	for beam in simulation.beams:
 		var end := beam.target.position if not simulation.visibility_enabled or simulation.team_can_see(BattleSimulation.Faction.PLAYER, beam.target) else beam.aim_position
 		if not _visible_world_rect.has_point(beam.origin_position) and not _visible_world_rect.has_point(end):
 			continue
+		if beam_particle_budget > 0:
+			_draw_beam_particles(beam, end)
+			beam_particle_budget -= 1
 		var steps := maxi(1, ceili(beam.origin_position.distance_to(end) / 24.0)) if simulation.visibility_enabled else 1
 		for index in range(steps):
 			var start := beam.origin_position.lerp(end, float(index) / steps)
@@ -176,7 +188,8 @@ func _draw() -> void:
 					draw_line(start - normal, finish - normal, Color(0.9, 0.4, 1, 0.8), beam.intensity, true)
 					draw_line(start, finish, Color.WHITE, 1, true)
 				else:
-					draw_line(start, finish, Color(1.0, 0.03, 0.06, beam.lifetime / 0.16), 2.0, true)
+					var tint := _beam_tint(beam)
+					draw_line(start, finish, Color(tint, beam.lifetime / 0.16), 2.0, true)
 	for projectile in simulation.projectiles:
 		var projectile_position := projectile.previous_position.lerp(projectile.position, interpolation_alpha)
 		if not _visible_world_rect.has_point(projectile_position) or not simulation.point_visible(BattleSimulation.Faction.PLAYER, projectile_position):
@@ -223,11 +236,15 @@ func _draw() -> void:
 		draw_arc(ability_preview.position, float(definition.radius_units), 0, TAU, 48, color, 1.5)
 		for source in ability_preview.sources:
 			draw_arc(simulation.abilities.origin(source, ability_preview.id), float(definition.range_units), 0, TAU, 64, Color(0.5, 0.7, 0.8, 0.4), 1)
+	var charge_particle_budget := 24
 	for charge: Dictionary in simulation.doctrines.charges.values():
 		var source = simulation.entities.get(charge.source)
 		var target = simulation.entities.get(charge.target)
 		if source != null and target != null and simulation.team_can_see(0, source) and simulation.team_can_see(0, target):
 			draw_line(charge.origin, charge.aim, Color(0.9, 0.7, 0.35, 0.7), 2.0, true)
+			if charge_particle_budget > 0:
+				_draw_charge_particles(charge)
+				charge_particle_budget -= 1
 	for effect: Dictionary in simulation.abilities.effects:
 		if int(effect.faction) == 0:
 			draw_arc(effect.position, float(effect.radius), 0, TAU, 48, Color(0.55, 0.85, 0.95, 0.5), 1.0)
@@ -282,11 +299,124 @@ func add_projectile_impact(position: Vector2) -> void:
 	_projectile_impacts.append({"position": position, "time": simulation.elapsed})
 	queue_redraw()
 
+func _update_weapon_particles() -> void:
+	if _particle_simulation != simulation:
+		_weapon_particles.clear()
+		_particle_tracks.clear()
+		_particle_clock = -1.0
+		_particle_simulation = simulation
+	if simulation.elapsed == _particle_clock:
+		return
+	_particle_clock = simulation.elapsed
+	_weapon_particles = _weapon_particles.filter(func(p: Dictionary) -> bool:
+		return simulation.elapsed - p.time < p.life)
+	var tracks := {}
+	var emitted := 0
+	var visible := Rect2(camera_position - size / (camera_zoom * 2.0), size / camera_zoom).grow(16)
+	for shot in simulation.projectiles:
+		var key := shot.get_instance_id()
+		var last: float = _particle_tracks.get(key, -1.0)
+		tracks[key] = last
+		if emitted >= 32 or simulation.elapsed - last < 0.05 or not visible.has_point(shot.position) \
+				or not simulation.point_visible(0, shot.position):
+			continue
+		tracks[key] = simulation.elapsed
+		var direction := shot.position.direction_to(shot.aim_position)
+		var tint := Color(1.0, 0.5, 0.12) if shot.is_player else Color(0.65, 0.95, 0.3)
+		var life := 0.32 if shot.interceptable else 0.14
+		_add_weapon_particle(shot.position, -direction * 16, tint, life, 2.5 if shot.interceptable else 1.2)
+		if last < 0 and visible.has_point(shot.origin) and simulation.point_visible(0, shot.origin):
+			for index in range(5):
+				_add_weapon_particle(shot.origin, direction.rotated((index - 2) * 0.25) * (18 + index * 3),
+					Color(1, 0.85, 0.5), 0.16, 1.5)
+		emitted += 1
+	_particle_tracks = tracks
+
+func _add_weapon_particle(position: Vector2, velocity: Vector2, tint: Color, life: float, extent: float) -> void:
+	if _weapon_particles.size() >= MAX_WEAPON_PARTICLES:
+		_weapon_particles.pop_front()
+	_weapon_particles.append({"position": position, "velocity": velocity, "tint": tint,
+		"time": simulation.elapsed, "life": life, "extent": extent})
+
+func _draw_weapon_particles() -> void:
+	for particle: Dictionary in _weapon_particles:
+		var age: float = simulation.elapsed - particle.time
+		if age < 0 or age >= particle.life:
+			continue
+		var position: Vector2 = particle.position + particle.velocity * age
+		if not _visible_world_rect.has_point(position) or not simulation.point_visible(0, position):
+			continue
+		var alpha: float = 1.0 - age / particle.life
+		var extent: float = particle.extent * (0.5 + alpha * 0.5)
+		draw_rect(Rect2(position - Vector2.ONE * extent, Vector2.ONE * extent * 2), Color(particle.tint, alpha * 0.65))
+
+func _draw_healing_particles() -> void:
+	var visible_links := 0
+	for link: Dictionary in simulation.doctrines.healing_links:
+		if visible_links >= 32:
+			break
+		var source = simulation.entities.get(link.source)
+		var target = simulation.entities.get(link.target)
+		if source == null or target == null or not source.is_alive() or not target.is_alive() \
+				or not simulation.point_visible(0, source.position) or not simulation.point_visible(0, target.position) \
+				or not _visible_world_rect.has_point(target.position):
+			continue
+		visible_links += 1
+		var phase := float((str(link.source) + str(link.target)).hash() % 101) / 101.0
+		for index in range(10):
+			var progress := fposmod(simulation.elapsed * 0.8 + phase + index / 10.0, 1.0)
+			var position: Vector2
+			if source == target:
+				position = target.position + Vector2.from_angle(progress * TAU) * (target.radius * 0.6 + sin(progress * PI) * 7)
+			else:
+				position = source.position.lerp(target.position, progress) \
+					+ source.position.direction_to(target.position).orthogonal() * sin(progress * PI) * sin(index * 2.4) * 12
+			if not simulation.point_visible(0, position):
+				continue
+			var alpha := 0.25 + sin(progress * PI) * 0.65
+			draw_circle(position, 3.5, Color(0.2, 1.0, 0.45, alpha * 0.12))
+			draw_rect(Rect2(position - Vector2.ONE, Vector2.ONE * 2), Color(0.45, 1.0, 0.6, alpha))
+
+func _beam_tint(beam: BattleSimulation.Beam) -> Color:
+	if beam.prismatic:
+		return Color(0.5, 0.9, 1)
+	if beam.weapon_name == "Ion Emitter":
+		return Color(0.3, 0.8, 1)
+	if beam.weapon_name == "Beam Lance":
+		return Color(1, 0.85, 0.4)
+	return Color(1, 0.03, 0.06)
+
+func _draw_beam_particles(beam: BattleSimulation.Beam, end: Vector2) -> void:
+	var tint := _beam_tint(beam)
+	var normal := beam.origin_position.direction_to(end).orthogonal()
+	for index in range(10):
+		var progress := fposmod(simulation.elapsed * 2.5 + index / 10.0, 1.0)
+		var position := beam.origin_position.lerp(end, progress) + normal * sin(index * 2.1 + simulation.elapsed * 12) * 3
+		if _visible_world_rect.has_point(position) and simulation.point_visible(0, position):
+			draw_rect(Rect2(position - Vector2.ONE, Vector2.ONE * 2), Color(tint, 0.75))
+	for endpoint: Vector2 in [beam.origin_position, end]:
+		if not _visible_world_rect.has_point(endpoint) or not simulation.point_visible(0, endpoint):
+			continue
+		for index in range(6):
+			var angle := index * TAU / 6 + simulation.elapsed * 5
+			var position := endpoint + Vector2.from_angle(angle) * (3 + index % 3 * 2)
+			draw_rect(Rect2(position - Vector2.ONE, Vector2.ONE * 2), Color(tint, 0.7))
+
+func _draw_charge_particles(charge: Dictionary) -> void:
+	var progress := 1.0 - float(charge.remaining) / maxf(0.01, float(charge.weapon.charge_seconds))
+	for index in range(12):
+		var age := fposmod(simulation.elapsed * 1.5 + index / 12.0, 1.0)
+		var radius := (1.0 - age) * (12 + 8 * progress)
+		var position: Vector2 = charge.origin + Vector2.from_angle(index * TAU / 12 + simulation.elapsed) * radius
+		if _visible_world_rect.has_point(position) and simulation.point_visible(0, position):
+			draw_rect(Rect2(position - Vector2.ONE, Vector2.ONE * 2), Color(1, 0.85, 0.4, age * 0.9))
+
 func _draw_shot_particles(position: Vector2, direction: Vector2, projectile: BattleSimulation.Projectile) -> void:
 	var tint := Color(1.0, 0.45, 0.12) if projectile.is_player else Color(0.65, 1.0, 0.3)
 	var phase := float(projectile.get_instance_id() % 17) / 17.0
-	for index in range(5):
-		var age := fposmod(simulation.elapsed * 10.0 + phase + index / 5.0, 1.0)
+	var count := 8 if projectile.interceptable else 5
+	for index in range(count):
+		var age := fposmod(simulation.elapsed * 10.0 + phase + float(index) / count, 1.0)
 		var side := -1.0 if index % 2 == 0 else 1.0
 		var point := position - direction * (3.0 + age * 11.0) + direction.orthogonal() * side * age * 3.0
 		if not simulation.point_visible(BattleSimulation.Faction.PLAYER, point):
@@ -300,8 +430,8 @@ func _draw_projectile_impacts() -> void:
 			or not simulation.point_visible(BattleSimulation.Faction.PLAYER, impact.position):
 			continue
 		draw_circle(impact.position, (1.0 - age) * 4.0, Color(1.0, 0.93, 0.75, 1.0 - age))
-		for index in range(15):
-			var direction := Vector2.from_angle(index * TAU / 15.0 + float(impact.time) * 2.0)
+		for index in range(20):
+			var direction := Vector2.from_angle(index * TAU / 20.0 + float(impact.time) * 2.0)
 			var point: Vector2 = impact.position + direction * age * (9.0 + index % 3 * 2.0)
 			if not simulation.point_visible(BattleSimulation.Faction.PLAYER, point):
 				continue

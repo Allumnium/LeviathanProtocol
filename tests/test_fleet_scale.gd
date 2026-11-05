@@ -99,13 +99,6 @@ func large_fleet() -> void:
 	check(not state.buy_ship("fighter") and SaveValidation.same(before, state.hangar_snapshot()), "Large fleet command boundary still rejects extra purchases")
 	var sim := simulation(51)
 	check(sim.players.size() == 51 and sim.living_combatant_count() == 91, "All ninety-one combatants deploy")
-	# Carrier launches have headroom above the former shared limit, and keep UID allowances.
-	var source := sim.players[0]
-	var uid := "scale-carrier"
-	var carriers = sim.doctrines.carriers
-	carriers.reserves[uid] = {"equipment_id": "flight_deck", "capacity": 6, "spent": 0}
-	carriers._launch(sim, source, 0, uid)
-	check(sim.living_combatant_count() == 92 and carriers.reserves[uid].spent == 1, "Large battle permits a finite carrier launch")
 	# Chrysalis and reinforcement paths share the same larger live budget.
 	var chrysalis: BattleSimulation.Combatant
 	for actor in sim.aliens:
@@ -117,7 +110,7 @@ func large_fleet() -> void:
 		var reserve: Dictionary = sim.enemy_roles.sources[chrysalis.entity_id]
 		var remaining: int = reserve.remaining
 		sim.enemy_roles._launch(sim, chrysalis, reserve)
-		check(reserve.remaining == remaining - 1 and sim.living_combatant_count() == 93, "Enemy finite summons work above sixty-four")
+		check(reserve.remaining == remaining - 1 and sim.living_combatant_count() == 92, "Enemy finite summons work above sixty-four")
 	var reinforcement: Dictionary = sim.aliens[0].alien.to_snapshot()
 	reinforcement.entity_id = "wave/scale/ship/0"
 	reinforcement.wave = 1
@@ -133,12 +126,14 @@ func large_fleet() -> void:
 		if not sim.register_entity(actor):
 			check(false, "Fill live budget")
 			break
-	var spent: int = carriers.reserves[uid].spent
-	carriers._launch(sim, source, 0, uid)
-	check(sim.living_combatant_count() == 192 and carriers.reserves[uid].spent == spent, "Full live budget rejects launch without spending finite allowance")
+	var extra := BattleSimulation.Combatant.new()
+	extra.entity_id = "scale/headroom"
+	extra.integrity = 1
+	extra.stats = ShipStats.new()
+	extra.stats.weight = 1
+	check(not sim.register_entity(extra) and sim.living_combatant_count() == 192, "Full live budget rejects an extra combatant")
 	sim.other_entities.back().integrity = 0
-	carriers._launch(sim, source, 0, uid)
-	check(sim.living_combatant_count() == 192 and carriers.reserves[uid].spent == spent + 1, "Destroyed actors free live headroom")
+	check(sim.register_entity(extra) and sim.living_combatant_count() == 192, "Destroyed actors free live headroom")
 	# Aggregate health retains the original denominator and zero hull survives.
 	var readout: Control = load("res://scripts/battle_squadron_readout.gd").new()
 	readout.simulation = sim

@@ -2,6 +2,14 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Repair Drone Hangar and combat particles
+
+- Implemented the user-approved Repair Drone Hangar: continuous 2 hull/s total per copy, shared among injured allies or self within range 220, redistributing unused shares. Multiple hangars add output; Renewal I adds 25% hangar healing and retains its passive repair bonus. Green particles show actual healing. No repair craft spawn and no finite repair allowance is consumed; hull destruction, equipment UIDs and lost loads remain intact.
+- Retired Flight Deck/Bomber Bay and Carrier I/II from active equipment, fits and offers, and removed the empty Siege/Carrier commitment. Eighteen upgrade cards remain; Beam Lance is the sole equipment unlock. Updated carrier fits to Repair Escort/Command Escort. Drone retains its cheapest chassis, one-command cost and all-general mounts.
+- Added bounded muzzle/trail particles, beam sparks, lance charge motes and richer impacts; ion beams are blue and lance effects gold. Effects obey visibility and simulation pause without changing battle randomness or source art. Limits cover transient particles, projectile sampling and beam/charge/healing decoration.
+- Focused isolated verification: healing 53, cosmetic invariants 10, research redesign 102, choices 35, refits 269, research combat 208 and lab/research persistence 177 checks; zero failures. Corrected the readiness fixture for the earlier M/XL starter output reduction. Native UI/battle checks passed 50 checks; reviewed green self/allied healing and active weapon/charge/trail effects at 640x360, 1280x720 and 1920x1080. Older carrier-only tests retired; broader affected test fixtures updated and compile-checked without campaign sweeps.
+- Expected malformed-effect rejection, certificate-store and existing shutdown diagnostics remain. No full baseline, all-campaign run, large-fleet performance profile or soak; the native check is a bounded renderer review rather than a universal performance guarantee.
+
 ## 2026-11-05 - Additive support and weapon first pass
 
 - Implemented the user-approved stacking: each uplink adds +20% allied damage (+30% with Command I), including copies and overlapping allied hosts; each relay adds two shields/s of transfer while conserving existing shields and respecting range/equalization/capacity. Retained mark timing/targeting and source-loss/hull rules.

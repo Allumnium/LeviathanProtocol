@@ -19,7 +19,7 @@ static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool
 	if not modifier is Dictionary:
 		return false
 	match modifier.get("id", ""):
-		"laser_damage_multiplier", "laser_range_multiplier", "missile_range_multiplier", "fragment_damage_multiplier", "railgun_hull_multiplier", "carrier_launch_multiplier", "carrier_damage_multiplier", "passive_repair_multiplier", "repair_drone_speed_multiplier", "mark_damage_multiplier", "synchronization_multiplier", "research_output_multiplier":
+		"laser_damage_multiplier", "laser_range_multiplier", "missile_range_multiplier", "fragment_damage_multiplier", "railgun_hull_multiplier", "carrier_launch_multiplier", "carrier_damage_multiplier", "passive_repair_multiplier", "repair_aura_multiplier", "mark_damage_multiplier", "synchronization_multiplier", "research_output_multiplier":
 			return _number(modifier.get("value")) and modifier.value > 1 and modifier.value <= 2
 		"cruise_fuel_multiplier":
 			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value < 1

@@ -1,6 +1,6 @@
 # Research line redesign - implemented first pass
 
-2026-11-05. The user approved this 20-card first pass, including effects, stacking, dependencies and equipment access. It is implemented and verified with focused checks and a bounded opening playtest. Guided Munitions uses +25% missile range following the user's implementation-time decision. Later balance changes remain decisions to bring back to the user.
+2026-11-05. The user approved this 20-card first pass, including effects, stacking, dependencies and equipment access. It was implemented and verified with focused checks and a bounded opening playtest. The subsequent healing/carrier update at the end of this document supersedes carrier and repair-drone details in that first pass. Guided Munitions uses +25% missile range following the user's implementation-time decision. Later balance changes remain decisions to bring back to the user.
 
 The design requirement is that every research choice changes gameplay. Equipment access should be an occasional exception, and an ineffective card calls for reviewing its entire line. Keep the approved three/four-card selection, 20 RP then +20 per selection, excess RP, saved offers and science flagship bonuses.
 
@@ -95,3 +95,7 @@ Focused verification covered all changed effects, stacking, capability matching,
 ## 2026-11-05 - Lab size simplification
 
 The user subsequently chose Lab (M), producing 1 RP per travel day, and Lab (XL), producing 3 RP per travel day. The L lab is removed from the active catalog. Research Methods and host bonuses still multiply both sizes. Former L-lab mounts in predefined fits receive the approved Large Plate (+100 hull, mass 8, catalog price 160 credits); the science Survey keeps its cargo hold. Starting defensive/science fleets consequently produce 1/1.25 RP per day. Earlier opening-playtest numbers above describe the preceding three-size fits.
+
+## 2026-11-05 - Continuous repair and carrier retirement
+
+The user subsequently removed Flight Deck/Bomber Bay and Carrier I/II, leaving 18 upgrade cards and Beam Lance as the sole research equipment unlock. Siege retains its own sequential prerequisites without an empty Siege/Carrier commitment. Repair Drone Bay is now Repair Drone Hangar: continuous green-particle healing, 2 hull/s total per copy shared among injured allies or self within range 220, with no launched craft or finite allowance. Renewal I keeps +25% passive hull repair and replaces drone flight speed with +25% hangar healing rate. The deployed matching capability is repair_aura. The cheap, flexible Drone remains a purchasable fleet ship. Current runtime details are in [HANGAR.md](HANGAR.md).

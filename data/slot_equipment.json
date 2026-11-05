@@ -559,7 +559,7 @@
     },
     {
       "id": "repair_drone_bay",
-      "name": "Repair Drone Bay",
+      "name": "Repair Drone Hangar",
       "part_type": 23,
       "rank": 1,
       "revision": 2,
@@ -576,7 +576,7 @@
       "price": 160,
       "hit_points": 40,
       "research_capabilities": [
-        "repair_drone"
+        "repair_aura"
       ]
     },
     {
@@ -769,7 +769,7 @@
         "weight": 6
       },
       "type": "offense",
-      "retired": false,
+      "retired": true,
       "price": 190,
       "hit_points": 25,
       "research_capabilities": [
@@ -791,7 +791,7 @@
         "weight": 9
       },
       "type": "offense",
-      "retired": false,
+      "retired": true,
       "price": 280,
       "hit_points": 40,
       "research_capabilities": [

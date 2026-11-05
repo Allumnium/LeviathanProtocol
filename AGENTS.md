@@ -24,6 +24,6 @@
 
 - Preserve gameplay, source artwork, ownership and saves. No unsolicited systems, optional equipment, ECM/Phase, new boss phases.
 - Runtime: GameState is `scripts/hangar_state.gd`; management uses `scenes/game_map.tscn` and `scripts/hangar_screen.gd`.
-- Hull is the only persistent health pool: zero is alive, strictly negative is destroyed. Flagship loss ends the run. Loads and finite carrier allowances follow equipment UIDs; repairs never recreate lost loads.
+- Hull is the only persistent health pool: zero is alive, strictly negative is destroyed. Flagship loss ends the run. Loads follow equipment UIDs; repairs never recreate lost loads. Repair Drone Hangars heal continuously; Flight Deck/Bomber Bay and carrier research are retired.
 - Disregard backwards compatibility and don't worry about legacy saves in any regard.
 -No hover tooltips, Tab/arrow focus cycling or focus-outline boxes; text caret and gameplay/canvas shortcuts remain allowed. Preserve pan/zoom and use the shared X for windows.

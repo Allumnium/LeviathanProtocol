@@ -145,6 +145,7 @@ class Projectile:
 
 class Beam:
 	var source: Combatant
+	var weapon_name := ""
 	var origin_position := Vector2.ZERO
 	var target: Combatant
 	var aim_position := Vector2.ZERO
@@ -1442,6 +1443,7 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 					hit_target = obstruction
 				var beam := Beam.new()
 				beam.source = ship
+				beam.weapon_name = weapon.weapon_name
 				beam.origin_position = weapon_origin
 				beam.target = hit_target
 				beam.aim_position = hit_target.position

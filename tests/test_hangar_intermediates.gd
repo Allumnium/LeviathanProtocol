@@ -79,15 +79,6 @@ func magazines() -> void:
 	check(ship.weapon_cycle_rate() == 1.4 and ship.mounts == identities, "Substantial magazine hit leaves both unique magazines and cycling operational")
 	ship.damage_cell(Vector2i(first, 0), ship.hull_hp + 1)
 	check(ship.is_alive() and ship.weapon_cycle_rate() == 1.4, "Zero-hull ship retains both magazine contributions")
-	var bay_ship := hull()
-	install(bay_ship, "flight_deck")
-	install(bay_ship, "ammunition_magazine")
-	install(bay_ship, "ammunition_magazine")
-	var sim := setup(bay_ship)
-	sim.doctrines.carriers.advance(sim, 0.01)
-	sim.doctrines.carriers.advance(sim, 2.9)
-	check(sim.doctrines.carriers.sorties.size() == 2, "Stacked magazines accelerate bay launch cycling too")
-	check(sim.doctrines.carriers.reserves["1"].spent == 2, "Launch acceleration still spends finite replacements")
 
 func computers() -> void:
 	var ship := hull()
@@ -192,7 +183,7 @@ func transactions() -> void:
 	fixture.research.branch_choices["force_projection"] = "siege"
 	fixture.research.branch_choices["fleet_operations"] = "command"
 	check(state._commit_hangar(fixture), "Siege/command prerequisites and branch choices validate")
-	check(not state.choose_research("carrier_i"), "Siege choice excludes carrier research")
+	check(not state.choose_research("carrier_i"), "Retired carrier research cannot be chosen")
 	check(state.buy_ship("corsair") and state.buy_ship("drone"), "Buy intermediate hosts")
 	var drone_host: int = state.fleet[-1].id
 	var corsair_host: int = state.fleet[-2].id
@@ -247,39 +238,9 @@ func hull_repairs() -> void:
 	var sim := setup(ship)
 	sim._damage(sim.player, sim.player.shields + 100, sim.aliens[0].position, sim.aliens[0], "Fixture hit")
 	var damaged := ship.hull_hp
-	sim.doctrines._launch(sim, sim.player, 0.01)
-	check(sim.doctrines.drones.size() == 1 and sim.doctrines.drones[0].unit == -1
-		and sim.doctrines.pool.repair_spent == 4, "Repair drone targets hull and spends a finite four-point payload")
-	sim.doctrines._update_drones(sim, 0.01)
-	check(ship.hull_hp == damaged + 4 and sim.player.repaired_hp == 4, "Repair drone heals only hull and reports actual healing")
-	sim.doctrines._launch(sim, sim.player, 1)
-	check(sim.doctrines.drones.is_empty() and sim.doctrines.pool.repair_spent == 4, "Repair bay keeps its two-second launch cycle")
-	for index in range(4):
-		sim.doctrines._launch(sim, sim.player, 2)
-		sim.doctrines._update_drones(sim, 0.01)
-	check(ship.hull_hp == damaged + 20 and sim.doctrines.pool.repair_spent == 20, "Repair bay exhausts its twenty-point encounter allowance")
-	sim.doctrines._launch(sim, sim.player, 60)
-	check(sim.doctrines.drones.is_empty() and ship.hull_hp == damaged + 20, "Exhausted repair allowance cannot regenerate")
-	check(ship.mounts == identities and ship.get_stats().dps == dps
-		and ship.units.all(func(unit: Dictionary) -> bool: return unit.hp == 1 and unit.max_hp == 1), "Hull healing never mutates equipment identity or operational markers")
-	var retry := BattleSimulation.new()
-	var ships: Array[FleetShip] = [ship]
-	var enemies: Array[RefCounted] = [enemy()]
-	check(retry.setup_owned(ships, enemies, 0, 0, 327, {"credits_only": true,
-		"doctrine_pool": JSON.parse_string(JSON.stringify(sim.doctrines.pool))}), "Retry resumes finite hull-repair pool")
-	retry.doctrines._launch(retry, retry.player, 60)
-	check(retry.doctrines.drones.is_empty() and retry.doctrines.pool.repair_spent == 20, "Retry cannot refill repair drones")
-	var doomed := hull()
-	install(doomed, "mini_turret")
-	var source := install(doomed, "repair_drone_bay")
-	var lost := setup(doomed)
-	doomed.damage_cell(Vector2i(source, 0), 10)
-	lost.doctrines._launch(lost, lost.player, 0.01)
-	doomed.damage_cell(Vector2i(source, 0), doomed.hull_hp + 2)
-	var dead_hp := doomed.hull_hp
-	lost.doctrines._update_drones(lost, 0.01)
-	check(lost.doctrines.drones.is_empty() and doomed.hull_hp == dead_hp
-		and lost.doctrines.pool.repair_spent == 4, "Destroyed repair host ends delivery without refund or resurrection")
+	sim.doctrines._heal(sim, sim.player, 15)
+	check(is_equal_approx(ship.hull_hp, damaged + 30) and sim.player.repaired_hp == 30, "Repair Drone Hangar continuously heals self beyond its former allowance")
+	check(ship.mounts == identities and ship.get_stats().dps == dps, "Hull healing retains equipment identities and weapon output")
 	# Station remains a compatibility fixture, not a newly enabled purchase.
 	var station_ship := hull()
 	install(station_ship, "mini_turret")
@@ -312,7 +273,7 @@ func campaign_samples() -> void:
 	var state := root.get_node("GameState")
 	var nodes: Array = state.campaign_dag.nodes.filter(func(node: Dictionary) -> bool: return node.act == 2 and node.kind == "combat")
 	var results: Array = []
-	for doctrine in ["siege", "carrier", "command"]:
+	for doctrine in ["siege", "repair", "command"]:
 		for index in range(2):
 			var flagship := hull()
 			mount(flagship, "port", "laser", 1)
@@ -324,8 +285,8 @@ func campaign_samples() -> void:
 			mount(flagship, "spine", "ammunition_magazine" if doctrine == "siege" else "command_uplink", 7)
 			var escort := HangarShip.new()
 			escort.initialize_chassis("corsair", 2)
-			mount(escort, "fore", "railgun" if doctrine == "siege" else ("torpedo_bomber_bay" if doctrine == "carrier" else "beam_lance"), 8)
-			mount(escort, "port", "flight_deck" if doctrine == "carrier" else "double_laser", 9)
+			mount(escort, "fore", "railgun" if doctrine == "siege" else ("repair_drone_bay" if doctrine == "repair" else "beam_lance"), 8)
+			mount(escort, "port", "double_laser", 9)
 			mount(escort, "starboard", "double_laser", 10)
 			var support := HangarShip.new()
 			support.initialize_chassis("transport", 3)

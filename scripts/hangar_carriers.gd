@@ -28,7 +28,7 @@ static func has_bay(owned: FleetShip) -> bool:
 	if not owned is HangarShip or not owned.is_alive():
 		return false
 	for unit: Dictionary in owned.units:
-		if unit.hp > 0 and unit.part != null and unit.part.definition_id in CAPACITIES:
+		if unit.hp > 0 and unit.part != null and unit.part.definition_id in CAPACITIES and not SlotCatalog.find_equipment(unit.part.definition_id).get("retired", true):
 			return true
 	return false
 

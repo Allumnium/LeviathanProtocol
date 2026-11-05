@@ -122,12 +122,10 @@ func persistence() -> void:
 	broken.squadrons.append(broken.squadrons[0].duplicate(true))
 	check(not HangarCheckpoint.valid(broken), "Reject duplicate squadron identity and ownership")
 
-func fixture(stance: String, carrier := false) -> BattleSimulation:
+func fixture(stance: String) -> BattleSimulation:
 	var flagship := HangarShip.new()
 	flagship.initialize_chassis("flagship_basic", 1, true)
 	flagship.stance = stance
-	if carrier:
-		flagship.mounts.spine = {"uid": "2", "equipment_id": "flight_deck", "rank": 1}
 	flagship.rebuild_units()
 	var fighter := HangarShip.new()
 	fighter.initialize_chassis("fighter", 2)
@@ -308,24 +306,6 @@ func combat() -> void:
 	check(sim.authoritative_snapshot().actors.any(func(actor: Dictionary) -> bool:
 		return actor.get("stance") == "evade" and actor.get("squadron") == 2),
 		"Authoritative replay captures squadron orders")
-	sim = fixture("evade", true)
-	sim.doctrines.carriers.advance(sim, 0.1)
-	check(sim.doctrines.carriers.sorties.is_empty() and sim.doctrines.pool.carriers["2"].spent == 0,
-		"Evade never spends carrier replacements")
-	check(sim.request_attack(sim.players[0].entity_id, sim.aliens[0].entity_id), "Manual carrier attack is accepted")
-	sim.doctrines.carriers.advance(sim, 0.1)
-	check(sim.doctrines.carriers.sorties.size() == 1, "Manual attack can deliberately launch an evading carrier's craft")
-	sim = fixture("defend", true)
-	sim.aliens[0].position = Vector2(400, 0)
-	sim.doctrines.carriers.advance(sim, 0.1)
-	check(sim.doctrines.carriers.sorties.is_empty(), "Defending carrier holds its sorties for nearby threats")
-	sim.aliens[0].position = Vector2(100, 0)
-	sim.doctrines.carriers.advance(sim, 0.1)
-	check(sim.doctrines.carriers.sorties.size() == 1, "Defending carrier launches against a flagship threat")
-	if not sim.doctrines.carriers.sorties.is_empty():
-		var craft: BattleSimulation.Combatant = sim.doctrines.carriers.sorties[0].actor
-		sim.aliens[0].position = Vector2(400, 0)
-		check(not sim._auto_candidate(craft, sim.aliens[0]), "Defensive sorties cannot pursue threats outside the guard radius")
 
 func ui() -> void:
 	check(state.start_new_run(1, 7703), "Start squadron UI fixture")

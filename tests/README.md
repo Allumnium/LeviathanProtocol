@@ -21,8 +21,10 @@ Replace the example suite with the relevant test file. For a supported native ch
 
 Useful focused entry points:
 
+- [test_hangar_healing.gd](test_hangar_healing.gd): continuous shared/self repair, copy stacking, Renewal, range/faction/zero-hull/destruction boundaries, loads/UIDs, retired carrier content, fits and Continue. Replaces the retired carrier suite.
+- [test_combat_particles.gd](test_combat_particles.gd): bounded cosmetic trails, pause/expiry, visibility, encounter cleanup and unchanged battle state/randomness. Use focused native captures to establish actual appearance.
 - [test_equipment_balance.gd](test_equipment_balance.gd): additive uplink/relay effects, source/expiry/capacity boundaries and 36 bounded 12-second weapon samples through actual firing/charge/projectile/damage paths. Writes equipment-comparison.json to isolated user://; controlled target motion, no campaign sweep.
-- [test_research_redesign.gd](test_research_redesign.gd): all 20 active cards, capability-based effects and matching, missile range/firing, railgun hull-only damage, stacking, lab output, rare access, finite carrier/repair reserves, refits and Continue (headless).
+- [test_research_redesign.gd](test_research_redesign.gd): all 18 active cards, capability-based effects and matching, missile range/firing, railgun hull-only damage, stacking, lab output, rare access, continuous hangar healing, refits and Continue (headless).
 - [test_research_choices.gd](test_research_choices.gd): shared 20/+20 RP progression, seeded three/four-card offers, hidden dependencies/branches/story gates, excess RP, depleted pools, atomic failures and Continue (headless); production card layout/pointer selection, shared X/reopening, existing-modal priority, saved-card requirements/disabled choices/restored matching equipment and travel pausing at supported resolutions (native).
 - [test_research_abilities.gd](test_research_abilities.gd): earned physical abilities plus native production battle frame at 640x360/1280x720/1920x1080; shared side/footer bounds, pause/resume, pointer targeting, pan/zoom, enemy visibility/reinforcements/losses and the footer without abilities.
 - [test_ship_refit.gd](test_ship_refit.gd): complete fits, exact-size lab/plate access and atomic refits.

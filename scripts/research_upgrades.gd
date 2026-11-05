@@ -35,7 +35,7 @@ static func requirement(id: String) -> String:
 	var names := {"laser": "lasers", "prismatic": "compatible lasers", "ion": "an Ion Emitter",
 		"guided_missile": "guided missiles", "splitting_missile": "splitting missiles", "railgun": "railguns",
 		"carrier": "a flight deck", "shield": "shields", "passive_repair": "passive hull repair",
-		"repair_drone": "a repair-drone bay", "command": "a Command Uplink",
+		"repair_aura": "a Repair Drone Hangar", "command": "a Command Uplink",
 		"synchronization": "a Tactical Computer", "research": "a research lab"}
 	var labels: Array[String] = []
 	for capability: String in GameDefinitions.find("research", id).get("equipment_capabilities_any", []):
