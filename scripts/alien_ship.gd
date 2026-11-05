@@ -65,7 +65,7 @@ static func warden_variant(pylon: bool, hull: float, shield: float, cost: float)
 	value.weight = 20 if pylon else 60
 	value.thrust = 0 if pylon else 2
 	value.collision_radius = 12 if pylon else 26
-	value.weapons.append(ShipWeaponStats.new("Pylon Pulse" if pylon else "Warden Pulse", 2.5 if pylon else 1.4, 0.2 if pylon else 0.8, 1, 210))
+	value.weapons.append(ShipWeaponStats.new("Pylon Pulse" if pylon else "Warden Pulse", 2.5 if pylon else 1.4, 0.2 if pylon else 0.8, 1, 630))
 	var unit := AlienShip.new("Shield Pylon" if pylon else "Bastion Warden", PYLON_TEXTURE if pylon else SENTINEL_TEXTURE, value)
 	unit.stats.collision_radius = value.collision_radius
 	unit.role_id = "pylon" if pylon else "warden"
@@ -196,27 +196,27 @@ static func get_catalog() -> Array[AlienShip]:
 		AlienShip.new(
 			"Chrysalis",
 			CHRYSALIS_TEXTURE,
-			_create_base_stats(2.0, 12.0, 28.0, 9.0, "Spore Launcher", 1.5, 1.0, 200.0, true)
+			_create_base_stats(2.0, 12.0, 28.0, 9.0, "Spore Launcher", 1.5, 1.0, 600.0, true)
 		),
 		AlienShip.new(
 			"Fighter",
 			FIGHTER_TEXTURE,
-			_create_base_stats(1.0, 8.0, 14.0, 18.0, "Plasma Cannon", 0.8, 0.7, 180.0)
+			_create_base_stats(1.0, 8.0, 14.0, 18.0, "Plasma Cannon", 0.8, 0.7, 540.0)
 		),
 		AlienShip.new(
 			"Scout",
 			SCOUT_TEXTURE,
-			_create_base_stats(0.0, 6.0, 8.0, 24.0, "Scout Pulse", 1.2, 0.6, 190.0)
+			_create_base_stats(0.0, 6.0, 8.0, 24.0, "Scout Pulse", 1.2, 0.6, 570.0)
 		),
 		AlienShip.new(
 			"Sentinel",
 			SENTINEL_TEXTURE,
-			_create_base_stats(3.0, 14.0, 36.0, 6.0, "Sentinel Beam", 2.0, 1.4, 230.0)
+			_create_base_stats(3.0, 14.0, 36.0, 6.0, "Sentinel Beam", 2.0, 1.4, 690.0)
 		),
 		AlienShip.new(
 			"Support",
 			SUPPORT_TEXTURE,
-			_create_base_stats(2.0, 8.0, 18.0, 12.0, "Support Pulse", 2.5, 1.0, 210.0)
+			_create_base_stats(2.0, 8.0, 18.0, 12.0, "Support Pulse", 2.5, 1.0, 630.0)
 		),
 	]
 

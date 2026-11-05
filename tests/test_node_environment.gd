@@ -43,7 +43,7 @@ func run() -> void:
 				"Frozen encounter preserves validated node conditions")
 			var count: int = NodeEnvironment.ROCK_COUNTS[int(conditions.asteroid_density)]
 			check(encounter.get("asteroids", {}).get("roots", {}).size() == count,
-				"Clear/sparse/medium/dense conditions produce exactly 0/3/6/9 asteroids")
+				"Clear/sparse/medium/dense conditions produce exactly 0/16/32/48 clustered asteroids")
 	check(densities.size() == 4 and nebulae.size() == 2 and solar.size() > 10,
 		"Campaigns contain varied densities, solar intensities and nebula presence")
 	for bad in [{"version": 1, "asteroid_density": 4, "solar_intensity": 1.0, "nebula": false},

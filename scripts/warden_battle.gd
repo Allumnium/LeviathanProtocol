@@ -26,7 +26,7 @@ static func valid_plan(plan: Dictionary) -> bool:
 	if not SaveValidation.bounded_number(value.get("damage_multiplier", 1.0)) or value.get("damage_multiplier", 1.0) < 1:
 		return false
 	if value.cycle_seconds != 12 or value.warning_seconds != 3 or value.vulnerability_seconds != 6 \
-		or value.lance_damage <= 0 or value.lance_damage > 30 or value.range != 520 or value.half_width != 22:
+		or value.lance_damage <= 0 or value.lance_damage > 30 or value.range != 1560 or value.half_width != 22:
 		return false
 	if value.pylon_ids.size() != (2 if boss else 1):
 		return false
@@ -70,7 +70,7 @@ func configure(sim, plan: Dictionary) -> bool:
 	var body = sim.entities.get(rules.body_id)
 	if body == null:
 		return false
-	body.position = Vector2(360 if rules.lance else 100, 0)
+	body.position = Vector2(1080 if rules.lance else 900, 0)
 	body.previous_position = body.position
 	if rules.lance:
 		body.radius = 26
@@ -135,7 +135,7 @@ func advance(sim, delta: float) -> void:
 		var target = null
 		var nearest := INF
 		for player in sim.players:
-			if sim.can_attack(body, player) and body.position.distance_to(player.position) < minf(240.0, nearest):
+			if sim.can_attack(body, player) and body.position.distance_to(player.position) < minf(720.0, nearest):
 				target = player
 				nearest = body.position.distance_to(player.position)
 		if target == null:

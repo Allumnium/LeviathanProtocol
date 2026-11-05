@@ -78,7 +78,7 @@ func combat() -> void:
 		and sim.event_log.filter(func(entry: Dictionary) -> bool: return entry.type == "missile_spent").size() == 4,
 		"Replay state and deterministic events include exact consumption")
 	sim = fixture(10)
-	sim.aliens[0].position = Vector2(1000, 0)
+	sim.aliens[0].position = Vector2(2000, 0)
 	sim._update_ship(sim.player, 0.01)
 	check(sim.missile_supply == 10 and sim.projectiles.is_empty(), "No ammunition spent without an in-range target")
 	sim = fixture(0)

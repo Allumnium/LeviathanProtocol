@@ -166,7 +166,7 @@ func railguns() -> void:
 	check(is_equal_approx(target.shields, 12), "Shields retain Sentinel protection against railgun shots")
 	sim._update_ship(sim.player, 0.01)
 	check(sim.projectiles.size() == 1 and not sim.projectiles[0].interceptable, "Railgun projectile cannot be removed by missile interception")
-	check(sim.player.stats.weapons[0].range_units == 500 and sim.player.cooldowns[0] == 6, "Railgun retains its slow long-range cycle")
+	check(sim.player.stats.weapons[0].range_units == 1500 and sim.player.cooldowns[0] == 6, "Railgun retains its slow long-range cycle")
 
 func transactions() -> void:
 	var state := root.get_node("GameState")

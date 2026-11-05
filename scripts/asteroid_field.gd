@@ -20,22 +20,31 @@ var retry_remaining := 0.0
 var replayed_rejections: Dictionary = {}
 var last_replayed_rejection := false
 
-static func generate(seed_value: int, count := 12) -> Dictionary:
+static func generate(seed_value: int, count := 32) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var field := AsteroidField.new()
-	for index in range(clampi(count, 0, MAX_ROOTS)):
+	var total := clampi(count, 0, MAX_ROOTS)
+	var clusters := ceili(total / 16.0)
+	var centers: Array[Vector2] = []
+	var velocities: Array[Vector2] = []
+	var rotations: Array[float] = []
+	for cluster in range(clusters):
+		centers.append(Vector2((cluster - (clusters - 1) * 0.5) * 480, rng.randf_range(-300, 300)))
+		velocities.append(Vector2.from_angle(rng.randf_range(0, TAU)) * rng.randf_range(2, 5))
+		rotations.append(rng.randf_range(0, TAU))
+	for index in range(total):
 		var id := "rock/%d" % index
 		var mass: int = MASSES[rng.randi_range(0, 3)]
 		var ore := [0, 0, 0, 0]
 		# Exactly half the roots are empty, within the initial 40-60% target.
 		if index % 2 == 0:
 			ore[rng.randi_range(0, 3)] = mass * 4
-		var angle := rng.randf_range(0, TAU)
-		var position := Vector2.from_angle(angle) * rng.randf_range(170, 620)
-		if position.distance_to(Vector2(-420, 0)) < 140 or position.distance_to(Vector2(420, 0)) < 140:
-			position.y += 200 if position.y >= 0 else -200
-		var velocity := Vector2.from_angle(rng.randf_range(0, TAU)) * rng.randf_range(3, 12)
+		var cluster := index / 16
+		var slot := index % 16
+		var offset := Vector2.from_angle(rotations[cluster] + slot * 2.39996323) * sqrt((slot + 0.5) / 16.0) * 140
+		var position := centers[cluster] + offset + Vector2(rng.randf_range(-3, 3), rng.randf_range(-3, 3))
+		var velocity := velocities[cluster] + Vector2.from_angle(rng.randf_range(0, TAU)) * 0.2
 		field.add_root(id, mass, position, velocity, ore)
 	return field.snapshot()
 
@@ -220,8 +229,9 @@ func advance(sim, delta: float) -> void:
 			continue
 		r.grace = maxf(0, r.grace - delta)
 		actor.position += actor.velocity * delta
-		if actor.position.length() > 780:
-			actor.position = actor.position.normalized() * 780
+		var boundary: float = sim.ARENA_RADIUS - actor.radius
+		if actor.position.length() > boundary:
+			actor.position = actor.position.normalized() * boundary
 			actor.velocity = actor.velocity.bounce(actor.position.normalized())
 		if r.grace <= 0:
 			_collisions(sim, actor, r)

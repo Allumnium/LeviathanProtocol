@@ -309,7 +309,7 @@ func battle_checks() -> void:
 			"Native Alt-drag moves only the selected ship")
 		await drag(battle, sim.players[0], Vector2.ZERO, false, true)
 		check(battle.visuals.deployment_selection.size() == 2, "Native Shift selection adds a different squadron")
-		var empty: Vector2 = battle.visuals.world_transform() * Vector2(-700, 220)
+		var empty: Vector2 = battle.visuals.world_transform() * Vector2(-1800, 450)
 		await pointer(empty, true)
 		var motion := InputEventMouseMotion.new()
 		motion.position = empty + Vector2(12, 10)
@@ -333,7 +333,7 @@ func battle_checks() -> void:
 	battle._deployment_origins = {drone.entity_id: drone.position}
 	battle._move_deployment(Vector2(10000, -10000))
 	check(battle.visuals.deployment_area.has_point(drone.position), "Dragging is bounded to the mission deployment area")
-	check(BattleSimulation.deployment_area({"arena_layout": "corridor"}).size.y == 280,
+	check(BattleSimulation.deployment_area({"arena_layout": "corridor"}).size.y == 840,
 		"Corridor deployment uses the mission's narrower lane")
 	battle._move_deployment(Vector2.ZERO)
 	if DisplayServer.get_name() != "headless":

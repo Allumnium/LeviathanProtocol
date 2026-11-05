@@ -20,6 +20,7 @@ const FINISHING_SHOT_CAMERA_TRANSITION_SECONDS := 0.4
 const RESULT_DELAY_SECONDS := 1.0
 const SIMULATION_TICK_SECONDS := 1.0 / 30.0
 const MAX_SIMULATION_STEPS_PER_FRAME := 8
+const MIN_CAMERA_ZOOM := 0.05
 
 @onready var visuals: BattleVisuals = $BattleVisuals
 @onready var battle_speed_controls: HBoxContainer = $BattleSpeedControls
@@ -454,7 +455,7 @@ func _input(event: InputEvent) -> void:
 		if event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			var world_under_cursor: Vector2 = visuals.world_transform().affine_inverse() * event.position
 			var zoom_factor := 1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15
-			visuals.camera_zoom = clampf(visuals.camera_zoom * zoom_factor, 0.2, 3.0)
+			visuals.camera_zoom = clampf(visuals.camera_zoom * zoom_factor, MIN_CAMERA_ZOOM, 3.0)
 			visuals.camera_position = world_under_cursor - (event.position - visuals.world_center()) / visuals.camera_zoom
 			_mark_manual_zoom_input()
 	elif event is InputEventMouseMotion and _dragging:
@@ -588,7 +589,7 @@ func _update_battlefield_rect() -> void:
 				bounds = bounds.expand(member.position + Vector2.ONE * member.radius)
 		visuals.camera_position = bounds.get_center()
 		visuals.camera_zoom = clampf(minf(battlefield.size.x / (bounds.size.x + 60),
-			battlefield.size.y / (bounds.size.y + 60)), 0.2, 3)
+			battlefield.size.y / (bounds.size.y + 60)), MIN_CAMERA_ZOOM, 3)
 
 func _begin_combat() -> void:
 	if not deploying:
@@ -746,7 +747,7 @@ func _update_auto_camera(delta: float) -> void:
 	)
 	var target_zoom := clampf(
 		minf(available_half.x / extent.x, available_half.y / extent.y),
-		0.2,
+		MIN_CAMERA_ZOOM,
 		3.0
 	)
 	var interpolation := minf(delta * AUTO_CAMERA_SMOOTHING, 1.0)

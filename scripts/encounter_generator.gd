@@ -123,7 +123,7 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		"rewards": {"credits": roundi((90 + 10 * combat_index) * reward_multiplier), "materials": bundle,
 			"material_pool": material_pool, "initial_recovery_rate": 0.5}}
 	if rocks:
-		var count: int = 6 if environment.is_empty() else NodeEnvironment.ROCK_COUNTS[int(environment.asteroid_density)]
+		var count: int = 32 if environment.is_empty() else NodeEnvironment.ROCK_COUNTS[int(environment.asteroid_density)]
 		result["asteroids"] = AsteroidField.generate(hash("%s/rocks" % seed_value), count)
 		result["hazard_budget"] = hazard_budget
 		result.environment_ids = ["asteroid_drift"]
@@ -200,7 +200,7 @@ static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: 
 	result["arena_layout"] = "open"
 	result["warden"] = {"body_id": body.entity_id, "pylon_ids": pylons, "lance": boss,
 		"cycle_seconds": 12.0, "warning_seconds": 3.0, "vulnerability_seconds": 6.0,
-		"lance_damage": 6.0 * DIFFICULTY[difficulty], "range": 520.0, "half_width": 22.0}
+		"lance_damage": 6.0 * DIFFICULTY[difficulty], "range": 1560.0, "half_width": 22.0}
 	return _finish_fleet(result, expand_fleet)
 
 

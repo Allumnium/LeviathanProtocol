@@ -2,6 +2,14 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Larger battlefields and localized asteroid fields
+
+- Tripled arena radius and faction separation, doubled initial ship spacing, and aligned deployment, corridors, reinforcements, boss placement and overview/manual cameras. Deployment limits stay within saved formation bounds, including edge dragging and Continue.
+- Tripled both factions' weapon ranges and Warden lance reach; bullets now travel at 640 units/second (2x). Preserved damage, cadence, research scaling, missile speed/guidance and support/ability radii.
+- Clear/Sparse/Medium/Dense locations now contain 0/16/32/48 nonoverlapping asteroid roots in compact seeded fields, drifting coherently at roughly 2-5 units/second. Preserved clear locations, frozen encounter persistence, collision/cover/fracture/ore behavior and 48-root/96-rock limits.
+- Focused isolated headless range/projectile checks and field/geometry checks passed, including swept hits and 60-second localization. Native battlefield 22, inspection 8 and deployment regression 50 checks passed; reviewed 640x360/1280x720/1920x1080 framing and a pointer-zoomed cluster close-up. Dense 13-vs-12 fixture reached victory at 21.4 simulated seconds; deployment 13-vs-8 fixture at 17.7 seconds, both with production settlement/Continue checks. Five migrated fixtures compile-checked, not broadly rerun. Asteroid-scene integration crashes in the current headless renderer, so it was verified natively; existing native shutdown texture diagnostics remain.
+- Updated [docs/HANGAR.md](docs/HANGAR.md) and [tests/README.md](tests/README.md); moved this request's four verified items out of [TODO.md](TODO.md). No full baseline, campaign sweep or soak; preserved concurrent artwork changes.
+
 ## 2026-11-05 - Fleet inspection and battle deployment redesign
 
 - Encounters start frozen with the mission and visible opponents shown. Squadron dragging, Alt-individual placement, Shift-additive/box selection and sprite-fitting highlights respect the mission deployment bounds, including corridors. Top-center Begin Combat atomically saves formation/centroids and reconnects committed ship references before enabling combat, abilities and speed controls. Save failures retain setup and show an error. Continue returns to setup with the saved placement; no mid-fight restore is implied.

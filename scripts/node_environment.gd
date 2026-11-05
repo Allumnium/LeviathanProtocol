@@ -1,7 +1,7 @@
 class_name NodeEnvironment
 extends RefCounted
 
-const ROCK_COUNTS := [0, 3, 6, 9]
+const ROCK_COUNTS := [0, 16, 32, 48]
 const DENSITY_NAMES := ["Clear", "Sparse", "Medium", "Dense"]
 
 static func generate(run_seed: int, node: Dictionary) -> Dictionary:

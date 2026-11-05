@@ -1,7 +1,7 @@
 class_name BattleSimulation
 extends RefCounted
 
-const PROJECTILE_SPEED := 320.0
+const PROJECTILE_SPEED := 640.0
 const Collision = preload("res://scripts/sprite_collision.gd")
 const TARGET_REFRESH_INTERVAL := 0.2
 const SPATIAL_CELL_SIZE := 256.0
@@ -18,7 +18,7 @@ signal projectile_impacted(position: Vector2)
 enum Phase { COMBAT, VICTORY, DEFEAT, WITHDRAWN }
 enum Faction { PLAYER, ALIEN, NEUTRAL }
 
-const ARENA_RADIUS := 800.0
+const ARENA_RADIUS := 2400.0
 const DROP_CHANCE := 0.6
 const MIN_TURN_RATE := ShipStats.MIN_TURN_RATE
 const MAX_TURN_RATE := ShipStats.MAX_TURN_RATE
@@ -27,18 +27,21 @@ const REVERSE_THRUST_FACTOR := 0.22
 const REVERSE_THRUST_ALIGNMENT_START := 0.35
 const FLYBY_MIN_CLEARANCE := 12.0
 const FLYBY_RANGE_FACTOR := 0.70
-const SOFT_BOUNDARY_MARGIN := 180.0
-const PLAYER_FORMATION_CENTER := Vector2(-420.0, 0.0)
+const SOFT_BOUNDARY_MARGIN := 540.0
+const PLAYER_FORMATION_CENTER := Vector2(-1260.0, 0.0)
 const PLAYER_FORMATION_COLUMNS := 3
-const PLAYER_FORMATION_SPACING := Vector2(54.0, 54.0)
-const ALIEN_FORMATION_CENTER := Vector2(420.0, 0.0)
+const PLAYER_FORMATION_SPACING := Vector2(108.0, 108.0)
+const ALIEN_FORMATION_CENTER := Vector2(1260.0, 0.0)
 const ALIEN_FORMATION_COLUMNS := 6
-const ALIEN_FORMATION_SPACING := Vector2(65.0, 65.0)
-const DEPLOYMENT_SCALE := 65.0
+const ALIEN_FORMATION_SPACING := Vector2(130.0, 130.0)
+const DEPLOYMENT_SCALE := 130.0
+const WAVE_ENTRY_X := 1860.0
+const CORRIDOR_HALF_WIDTH := 720.0
+const CORRIDOR_INNER_WIDTH := 420.0
 
 static func deployment_area(plan: Dictionary) -> Rect2:
-	return Rect2(Vector2(-745, -140), Vector2(650, 280)) if plan.get("arena_layout", "open") == "corridor" \
-		else Rect2(Vector2(-745, -260), Vector2(650, 520))
+	return Rect2(Vector2(-1910, -420), Vector2(1300, 840)) if plan.get("arena_layout", "open") == "corridor" \
+		else Rect2(Vector2(-1910, -520), Vector2(1300, 1040))
 
 class Combatant:
 	var owned_ship: FleetShip

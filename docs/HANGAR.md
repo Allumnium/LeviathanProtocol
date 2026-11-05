@@ -19,6 +19,9 @@ The active target is the existing Act I vertical slice plus remaining D4/D5 in [
 - Docked services live in existing Map/Fleet side panels. Actual declared shipyard/refuel/trade capabilities determine access; Stop, pause, proximity or a stale legacy node never grant services. Unbeaten arrival encounters remain available through their contextual action.
 - Encounters open frozen deployment in the existing battle scene. Arrange after seeing the mission and visible opponents, then press the top-center Begin Combat button. Combat settles once and returns to the same expedition position/route. Continue during a pending battle returns to deployment with the last saved placement; this is not a mid-fight restore.
 - Combat retains existing targeting, abilities, visibility, support effects, asteroids and Warden behavior. The current slice does not require seamless in-world battles or new boss phases.
+- Battlefield radius is 2400 units (3x), with faction centers 2520 units apart (3x) and twice the initial ship spacing. Deployment, corridors, reinforcement entry, Warden placement, camera framing and saved formations use the enlarged geometry. Existing pan/zoom supports both the full battlefield overview and close inspection.
+- Both factions' weapon ranges, including missiles and the Warden lance, are 3x their former bases. Bullets travel at 640 units/second (2x); missile speed remains 200 with existing guidance. Damage, firing cadence, research multipliers and support/ability radii are unchanged.
+- Asteroid densities Clear/Sparse/Medium/Dense provide 0/16/32/48 roots in zero to three compact fields between the fleets. Each field drifts coherently at roughly 2-5 units/second with slight individual variation. Clear locations stay clear; seeded layouts freeze into encounters and survive Continue. Existing collision, cover, fracture, ore and 48-root/96-rock limits remain.
 
 ## Ships and loadouts (fleet-command D1)
 

@@ -45,7 +45,7 @@
             ],
             "name": "Beam Lance",
             "projectile": false,
-            "range": 360
+            "range": 1080
           }
         ],
         "weight": 6
@@ -123,7 +123,7 @@
             ],
             "name": "Double Laser",
             "projectile": false,
-            "range": 220
+            "range": 660
           }
         ],
         "weight": 6
@@ -161,7 +161,7 @@
             ],
             "name": "Extraction Drill",
             "projectile": false,
-            "range": 45
+            "range": 135
           }
         ],
         "weight": 6
@@ -236,7 +236,7 @@
             ],
             "name": "Ion Emitter",
             "projectile": false,
-            "range": 300
+            "range": 900
           }
         ],
         "weight": 4
@@ -293,7 +293,7 @@
             ],
             "name": "Laser",
             "projectile": false,
-            "range": 220
+            "range": 660
           }
         ],
         "weight": 3
@@ -337,7 +337,7 @@
             ],
             "name": "Mini Turret",
             "projectile": true,
-            "range": 220
+            "range": 660
           }
         ],
         "weight": 1
@@ -372,7 +372,7 @@
             ],
             "name": "Mining Laser",
             "projectile": false,
-            "range": 300
+            "range": 900
           }
         ],
         "weight": 6
@@ -408,7 +408,7 @@
             "name": "Missile Rack",
             "missiles": 1,
             "projectile": true,
-            "range": 340
+            "range": 1020
           }
         ],
         "weight": 6
@@ -526,7 +526,7 @@
             ],
             "name": "Point Defense",
             "projectile": true,
-            "range": 160
+            "range": 480
           }
         ],
         "weight": 4
@@ -835,7 +835,7 @@
             "interval": 6,
             "damage": 24,
             "count": 1,
-            "range": 500,
+            "range": 1500,
             "mount": [
               0,
               0

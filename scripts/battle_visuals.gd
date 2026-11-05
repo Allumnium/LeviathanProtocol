@@ -74,8 +74,8 @@ func _ready() -> void:
 	random.seed = preload("res://scripts/main_menu_starfield.gd").area_seed(GameState.run_seed,
 		GameState.destination_node_id if GameState.battle_pending else GameState.current_node_id)
 	for index in range(450):
-		stars.append(Vector2(random.randf_range(-1800.0, 1800.0),
-			random.randf_range(-1400.0, 1400.0)))
+		stars.append(Vector2(random.randf_range(-5400.0, 5400.0),
+			random.randf_range(-4200.0, 4200.0)))
 	resized.connect(_on_resized)
 	queue_redraw()
 
@@ -143,12 +143,13 @@ func _draw() -> void:
 			draw_rect(deployment_box, Color(1, 1, 1, 0.8), false, 1 / camera_zoom)
 	_draw_visibility()
 	if simulation.encounter.plan.get("arena_layout", "open") == "corridor":
-		for y in [-240, 240]:
-			draw_line(Vector2(-800, y), Vector2(800, y), Color(0.35, 0.6, 0.7, 0.45), 2)
+		for y in [-BattleSimulation.CORRIDOR_HALF_WIDTH, BattleSimulation.CORRIDOR_HALF_WIDTH]:
+			draw_line(Vector2(-BattleSimulation.ARENA_RADIUS, y), Vector2(BattleSimulation.ARENA_RADIUS, y), Color(0.35, 0.6, 0.7, 0.45), 2)
 	if not simulation.encounter.pending.is_empty():
 		# Announced entry zone, independent of any hidden actor's live position.
-		for y in [-90, 0, 90]:
-			draw_polyline(PackedVector2Array([Vector2(635, y - 12), Vector2(620, y), Vector2(635, y + 12)]), Color(1.0, 0.7, 0.3, 0.65), 2)
+		for y in [-180, 0, 180]:
+			var entry := Vector2(BattleSimulation.WAVE_ENTRY_X, y)
+			draw_polyline(PackedVector2Array([entry + Vector2(30, -24), entry, entry + Vector2(30, 24)]), Color(1.0, 0.7, 0.3, 0.65), 2)
 	for star in stars:
 		if _visible_world_rect.has_point(star):
 			draw_circle(star, 1.0, Color(0.3, 0.4, 0.5, 0.65))

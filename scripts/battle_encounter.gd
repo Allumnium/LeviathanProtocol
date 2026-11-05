@@ -57,7 +57,7 @@ func advance(sim, delta: float) -> void:
 		var member = sim._create_combatant(definition.stats)
 		member.alien = definition
 		member.entity_id = definition.entity_id
-		member.position = Vector2(620, (int(entry.entity_id.get_slice("/", 3)) % 5 - 2) * 45)
+		member.position = Vector2(BattleSimulation.WAVE_ENTRY_X, (int(entry.entity_id.get_slice("/", 3)) % 5 - 2) * 90)
 		member.previous_position = member.position
 		member.heading = PI
 		member.previous_heading = PI
@@ -70,8 +70,9 @@ func advance(sim, delta: float) -> void:
 		pending.pop_front()
 
 func steer(position: Vector2, desired: Vector2, speed: float) -> Vector2:
-	if plan.get("arena_layout", "open") == "corridor" and absf(position.y) > 140:
-		var strength := clampf((absf(position.y) - 140) / 100, 0, 1)
+	if plan.get("arena_layout", "open") == "corridor" and absf(position.y) > BattleSimulation.CORRIDOR_INNER_WIDTH:
+		var strength := clampf((absf(position.y) - BattleSimulation.CORRIDOR_INNER_WIDTH)
+			/ (BattleSimulation.CORRIDOR_HALF_WIDTH - BattleSimulation.CORRIDOR_INNER_WIDTH), 0, 1)
 		return desired.lerp(Vector2(desired.x, -signf(position.y) * speed), strength)
 	return desired
 
