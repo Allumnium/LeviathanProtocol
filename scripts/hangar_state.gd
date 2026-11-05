@@ -1095,18 +1095,11 @@ func repair_ship(owned: FleetShip) -> bool:
 	return true
 
 func move_ship(owned: FleetShip, position: Vector2) -> void:
-	if not _can_refit() or not fleet.has(owned) or not position.is_finite():
+	if not fleet.has(owned) or not position.is_finite():
 		return
-	var old := owned.formation
-	var old_groups := squadrons.duplicate(true)
-	owned.formation = position.clamp(Vector2(-5, -4), Vector2(5, 4))
-	var staged := hangar_snapshot()
-	HangarSquadrons.sync(staged)
-	squadrons = staged.squadrons
-	if not save_run_checkpoint():
-		owned.formation = old
-		squadrons = old_groups
-	fleet_changed.emit()
+	var area := BattleSimulation.formation_area()
+	var radius := Vector2.ONE * owned.get_stats().collision_radius / BattleSimulation.DEPLOYMENT_SCALE
+	move_ships({owned.id: position.clamp(area.position + radius, area.end - radius)})
 
 func move_ships(positions: Dictionary) -> bool:
 	if not _can_refit() or positions.is_empty():
@@ -1116,7 +1109,10 @@ func move_ships(positions: Dictionary) -> bool:
 		if owned_ship(id) == null or not positions[id] is Vector2 or not positions[id].is_finite():
 			return false
 		var position: Vector2 = positions[id]
-		if position.x < -5 or position.x > 5 or position.y < -4 or position.y > 4:
+		var area := BattleSimulation.formation_area()
+		var radius := Vector2.ONE * owned_ship(id).get_stats().collision_radius / BattleSimulation.DEPLOYMENT_SCALE
+		if position != position.clamp(area.position + radius, area.end - radius):
+			last_save_error = "Place every ship inside the deployment area."
 			return false
 		for entry: Dictionary in data.ships:
 			if entry.id == id:

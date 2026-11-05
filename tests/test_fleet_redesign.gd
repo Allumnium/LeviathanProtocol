@@ -87,18 +87,19 @@ func fleet_checks() -> void:
 	var before: Dictionary = state.hangar_snapshot()
 	var board: Control = screen.formation_view
 	var positions: Dictionary = board.display_positions.duplicate()
-	check(not positions.is_empty() and positions.size() == state.fleet.size(), "Every owned ship receives an orderly display slot")
+	check(not positions.is_empty() and positions.size() == state.fleet.size(), "Every owned ship receives its saved display position")
 	var tactical: Dictionary = state.hangar_snapshot()
-	tactical.ships[3].formation = [4, 3]
+	tactical.ships[3].formation = [2, 1]
 	HangarSquadrons.sync(tactical)
-	check(state._commit_hangar(tactical), "Change saved deployment independently of management presentation")
+	check(state._commit_hangar(tactical), "Change the shared saved formation")
 	await settle()
 	board = screen.formation_view
-	check(board.display_positions == positions, "Tactical formation never rearranges management escorts")
+	check(board.display_positions != positions
+		and board.display_positions[ship_id] == Vector2(2, 1), "Fleet canvas reflects changed tactical formation")
 	if DisplayServer.get_name() != "headless":
 		root.size = Vector2i(640, 360)
 		await settle()
-		await capture("orderly-fleet-640")
+		await capture("shared-fleet-640")
 	screen._open_ship_editor(ship_id)
 	await settle()
 	check(screen.active_tab == "FLEET" and screen.ship_editor.is_visible_in_tree()

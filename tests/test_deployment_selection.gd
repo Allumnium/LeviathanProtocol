@@ -149,7 +149,9 @@ func fleet_flag_checks() -> void:
 	root.push_input(motion, true)
 	await settle()
 	await pointer(motion.position, false)
-	check(screen.formation_view.display_positions == layout, "Fleet flags never rearrange travel layout")
+	check(screen.formation_view.display_positions != layout
+		and screen.formation_view.display_positions[int(group.members[0])] == state.owned_ship(int(group.members[0])).formation,
+		"Fleet flag dragging updates shared deployment positions")
 	# First member previously shared the group's selected_id: it must still drill directly to one.
 	screen._select_ship(int(group.members[0]))
 	await settle()

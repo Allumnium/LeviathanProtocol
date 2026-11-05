@@ -5,6 +5,9 @@ signal squadron_selected(id: int)
 const Flag = preload("res://scripts/squadron_flag.gd")
 var selected_squadron_id := 0
 signal action_failed(message: String)
+const VIEW_SCALE := 52.0
+var drag_origins: Dictionary[int, Vector2] = {}
+var drag_moved := false
 const GLOW = preload("res://shaders/ship_selection.gdshader")
 const Exhaust = preload("res://scripts/ship_exhaust.gd")
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
@@ -56,7 +59,7 @@ func _ready() -> void:
 		starfield.call("scroll_stationary", travel_distance_nu * 0.002)
 	if selected_ids.is_empty() and selected_id > 0:
 		selected_ids.append(selected_id)
-	_layout_escorts()
+	_load_formation()
 	for owned: HangarShip in GameState.fleet:
 		hit_images[owned.id] = SurfaceArt.diffuse(owned.art_texture).get_image()
 		var glow := TextureRect.new()
@@ -73,41 +76,56 @@ func _ready() -> void:
 
 func point(owned: FleetShip) -> Vector2:
 	var position: Vector2 = display_positions.get(owned.id, Vector2.ZERO)
-	return size * 0.5 + (position * 52 - camera) * zoom
+	return size * 0.5 + (position * VIEW_SCALE - camera) * zoom
 
-func _layout_escorts() -> void:
+func _load_formation() -> void:
 	display_positions.clear()
-	var groups: Array[Dictionary] = []
-	var total_height := 0.0
-	for group: Dictionary in GameState.squadrons:
-		var escorts: Array[int] = []
-		var extent := 0.0
-		for id: int in group.members:
-			var ship: HangarShip = GameState.owned_ship(id)
-			if ship.flagship:
-				display_positions[id] = Vector2.ZERO
-			else:
-				escorts.append(id)
-				extent = maxf(extent, ship.fleet_view_scale())
-		if escorts.is_empty():
-			continue
-		var spacing := extent + 0.12
-		var rows := ceili(float(escorts.size()) / ceili(sqrt(escorts.size())))
-		var height := (rows - 1) * spacing + extent
-		groups.append({"members": escorts, "height": height, "spacing": spacing})
-		total_height += height + 0.35
-	var y := -(total_height - 0.35) * 0.5
-	for group: Dictionary in groups:
-		for index in range(group.members.size()):
-			display_positions[group.members[index]] = Vector2(1.8, y + group.height * 0.5) \
-				+ HangarSquadrons.box_offset(index, group.members.size(), group.spacing)
-		y += group.height + 0.35
+	for owned: HangarShip in GameState.fleet:
+		display_positions[owned.id] = owned.formation
+
+func _start_drag(position: Vector2) -> void:
+	dragging = GameState._can_refit()
+	drag_start = position
+	drag_moved = false
+	drag_origins.clear()
+	for id: int in selected_ids:
+		drag_origins[id] = display_positions[id]
+
+func _preview_drag(position: Vector2) -> void:
+	if not drag_moved and position.distance_to(drag_start) < 3:
+		return
+	drag_moved = true
+	var delta := (position - drag_start) / (VIEW_SCALE * zoom)
+	var lower := Vector2(-INF, -INF)
+	var upper := Vector2(INF, INF)
+	var area := BattleSimulation.formation_area()
+	for id: int in drag_origins:
+		var radius := Vector2.ONE * GameState.owned_ship(id).get_stats().collision_radius / BattleSimulation.DEPLOYMENT_SCALE
+		lower = lower.max(area.position + radius - drag_origins[id])
+		upper = upper.min(area.end - radius - drag_origins[id])
+	delta = delta.clamp(lower, upper)
+	for id: int in drag_origins:
+		display_positions[id] = drag_origins[id] + delta
+	queue_redraw()
+
+func _finish_drag() -> void:
+	dragging = false
+	if drag_moved:
+		var positions := {}
+		for id: int in drag_origins:
+			positions[id] = display_positions[id]
+		if not GameState.move_ships(positions):
+			_load_formation()
+			action_failed.emit(GameState.last_save_error if not GameState.last_save_error.is_empty() else "Formation unavailable.")
+	drag_origins.clear()
+	drag_moved = false
+	queue_redraw()
 
 func _world(position: Vector2) -> Vector2:
-	return (camera + (position - size * 0.5) / zoom) / 52
+	return (camera + (position - size * 0.5) / zoom) / VIEW_SCALE
 
 func ship_rect(owned: HangarShip) -> Rect2:
-	var extent := Vector2.ONE * 52 * zoom * owned.fleet_view_scale()
+	var extent := BattleSimulation.Collision.hangar_rect(owned).size * VIEW_SCALE / BattleSimulation.DEPLOYMENT_SCALE * zoom
 	return Rect2(point(owned) - extent * 0.5, extent)
 
 func _hit(position: Vector2) -> int:
@@ -128,6 +146,8 @@ func flag_rect(group: Dictionary) -> Rect2:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and event.pressed:
+			if dragging:
+				return
 			var world: Vector2 = camera + (event.position - size * 0.5) / zoom
 			zoom = clampf(zoom * (1.2 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1 / 1.2), 0.4, 2.5)
 			camera = world - (event.position - size * 0.5) / zoom
@@ -136,6 +156,9 @@ func _gui_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			panning = event.pressed
 			return
+	if event is InputEventMouseMotion and dragging:
+		_preview_drag(event.position)
+		return
 	if event is InputEventMouseMotion and panning:
 		camera -= event.relative / zoom
 		queue_redraw()
@@ -144,16 +167,27 @@ func _gui_input(event: InputEvent) -> void:
 		if event.pressed:
 			for group: Dictionary in GameState.squadrons:
 				if flag_rect(group).has_point(event.position):
+					selected_squadron_id = int(group.id)
+					selected_ids.assign(group.members)
+					selected_id = int(group.members[0])
+					_start_drag(event.position)
 					squadron_selected.emit(int(group.id))
 					return
 			var hit := _hit(event.position)
 			if hit > 0:
+				selected_squadron_id = 0
+				selected_id = hit
+				selected_ids.assign([hit])
+				_start_drag(event.position)
 				ship_selected.emit(hit)
 				return
 			selected_ids.clear()
 			selected_id = 0
 			starfield._gui_input(event)
 			ship_selected.emit(0)
+		elif dragging:
+			_preview_drag(event.position)
+			_finish_drag()
 		queue_redraw()
 
 func _process(delta: float) -> void:

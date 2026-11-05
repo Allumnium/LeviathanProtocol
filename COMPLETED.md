@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Shared Fleet and battle formation
+
+- Removed Fleet's separate escort layout. Both pages now render saved individual positions and share relative hull scale/spacing; Fleet ship and flag gestures preview movement, preserve group offsets and save atomically on release. Selection updates only the right panel during a gesture, keeping the canvas alive. Failed saves restore drawn positions and show an error; pan/zoom and selection details remain.
+- Fleet movement uses the open battle deployment bounds including every hull radius, with one common displacement for group edge clamping. Battle setup retains mission-specific bounds (including narrower corridors), and Begin Combat saves its revisions back to the same positions/centroids for Fleet and Continue.
+- Focused isolated native suite passed 160 checks, zero failures: three-resolution ship/group gestures, preview isolation, geometry, bounds, pan/zoom, failed-save rollback, Continue, exact Fleet-to-battle placement and revised battle positions rendered back in Fleet. Reviewed captures and compile-checked affected fixtures/document links. Migrated retired fixed-layout assertions without broad reruns. Known certificate/renderer shutdown diagnostics remain; preserved concurrent artwork.
+
 ## 2026-11-05 - Squadron flags and selection details
 
 - Ship clicks always select one ship; numbered flags select entire friendly squadrons. Flags follow living visible groups in both factions and stay inside the battlefield frame. During battle setup, dragging a friendly flag moves its members together with one clamped displacement; Fleet's travel layout remains fixed. Shift/box selection adds individuals or explicitly clicked flags, with accurate mixed-selection details.

@@ -792,8 +792,8 @@ func _refresh() -> void:
 		formation_view = board
 		center.add_child(board)
 		board.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-		board.ship_selected.connect(_select_ship)
-		board.squadron_selected.connect(_select_squadron)
+		board.ship_selected.connect(_select_ship.bind(false))
+		board.squadron_selected.connect(_select_squadron.bind(false))
 		board.action_failed.connect(func(message: String) -> void: feedback.text = message)
 	var reopen_editor := ship_editor_open
 	ship_editor_open = false
@@ -1577,7 +1577,7 @@ func _show_details() -> void:
 		if HangarTrade.has_load(mount):
 			details.add_child(_label("%s %d" % [str(mount.load.kind).capitalize(), mount.load.quantity]))
 
-func _select_ship(id: int) -> void:
+func _select_ship(id: int, refresh_board := true) -> void:
 	selected_squadron_id = 0
 	selected_ship_id = id
 	formation_selection.clear()
@@ -1586,9 +1586,12 @@ func _select_ship(id: int) -> void:
 	selected_slot = ""
 	ship_editor_open = false
 	buy_open = false
-	_queue_refresh()
+	if refresh_board:
+		_queue_refresh()
+	else:
+		_refresh_selection_panel()
 
-func _select_squadron(id: int) -> void:
+func _select_squadron(id: int, refresh_board := true) -> void:
 	var group := HangarSquadrons.find(GameState.squadrons, id)
 	if group.is_empty():
 		return
@@ -1598,7 +1601,16 @@ func _select_squadron(id: int) -> void:
 	formation_selection.assign(group.members)
 	selected_slot = ""
 	ship_editor_open = false
-	_queue_refresh()
+	if refresh_board:
+		_queue_refresh()
+	else:
+		_refresh_selection_panel()
+
+func _refresh_selection_panel() -> void:
+	for option in roster.get_children():
+		if option is Button and str(option.name).begins_with("Squadron_"):
+			option.set_pressed_no_signal(str(option.name) == "Squadron_%d" % selected_squadron_id)
+	_show_details()
 
 func _show_squadron_details(group: Dictionary) -> void:
 	_clear(details)

@@ -511,7 +511,7 @@ func run() -> void:
 	await drag(origin + first - Vector2(40, 50), origin + second + Vector2(40, 50))
 	board = screen.formation_view
 	check(not screen.ship_editor_open and SaveValidation.same(before_layout, state.hangar_snapshot()),
-		"Dragging management space never edits tactical formation")
+		"Dragging empty Fleet space never edits formation")
 	check(board.camera == Vector2(20, -15) and is_equal_approx(board.zoom, 1.2), "Selection preserves camera")
 	await capture("orderly-fleet")
 	var saved: Dictionary = state.hangar_snapshot()
@@ -519,7 +519,7 @@ func run() -> void:
 	check(state.hangar_snapshot().ships == saved.ships, "Inspection preserves saved tactical positions")
 	await settle()
 	board = screen.formation_view
-	check(board.display_positions == display_before, "Continue preserves orderly management escorts")
+	check(board.display_positions == display_before, "Continue preserves shared formation")
 	var empty: Vector2 = board.global_position + Vector2(20, 120)
 	await drag(empty, empty)
 	check(screen.selected_ship_id == 0 and screen.formation_view.selected_ids.is_empty(), "Empty-space click deselects")

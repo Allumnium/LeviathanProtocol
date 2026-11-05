@@ -153,7 +153,7 @@ func native_opening() -> void:
 		var bounds := Rect2(screen.formation_view.point(drones[0]), Vector2.ZERO)
 		for ship: HangarShip in drones:
 			bounds = bounds.expand(screen.formation_view.point(ship))
-		check(bounds.size.x < 65 and bounds.size.y < 45
+		check(bounds.size.x < 95 and bounds.size.y < 64
 			and not bounds.has_point(screen.formation_view.point(state.fleet[0])),
 			"Native Fleet shows one tight drone box separate from the flagship")
 		await RenderingServer.frame_post_draw

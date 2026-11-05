@@ -42,6 +42,10 @@ static func deployment_area(plan: Dictionary) -> Rect2:
 	return Rect2(Vector2(-1910, -420), Vector2(1300, 840)) if plan.get("arena_layout", "open") == "corridor" \
 		else Rect2(Vector2(-1910, -520), Vector2(1300, 1040))
 
+static func formation_area(plan: Dictionary = {}) -> Rect2:
+	var area := deployment_area(plan)
+	return Rect2((area.position - PLAYER_FORMATION_CENTER) / DEPLOYMENT_SCALE, area.size / DEPLOYMENT_SCALE)
+
 class Combatant:
 	var owned_ship: FleetShip
 	var damage_dealt := 0.0
