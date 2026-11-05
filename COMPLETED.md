@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Support stacking and weapon audit
+
+- Reviewed actual uplink/relay consumers, ion shield/hull multipliers, missile expenditure/splitting, and lance cooldown/charge/miss behavior. Recorded a concrete [stacking and weapon proposal](docs/EQUIPMENT_REVIEW.md), including additive uplinks across hosts, relay transfer per copy and proposed damage values. No runtime balance changed; user decisions and implementation remain open in TODO.
+- Documentation/source links and arithmetic checked; no game suites rerun for this source review. Future verification is scoped to support effects and a bounded weapon comparison.
+
 ## 2026-11-05 - Standing Git workflow
 
 - AGENTS.md now assigns periodic commits and pushes at completed, verified milestones to the agent, with standing user authorization. Preserve unrelated changes and published history; report blockers instead of guessing destinations or force-pushing.
