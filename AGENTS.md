@@ -13,6 +13,7 @@
 ## Workflow
 
 - Put actionable plans in TODO.md before implementation. Move verified finished items into COMPLETED.md with a brief date/result; leave unfinished work and blockers open.
+- Commit completed, verified work periodically at coherent milestones, and push those commits to the configured remote branch without waiting for the user to ask. This is standing authorization for routine commits and pushes. Preserve unrelated user changes; do not force-push, rewrite published history or guess a remote destination. If no remote is configured or pushing is blocked, keep local commits, record the blocker in TODO.md and request the missing information.
 - Run only the smallest relevant tests with isolated APPDATA. Use focused native visual/interaction checks for UI; scene-tree text alone does not establish visibility.
 - Full baselines, all campaign variants, long soaks and broad native acceptance require explicit user request. Ask before expanding coverage; do not rerun unchanged passing checks.
 - Await asynchronous checks and require their completed summary, not just an exit code or timeout. Documentation-only changes need document/link checks, not game suites.
