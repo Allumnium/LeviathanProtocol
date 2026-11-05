@@ -104,12 +104,15 @@ func relays() -> void:
 		var sim := setup([owned(parts), owned(["shield_generator"], 2)])
 		var donor := sim.player
 		var receiver := sim.players[1]
-		donor.shields = 20
+		donor.shields = donor.stats.shields
+		var total := donor.shields
 		receiver.shields = 0
 		sim.doctrines._relay(sim, donor, 1)
-		check(is_equal_approx(receiver.shields, 2 * copies) and is_equal_approx(donor.shields + receiver.shields, 20), "Relay copies add transfer rate and conserve shields")
+		check(is_equal_approx(donor.stats.shields, 20 + 10 * copies), "Each relay adds ten shields alongside a shield generator")
+		check(is_equal_approx(receiver.shields, 2 * copies) and is_equal_approx(donor.shields + receiver.shields, total), "Relay copies add transfer rate and conserve shields")
 		sim.doctrines._relay(sim, donor, 100)
-		check(is_equal_approx(receiver.shields, 10) and is_equal_approx(donor.shields, 10), "Large transfer step stops at equal fractions")
+		check(is_equal_approx(receiver.shields / receiver.stats.shields, donor.shields / donor.stats.shields)
+			and is_equal_approx(donor.shields + receiver.shields, total), "Large transfer step stops at equal fractions and conserves shields")
 		receiver.shields = receiver.stats.shields
 		var before := donor.shields
 		sim.doctrines._relay(sim, donor, 1)
@@ -125,7 +128,15 @@ func relays() -> void:
 	var sim := setup([owned(["shield_relay"]), owned(["shield_generator"], 2)])
 	sim.players[1].shields = 0
 	sim.doctrines._relay(sim, sim.player, 1)
-	check(sim.players[1].shields == 0, "Relay without shield capacity cannot transfer")
+	check(sim.player.stats.shields == 10 and is_equal_approx(sim.players[1].shields, 2)
+		and is_equal_approx(sim.player.shields, 8), "Relay supplies and transfers its own shield pool without a generator")
+	sim.player.shields = 0
+	sim.players[1].shields = 0
+	sim.player.since_damage = 4
+	sim._update_ship(sim.player, 1)
+	check(is_equal_approx(sim.player.shields, 0.4), "Relay shields use normal four-percent recharge after the existing delay")
+	sim.doctrines._relay(sim, sim.player, 1)
+	check(sim.players[1].shields > 0 and is_equal_approx(sim.player.shields + sim.players[1].shields, 0.4), "Recovered shields become transferable without creating extra energy")
 	sim = setup([owned(["shield_generator", "shield_relay"]), owned([], 2)])
 	sim.doctrines._relay(sim, sim.player, 1)
 	check(sim.players[1].shields == 0, "Recipient without shield capacity receives nothing")
@@ -190,7 +201,8 @@ func weapons() -> void:
 func run() -> void:
 	marks()
 	relays()
-	weapons()
+	if not "--support-only" in OS.get_cmdline_user_args():
+		weapons()
 	var file := FileAccess.open("user://equipment-comparison.json", FileAccess.WRITE)
 	file.store_string(JSON.stringify(rows, "\t"))
 	file.close()

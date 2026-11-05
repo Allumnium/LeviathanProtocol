@@ -2,6 +2,12 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Relay shields and support clarity
+
+- Each Shield Relay now adds the user-requested 10 shields to its host, stacking capacity and the existing two-shield/second transfer per copy. Normal four-percent recovery applies after the existing four-second delay. Empty donors cannot transfer; fraction equalization and shield conservation remain.
+- Equipment details explain relay capacity/recharge/transfer and Tactical Computer cooldown resets with their unshielded-target condition. Computer behavior, copy/research timing, beam charges and ammunition rules are unchanged.
+- Isolated support-only verification passed 44 checks, including generator-free relay operation, copy stacking, normal recharge and transferable recovered shields. Native clarity/Continue checks passed 28 checks; reviewed details at 640x360, 1280x720 and 1920x1080. No unchanged weapon comparison or broad suites rerun. Expected certificate-store and existing shutdown resource diagnostics remain.
+
 ## 2026-11-05 - Repair Drone Hangar and combat particles
 
 - Implemented the user-approved Repair Drone Hangar: continuous 2 hull/s total per copy, shared among injured allies or self within range 220, redistributing unused shares. Multiple hangars add output; Renewal I adds 25% hangar healing and retains its passive repair bonus. Green particles show actual healing. No repair craft spawn and no finite repair allowance is consumed; hull destruction, equipment UIDs and lost loads remain intact.

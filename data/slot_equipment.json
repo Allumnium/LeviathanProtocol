@@ -700,7 +700,7 @@
       "size": "L",
       "stats": {
         "integrity": 0,
-        "shields": 0,
+        "shields": 10,
         "thrust": 0,
         "weapons": [],
         "weight": 6

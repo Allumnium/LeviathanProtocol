@@ -49,3 +49,9 @@ Each tuned weapon delivered four times its previous damage under the same sample
 The observed roles are shield specialization for ion, ammunition-funded guided damage for missiles and a stronger but avoidable charged hit for the lance. Railgun retains range 500 and Sentinel-cover penetration; its raw output is lower than the tuned lance at this close range. This remains a first pass. No further weapon/research changes, campaign sweep, broad acceptance or soak were performed. Local logs, JSON and captures are under .local/checks/equipment-balance/. Expected malformed-effect rejection, certificate-store and existing shutdown resource diagnostics remain.
 
 Focused entry point: [test_equipment_balance.gd](../tests/test_equipment_balance.gd).
+
+## 2026-11-05 - Relay shield capacity and computer clarity
+
+The user subsequently requested shield capacity on the relay. Each copy now adds 10 shields while retaining its additive two-shield/second transfer, range 180 and fraction equalization. Normal shield recovery applies at 4% per second after four seconds without damage: 0.4/s per relay. An empty pool still transfers nothing until recharged; the relay works without a separate generator. Recipients still need their own capacity.
+
+Tactical Computer behavior is unchanged; its equipment text now explains the weapon cooldown reset and wait for an unshielded target. One computer charges in 12 seconds, two in six; Command II improves a single computer to 9.6 seconds. Beam charges and ammunition rules remain. Focused support-only and native checks are recorded in COMPLETED.md.
