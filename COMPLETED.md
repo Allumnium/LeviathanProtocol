@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-05 - Equipment and Act I expansion review
+
+- Reviewed current non-history guidance, 24 active presets, 23 obtainable equipment size/rank entries, 12 authored events and their runtime paths. Added [the expansion proposal](docs/ACT_I_EXPANSION_PLAN.md): four equipment candidates, existing equipment access gaps, seven main story beats, eight side-event briefs, minimal story/persistence changes and focused acceptance criteria. Ordered the unimplemented work in TODO; hardware values, preset substitutions and pacing remain proposals.
+- Document links and catalog/preset claims checked with zero failures. No game suites or new playthrough were run for this documentation-only delivery; runtime, balance and unrelated artwork edits remain unchanged.
+
 ## 2026-11-05 - Right-panel ship details only
 
 - Deleted the remaining modal ship editor, its separate canvas/mount inspection, view cache and open/close state. Ship selection uses only the right panel for stats, complete loadouts, fitted equipment/effects/loads, repair, salvage and squadron membership. Selecting ships/groups clears catalog inspection; transaction errors stay in the existing feedback area. Salvage still requires its existing confirmation.
