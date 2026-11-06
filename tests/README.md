@@ -21,6 +21,11 @@ Replace the example suite with the relevant test file. For a supported native ch
 
 Useful focused entry points:
 
+- [test_act1_content.gd](test_act1_content.gd): ordinary opening and Meridian save/leave/withdraw outcomes, causal Protocol, first-choice RP, save failure/retry and Continue; no full campaign.
+- [test_act1_edges.gd](test_act1_edges.gd): civilian detour beyond the former broadcast threshold, unknown conditions, departure save rollback, empty-tank recovery, fuel-transfer conservation, living-lab text and flagship-loss termination.
+- [test_expansion_equipment.gd](test_expansion_equipment.gd): all 36 preset mount definitions, new/existing equipment access, six controlled firing comparisons, Light Shield recovery/research/relay behavior and UID trade/refit transactions. `-- --trade-only` restricts this to metadata capacity/loading/delivery/loss/refit checks.
+- [test_expansion_native.gd](test_expansion_native.gd): native event pointer choices, disabled fuel fallback, four new preset refits and equipment details at 640x360/1280x720/1920x1080, plus one measured ordinary Meridian defense. `-- --ui-only` omits the unchanged battle; `-- --details-only` limits captures to changed equipment details. Require the `COMPLETE` summary and inspect the saved images under isolated user://.
+
 - [test_fleet_without_command.gd](test_fleet_without_command.gd): 39-ship purchases/rescue/deployment/Continue without capacity research, affordability/overflow and save rollback, explicit flagship validation, removed logistics cards and remaining offers/progression. Native `-- --native-only` verifies actual group purchases beyond the former budget and Fleet/setup readouts at supported resolutions; requires the explicit completion check. Replaces the retired command-capacity suite.
 
 - [test_map_clock.gd](test_map_clock.gd): native fixed 8x travel clock/distance, Pause/Play without speed selectors, actual Fleet/Map pointer switches, hidden-page suspension, preserved manual/mandatory pauses, Continue pause and supported-resolution header captures. Checks frozen full snapshots while away; requires its explicit completion check. Low-level simulation speed APIs remain available for controlled model tests.

@@ -100,18 +100,19 @@ func _process(delta: float) -> void:
 		service_key.position = Vector2(4, maxf(4, size.y - service_key.size.y - 4)).round()
 		queue_redraw()
 
-static func services_for(location: Dictionary) -> Array[String]:
+static func services_for(location: Dictionary, flags: Dictionary = {}) -> Array[String]:
 	var result: Array[String] = []
 	if location.get("kind") != "station":
 		return result
 	for service: String in SERVICE_ORDER:
-		if service in location.get("services", []):
+		if service in ExpeditionSimulation.available_services(location, flags):
 			result.append(service)
 	return result
 
 func service_rects(location: Dictionary) -> Array[Rect2]:
 	var result: Array[Rect2] = []
-	var services := services_for(location)
+	var simulation = GameState.expedition_simulation
+	var services := services_for(location, {} if simulation == null else simulation.state.flags)
 	var point := to_screen(_position(location)).round()
 	var width := services.size() * SERVICE_STEP - (SERVICE_STEP - SERVICE_SIZE)
 	for index in range(services.size()):
@@ -246,7 +247,7 @@ func _draw() -> void:
 		var icon := 18.0 if location.kind == "station" else 10.0
 		var texture: Texture2D = STATION_TEXTURE if location.kind == "station" else PlaceholderAssets.art()
 		draw_texture_rect(texture, Rect2(point - Vector2.ONE * icon * 0.5, Vector2.ONE * icon), false, tint)
-		var services := services_for(location)
+		var services := services_for(location, simulation.state.flags)
 		var badges := service_rects(location)
 		for index in range(services.size()):
 			draw_service(self, services[index], badges[index], tint)

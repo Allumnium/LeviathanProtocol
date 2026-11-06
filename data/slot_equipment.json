@@ -77,7 +77,9 @@
       "retired": false,
       "price": 250,
       "hit_points": 60,
-      "research_capabilities": []
+      "research_capabilities": [],
+      "load_kind": "cargo",
+      "load_capacity": 10
     },
     {
       "id": "crew_quarters",
@@ -500,7 +502,9 @@
       "retired": false,
       "price": 85,
       "hit_points": 25,
-      "research_capabilities": []
+      "research_capabilities": [],
+      "load_kind": "passengers",
+      "load_capacity": 4
     },
     {
       "id": "point_defense_turret",
@@ -918,6 +922,107 @@
       "price": 160,
       "hit_points": 40,
       "research_capabilities": []
+    },
+    {
+      "id": "autocannon",
+      "name": "Autocannon",
+      "part_type": 56,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "type": "offense",
+      "retired": false,
+      "price": 100,
+      "hit_points": 25,
+      "research_capabilities": [],
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [
+          {
+            "name": "Autocannon",
+            "interval": 2,
+            "damage": 4,
+            "count": 4,
+            "range": 480,
+            "mount": [
+              0,
+              0
+            ],
+            "projectile": true,
+            "interceptable": false,
+            "charge": 0
+          }
+        ],
+        "weight": 8
+      }
+    },
+    {
+      "id": "light_shield",
+      "name": "Light Shield",
+      "part_type": 57,
+      "rank": 1,
+      "revision": 1,
+      "size": "S",
+      "type": "defense",
+      "retired": false,
+      "price": 40,
+      "hit_points": 25,
+      "research_capabilities": [
+        "shield"
+      ],
+      "stats": {
+        "integrity": 0,
+        "shields": 6,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 3
+      }
+    },
+    {
+      "id": "cargo_pod",
+      "name": "Cargo Pod",
+      "part_type": 58,
+      "rank": 1,
+      "revision": 1,
+      "size": "M",
+      "type": "civic",
+      "retired": false,
+      "price": 85,
+      "hit_points": 25,
+      "research_capabilities": [],
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 4
+      },
+      "load_kind": "cargo",
+      "load_capacity": 4
+    },
+    {
+      "id": "passenger_berth",
+      "name": "Passenger Berth",
+      "part_type": 59,
+      "rank": 1,
+      "revision": 1,
+      "size": "XL",
+      "type": "civic",
+      "retired": false,
+      "price": 250,
+      "hit_points": 25,
+      "research_capabilities": [],
+      "stats": {
+        "integrity": 0,
+        "shields": 0,
+        "thrust": 0,
+        "weapons": [],
+        "weight": 12
+      },
+      "load_kind": "passengers",
+      "load_capacity": 12
     }
   ],
   "version": 1

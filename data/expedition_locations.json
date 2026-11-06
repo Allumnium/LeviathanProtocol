@@ -6,8 +6,15 @@
       "name": "Haven Dock",
       "act": 1,
       "kind": "station",
-      "position": [0.0, 0.0],
-      "services": ["shipyard", "refuel", "trade"],
+      "position": [
+        0,
+        0
+      ],
+      "services": [
+        "shipyard",
+        "refuel",
+        "trade"
+      ],
       "discovered": true,
       "accessible": true,
       "safe": true,
@@ -15,33 +22,84 @@
       "station_key": "start",
       "description": "Your charter's home port. Full shipyard, fuel and cargo brokers.",
       "goods_unit_value": 3,
-      "featured": ["cargo_hold", "mini_turret", "fighter"],
-      "stock": ["mini_turret", "laser", "hull_plate", "armor_block", "thruster", "shield_generator", "research_lab", "cargo_hold", "passenger_cabin", "double_laser", "point_defense_turret", "missile_rack"],
-      "chassis_stock": ["fighter", "drone", "transport", "corsair"]
+      "featured": [
+        "cargo_hold",
+        "mini_turret",
+        "fighter"
+      ],
+      "stock": [
+        "mini_turret",
+        "laser",
+        "hull_plate",
+        "armor_block",
+        "thruster",
+        "shield_generator",
+        "research_lab",
+        "cargo_hold",
+        "passenger_cabin",
+        "double_laser",
+        "point_defense_turret",
+        "missile_rack"
+      ],
+      "chassis_stock": [
+        "fighter",
+        "drone",
+        "transport",
+        "corsair"
+      ]
     },
     {
       "id": "refuel_station_1",
-      "name": "Kessler Refuel Post",
+      "name": "Port Meridian",
       "act": 1,
       "kind": "station",
-      "position": [240.0, -35.0],
-      "services": ["shipyard", "refuel", "trade"],
+      "position": [
+        240,
+        -35
+      ],
+      "services": [
+        "shipyard",
+        "refuel",
+        "trade"
+      ],
       "discovered": true,
       "accessible": true,
       "safe": true,
       "region": "act_1",
       "station_key": "refueling_post",
-      "description": "A busy fuel depot with a small repair yard.",
+      "description": "A civilian refueling and trading port serving independent convoys.",
       "goods_unit_value": 6,
-      "stock": ["research_lab", "cargo_hold", "passenger_cabin", "shield_generator", "large_thruster", "repair_drone_bay", "laser", "mini_turret", "armor_block", "hull_plate"],
-      "chassis_stock": ["drone", "transport", "frigate"]
+      "stock": [
+        "research_lab",
+        "cargo_hold",
+        "passenger_cabin",
+        "shield_generator",
+        "large_thruster",
+        "repair_drone_bay",
+        "laser",
+        "mini_turret",
+        "armor_block",
+        "hull_plate"
+      ],
+      "chassis_stock": [
+        "drone",
+        "transport",
+        "frigate"
+      ],
+      "closed_flags": [
+        "meridian_left",
+        "meridian_withdrawn"
+      ]
     },
     {
       "id": "derelict_1",
       "name": "Derelict Field",
       "act": 1,
       "kind": "poi",
-      "position": [355.0, 75.0],
+      "position": [
+        355,
+        75
+      ],
       "services": [],
       "discovered": true,
       "accessible": true,
@@ -55,7 +113,10 @@
       "name": "Distress Beacon",
       "act": 1,
       "kind": "poi",
-      "position": [300.0, -185.0],
+      "position": [
+        300,
+        -185
+      ],
       "services": [],
       "discovered": true,
       "accessible": true,
@@ -69,7 +130,10 @@
       "name": "Pale Nebula",
       "act": 1,
       "kind": "poi",
-      "position": [540.0, 150.0],
+      "position": [
+        540,
+        150
+      ],
       "services": [],
       "discovered": true,
       "accessible": true,
@@ -83,8 +147,14 @@
       "name": "Frontier Settlement",
       "act": 1,
       "kind": "station",
-      "position": [470.0, -20.0],
-      "services": ["refuel", "trade"],
+      "position": [
+        470,
+        -20
+      ],
+      "services": [
+        "refuel",
+        "trade"
+      ],
       "discovered": true,
       "accessible": true,
       "safe": true,
@@ -95,28 +165,59 @@
     },
     {
       "id": "meridian_outpost",
-      "name": "Meridian Outpost",
+      "name": "Bastion Anchorage",
       "act": 1,
       "kind": "station",
-      "position": [665.0, -125.0],
-      "services": ["shipyard", "refuel", "trade"],
+      "position": [
+        665,
+        -125
+      ],
+      "services": [
+        "shipyard",
+        "refuel",
+        "trade"
+      ],
       "discovered": true,
       "accessible": true,
       "safe": true,
       "region": "act_1",
       "station_key": "outpost",
-      "description": "A naval picket station. Military-grade weapons for sale.",
+      "description": "A naval staging port processing requisitioned civilian convoys.",
       "goods_unit_value": 6,
-      "featured": ["laser", "railgun", "corsair"],
-      "stock": ["laser", "double_laser", "missile_rack", "point_defense_turret", "railgun", "ammunition_magazine", "flight_deck", "armor_block", "shield_generator", "command_uplink", "tactical_computer", "large_thruster"],
-      "chassis_stock": ["fighter", "corsair", "frigate", "drone"]
+      "featured": [
+        "laser",
+        "railgun",
+        "corsair"
+      ],
+      "stock": [
+        "laser",
+        "double_laser",
+        "missile_rack",
+        "point_defense_turret",
+        "railgun",
+        "ammunition_magazine",
+        "armor_block",
+        "shield_generator",
+        "command_uplink",
+        "tactical_computer",
+        "large_thruster"
+      ],
+      "chassis_stock": [
+        "fighter",
+        "corsair",
+        "frigate",
+        "drone"
+      ]
     },
     {
       "id": "act_2_gate",
       "name": "Bastion Gate",
       "act": 2,
       "kind": "gate",
-      "position": [840.0, 0.0],
+      "position": [
+        840,
+        0
+      ],
       "services": [],
       "discovered": false,
       "accessible": false,
@@ -130,8 +231,14 @@
       "name": "Act II Refueling Station",
       "act": 2,
       "kind": "station",
-      "position": [1060.0, 65.0],
-      "services": ["refuel", "trade"],
+      "position": [
+        1060,
+        65
+      ],
+      "services": [
+        "refuel",
+        "trade"
+      ],
       "discovered": false,
       "accessible": false,
       "safe": true,
@@ -143,7 +250,10 @@
       "name": "Act III Region Gate",
       "act": 3,
       "kind": "gate",
-      "position": [1680.0, 0.0],
+      "position": [
+        1680,
+        0
+      ],
       "services": [],
       "discovered": false,
       "accessible": false,
@@ -156,8 +266,14 @@
       "name": "Act III Refueling Station",
       "act": 3,
       "kind": "station",
-      "position": [1920.0, -55.0],
-      "services": ["refuel", "trade"],
+      "position": [
+        1920,
+        -55
+      ],
+      "services": [
+        "refuel",
+        "trade"
+      ],
       "discovered": false,
       "accessible": false,
       "safe": true,

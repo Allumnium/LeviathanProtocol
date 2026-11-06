@@ -147,6 +147,9 @@ static func valid_equipment(data: Variant) -> bool:
 		if not item is Dictionary or not item.get("id") is String or not item.get("name") is String or not _integer(item.get("rank")) or not _integer(item.get("revision")) or not _integer(item.get("part_type"), 0) or item.get("size") not in SIZES or item.get("type") not in TYPES or not item.get("stats") is Dictionary or not item.get("retired", false) is bool:
 			return false
 		var definition := GameDefinitions.find("equipment", item.id)
+		if item.has("load_kind") or item.has("load_capacity"):
+			if item.get("load_kind") not in ["cargo", "passengers"] or not _integer(item.get("load_capacity")):
+				return false
 		if item.has("art") and (not item.art is String or not ResourceLoader.exists(item.art, "Texture2D")):
 			return false
 		if item.has("art_mount"):

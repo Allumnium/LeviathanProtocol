@@ -1,6 +1,6 @@
 # Equipment, events and Act I expansion plan
 
-2026-11-05. Requested review and proposal, not implemented behavior or approved tuning. Actionable work lives in [TODO.md](../TODO.md). This review inspected current documentation, catalogs and runtime paths; it did not run a new playthrough or establish visual quality or campaign balance.
+2026-11-05. The user subsequently approved implementation of this proposal. The equipment, presets, authored story/events and focused checks are delivered; see [current gameplay](HANGAR.md) and [completion results](../COMPLETED.md). Missing artwork remains an explicit dependency in [TODO.md](../TODO.md). The review findings and proposed decisions below record the pre-expansion design baseline, not the current catalog. XP and Ion Pulse balance remain separate decisions.
 
 ## Recommendation
 

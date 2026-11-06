@@ -152,10 +152,11 @@ func hangar_summary() -> Dictionary:
 	if is_alive():
 		for unit: Dictionary in units:
 			if unit.part != null:
-				if unit.part.definition_id == "cargo_hold":
-					result.cargo += HangarTrade.CARGO_CAPACITY
-				if unit.part.definition_id == "passenger_cabin":
-					result.passengers += HangarTrade.PASSENGER_CAPACITY
+				var spec := HangarTrade.load_spec({"equipment_id": unit.part.definition_id, "rank": unit.part.rank})
+				if spec.kind == "cargo":
+					result.cargo += spec.capacity
+				if spec.kind == "passengers":
+					result.passengers += spec.capacity
 	return result
 
 func hit_cell(_origin: Vector2, _random: RandomNumberGenerator) -> Vector2i:

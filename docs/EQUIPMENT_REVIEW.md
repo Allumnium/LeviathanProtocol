@@ -1,5 +1,15 @@
 # Equipment stacking and weapon review
 
+## 2026-11-05 - Approved Act I equipment expansion
+
+Added Autocannon (M: four 4-damage kinetic projectiles every 2s, range 480, mass 8, price 100), Light Shield (S: six shields, mass 3, price 40), Cargo Pod (M: four goods, mass 4, price 85), and Passenger Berth (XL: twelve passengers, mass 12, price 250). Shared load metadata retains existing hold/cabin capacities and UID/loss/refit rules. Every part is available in a complete preset; ordinary parts add no research gate. Names remain text even when effect values use icons. Missing artwork remains an intentional placeholder dependency.
+
+Six controlled 12-second samples compare Autocannon and Double Laser at 150 units (stationary/moving) and 600 units (stationary). Close-range damage was 96 versus 86.4 in both sampled target profiles; at 600, Autocannon dealt zero and Double Laser 86.4. Neither spent missiles. These are bounded mechanical samples, not campaign win-rate claims. Light Shield passed normal 0.24/s recharge, Bastion pulse and conserved relay-receipt checks. Focused entry point: [test_expansion_equipment.gd](../tests/test_expansion_equipment.gd).
+
+The 36 active presets include the prior missing Ion Emitter, Beam Lance, magazine and computer roles. Starting fits and the Beam Lance research gate are unchanged. Individual XP remains proposed; current ordinary refits are still free at a shipyard.
+
+## Earlier approved tuning
+
 2026-11-05. The user approved additive uplink/relay effects and the first-pass weapon values below. They are implemented and verified with focused support checks, controlled firing samples and native equipment-detail review. Further tuning remains a user decision.
 
 Later approved tuning: Missile Rack now fires five 12-damage missiles every eight seconds (60 burst, 7.5 nominal DPS), with separate physical launch positions and particle trails. Weapon ranges were also tripled after the original comparison. The tables/samples below preserve that earlier pass; see [the current battle feel audit](BATTLE_FEEL_AUDIT.md) and [current gameplay](HANGAR.md) for current behavior.

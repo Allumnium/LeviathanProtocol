@@ -5,6 +5,10 @@ const PASSENGER_DEATH_FEE := 20
 const PASSENGER_CAPACITY := 4
 const CARGO_CAPACITY := 10
 
+static func load_spec(instance: Dictionary) -> Dictionary:
+	var item := SlotCatalog.find_equipment(str(instance.equipment_id), int(instance.get("rank", 1)))
+	return {"kind": item.get("load_kind", ""), "capacity": int(item.get("load_capacity", 0))}
+
 static func summary(data: Dictionary) -> Dictionary:
 	var totals := {"cargo": 0, "cargo_capacity": 0, "passengers": 0, "passenger_capacity": 0}
 	for ship: Dictionary in data.ships:
@@ -12,25 +16,29 @@ static func summary(data: Dictionary) -> Dictionary:
 			continue
 		for uid: String in ship.mounts.values():
 			var instance: Dictionary = data.equipment[uid]
-			if instance.equipment_id == "cargo_hold":
-				totals.cargo_capacity += CARGO_CAPACITY
+			var spec := load_spec(instance)
+			if spec.kind == "cargo":
+				totals.cargo_capacity += spec.capacity
 				totals.cargo += int(instance.get("load", {}).get("quantity", 0))
-			elif instance.equipment_id == "passenger_cabin":
-				totals.passenger_capacity += PASSENGER_CAPACITY
+			elif spec.kind == "passengers":
+				totals.passenger_capacity += spec.capacity
 				totals.passengers += int(instance.get("load", {}).get("quantity", 0))
 	return totals
 
 # Loads belong to physical equipment IDs, never slot indices or blueprints.
 static func depart(data: Dictionary, source: Dictionary, target: Dictionary) -> void:
+	if not source.inhabited:
+		return
 	for ship: Dictionary in data.ships:
 		for uid: String in ship.mounts.values():
 			var instance: Dictionary = data.equipment[uid]
 			if ship.hull_hp < 0 or not instance.get("load", {}).is_empty():
 				continue
-			if instance.equipment_id == "passenger_cabin" and target.inhabited:
-				instance["load"] = {"kind": "passengers", "quantity": PASSENGER_CAPACITY, "unit_value": 8, "origin": int(source.id)}
-			elif instance.equipment_id == "cargo_hold" and source.inhabited:
-				instance["load"] = {"kind": "cargo", "quantity": CARGO_CAPACITY, "unit_value": int(source.goods_unit_value), "origin": int(source.id)}
+			var spec := load_spec(instance)
+			if spec.kind == "passengers" and target.inhabited:
+				instance["load"] = {"kind": "passengers", "quantity": spec.capacity, "unit_value": 8, "origin": int(source.id)}
+			elif spec.kind == "cargo":
+				instance["load"] = {"kind": "cargo", "quantity": spec.capacity, "unit_value": int(source.goods_unit_value), "origin": int(source.id)}
 
 static func arrive(data: Dictionary, node: Dictionary, skip_origin := -1) -> void:
 	if not node.inhabited:
@@ -69,8 +77,9 @@ static func valid(instance: Dictionary) -> bool:
 		return false
 	if contents.is_empty():
 		return true
-	var kind: String = "cargo" if instance.equipment_id == "cargo_hold" else ("passengers" if instance.equipment_id == "passenger_cabin" else "")
-	if kind.is_empty() or contents.get("kind") != kind or not HangarCheckpoint._integer(contents.get("quantity"), 1) or contents.quantity > (CARGO_CAPACITY if kind == "cargo" else PASSENGER_CAPACITY) or not HangarCheckpoint._integer(contents.get("origin"), 0):
+	var spec := load_spec(instance)
+	var kind: String = spec.kind
+	if kind.is_empty() or contents.get("kind") != kind or not HangarCheckpoint._integer(contents.get("quantity"), 1) or contents.quantity > spec.capacity or not HangarCheckpoint._integer(contents.get("origin"), 0):
 		return false
 	if not HangarCheckpoint._integer(contents.get("unit_value"), 1):
 		return false

@@ -1,10 +1,10 @@
 extends RefCounted
 
 const DATA_PATH := "res://data/expedition_events.json"
-const TRIGGERS := ["distance", "zone", "arrival", "start"]
+const TRIGGERS := ["distance", "zone", "arrival", "start", "departure", "story"]
 const COMBAT_TEMPLATES := ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]
 const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "combat", "flag",
-	"discover", "requires_credits", "complete", "rescue_ship", "missiles"]
+	"discover", "requires_credits", "complete", "rescue_ship", "missiles", "flags", "requires_fuel"]
 
 # Older fixtures only declared `distance_nu`; they remain distance triggers with
 # the original Investigate / Continue Course choices.
@@ -29,6 +29,26 @@ static func valid(value: Variant, locations: Dictionary) -> bool:
 			or not value.get("events") is Array or value.events.size() > 128:
 		return false
 	var ids := {}
+	var declared_flags := {}
+	for source: Variant in value.events:
+		if not source is Dictionary or not source.get("options", []) is Array:
+			return false
+		for choice: Variant in source.get("options", []):
+			if not choice is Dictionary or not choice.get("effects", {}) is Dictionary:
+				return false
+			var effects: Dictionary = choice.get("effects", {})
+			if effects.get("flag") is String:
+				declared_flags[effects.flag] = true
+			if effects.get("flags", []) is Array:
+				for flag: Variant in effects.get("flags", []):
+					if flag is String:
+						declared_flags[flag] = true
+			if effects.get("combat", {}) is Dictionary:
+				for outcome in ["victory_flags", "withdrawal_flags"]:
+					if effects.get("combat", {}).get(outcome, []) is Array:
+						for flag: Variant in effects.get("combat", {}).get(outcome, []):
+							if flag is String:
+								declared_flags[flag] = true
 	var previous_distance := -1.0
 	var starts := 0
 	for event: Variant in value.events:
@@ -39,6 +59,23 @@ static func valid(value: Variant, locations: Dictionary) -> bool:
 			return false
 		if event.has("requires_flag") and (not event.requires_flag is String or event.requires_flag.is_empty()):
 			return false
+		for field in ["requires_flags", "excludes_flags"]:
+			if not valid_flags(event.get(field, [])):
+				return false
+		if not valid_condition_references(event, declared_flags):
+			return false
+		if event.has("text_variants"):
+			if not event.text_variants is Array:
+				return false
+			for variant: Variant in event.text_variants:
+				if not variant is Dictionary or not variant.get("text") is String \
+						or not valid_flags(variant.get("requires_flags", [])) \
+						or not valid_flags(variant.get("excludes_flags", [])) \
+						or not variant.get("capability", "") is String or not variant.get("chassis", "") is String:
+					return false
+				if not valid_condition_references(variant, declared_flags) \
+						or (not variant.get("chassis", "").is_empty() and SlotCatalog.find_chassis(variant.chassis).is_empty()):
+					return false
 		if event.has("art") and not event.art is String:
 			return false
 		match trigger(event):
@@ -51,7 +88,7 @@ static func valid(value: Variant, locations: Dictionary) -> bool:
 				if not SaveValidation.vector(event.get("position")) or not SaveValidation.number(event.get("radius")) \
 						or event.radius <= 0 or event.radius > 1000:
 					return false
-			"arrival":
+			"arrival", "departure":
 				var target: Dictionary = locations.get(event.get("location_id", ""), {})
 				if target.is_empty():
 					return false
@@ -77,9 +114,18 @@ static func valid(value: Variant, locations: Dictionary) -> bool:
 			if not event.get("destination_id") is String:
 				return false
 			var destination: Dictionary = locations.get(event.destination_id, {})
-			if destination.is_empty() or not destination.accessible or destination.kind != "poi":
+			if destination.is_empty() or not destination.accessible or destination.kind not in ["poi", "station"]:
 				return false
 		ids[event.id] = true
+	return true
+
+static func valid_condition_references(condition: Dictionary, declared: Dictionary) -> bool:
+	if condition.has("requires_flag") and (not condition.requires_flag is String or not declared.has(condition.requires_flag)):
+		return false
+	for field in ["requires_flags", "excludes_flags"]:
+		for flag: String in condition.get(field, []):
+			if not declared.has(flag):
+				return false
 	return true
 
 static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
@@ -91,10 +137,12 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 			return false
 	if effects.get("requires_credits", 0) < 0:
 		return false
-	for key in ["fuel", "research", "hull_damage"]:
+	for key in ["fuel", "research", "hull_damage", "requires_fuel"]:
 		if effects.has(key) and not SaveValidation.number(effects[key]):
 			return false
 	if effects.get("research", 0.0) < 0 or effects.get("hull_damage", 0.0) < 0 or effects.get("hull_damage", 0.0) > 0.5:
+		return false
+	if effects.get("requires_fuel", 0.0) < 0 or not valid_flags(effects.get("flags", [])):
 		return false
 	if not valid_rewards(effects, true):
 		return false
@@ -122,6 +170,19 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 			return false
 		if not valid_rewards(combat):
 			return false
+		for outcome in ["victory_flags", "withdrawal_flags"]:
+			if not valid_flags(combat.get(outcome, [])):
+				return false
+	return true
+
+static func valid_flags(value: Variant) -> bool:
+	if not value is Array or value.size() > 32:
+		return false
+	var seen := {}
+	for key: Variant in value:
+		if not key is String or key.is_empty() or seen.has(key):
+			return false
+		seen[key] = true
 	return true
 
 static func valid_rewards(rewards: Dictionary, allow_fuel_cost := false) -> bool:
@@ -141,7 +202,22 @@ static func valid_rewards(rewards: Dictionary, allow_fuel_cost := false) -> bool
 	return true
 
 static func flag_ready(event: Dictionary, flags: Dictionary) -> bool:
-	return not event.has("requires_flag") or flags.get(event.requires_flag, false)
+	if event.has("requires_flag") and not flags.get(event.requires_flag, false):
+		return false
+	for key: String in event.get("requires_flags", []):
+		if not flags.get(key, false):
+			return false
+	for key: String in event.get("excludes_flags", []):
+		if flags.get(key, false):
+			return false
+	return true
+
+static func boundary_event(events: Array, receipts: Dictionary, flags: Dictionary, kind: String, location_id := "") -> Dictionary:
+	for event: Dictionary in events:
+		if trigger(event) == kind and not receipts.get(event.id, false) and flag_ready(event, flags) \
+				and (location_id.is_empty() or event.get("location_id", "") == location_id):
+			return event
+	return {}
 
 static func next_event(events: Array, receipts: Dictionary, flags: Dictionary = {}) -> Dictionary:
 	for event: Dictionary in events:

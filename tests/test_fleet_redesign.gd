@@ -137,7 +137,7 @@ func fleet_checks() -> void:
 	screen._inspect_chassis("fighter")
 	screen._select_ship(ship_id)
 	await settle()
-	check(screen.inspected_item.is_empty() and screen.details.get_node("ShipEquipment_fore").source_text.contains("Mini Turret")
+	check(screen.inspected_item.is_empty() and screen.details.get_node("ShipEquipment_fore").get_child(0).text == "Mini Turret"
 		and not screen.refit_panel.has_node("PartOptions") and not screen.refit_panel.has_node("RemovePart"),
 		"Ship selection replaces catalog inspection with equipment details and complete loadouts")
 	var change: Button = screen.refit_panel.get_node("Loadout_laser_drone")
@@ -192,7 +192,7 @@ func fleet_checks() -> void:
 	check(state._commit_hangar(cargo), "Save cargo on its real transport equipment UID")
 	screen._select_ship(state.fleet[1].id)
 	await settle()
-	check(screen.details.get_node("ShipEquipment_hold").source_text.contains("Cargo Hold")
+	check(screen.details.get_node("ShipEquipment_hold").get_child(0).text == "Cargo Hold"
 		and text_under(screen.details).contains("Cargo 3 / 10"),
 		"Fleet right panel includes equipment and carried-cargo details")
 	before = state.hangar_snapshot()

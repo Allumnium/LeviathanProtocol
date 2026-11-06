@@ -92,8 +92,8 @@ func run() -> void:
 	check(state.refit_ship(2, "survey") and state.owned_ship(2).mounts.hold.rank == 3,
 		"Lab (XL) fits and parts are ordinary purchases")
 	check(state._commit_hangar(locked_before), "Restore pre-refit ownership fixture")
-	check(ShipLoadouts.available_for("fighter", state.current_research_ids).size() == 3
-		and ShipLoadouts.available_for("transport", state.current_research_ids).size() == 3,
+	check(ShipLoadouts.available_for("fighter", state.current_research_ids).size() == 4
+		and ShipLoadouts.available_for("transport", state.current_research_ids).size() == 4,
 		"Ordinary named fits include Lab (XL) without research")
 	var transport_group := HangarSquadrons.for_ship(state.squadrons, 2)
 	check(state.refit_squadron(int(transport_group.id), "survey"),

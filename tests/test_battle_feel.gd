@@ -100,6 +100,8 @@ func opening() -> void:
 			var options: Array = state.expedition_simulation.Events.options(event)
 			var choice := "continue" if options.any(func(option: Dictionary) -> bool: return option.id == "continue") else str(options[0].id)
 			check(state.resolve_expedition_event(event_id, choice), "Resolve authored opening choice")
+			if event_id == "meridian_welcome":
+				check(state.depart_expedition("settlement_1", true), "Depart Meridian to reach the first-contact decision")
 		if state.battle_pending:
 			break
 	check(state.battle_pending, "Reach real first battle")

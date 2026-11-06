@@ -1,6 +1,6 @@
 # Individual ship experience and complete loadouts
 
-Draft for gameplay review, 2026-11-05. Player refitting now offers complete loadouts only, with read-only mount inspection. XP, chevron UI and the proposed level-gated preset catalog below are not implemented yet.
+Draft for gameplay review, 2026-11-05. Player refitting offers complete loadouts only, with read-only equipment inspection. The 36-preset hardware catalog is implemented by the approved [Act I expansion](ACT_I_EXPANSION_PLAN.md); XP, chevron UI and the level gates below remain proposals.
 
 ## Confirmed direction
 
@@ -43,42 +43,42 @@ Science and healing are not additional XP sources in this first proposal. Resear
 
 ## Proposed complete loadout mapping
 
-The [concrete candidate catalog](loadout_progression_proposal.json) expands the current [24 presets](../data/ship_loadouts.json) to 36: exactly four per chassis across nine chassis. It is a design artifact, not an active runtime catalog. All mount/equipment combinations have been validated against the actual chassis slots and existing purchasable equipment. No new equipment or physical mount layout is proposed.
+The [progression mapping](loadout_progression_proposal.json) mirrors the [36 active presets](../data/ship_loadouts.json): exactly four per chassis across nine chassis. Its minimum levels are design metadata, not runtime restrictions. Mounts and equipment match the implemented expansion, including its four new parts; physical chassis layouts are unchanged.
 
 | Chassis | Level 1 | Level 2 | Level 3 | Level 4 | Level 5 |
 | --- | --- | --- | --- | --- | --- |
-| Defensive flagship | Command, Bulwark | - | Gunline | - | Fire Director |
-| Civic flagship | Merchant | Repair Escort | - | Command Tender | Fleet Hospital |
+| Defensive flagship | Command, Bulwark | - | Gunline | - | Disruptor |
+| Civic flagship | Merchant | Repair Escort | - | Command Tender | Passenger Liner |
 | Research flagship | Survey, Observatory | - | Field Laboratory | - | Fleet Observatory |
-| Offensive flagship | Battleship, Missile Cruiser | - | Lance Battleship* | - | Siege Command* |
-| Fighter | Interceptor, Escort | - | Striker | - | Ace Striker |
-| Transport | Freighter | Survey | Tender | - | Research Tender |
+| Offensive flagship | Battleship, Missile Cruiser | - | Lance Battleship* | - | Siege Battery* |
+| Fighter | Interceptor, Escort | - | Striker | - | Skirmisher |
+| Transport | Freighter | Survey | Tender | - | Passenger Liner |
 | Corsair | Raider | Guardian | - | Missileer | Lance Raider* |
-| Frigate | Picket | Command Escort | Lancer | - | Missile Screen |
-| Drone | Gun Drone, Shield Drone | Laser Drone | - | - | Command Drone |
+| Frigate | Picket | Command Escort | Lancer | - | Brawler |
+| Drone | Gun Drone, Shield Drone | Laser Drone | - | - | Courier |
 
 `*` Also requires Beam Lance research. Correction to the earlier draft: the existing Frigate Lancer is six small lasers plus a medium Double Laser; it neither mounts nor requires a Beam Lance. Its hull has no large mount. Actual new Beam Lance fits use the Corsair/offensive flagship's large combat mount.
 
-### Why the later options earn their level requirements
+### Roles to consider when reviewing level requirements
 
 | New preset | Concrete role or power increase |
 | --- | --- |
-| Fire Director | Three small lasers and a Command Uplink: trades its medium gun for fleet-wide damage marking. Retains both thrusters. |
+| Disruptor | Three small lasers and an Ion Emitter. Trades Gunline's medium laser for shield-focused fire and access to earned Ion Pulse; retains both thrusters. Replaces proposed Fire Director. |
 | Command Tender | Two shield relays and damage marking while retaining cargo and passenger cabins. Gives up large plates and its lab for commercial fleet support. |
-| Fleet Hospital | Dual-hangar healing, three shield generators, damage marking, two point defenses and extra thrust. Gives up lab output and laser damage for stronger coordinated fleet support. |
+| Civic Passenger Liner | Twelve-passenger XL berth plus two ordinary cabins. Trades Merchant's ten-goods hold for passenger revenue and greater casualty exposure. Replaces proposed Fleet Hospital. |
 | Field Laboratory | Retains cargo and its medium lab while replacing both large plates with healing hangars. Fleet sustain at a clear personal-hull cost. |
 | Fleet Observatory | XL lab, healing hangar, Tactical Computer and damage marking in one fit. Trades plate hull and its medium lab for science/control support; one hangar means two shared hull/second, not four. |
 | Lance Battleship | Charged Beam Lance, two Double Lasers, two small lasers and damage marking. Stronger heavy hit and allied amplification, with research/charge/miss conditions. |
-| Siege Command | Two missile racks, Beam Lance, point defense and damage marking. Two racks deliver 120 missile burst damage per full volley, consuming ten fleet missiles; strong ranged burst with a real ammo cost. |
-| Ace Striker | Three small lasers: nine nominal DPS versus Striker's seven. A direct firepower improvement, while Interceptor retains its mobility role and Escort its defensive role. |
-| Research Tender | XL lab plus two healing hangars: three RP per travel day and four shared hull/second in battle. Gives up cargo and large plates. |
+| Siege Battery | Two missile racks, Beam Lance, point defense and a magazine's +20% weapon cycling. Gives up the lab/marking role; each full twin-rack volley consumes ten missiles. Replaces proposed Siege Command. |
+| Skirmisher | Two small lasers and a Light Shield. Trades Striker's forward turret for six recovering shields, retaining less firepower than Striker. Replaces proposed Ace Striker. |
+| Transport Passenger Liner | Twelve-passenger berth and Light Shield with large plates retained. Trades Freighter's cargo role and one small plate for passenger income and personal shields. Replaces proposed Research Tender. |
 | Lance Raider | Beam Lance plus two Double Lasers: 26.4 nominal DPS versus Raider's 18.4, before research/marks and charge misses. Research remains required. |
-| Missile Screen | Six point-defense turrets surrounding a five-round missile rack. Gives up lasers to intercept hostile missiles and protect the larger fleet. |
-| Command Drone | Three point defenses and a Command Uplink on the smallest cheap hull. Gives up its medium plate for fleet damage amplification and missile protection. |
+| Brawler | Replaces Picket's missile rack with an Autocannon. Close-range kinetic fire uses no fleet ammunition but gives up missile reach and burst. Replaces proposed Missile Screen. |
+| Courier | Four-goods Cargo Pod, two mini turrets and a thruster. Gives up Gun Drone's medium armor and one turret for commerce and mobility. Replaces proposed Command Drone. |
 
-The existing Shield Drone also needs a meaningful armed starter role: propose a small thruster, two mini turrets and a medium shield generator. It gains mobility and shields while giving up Gun Drone plate hull and one turret. Its shield is personal; it does not pretend to transfer shields to allies. This proposed change is included in the candidate catalog, without altering the active fit yet.
+Shield Drone retains its existing three small plates and medium shield generator; the expansion does not redesign starter fits. The earlier armed-starter substitution is not in the reconciled catalog. Review this defensive option's level-1 membership alongside the other rank assignments, without treating the old substitution as approved hardware.
 
-Damage comparisons use current base equipment stats, not measured encounter outcomes. The candidate JSON records every actual mount and the new fits' tradeoffs. No higher-level entry should be justified solely by a new name or its level number; verify the documented benefit through focused combat/support comparisons when implementing.
+Nominal DPS comparisons are not measured encounter outcomes; the new equipment's bounded mechanical comparisons are in [EQUIPMENT_REVIEW.md](EQUIPMENT_REVIEW.md). The proposal JSON records actual mounts and roles. These specialist fits are not all strict power upgrades: review their proposed ranks rather than treating a new name or the inherited level number as proof of veteran value.
 
 ## Squadrons, recruits and fitting
 
@@ -99,4 +99,4 @@ The ship inspection view retains hull/shields/stats, cargo/passenger details, re
 5. Extend the now loadout-only controls in [hangar_screen.gd](../scripts/hangar_screen.gd) with rank/XP and minimum-level feedback. Preserve the existing Fleet inspection, shared X, pan/zoom and shipyard restrictions. Keep concise names, level requirements, prices and errors visible without hover tooltips.
 6. Focused checks: XP arithmetic/caps, hostile attribution, partial participation/withdrawal, income attribution, atomic failure/retry, Continue, destroyed/zero-hull boundaries, assignment/split/join, rookies, preset-only fitting restrictions and native Fleet/report feedback. No broad baseline or campaign sweep is implied.
 
-Review needed before implementation: approve/change the proposed XP rates and five thresholds, the 36-preset hardware/mapping, and the mixed-veteran/recruit rules. Five levels, chevron badges, no custom loadouts and the one/two-to-four option progression are confirmed; the exact XP balance and new preset hardware remain proposals.
+Review needed before XP implementation: approve/change the XP rates and five thresholds, minimum-level mapping and mixed-veteran/recruit rules. Five levels, chevron badges, no custom loadouts and the one/two-to-four option progression are confirmed. Hardware is implemented; XP balance and eligibility rules remain proposals.

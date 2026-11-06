@@ -832,7 +832,7 @@ func _show_run_end() -> void:
 	_sync_music()
 	if GameState.completed:
 		AudioManager.play_ui_sfx(&"demo_complete")
-	var story := "The Bastion Gate is open. The Leviathan waits beyond it.\nThanks for playing this slice of Leviathan Protocol." \
+	var story := "Bastion Gate is open. Your civilian convoy proceeds to the combined fleet assembly under Leviathan Protocol.\nThanks for playing this Act I slice." \
 			if GameState.completed else "The convoy is scattered without its flagship."
 	var dialog := UiKit.dialog(self, "RunEnd", "", story,
 			load("res://assets/ui/Victory_Badge.png") if GameState.completed else null, Callable(), UiKit.TOP_Z, 440.0)
@@ -882,7 +882,7 @@ func _refresh_expedition_controls() -> void:
 	missile_buy_button.disabled = GameState.credits < GameState.MISSILE_PACK_PRICE
 	var docked: Dictionary = simulation.locations.get(state.docked_location_id, {})
 	travel_refuel_button.visible = not docked.is_empty() \
-			and "refuel" in docked.get("services", []) and state.fuel < state.fuel_capacity \
+			and "refuel" in simulation.services_for(docked) and state.fuel < state.fuel_capacity \
 			and not is_instance_valid(station_actions)
 	var refuel_cost := int(ceil((state.fuel_capacity - state.fuel) * 2.0))
 	travel_refuel_button.text = "REFUEL %d" % refuel_cost
@@ -910,7 +910,7 @@ func _show_encounter(intro: Dictionary = {}) -> void:
 	buy_open = false
 	encounter_event_id = event.id
 	AudioManager.play_ui_sfx(&"question")
-	var dialog := UiKit.dialog(self, "ExpeditionEncounter", str(event.title), str(event.text),
+	var dialog := UiKit.dialog(self, "ExpeditionEncounter", str(event.title), GameState.expedition_event_text(event),
 			str(event.get("art", "")), Callable(), UiKit.DIALOG_Z, 520.0)
 	encounter_modal = dialog.root
 	dialog.panel.name = "EncounterPanel"
@@ -918,10 +918,12 @@ func _show_encounter(intro: Dictionary = {}) -> void:
 		var action := _dismiss_intro if not intro.is_empty() else _choose_encounter.bind(event.id, str(option.id))
 		var choice := UiKit.button(str(option.label), action)
 		choice.name = "Choice_" + str(option.id)
-		choice.disabled = GameState.credits < int(option.get("effects", {}).get("requires_credits", 0))
+		choice.disabled = not GameState.expedition_option_error(option.get("effects", {})).is_empty()
 		if option.get("effects", {}).has("combat"):
 			choice.add_theme_color_override("font_color", Color("ffb0a0"))
 		dialog.actions.add_child(choice)
+		if choice.disabled:
+			dialog.actions.add_child(UiKit.label(GameState.expedition_option_error(option.get("effects", {}))))
 	encounter_error = UiKit.label("")
 	dialog.column.add_child(encounter_error)
 	encounter_retry = UiKit.button("RETRY SAVE", func() -> void:
@@ -1169,7 +1171,7 @@ func _sync_station_actions() -> void:
 	var actions := station_actions
 	if docked:
 		actions.add_child(_label(str(location.name)))
-	if docked and "shipyard" in location.services and (repair_cost > 0 or active_tab == "FLEET"):
+	if docked and "shipyard" in simulation.services_for(location) and (repair_cost > 0 or active_tab == "FLEET"):
 		var repair := UiKit.button("REPAIR ALL %d cr" % repair_cost, func() -> void:
 			var can_repair: bool = GameState.can_use_shipyard() \
 				and GameState.credits >= GameState.fleet_repair_cost()
@@ -1185,12 +1187,12 @@ func _sync_station_actions() -> void:
 		repair.name = "StationRepairAll" if active_tab == "MAP" else "FleetRepairAll"
 		repair.disabled = repair_cost <= 0 or not GameState.can_use_shipyard() or GameState.credits < repair_cost
 		actions.add_child(repair)
-	if docked and "refuel" in location.services and state.fuel < state.fuel_capacity - 0.000001:
+	if docked and "refuel" in simulation.services_for(location) and state.fuel < state.fuel_capacity - 0.000001:
 		var refuel := UiKit.button("REFUEL %d cr" % refuel_cost, _on_expedition_refuel_pressed, &"")
 		refuel.name = "StationRefuel"
 		refuel.disabled = not GameState.station_service_error("refuel").is_empty() or GameState.credits < refuel_cost
 		actions.add_child(refuel)
-	if active_tab == "MAP" and docked and "shipyard" in location.services:
+	if active_tab == "MAP" and docked and "shipyard" in simulation.services_for(location):
 		var yard := UiKit.button("SHIPYARD", func() -> void:
 			active_tab = "FLEET"
 			_refresh(), &"animate_ui")
@@ -1514,9 +1516,12 @@ func _show_details() -> void:
 	for slot: String in owned.mounts:
 		var mount: Dictionary = owned.mounts[slot]
 		var item := SlotCatalog.find_equipment(mount.equipment_id, int(mount.rank))
-		var equipment := _resource_label("%s\n%s" % [item.name, _part_effect(item)])
+		var equipment := VBoxContainer.new()
 		equipment.name = "ShipEquipment_" + slot
 		details.add_child(equipment)
+		equipment.add_theme_constant_override("separation", 0)
+		equipment.add_child(_label(item.name))
+		equipment.add_child(_resource_label(_part_effect(item)))
 		if HangarTrade.has_load(mount):
 			details.add_child(_label("%s %d" % [str(mount.load.kind).capitalize(), mount.load.quantity]))
 
@@ -1648,10 +1653,10 @@ func _render_squadron_assignment(owned: HangarShip) -> void:
 
 func _part_effect(item: Dictionary) -> String:
 	var modifiers: Dictionary = GameState.research_grants().modifiers
+	if item.has("load_kind"):
+		return "%d %s" % [item.load_capacity, item.load_kind]
 	match item.id:
 		"research_lab": return "%s RP/day" % ScienceRules.format_rp(float(item.rank) * ResearchUpgrades.value(modifiers, "research_output_multiplier"))
-		"cargo_hold": return "%d cargo" % HangarTrade.CARGO_CAPACITY
-		"passenger_cabin": return "%d passengers" % HangarTrade.PASSENGER_CAPACITY
 		"ammunition_magazine": return "+20% weapon cycling"
 		"tactical_computer": return "Cooldown reset / %ss per computer\nWaits for unshielded target" % ScienceRules.format_rp(12.0 / ResearchUpgrades.value(modifiers, "synchronization_multiplier"))
 		"command_uplink": return "Mark: +%d%% per uplink\n5s / 20s" % roundi((ResearchUpgrades.value(modifiers, "mark_damage_multiplier", 1.2) - 1) * 100)
@@ -2013,7 +2018,7 @@ func _render_map_details() -> void:
 		lines.append("%d fuel%s" % [ceili(fuel_needed), " (out of range)" if fuel_needed > state.fuel else ""])
 		lines.append("ETA %ds at 1x · %ds at 10x" % [ceili(distance / cruise), ceili(distance / cruise / 10.0)])
 	var services: PackedStringArray = []
-	for service: String in location.services:
+	for service: String in simulation.services_for(location):
 		services.append(service.capitalize())
 	if not services.is_empty() and distance > 0.01:
 		lines.append(", ".join(services))

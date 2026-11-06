@@ -357,7 +357,7 @@ func run() -> void:
 	screen._show_details()
 	screen._show_details()
 	screen._render_refit_panel()
-	check(screen.details.get_node("ShipEquipment_hold").source_text.contains("Cargo Hold") and screen.details.get_node("ShipEquipment_hold").source_text.contains("10 cargo"),
+	check(screen.details.get_node("ShipEquipment_hold").get_child(0).text == "Cargo Hold" and screen.details.get_node("ShipEquipment_hold").get_child(1).source_text.contains("10 cargo"),
 		"Selected equipment retains its full name and gameplay effect")
 	var duplicate_effect := false
 	for child in screen.refit_panel.get_children():

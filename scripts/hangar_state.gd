@@ -483,6 +483,30 @@ func prepare_checkpoint_resume() -> bool:
 		return false
 	return true
 
+func expedition_option_error(effects: Dictionary) -> String:
+	if credits < maxi(int(effects.get("requires_credits", 0)), -int(effects.get("credits", 0))):
+		return "Not enough credits."
+	if expedition_simulation != null and expedition_simulation.state.fuel < maxf(
+			float(effects.get("requires_fuel", 0)), -float(effects.get("fuel", 0))):
+		return "Not enough fuel."
+	return ""
+
+func expedition_event_text(event: Dictionary) -> String:
+	var flags: Dictionary = expedition_simulation.state.flags
+	for variant: Dictionary in event.get("text_variants", []):
+		if not ExpeditionSimulationScript.Events.flag_ready(variant, flags):
+			continue
+		var capability: String = variant.get("capability", "")
+		if not capability.is_empty() and not get_deployed_fleet().any(func(ship: FleetShip) -> bool:
+			return ship.get_stats().research_capabilities.get(capability, false)):
+			continue
+		var chassis: String = variant.get("chassis", "")
+		if not chassis.is_empty() and not fleet.any(func(ship: FleetShip) -> bool:
+			return ship.is_flagship() and ship.chassis_id == chassis):
+			continue
+		return variant.text
+	return event.text
+
 func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	last_event_result = ""
 	if expedition_simulation == null or expedition_simulation.state == null:
@@ -497,8 +521,8 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	var event: Dictionary = ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id)
 	var selected: Dictionary = ExpeditionSimulationScript.Events.option(event, choice)
 	var effects: Dictionary = selected.get("effects", {})
-	if credits < int(effects.get("requires_credits", 0)):
-		last_save_error = "Not enough credits."
+	last_save_error = expedition_option_error(effects)
+	if not last_save_error.is_empty():
 		return false
 	var staged = ExpeditionSimulationScript.new()
 	if not staged.configure(run_seed) or not staged.restore(expedition_simulation.state.snapshot()) \
@@ -530,7 +554,8 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 			if owned != null and owned.is_alive():
 				entry.hull_hp = maxf(0.0, float(entry.hull_hp) - owned.hull_max * float(effects.hull_damage))
 		summary.append("Hull damage %d%%" % roundi(float(effects.hull_damage) * 100))
-	if effects.has("flag"):
+	if effects.has("flag") and expedition_simulation.locations.values().any(func(location: Dictionary) -> bool:
+		return location.get("required_flag", "") == effects.flag):
 		summary.append("New destination revealed")
 	if effects.has("combat"):
 		var encounter := _expedition_encounter(event_id, effects)
@@ -581,6 +606,9 @@ func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
 		encounter["arena_layout"] = "open"
 	encounter["expedition_event_id"] = event_id
 	encounter["complete"] = bool(effects.get("complete", false))
+	for key in ["victory_flags", "withdrawal_flags"]:
+		if combat.has(key):
+			encounter[key] = combat[key].duplicate()
 	return encounter
 
 func _rescue_ship(data: Dictionary, chassis_id: String) -> String:
@@ -598,7 +626,7 @@ func station_trade_node(location_id: String) -> Dictionary:
 		return {}
 	var value := int(location.get("goods_unit_value", 6))
 	return {"id": expedition_simulation.locations.keys().find(location_id),
-		"inhabited": location.kind == "station" and "trade" in location.get("services", []),
+		"inhabited": location.kind == "station" and "trade" in expedition_simulation.services_for(location),
 		"goods_unit_value": value if value in [3, 6, 10] else 6}
 
 # Commits a course change; leaving a dock loads cargo/passengers atomically.
@@ -679,7 +707,7 @@ func rescue_quote() -> Dictionary:
 	var best := {}
 	var best_distance := INF
 	for location: Dictionary in simulation.locations.values():
-		if location.kind != "station" or "refuel" not in location.services \
+		if location.kind != "station" or "refuel" not in simulation.services_for(location) \
 				or location.id not in simulation.state.discovered_location_ids or not simulation.location_accessible(location):
 			continue
 		var distance: float = simulation.state.position_nu.distance_to(Vector2(location.position[0], location.position[1]))
@@ -1047,7 +1075,9 @@ func station_service_error(service: String) -> String:
 	if location.is_empty() or location.get("kind") != "station" \
 			or state.position_nu.distance_to(Vector2(location.position[0], location.position[1])) > 0.000001:
 		return "The fleet is not docked at a valid station."
-	if service != "ammunition" and service not in location.get("services", []):
+	if expedition_simulation.services_for(location).is_empty():
+		return "This port is abandoned; use another station."
+	if service != "ammunition" and service not in expedition_simulation.services_for(location):
 		return "This station has no shipyard." if service == "shipyard" else "This station does not offer refueling."
 	return ""
 
@@ -1393,6 +1423,9 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	var won: bool = simulation.phase == BattleSimulation.Phase.VICTORY and not data.ended
 	var event_id: String = pending_encounter.get("expedition_event_id", "")
 	var rewards: PackedStringArray = []
+	if not data.ended:
+		for flag: String in pending_encounter.get("victory_flags" if won else "withdrawal_flags", []):
+			data.expedition.flags[flag] = true
 	if won:
 		RunScore.earn_credits(data, int(pending_encounter.rewards.credits))
 		# Victories yield research data instead of loose equipment.
@@ -1415,7 +1448,7 @@ func _settle_expedition_battle(simulation: BattleSimulation) -> bool:
 	elif not data.ended:
 		# Unbeaten arrival encounters remain at their location for a later attempt.
 		var event: Dictionary = ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id)
-		if ExpeditionSimulationScript.Events.trigger(event) == "arrival":
+		if ExpeditionSimulationScript.Events.trigger(event) == "arrival" and not pending_encounter.has("withdrawal_flags"):
 			data.expedition.event_receipts.erase(event_id)
 	data.pending = false
 	data.pending_encounter = {}

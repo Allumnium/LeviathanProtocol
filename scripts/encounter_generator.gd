@@ -280,6 +280,11 @@ static func objective_ids(encounter: Dictionary) -> Array[String]:
 
 
 static func valid(encounter: Variant) -> bool:
+	if not encounter is Dictionary:
+		return false
+	for outcome in ["victory_flags", "withdrawal_flags"]:
+		if not preload("res://scripts/expedition_events.gd").valid_flags(encounter.get(outcome, [])):
+			return false
 	if encounter is Dictionary and encounter.has("environment"):
 		if not NodeEnvironment.valid(encounter.environment):
 			return false

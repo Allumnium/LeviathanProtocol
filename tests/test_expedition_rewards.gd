@@ -18,6 +18,7 @@ func check(ok: bool, message: String) -> void:
 
 func admit(id: String) -> void:
 	check(state.start_new_run(1, 4242), "Start reward fixture")
+	state.expedition_simulation.state.flags.merge({"meridian_incident": true, "meridian_reported": true})
 	state.expedition_simulation.state.pending_event_id = id
 	state.expedition_simulation.state.pause_reasons.append(Travel.PauseReason.ENCOUNTER)
 	check(state.save_run_checkpoint(), "Persist admitted reward encounter")
@@ -59,8 +60,12 @@ func run() -> void:
 	check(state.load_run_checkpoint() and SaveValidation.same(state.hangar_snapshot(), committed),
 		"Salvage resources and receipt survive Continue")
 
-	admit("derelict_salvage")
-	check(state.resolve_expedition_event("derelict_salvage", "strip"), "Admit fuel salvage battle")
+	admit("asteroid_corridor")
+	# Isolate frozen resource rewards on a current post-incident combat choice.
+	var combat: Dictionary = Events.option(Events.find(state.expedition_simulation.events, "asteroid_corridor"), "blast").effects.combat
+	combat.fuel = 8.0
+	combat.missiles = 12
+	check(state.resolve_expedition_event("asteroid_corridor", "blast"), "Admit fuel salvage battle")
 	state.expedition_simulation.state.fuel = 96
 	var sim := battle()
 	check(state.pending_encounter.rewards.fuel == 8, "Authored fuel reward frozen into encounter")

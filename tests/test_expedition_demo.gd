@@ -57,7 +57,7 @@ func fight() -> int:
 
 func travel(destination: String, choices: Dictionary) -> bool:
 	var expedition = state.expedition_simulation
-	if not state.depart_expedition(destination):
+	if not state.depart_expedition(destination, true):
 		check(false, "Depart to " + destination + ": " + state.last_save_error)
 		return false
 	expedition.set_speed(10)
@@ -82,6 +82,9 @@ func travel(destination: String, choices: Dictionary) -> bool:
 			expedition.set_speed(10)
 			continue
 		if expedition.state.destination_location_id.is_empty() and expedition.state.pending_event_id.is_empty():
+			if expedition.state.return_destination_id == destination:
+				check(state.depart_expedition(destination, true), "Resume charter after Meridian defense")
+				continue
 			return true
 	check(false, "Journey to %s finishes" % destination)
 	return false
@@ -133,24 +136,24 @@ func run() -> void:
 	check(flagship.hull_hp == hull_before, "Docked waiting cannot self-repair the hull")
 	check(state.research_points == 0.0, "Docked time earns no research")
 	flagship.hull_hp = flagship.hull_max
-	check(travel("refuel_station_1", {"derelict_signal": "continue"}), "First leg reaches Kessler")
+	check(travel("refuel_station_1", {"derelict_signal": "continue"}), "First leg reaches Port Meridian")
 	check(state.research_points > 0.0
 		or state.current_research_ids.has("applied_energy"), "Travel distance fills the research bar")
-	check(not HangarTrade.has_load(state.equipment_inventory[hold_uid]), "Haven cargo delivered at Kessler")
-	check(state.expedition_simulation.state.event_receipts.get("first_contact", false), "First contact battle happened")
+	check(not HangarTrade.has_load(state.equipment_inventory[hold_uid]), "Haven cargo delivered at Port Meridian")
+	check(not state.expedition_simulation.state.event_receipts.get("first_contact", false), "First port visit precedes alien contact")
 	refit()
-	check(travel("derelict_1", {"derelict_salvage": "strip"}), "Detour to derelict field")
+	check(travel("derelict_1", {"derelict_salvage": "careful"}), "Detour to derelict field")
 	check(HangarTrade.has_load(state.equipment_inventory[hold_uid]), "Cargo stays aboard at uninhabited POI")
 	check(travel("settlement_1", {}), "Reach settlement")
 	check(travel("distress_1", {"distress_call": "defend"}), "Answer distress call")
 	check(state.expedition_simulation.state.flags.get("leviathan_protocol", false)
 			and state.expedition_simulation.location_accessible(state.expedition_simulation.locations.act_2_gate),
 			"Leviathan Protocol broadcast unlocks the Bastion Gate")
-	check(travel("refuel_station_1", {}), "Return to Kessler")
+	check(travel("refuel_station_1", {}), "Return to Port Meridian")
 	refit()
 	if state.station_service_error("refuel").is_empty() and state.expedition_simulation.state.fuel < 99:
-		check(state.refuel_expedition(), "Refuel at Kessler")
-	check(travel("meridian_outpost", {"asteroid_corridor": "blast"}), "Reach Meridian Outpost")
+		check(state.refuel_expedition(), "Refuel at Port Meridian")
+	check(travel("meridian_outpost", {"asteroid_corridor": "blast"}), "Reach Bastion Anchorage")
 	refit()
 	travel("act_2_gate", {})
 	for attempt in range(3):
@@ -162,7 +165,7 @@ func run() -> void:
 		check(state.resolve_expedition_event("bastion_warden", "engage"), "Re-engage the Warden")
 		fight()
 	check(state.completed and not state.run_ended, "Warden victory completes the demo")
-	check(state.current_research_ids.has("applied_energy"), "Demo route completes at least one research project")
+	check(state.current_research_ids.size() > 1, "Demo route completes at least one research project")
 	check(state.load_run_checkpoint() and state.completed, "Completed demo persists")
 	# Empty tanks never strand the convoy: a quoted tow may leave credit debt.
 	check(state.start_new_run(1, 77), "Start rescue fixture")

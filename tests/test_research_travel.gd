@@ -139,10 +139,10 @@ func cruise_timing() -> void:
 	for researched: bool in [false, true]:
 		start(["field_engineering"] if researched else [])
 		var simulation = state.expedition_simulation
-		simulation.state.event_receipts.erase("first_contact")
+		simulation.state.event_receipts.erase("patrol_inspection")
 		check(state.depart_expedition("refuel_station_1") and simulation.set_speed(20),
 			"Start fast-forward zone admission fixture")
-		check(state.advance_expedition(10, true).ok and simulation.state.pending_event_id == "first_contact",
+		check(state.advance_expedition(10, true).ok and simulation.state.pending_event_id == "patrol_inspection",
 			"Faster cruise still admits authored zone encounters")
 		boundaries.append(simulation.state.snapshot())
 	check(Vector2(boundaries[0].position_nu[0], boundaries[0].position_nu[1]).is_equal_approx(

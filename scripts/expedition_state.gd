@@ -33,6 +33,7 @@ var event_receipts: Dictionary[String, bool] = {}
 var departure_choice_pending := false
 var pending_event_id := ""
 var return_destination_id := ""
+var departure_location_id := ""
 
 
 func snapshot() -> Dictionary:
@@ -59,7 +60,8 @@ func snapshot() -> Dictionary:
 		"event_receipts": event_receipts.duplicate(),
 		"departure_choice_pending": departure_choice_pending,
 		"pending_event_id": pending_event_id,
-		"return_destination_id": return_destination_id
+		"return_destination_id": return_destination_id,
+		"departure_location_id": departure_location_id
 	}
 
 
@@ -87,6 +89,7 @@ func restore(value: Dictionary) -> bool:
 	departure_choice_pending = value.get("departure_choice_pending", false)
 	pending_event_id = value.get("pending_event_id", "")
 	return_destination_id = value.get("return_destination_id", "")
+	departure_location_id = value.get("departure_location_id", "")
 	return true
 
 
@@ -142,6 +145,8 @@ static func valid_locations(value: Variant) -> bool:
 				or not location.get("region") is String or location.region.is_empty():
 			return false
 		var service_set: Dictionary = {}
+		if not preload("res://scripts/expedition_events.gd").valid_flags(location.get("closed_flags", [])):
+			return false
 		for service: Variant in location.services:
 			if not service is String or service not in SERVICES or service_set.has(service):
 				return false
@@ -167,6 +172,8 @@ static func valid_locations(value: Variant) -> bool:
 
 
 static func valid(value: Variant) -> bool:
+	if not value is Dictionary or not value.get("departure_location_id", "") is String:
+		return false
 	if not value is Dictionary or value.get("format") != FORMAT \
 			or not SaveValidation.integer(value.get("version")) or int(value.version) != VERSION:
 		return false
