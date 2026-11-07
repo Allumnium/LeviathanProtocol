@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-07 - Archive resolved development thoughts
+
+- Moved resolved starter ownership, catalog cache, frozen fare and active-suite fixture notes to [THOUGHTS_ARCHIVE.md](THOUGHTS_ARCHIVE.md), retaining original dates/context and resolution outcomes. Open portions stay in [THOUGHTS.md](THOUGHTS.md).
+- Updated [AGENTS.md](AGENTS.md) and the reusable `godot-project-notes` skill to migrate resolved entries, preserve archive history and split partial resolutions. Document links and installed skill content checked; documentation-only, no game suites rerun.
+
 ## 2026-11-07 - P2 starters and economy; development notes
 
 - Added [fleet packages](packs/core/defs/fleet_packages.json), [campaign starts](packs/leviathan/defs/run_start.json) and [economy definitions](packs/core/defs/economy.json), with schemas and regenerated VS Code exports. Actual New Run, passenger fares/loss fees, ammunition purchases, refueling and tug prices read definitions; displayed service prices use the same quotes. Shipped balance, thirteen-ship formation, fitted UIDs and rollback remain. Chassis declare default-loadout IDs, shipyard defaults follow them, and locations declare stable trade IDs; carried fares stay frozen at departure.
