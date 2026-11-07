@@ -143,7 +143,7 @@ func weapon_cycle_rate() -> float:
 	for unit: Dictionary in units:
 		if unit.part != null and unit.part.type == ShipPart.Type.AMMUNITION_MAGAZINE:
 			count += 1
-	return 1.0 + float(chassis.get("weapon_cycle_bonus", 0.0)) + 0.2 * count
+	return 1.0 + float(chassis.get("weapon_cycle_bonus", 0.0)) + float(SharedSupport.parameters("ammunition_cycle").bonus) * count
 
 func hangar_summary() -> Dictionary:
 	var stats := get_stats()

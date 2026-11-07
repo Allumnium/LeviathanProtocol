@@ -3,6 +3,7 @@ extends SceneTree
 var checks := 0
 var failures := 0
 var state: Node
+var battle_frame_completed := false
 
 func _initialize() -> void:
 	run.call_deferred()
@@ -30,7 +31,7 @@ func fixture(available := true, equipped := true) -> BattleSimulation:
 	stats.shields = 100
 	stats.weight = 10
 	stats.weapons.append(ShipWeaponStats.new("Enemy", 1, 100, 1, 200))
-	var enemy := AlienShip.new("Ability target", AlienShip.SCOUT_TEXTURE, stats)
+	var enemy := AlienShip.new("Ability target", load(AlienShip.definition("core:scout").art), stats)
 	var ships: Array[FleetShip] = [ship]
 	var enemies: Array[RefCounted] = [enemy]
 	var initial := BattleAbilities.initial_state()
@@ -221,8 +222,17 @@ func battle_scene() -> void:
 	check(not battle.deploying, "Ability interaction starts through atomic Begin Combat")
 	var context: Dictionary = state.battle_support_context()
 	context.encounter_plan = {}
-	check(battle.simulation.setup_owned(state.get_deployed_fleet(), [enemy], 0, 0, 9412, context),
+	var enemies: Array[RefCounted] = [enemy]
+	check(battle.simulation.setup_owned(state.get_deployed_fleet(), enemies, 0, 0, 9412, context),
 		"Use the controlled target after starting the real encounter")
+	# This fixture replaces the live roster after scene admission. Rebuild its
+	# readout so the original frozen deployment is not retained as lost ships.
+	for row: Dictionary in battle.enemy_readout.rows.values():
+		battle.enemy_readout.column.remove_child(row.box)
+		row.box.queue_free()
+	battle.enemy_readout.rows.clear()
+	battle.enemy_readout.registered.clear()
+	battle.enemy_readout.refresh()
 	battle.simulation.player.position = Vector2.ZERO
 	battle.simulation.aliens[0].position = Vector2(150, 0)
 	battle.visuals.camera_position = Vector2(75, 0)
@@ -316,6 +326,9 @@ func battle_scene() -> void:
 	var reinforcement := BattleSimulation.Combatant.new()
 	reinforcement.entity_id = "readout-reinforcement"
 	reinforcement.alien = battle.simulation.aliens[0].alien
+	reinforcement.squadron_id = battle.simulation.aliens[0].squadron_id
+	reinforcement.faction = BattleSimulation.Faction.ALIEN
+	reinforcement.tags = {"combatant": true}
 	reinforcement.stats = reinforcement.alien.stats
 	reinforcement.integrity = reinforcement.stats.integrity
 	reinforcement.position = Vector2(10000, 10000)
@@ -346,11 +359,13 @@ func battle_scene() -> void:
 		check(root.get_texture().get_image().save_png("user://battle-frame-empty.png") == OK, "Capture empty footer")
 	empty_battle.queue_free()
 	await settle()
+	battle_frame_completed = true
 
 func run() -> void:
 	state = root.get_node("GameState")
 	mechanics()
 	await integration()
 	await battle_scene()
+	check(battle_frame_completed, "Production battle-frame checks reached completion")
 	print("RESEARCH ABILITIES: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

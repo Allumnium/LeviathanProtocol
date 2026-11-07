@@ -30,7 +30,7 @@ func battle(fleet: Array[FleetShip]) -> BattleSimulation:
 	stats.weight = 10
 	stats.collision_radius = 12
 	stats.weapons.append(ShipWeaponStats.new("Target", 100, 0.01, 1, 1))
-	var enemy := AlienShip.new("Target", AlienShip.SCOUT_TEXTURE, stats)
+	var enemy := AlienShip.new("Target", load(AlienShip.definition("core:scout").art), stats)
 	var sim := BattleSimulation.new()
 	check(sim.setup_owned(fleet, [enemy], 0, 0, 123, {"credits_only": true, "missiles": 30}), "Initialize focused firing sample")
 	for member in sim.players + sim.aliens:

@@ -5,105 +5,255 @@
 			"id": "patrol",
 			"revision": 1,
 			"display_name": "Patrol",
-			"implemented": false,
-			"objective_rule": "destroy_required_hostiles",
-			"threat_multiplier": 1,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"implemented": true,
+			"allocation": {
+				"type": "standard",
+				"generator": "roster",
+				"required": [
+					"core:fighter",
+					"core:scout"
+				],
+				"waves": 1,
+				"wave_unit": "core:scout",
+				"extras": [
+					{
+						"unit": "core:framework/organ",
+						"count": 0
+					},
+					{
+						"unit": "core:framework/craft",
+						"count": 0
+					}
+				]
+			},
+			"story_eligible": true,
+			"reward_multiplier": 1
 		},
 		{
 			"id": "elite",
 			"revision": 1,
 			"display_name": "Elite",
-			"implemented": false,
-			"objective_rule": "destroy_required_hostiles",
-			"threat_multiplier": 1.4,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"implemented": true,
+			"allocation": {
+				"type": "elite",
+				"generator": "roster",
+				"required": [
+					"core:sentinel",
+					"core:fighter"
+				],
+				"waves": 1,
+				"wave_unit": "core:scout",
+				"extras": [
+					{
+						"unit": "core:framework/organ",
+						"count": 0
+					},
+					{
+						"unit": "core:framework/craft",
+						"count": 0
+					}
+				]
+			},
+			"story_eligible": true,
+			"reward_multiplier": 1.4
 		},
 		{
 			"id": "convoy_escort",
 			"revision": 1,
 			"display_name": "Convoy Escort",
 			"implemented": false,
-			"objective_rule": "convoy_extraction",
-			"threat_multiplier": 1,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"story_eligible": false
 		},
 		{
 			"id": "interception",
 			"revision": 1,
 			"display_name": "Interception",
 			"implemented": false,
-			"objective_rule": "marked_carrier_before_timer",
-			"threat_multiplier": 1,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"story_eligible": false
 		},
 		{
 			"id": "relay_defense",
 			"revision": 1,
 			"display_name": "Relay Defense",
-			"implemented": false,
-			"objective_rule": "finite_waves",
-			"threat_multiplier": 1,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"implemented": true,
+			"allocation": {
+				"type": "standard",
+				"generator": "roster",
+				"required": [
+					"core:fighter"
+				],
+				"waves": 3,
+				"wave_unit": "core:scout",
+				"extras": [
+					{
+						"unit": "core:framework/organ",
+						"count": 0
+					},
+					{
+						"unit": "core:framework/craft",
+						"count": 0
+					}
+				]
+			},
+			"story_eligible": true,
+			"reward_multiplier": 1
 		},
 		{
 			"id": "bastion_warden",
 			"revision": 2,
 			"display_name": "Bastion Warden",
 			"implemented": true,
-			"objective_rule": "body_destroyed",
-			"threat_multiplier": 1.8,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"allocation": {
+				"generator": "warden"
+			},
+			"warden": {
+				"base_template": "core:boss_patrol",
+				"body_unit": "core:warden/body",
+				"pylon_unit": "core:warden/pylon",
+				"boss": true,
+				"pylons": 2,
+				"body_hull_fraction": 0.21,
+				"body_shield_fraction": 0.025,
+				"body_cost_fraction": 0.6,
+				"pylon_hull": 0.04,
+				"pylon_cost": 0.1,
+				"stationary_guard": false,
+				"escort_units": [
+					"core:fighter",
+					"core:scout"
+				],
+				"escort_fighter_chance": 0.5,
+				"rules": {
+					"cycle_seconds": 12,
+					"warning_seconds": 3,
+					"vulnerability_seconds": 6,
+					"lance_damage": 6,
+					"range": 1560,
+					"half_width": 22,
+					"pylon_protection": 0.2,
+					"exposed_multiplier": 1.25,
+					"interrupt_fraction": 0.06,
+					"target_range": 720,
+					"body_x": 1080,
+					"pylon_offset_x": -30,
+					"pylon_offset_y": 100
+				}
+			},
+			"story_eligible": true,
+			"reward_multiplier": 1.5
 		},
 		{
 			"id": "brood_architect",
 			"revision": 1,
 			"display_name": "Brood Architect",
 			"implemented": false,
-			"objective_rule": "body_and_living_escorts_destroyed",
-			"threat_multiplier": 1.8,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"story_eligible": false
 		},
 		{
 			"id": "leviathan",
 			"revision": 1,
 			"display_name": "Leviathan",
 			"implemented": false,
-			"objective_rule": "core_destroyed",
-			"threat_multiplier": 1.8,
-			"required_entity_ids": [],
-			"frozen_roster": [],
-			"finite_waves": [],
-			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
-			"environment_ids": []
+			"story_eligible": false
+		},
+		{
+			"id": "pylon_escort",
+			"revision": 1,
+			"display_name": "Pylon Escort",
+			"implemented": true,
+			"allocation": {
+				"generator": "warden"
+			},
+			"warden": {
+				"base_template": "core:patrol",
+				"body_unit": "core:fighter",
+				"pylon_unit": "core:warden/pylon",
+				"boss": false,
+				"pylons": 1,
+				"body_hull_fraction": 0.21,
+				"body_shield_fraction": 0.025,
+				"body_cost_fraction": 0.6,
+				"pylon_hull": 5,
+				"pylon_cost": 18,
+				"stationary_guard": true,
+				"escort_units": [
+					"core:fighter",
+					"core:scout"
+				],
+				"escort_fighter_chance": 0.5,
+				"rules": {
+					"cycle_seconds": 12,
+					"warning_seconds": 3,
+					"vulnerability_seconds": 6,
+					"lance_damage": 6,
+					"range": 1560,
+					"half_width": 22,
+					"pylon_protection": 0.2,
+					"exposed_multiplier": 1.25,
+					"interrupt_fraction": 0.06,
+					"target_range": 720,
+					"body_x": 900,
+					"pylon_offset_x": -30,
+					"pylon_offset_y": 100
+				}
+			},
+			"story_eligible": true,
+			"reward_multiplier": 1
+		},
+		{
+			"id": "boss_patrol",
+			"revision": 1,
+			"display_name": "Boss Patrol",
+			"implemented": true,
+			"allocation": {
+				"type": "boss",
+				"generator": "roster",
+				"required": [
+					"core:sentinel",
+					"core:fighter"
+				],
+				"waves": 1,
+				"wave_unit": "core:scout",
+				"extras": [
+					{
+						"unit": "core:framework/organ",
+						"count": 0
+					},
+					{
+						"unit": "core:framework/craft",
+						"count": 0
+					}
+				]
+			},
+			"story_eligible": false,
+			"reward_multiplier": 1.5
+		},
+		{
+			"id": "boss_framework",
+			"revision": 1,
+			"display_name": "Boss Framework",
+			"implemented": true,
+			"allocation": {
+				"type": "boss",
+				"generator": "roster",
+				"required": [
+					"core:fighter"
+				],
+				"waves": 1,
+				"wave_unit": "core:scout",
+				"extras": [
+					{
+						"unit": "core:framework/organ",
+						"count": 2
+					},
+					{
+						"unit": "core:framework/craft",
+						"count": 4
+					}
+				]
+			},
+			"story_eligible": false,
+			"reward_multiplier": 1.5
 		}
 	]
 }

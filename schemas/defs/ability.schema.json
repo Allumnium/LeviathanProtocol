@@ -3,25 +3,153 @@
 	"type": "object",
 	"description": "An active ability granted by equipment.",
 	"properties": {
-		"revision": {"$ref": "_common#/$defs/revision"},
-		"display_name": {"type": "string", "minLength": 1},
-		"implemented": {"type": "boolean"},
-		"source_equipment_id": {"type": "string", "x-ref": "part"},
-		"cooldown_seconds": {"type": "number", "minimum": 0},
-		"range_units": {"type": "number", "minimum": 0},
-		"radius_units": {"type": "number", "minimum": 0},
-		"duration_seconds": {"type": "number", "minimum": 0},
-		"target_rule": {"type": "string", "minLength": 1},
-		"capstone": {"type": "boolean"},
-		"cooldown_scope": {"enum": ["fleet_per_type"]},
-		"clock": {"enum": ["simulation"]},
-		"initial_cooldown_fraction": {"type": "number", "minimum": 0, "maximum": 1},
-		"description": {"type": "string"},
-		"source_research_capability": {"$ref": "_common#/$defs/key"}
+		"revision": {
+			"$ref": "_common#/$defs/revision"
+		},
+		"display_name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"implemented": {
+			"type": "boolean"
+		},
+		"source_equipment_id": {
+			"type": "string",
+			"x-ref": "part"
+		},
+		"cooldown_seconds": {
+			"type": "number",
+			"minimum": 0
+		},
+		"range_units": {
+			"type": "number",
+			"minimum": 0
+		},
+		"radius_units": {
+			"type": "number",
+			"minimum": 0
+		},
+		"duration_seconds": {
+			"type": "number",
+			"minimum": 0
+		},
+		"target_rule": {
+			"type": "string",
+			"minLength": 1
+		},
+		"capstone": {
+			"type": "boolean"
+		},
+		"cooldown_scope": {
+			"enum": [
+				"fleet_per_type"
+			]
+		},
+		"clock": {
+			"enum": [
+				"simulation"
+			]
+		},
+		"initial_cooldown_fraction": {
+			"type": "number",
+			"minimum": 0,
+			"maximum": 1
+		},
+		"description": {
+			"type": "string"
+		},
+		"source_research_capability": {
+			"$ref": "_common#/$defs/key"
+		},
+		"availability": {
+			"enum": [
+				"research",
+				"unavailable"
+			],
+			"description": "Only research abilities may be granted to the current player fleet; unavailable entries are retained as inactive content."
+		},
+		"behavior": {
+			"enum": [
+				"scan",
+				"ion_pulse",
+				"gravity_well",
+				"seismic_cut"
+			]
+		},
+		"parameters": {
+			"oneOf": [
+				{
+					"type": "object",
+					"properties": {},
+					"required": [],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"movement_rate": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						}
+					},
+					"required": [
+						"movement_rate"
+					],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"target_radius": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"rock_damage": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"ship_damage": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"target_radius",
+						"rock_damage",
+						"ship_damage"
+					],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"visual_radius": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"visual_radius"
+					],
+					"additionalProperties": false
+				}
+			]
+		}
 	},
 	"required": [
-		"revision", "display_name", "implemented", "source_equipment_id", "cooldown_seconds", "duration_seconds",
-		"target_rule", "capstone", "cooldown_scope", "clock", "initial_cooldown_fraction"
+		"revision",
+		"display_name",
+		"implemented",
+		"source_equipment_id",
+		"cooldown_seconds",
+		"duration_seconds",
+		"target_rule",
+		"capstone",
+		"cooldown_scope",
+		"clock",
+		"initial_cooldown_fraction",
+		"availability"
 	],
 	"additionalProperties": false
 }

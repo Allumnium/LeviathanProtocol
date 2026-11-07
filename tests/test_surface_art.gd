@@ -104,7 +104,7 @@ func run() -> void:
 				check(not SlotCatalog.find_equipment(id, 2).has("art") and not SlotCatalog.find_equipment(id, 3).has("art"),
 					"Higher-rank labs retain text fallback until their artwork is supplied")
 	paths.append("res://assets/environment/asteroids_small_d.png")
-	for role: String in AlienShip.ROLE_COSTS:
+	for role: String in EncounterGenerator.tuning().allowed_units.map(func(id: String) -> String: return id.get_slice(":", 1)):
 		for rank in range(3):
 			var alien := AlienShip.threat_variant(role, rank)
 			var restored := AlienShip.from_snapshot(alien.to_snapshot())
@@ -120,13 +120,13 @@ func run() -> void:
 			var large := rank > 0 and role in ["fighter", "chrysalis"]
 			check(is_equal_approx(alien.art_scale(), 1.5 if large else 1.0), "Higher-tier alien visual size: %s/%d" % [role, rank])
 			if large:
-				check(path == AlienShip.LARGE_ART[role], "Higher-tier alien selects supplied large art")
+				check(path == AlienShip.definition(role).tier_art, "Higher-tier alien selects supplied large art")
 	check(AlienShip.warden_variant(false, 10, 0, 1).texture is CanvasTexture, "Warden uses mapped Sentinel art")
 	check(not AlienShip.warden_variant(true, 10, 0, 1).texture is CanvasTexture, "Pylon retains unmapped original art")
 	var report: Control = load("res://scripts/battle_report.gd").new()
 	var preview: Control = report._create_summary_preview({"is_alien": true, "alien": AlienShip.threat_variant("fighter", 1)})
 	var report_art := preview.get_child(0) as TextureRect
-	check(report_art.texture == SurfaceArt.texture(AlienShip.LARGE_ART.fighter) and report_art.material.shader == SurfaceArt.SHADER, "Battle report uses lit large-variant art")
+	check(report_art.texture == SurfaceArt.texture(AlienShip.definition("fighter").tier_art) and report_art.material.shader == SurfaceArt.SHADER, "Battle report uses lit large-variant art")
 	preview.free()
 	report.free()
 	for path in paths:

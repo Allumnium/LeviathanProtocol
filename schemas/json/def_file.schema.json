@@ -18,6 +18,8 @@
 					"chassis",
 					"economy",
 					"encounter",
+					"encounter_tuning",
+					"enemy_unit",
 					"environment",
 					"equipment",
 					"event",
@@ -33,6 +35,7 @@
 					"research_tuning",
 					"run_start",
 					"story_gate",
+					"support",
 					"travel_tuning"
 				],
 				"description": "Def type of every entry that does not set its own."
@@ -227,6 +230,68 @@
 								},
 								"else": {
 									"$ref": "encounter.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "encounter_tuning"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "encounter_tuning.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "enemy_unit"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "enemy_unit.schema.json"
 								}
 							}
 						}
@@ -702,6 +767,37 @@
 				"if": {
 					"properties": {
 						"def": {
+							"const": "support"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "support.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
 							"const": "travel_tuning"
 						}
 					},
@@ -764,6 +860,8 @@
 						"chassis",
 						"economy",
 						"encounter",
+						"encounter_tuning",
+						"enemy_unit",
 						"environment",
 						"equipment",
 						"event",
@@ -779,6 +877,7 @@
 						"research_tuning",
 						"run_start",
 						"story_gate",
+						"support",
 						"travel_tuning"
 					]
 				}
@@ -872,6 +971,36 @@
 					},
 					"then": {
 						"$ref": "encounter.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "encounter_tuning"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "encounter_tuning.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "enemy_unit"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "enemy_unit.schema.json"
 					}
 				},
 				{
@@ -1097,6 +1226,21 @@
 					},
 					"then": {
 						"$ref": "story_gate.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "support"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "support.schema.json"
 					}
 				},
 				{

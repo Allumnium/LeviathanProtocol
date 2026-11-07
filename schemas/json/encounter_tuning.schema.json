@@ -1,0 +1,186 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "encounter_tuning def",
+	"description": "Shared encounter allocation and reward parameters.",
+	"type": "object",
+	"properties": {
+		"def": {
+			"const": "encounter_tuning",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"revision": {
+			"$ref": "_common.schema.json#/$defs/revision"
+		},
+		"catalog": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use an enemy_unit ID such as name or pack:name",
+				"description": "ID of an enemy_unit def."
+			},
+			"minItems": 1
+		},
+		"allowed_units": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use an enemy_unit ID such as name or pack:name",
+				"description": "ID of an enemy_unit def."
+			},
+			"minItems": 1
+		},
+		"difficulty": {
+			"type": "array",
+			"items": {
+				"type": "number",
+				"exclusiveMinimum": 0
+			},
+			"minItems": 3,
+			"maxItems": 3
+		},
+		"type_multipliers": {
+			"type": "object",
+			"properties": {
+				"standard": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"elite": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"boss": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				}
+			},
+			"required": [
+				"standard",
+				"elite",
+				"boss"
+			],
+			"additionalProperties": false
+		},
+		"threat_base": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"threat_growth": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"rows": {
+			"type": "integer",
+			"minimum": 2,
+			"maximum": 24
+		},
+		"rank_rows": {
+			"type": "integer",
+			"minimum": 1
+		},
+		"fleet_multiplier": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 10
+		},
+		"hazard_fraction": {
+			"type": "number",
+			"minimum": 0,
+			"exclusiveMaximum": 1
+		},
+		"materials": {
+			"type": "array",
+			"items": {
+				"type": "integer",
+				"minimum": 0
+			},
+			"minItems": 3,
+			"maxItems": 3
+		},
+		"material_weights": {
+			"type": "array",
+			"items": {
+				"type": "number",
+				"minimum": 0
+			},
+			"minItems": 4,
+			"maxItems": 4
+		},
+		"credits_base": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"credits_step": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"initial_recovery_rate": {
+			"type": "number",
+			"exclusiveMinimum": 0,
+			"maximum": 1
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"revision",
+			"catalog",
+			"allowed_units",
+			"difficulty",
+			"type_multipliers",
+			"threat_base",
+			"threat_growth",
+			"rows",
+			"rank_rows",
+			"fleet_multiplier",
+			"hazard_fraction",
+			"materials",
+			"material_weights",
+			"credits_base",
+			"credits_step",
+			"initial_recovery_rate"
+		]
+	}
+}

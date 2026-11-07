@@ -1,7 +1,6 @@
 extends RefCounted
 
 const TRIGGERS := ["distance", "zone", "arrival", "start", "departure", "story"]
-const COMBAT_TEMPLATES := ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]
 const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "combat", "flag",
 	"discover", "requires_credits", "complete", "rescue_ship", "missiles", "flags", "requires_fuel"]
 
@@ -162,7 +161,7 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 				return false
 	if effects.has("combat"):
 		var combat: Variant = effects.combat
-		if not combat is Dictionary or combat.get("template") not in COMBAT_TEMPLATES \
+		if not combat is Dictionary or not Content.get_def("encounter", str(combat.get("template", ""))).get("story_eligible", false) \
 				or not SaveValidation.integer(combat.get("row")) or combat.row < 1 or combat.row > 24 \
 				or not SaveValidation.integer(combat.get("asteroids", 0)) or int(combat.get("asteroids", 0)) not in [0, 1, 2, 3] \
 				or not combat.get("nebula", false) is bool:

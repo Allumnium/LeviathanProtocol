@@ -1,0 +1,153 @@
+{
+	"def": "support",
+	"defs": [
+		{
+			"id": "repair_station",
+			"revision": 1,
+			"behavior": "repair_station",
+			"parameters": {
+				"rate": 2,
+				"reserve": 20,
+				"targets": 2
+			}
+		},
+		{
+			"id": "repair_aura",
+			"revision": 1,
+			"behavior": "repair_aura",
+			"parameters": {
+				"rate": 2,
+				"range": 220
+			}
+		},
+		{
+			"id": "shield_relay",
+			"revision": 1,
+			"behavior": "shield_relay",
+			"parameters": {
+				"rate": 2,
+				"range": 180
+			}
+		},
+		{
+			"id": "mark",
+			"revision": 1,
+			"behavior": "mark",
+			"parameters": {
+				"range": 500,
+				"duration": 5,
+				"cooldown": 20,
+				"damage_multiplier": 1.2
+			}
+		},
+		{
+			"id": "synchronization",
+			"revision": 1,
+			"behavior": "synchronization",
+			"parameters": {
+				"interval": 12,
+				"carrier_range": 500
+			}
+		},
+		{
+			"id": "ammunition_cycle",
+			"revision": 1,
+			"behavior": "ammunition_cycle",
+			"parameters": {
+				"bonus": 0.2
+			}
+		},
+		{
+			"id": "shield",
+			"revision": 1,
+			"behavior": "shield",
+			"parameters": {
+				"delay": 4,
+				"recharge_fraction": 0.04
+			}
+		},
+		{
+			"id": "ion_damage",
+			"revision": 1,
+			"behavior": "ion_damage",
+			"parameters": {
+				"shield_multiplier": 2,
+				"hull_multiplier": 0.5
+			}
+		},
+		{
+			"id": "prismatic",
+			"revision": 1,
+			"behavior": "prismatic",
+			"parameters": {
+				"ramp_seconds": 4,
+				"max_multiplier": 2
+			}
+		},
+		{
+			"id": "splinter",
+			"revision": 1,
+			"behavior": "splinter",
+			"parameters": {
+				"distance": 100,
+				"radius": 140,
+				"count": 3,
+				"damage_fraction": 0.5,
+				"speed_multiplier": 1.5
+			}
+		},
+		{
+			"id": "pulse_shield",
+			"revision": 1,
+			"behavior": "pulse_shield",
+			"parameters": {
+				"interval": 8,
+				"fraction": 0.25
+			}
+		},
+		{
+			"id": "enemy_support",
+			"revision": 1,
+			"behavior": "enemy_support",
+			"parameters": {
+				"reserve": 10,
+				"range": 150,
+				"rate": 1
+			}
+		},
+		{
+			"id": "enemy_sentinel",
+			"revision": 1,
+			"behavior": "enemy_sentinel",
+			"parameters": {
+				"range": 140,
+				"protection": 0.2
+			}
+		},
+		{
+			"id": "enemy_chrysalis",
+			"revision": 1,
+			"behavior": "enemy_chrysalis",
+			"parameters": {
+				"initial_delay": 4,
+				"interval": 6,
+				"base_count": 2,
+				"tier_count": 1,
+				"spawn_clearance": 8
+			}
+		},
+		{
+			"id": "enemy_steering",
+			"revision": 1,
+			"behavior": "enemy_steering",
+			"parameters": {
+				"fighter_range_fraction": 0.65,
+				"sentinel_offset": 65,
+				"support_offset": 100,
+				"scout_support_bias": 180,
+				"escort_range": 90,
+				"escort_penalty": 220
+			}
+		}
+	]
+}

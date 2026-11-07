@@ -3,7 +3,7 @@ extends RefCounted
 
 const NO_PARTS: Array[int] = []
 
-# Numeric tuning is deliberately local; later campaign pacing remains step 61.
+# Supported behavior parameters are validated content shared with equipment details.
 var pool: Dictionary = {}
 var charges: Dictionary = {}
 var healing_links: Array[Dictionary] = []
@@ -25,7 +25,7 @@ static func valid_pool(value: Variant) -> bool:
 	for key in ["repair_capacity", "rebuild_capacity"]:
 		if not SaveValidation.integer(value.get(key)) or value[key] < 0 or value[key] > 100000:
 			return false
-	if int(value.repair_capacity) % 20 != 0 or not SaveValidation.bounded_number(value.get("repair_spent")) \
+	if int(value.repair_capacity) % int(SharedSupport.repair_reserve()) != 0 or not SaveValidation.bounded_number(value.get("repair_spent")) \
 		or value.repair_spent < 0 or value.repair_spent > value.repair_capacity or value.rebuilt.size() > value.rebuild_capacity:
 		return false
 	var seen := {}
@@ -187,12 +187,12 @@ func _mark(sim, source, delta: float) -> void:
 	mark_timers[source.entity_id] = maxf(0, float(mark_timers.get(source.entity_id, 0)) - delta)
 	if mark_timers[source.entity_id] > 0:
 		return
-	var target = sim._choose_weapon_target(source, source.position, 500)
+	var target = sim._choose_weapon_target(source, source.position, float(SharedSupport.parameters("mark").range))
 	if target == null:
 		return
-	marks[source.entity_id] = {"index": uplinks[0], "target": target.entity_id, "remaining": 5.0}
-	mark_timers[source.entity_id] = 20.0
-	sim._record_event("focus_mark", {"source": source.entity_id, "target": target.entity_id, "seconds": 5.0})
+	marks[source.entity_id] = {"index": uplinks[0], "target": target.entity_id, "remaining": float(SharedSupport.parameters("mark").duration)}
+	mark_timers[source.entity_id] = float(SharedSupport.parameters("mark").cooldown)
+	sim._record_event("focus_mark", {"source": source.entity_id, "target": target.entity_id, "seconds": SharedSupport.parameters("mark").duration})
 
 func mark_multiplier(sim, source, target) -> float:
 	var bonus := 0.0
@@ -203,7 +203,7 @@ func mark_multiplier(sim, source, target) -> float:
 			and host.faction == source.faction and host.owned_ship != null:
 			for index: int in operational(host, ShipPart.Type.COMMAND_UPLINK):
 				bonus += ResearchUpgrades.part_value(host.owned_ship, host.owned_ship.units[index].part,
-					"command", "mark_damage_multiplier", 1.2) - 1.0
+					"command", "mark_damage_multiplier", float(SharedSupport.parameters("mark").damage_multiplier)) - 1.0
 	return 1.0 + bonus
 
 func _synchronize(sim, source, delta: float) -> void:
@@ -217,8 +217,8 @@ func _synchronize(sim, source, delta: float) -> void:
 	for index: int in operational(source, ShipPart.Type.TACTICAL_COMPUTER):
 		rate += ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[index].part,
 			"synchronization", "synchronization_multiplier")
-	synchronization[source.entity_id] = minf(12, float(synchronization.get(source.entity_id, 0)) + delta * rate)
-	if synchronization[source.entity_id] < 12:
+	synchronization[source.entity_id] = minf(float(SharedSupport.parameters("synchronization").interval), float(synchronization.get(source.entity_id, 0)) + delta * rate)
+	if synchronization[source.entity_id] < float(SharedSupport.parameters("synchronization").interval):
 		return
 	# Hold the synchronized salvo for a visible, unshielded target in reach.
 	var target = null
@@ -229,7 +229,7 @@ func _synchronize(sim, source, delta: float) -> void:
 			break
 	if target == null:
 		if HangarCarriers.has_bay(source.owned_ship):
-			var candidate = sim._choose_weapon_target(source, source.position, 500)
+			var candidate = sim._choose_weapon_target(source, source.position, float(SharedSupport.parameters("synchronization").carrier_range))
 			if candidate != null and candidate.shields <= 0:
 				target = candidate
 		if target == null:
@@ -253,7 +253,7 @@ func _relay(sim, source, delta: float) -> void:
 	var chosen = null
 	var ratio: float = source.shields / source.stats.shields
 	for target in sim.players:
-		if target == source or not target.is_alive() or target.stats.shields <= 0 or source.position.distance_to(target.position) > 180:
+		if target == source or not target.is_alive() or target.stats.shields <= 0 or source.position.distance_to(target.position) > float(SharedSupport.parameters("shield_relay").range):
 			continue
 		var other: float = target.shields / target.stats.shields
 		if other < ratio:
@@ -262,7 +262,7 @@ func _relay(sim, source, delta: float) -> void:
 	if chosen == null:
 		return
 	var equalization: float = (source.shields * chosen.stats.shields - chosen.shields * source.stats.shields) / (source.stats.shields + chosen.stats.shields)
-	var amount := minf(2 * relays * delta, minf(source.shields, minf(chosen.stats.shields - chosen.shields, equalization)))
+	var amount := minf(float(SharedSupport.parameters("shield_relay").rate) * relays * delta, minf(source.shields, minf(chosen.stats.shields - chosen.shields, equalization)))
 	source.shields -= amount
 	chosen.shields += amount
 	if amount > 0:
@@ -286,22 +286,20 @@ func _rebuild(sim, member) -> void:
 		sim._record_event("reconstruction", {"ship": member.entity_id, "unit": index, "hp": unit.hp})
 		break
 
-const HEAL_RANGE := 220.0
-const HEAL_RATE := 2.0
 
 func _heal(sim, source, delta: float) -> void:
 	if delta <= 0 or not source.is_alive():
 		return
 	var rate := 0.0
 	for index: int in operational(source, ShipPart.Type.REPAIR_DRONE_BAY):
-		rate += HEAL_RATE * ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[index].part,
+		rate += float(SharedSupport.parameters("repair_aura").rate) * ResearchUpgrades.part_value(source.owned_ship, source.owned_ship.units[index].part,
 			"repair_aura", "repair_aura_multiplier")
 	if rate <= 0:
 		return
 	var targets: Array = []
 	for target in sim.players:
 		if target.faction == source.faction and target.is_alive() and target.owned_ship is HangarShip \
-				and source.position.distance_to(target.position) <= HEAL_RANGE \
+				and source.position.distance_to(target.position) <= float(SharedSupport.parameters("repair_aura").range) \
 				and target.owned_ship.hull_hp < target.owned_ship.hull_max:
 			targets.append(target)
 	var budget := rate * delta

@@ -1,0 +1,7 @@
+{
+	"id": "combat_tuning",
+	"name": "Combat content authority fixture",
+	"version": "1.0.0",
+	"kind": "content",
+	"depends": [{"id": "core", "version": ">=1.0"}]
+}

@@ -1,12 +1,26 @@
 class_name SharedSupport
 extends RefCounted
 
-const REPAIR_RESERVE := 20.0
-const REPAIR_RATE := 2.0
+static var _database: DefDatabase
+static var _parameters: Dictionary = {}
+
+static func parameters(behavior: String) -> Dictionary:
+	if _database != Content.db():
+		_database = Content.db()
+		_parameters.clear()
+	if not _parameters.has(behavior):
+		_parameters[behavior] = Content.get_def("support", "core:" + behavior).parameters
+	return _parameters[behavior]
+
+static func repair_reserve() -> float:
+	return float(parameters("repair_station").reserve)
+
+static func repair_rate() -> float:
+	return float(parameters("repair_station").rate)
 
 static func valid_pool(value: Variant) -> bool:
 	return value is Dictionary and SaveValidation.integer(value.get("capacity")) and value.capacity >= 0 \
-		and value.capacity <= 1000000 and int(value.capacity) % 20 == 0 \
+		and value.capacity <= 1000000 and int(value.capacity) % int(repair_reserve()) == 0 \
 		and (value.get("spent") is float or value.get("spent") is int) and is_finite(value.spent) and value.spent >= 0 and value.spent <= value.capacity
 
 static func reserve_key(owned: FleetShip, index: int) -> String:
@@ -22,7 +36,7 @@ static func valid_reserves(value: Variant) -> bool:
 		if pieces.size() != 2 or not pieces[0].is_valid_int() or not pieces[1].is_valid_int() or int(pieces[0]) < 1 or int(pieces[1]) < 0:
 			return false
 		var remaining: Variant = value[key]
-		if not (remaining is float or remaining is int) or not is_finite(remaining) or remaining < 0 or remaining > REPAIR_RESERVE:
+		if not (remaining is float or remaining is int) or not is_finite(remaining) or remaining < 0 or remaining > repair_reserve():
 			return false
 	return true
 
@@ -39,9 +53,9 @@ static func initialize(sim) -> void:
 					stations += 1
 				var key := reserve_key(owned, index)
 				if not sim.repair_reserves.has(key):
-					sim.repair_reserves[key] = REPAIR_RESERVE
+					sim.repair_reserves[key] = repair_reserve()
 	# A replacement gets local coverage, but cannot refill the node's allowance.
-	sim.repair_capacity = maxi(sim.repair_capacity, stations * int(REPAIR_RESERVE))
+	sim.repair_capacity = maxi(sim.repair_capacity, stations * int(repair_reserve()))
 
 static func repair(sim, delta: float) -> void:
 	if sim.repair_reserves.is_empty():
@@ -58,7 +72,7 @@ static func repair(sim, delta: float) -> void:
 				continue
 			var key := reserve_key(owned, index)
 			var remaining: float = sim.repair_reserves.get(key, 0.0)
-			var budget := minf(minf(remaining, maxf(0, sim.repair_capacity - sim.repair_spent)), REPAIR_RATE * float(rates.get(index, 1.0)) * delta)
+			var budget := minf(minf(remaining, maxf(0, sim.repair_capacity - sim.repair_spent)), repair_rate() * float(rates.get(index, 1.0)) * delta)
 			if owned is HangarShip:
 				var amount: float = owned.repair_hull(budget)
 				healed += amount
@@ -70,7 +84,7 @@ static func repair(sim, delta: float) -> void:
 				if target.hp <= 0 or target.hp >= target.max_hp or target.part == null or not AdjacencyRules.touches(source, target.part):
 					continue
 				targets.append(target)
-				if targets.size() == 2:
+				if targets.size() == int(parameters("repair_station").targets):
 					break
 			var recipients := targets.size()
 			for target in targets:

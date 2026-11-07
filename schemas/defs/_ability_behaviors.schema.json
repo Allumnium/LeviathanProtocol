@@ -1,0 +1,114 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"description": "Registered ability operations; these schemas also supply the future inspector parameter forms.",
+	"oneOf": [
+		{
+			"type": "object",
+			"properties": {
+				"behavior": {
+					"const": "scan"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {},
+					"required": [],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"behavior": {
+					"const": "ion_pulse"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"visual_radius": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"visual_radius"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"behavior": {
+					"const": "gravity_well"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"movement_rate": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						}
+					},
+					"required": [
+						"movement_rate"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"behavior": {
+					"const": "seismic_cut"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"target_radius": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"rock_damage": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"ship_damage": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"target_radius",
+						"rock_damage",
+						"ship_damage"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		}
+	]
+}

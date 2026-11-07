@@ -16,7 +16,10 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Reveal radius 180 for 6 s within 450 of a Command Center. Identify rock contents. No damage bonus."
+			"description": "Reveal contacts and identify rock contents.",
+			"availability": "unavailable",
+			"behavior": "scan",
+			"parameters": {}
 		},
 		{
 			"id": "focus_mark",
@@ -33,7 +36,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Visible enemy within 500; +20% allied damage for 5 s, strongest mark only. Lab analysis does not stack with it."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "ion_pulse",
@@ -50,8 +54,13 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Visible target within 300; interrupt charge and suppress shield regeneration for 4 s. Boss interruption follows boss limits.",
-			"source_research_capability": "ion"
+			"description": "Interrupt charging and suppress shield regeneration.",
+			"source_research_capability": "ion",
+			"availability": "research",
+			"behavior": "ion_pulse",
+			"parameters": {
+				"visual_radius": 12
+			}
 		},
 		{
 			"id": "gravity_well",
@@ -68,7 +77,12 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Visible radius-100 area within 350; slow movement/turning 35% for 5 s; no boss immobilization."
+			"description": "Slow enemies in the selected area.",
+			"availability": "unavailable",
+			"behavior": "gravity_well",
+			"parameters": {
+				"movement_rate": 0.65
+			}
 		},
 		{
 			"id": "tether",
@@ -85,7 +99,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Visible rock, pickup, or nonboss enemy within 300; slow and pull toward a chosen safe point for 3 s; preserve rock collision danger."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "phase_step",
@@ -102,7 +117,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Move host up to 120 into explored, currently visible free space; cannot cross arena boundary or overlap entities."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "ecm_burst",
@@ -119,7 +135,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Break up to six enemy missile locks within 160; no invulnerability."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "sanctuary",
@@ -136,7 +153,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Allies within 180 gain 35% damage reduction for 6 s; applies normally to occupied cabins."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "field_patch",
@@ -151,7 +169,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Repair nearby surviving parts for at most 15% of host aggregate max HP per cast; finite battle reserve 30%; no passengers/cargo resurrection."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "forecast",
@@ -168,7 +187,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Show enemy targeting intent for 6 s; allies within 200 gain 25% damage reduction for 4 s. Does not reveal unseen ships."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "seismic_cut",
@@ -185,7 +205,14 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0,
-			"description": "Visible radius-100 rock cluster within 350; deal 60 rock damage, only 15 against ships."
+			"description": "Cut through a rock cluster, with reduced damage against ships.",
+			"availability": "unavailable",
+			"behavior": "seismic_cut",
+			"parameters": {
+				"target_radius": 100,
+				"rock_damage": 60,
+				"ship_damage": 15
+			}
 		},
 		{
 			"id": "planetcrack",
@@ -202,7 +229,8 @@
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
 			"initial_cooldown_fraction": 0.5,
-			"description": "Visible radius-220 area within 450; deal 200 rock damage, only 50 against ships. Fragments still exist; finite ore budget remains."
+			"description": "Unavailable.",
+			"availability": "unavailable"
 		},
 		{
 			"id": "stellar_lance",
@@ -216,7 +244,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "singularity",
@@ -230,7 +260,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "aegis",
@@ -244,7 +276,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "ark_restoration",
@@ -258,7 +292,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "siege_volley",
@@ -272,7 +308,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "hive_sortie",
@@ -286,7 +324,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "admiralty_offensive",
@@ -300,7 +340,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		},
 		{
 			"id": "ghost_veil",
@@ -314,7 +356,9 @@
 			"capstone": true,
 			"cooldown_scope": "fleet_per_type",
 			"clock": "simulation",
-			"initial_cooldown_fraction": 0.5
+			"initial_cooldown_fraction": 0.5,
+			"availability": "unavailable",
+			"description": "Unavailable."
 		}
 	]
 }

@@ -52,7 +52,7 @@ func fixture(effects: Dictionary = {}, item := "laser", supply := 30) -> BattleS
 	stats.integrity = 100000
 	stats.weight = 10
 	stats.weapons.append(ShipWeaponStats.new("Enemy", 10, 0.01, 1, 200))
-	var enemy := AlienShip.new("Research target", AlienShip.SCOUT_TEXTURE, stats)
+	var enemy := AlienShip.new("Research target", load(AlienShip.definition("core:scout").art), stats)
 	var ships: Array[FleetShip] = [ship]
 	var enemies: Array[RefCounted] = [enemy]
 	var sim := BattleSimulation.new()

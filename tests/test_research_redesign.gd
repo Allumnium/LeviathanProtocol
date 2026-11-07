@@ -34,7 +34,7 @@ func simulation(owned: HangarShip) -> BattleSimulation:
 	stats.integrity = 10000
 	stats.weight = 10
 	stats.weapons.append(ShipWeaponStats.new("Target", 100, 0.01, 1, 1))
-	var aliens: Array[RefCounted] = [AlienShip.new("Research target", AlienShip.SCOUT_TEXTURE, stats)]
+	var aliens: Array[RefCounted] = [AlienShip.new("Research target", load(AlienShip.definition("core:scout").art), stats)]
 	var fleet: Array[FleetShip] = [owned]
 	var sim := BattleSimulation.new()
 	check(sim.setup_owned(fleet, aliens, 0, 0, 81, {"credits_only": true}), "Configure research battle")

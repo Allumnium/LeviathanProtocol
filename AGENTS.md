@@ -2,7 +2,7 @@
 
 ## Read only what the task needs
 
-- [TODO.md](TODO.md): active scenario architecture work (P2 next).
+- [TODO.md](TODO.md): active scenario architecture work (remaining P2e, then P3).
 - [THOUGHTS.md](THOUGHTS.md): dated questions, concerns, UX/gameplay observations, imaginative improvement ideas and potentially valuable refactors; proposals are not implementation authorization.
 - [THOUGHTS_ARCHIVE.md](THOUGHTS_ARCHIVE.md): resolved thoughts and their outcomes; consult only when relevant, not as an active backlog.
 - [docs/HANGAR.md](docs/HANGAR.md): current gameplay, UI and persistence.

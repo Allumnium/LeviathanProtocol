@@ -29,6 +29,8 @@
 				"chassis",
 				"economy",
 				"encounter",
+				"encounter_tuning",
+				"enemy_unit",
 				"environment",
 				"equipment",
 				"event",
@@ -43,6 +45,7 @@
 				"research_tuning",
 				"run_start",
 				"story_gate",
+				"support",
 				"travel_tuning"
 			],
 			"description": "Def type of the target when its ID is shared."

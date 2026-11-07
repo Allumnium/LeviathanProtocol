@@ -1,0 +1,185 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"description": "An enemy body, its priced rank tiers and art.",
+	"type": "object",
+	"properties": {
+		"revision": {
+			"$ref": "_common#/$defs/revision"
+		},
+		"display_name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"role": {
+			"enum": [
+				"scout",
+				"fighter",
+				"sentinel",
+				"support",
+				"chrysalis",
+				"warden",
+				"pylon",
+				"drone"
+			]
+		},
+		"kind": {
+			"enum": [
+				"ship",
+				"organ",
+				"craft"
+			]
+		},
+		"art": {
+			"type": "string",
+			"x-asset": "image"
+		},
+		"tier_art": {
+			"type": "string",
+			"x-asset": "image"
+		},
+		"tier_art_scale": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"cost": {
+			"type": "number",
+			"minimum": 0
+		},
+		"stats": {
+			"type": "object",
+			"properties": {
+				"shields": {
+					"type": "number",
+					"minimum": 0
+				},
+				"integrity": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"weight": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"thrust": {
+					"type": "number",
+					"minimum": 0
+				},
+				"collision_radius": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"weapons": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"name": {
+								"type": "string",
+								"minLength": 1
+							},
+							"interval": {
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							"damage": {
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							"count": {
+								"type": "integer",
+								"minimum": 1
+							},
+							"range": {
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							"projectile": {
+								"type": "boolean"
+							},
+							"interceptable": {
+								"type": "boolean"
+							}
+						},
+						"required": [
+							"name",
+							"interval",
+							"damage",
+							"count",
+							"range",
+							"projectile",
+							"interceptable"
+						],
+						"additionalProperties": false
+					},
+					"minItems": 1
+				}
+			},
+			"required": [
+				"shields",
+				"integrity",
+				"weight",
+				"thrust",
+				"collision_radius",
+				"weapons"
+			],
+			"additionalProperties": false
+		},
+		"tiers": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"rank": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 2
+					},
+					"cost": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"hull": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"damage": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"weight": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					},
+					"thrust": {
+						"type": "number",
+						"exclusiveMinimum": 0
+					}
+				},
+				"required": [
+					"rank",
+					"cost",
+					"hull",
+					"damage",
+					"weight",
+					"thrust"
+				],
+				"additionalProperties": false
+			},
+			"minItems": 1,
+			"maxItems": 3
+		}
+	},
+	"required": [
+		"revision",
+		"display_name",
+		"role",
+		"kind",
+		"art",
+		"tier_art",
+		"tier_art_scale",
+		"cost",
+		"stats",
+		"tiers"
+	],
+	"additionalProperties": false
+}

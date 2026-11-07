@@ -1337,10 +1337,10 @@ func _update_ship(ship: Combatant, delta: float, allow_weapons := true) -> void:
 	ship.since_damage += delta
 	ship.retreat_time = maxf(0.0, ship.retreat_time - delta)
 	ship.retreat_cooldown = maxf(0.0, ship.retreat_cooldown - delta)
-	if ship.since_damage >= 4.0 and not abilities.suppressed(ship):
+	if ship.since_damage >= float(SharedSupport.parameters("shield").delay) and not abilities.suppressed(ship):
 		var recharge := ship.stats.shield_recharge if ship.owned_ship != null else ship.stats.shields
-		var recharge_delta := minf(delta, maxf(0.0, ship.since_damage - 4.0))
-		ship.shields = minf(ship.stats.shields, ship.shields + recharge * 0.04 * recharge_delta)
+		var recharge_delta := minf(delta, maxf(0.0, ship.since_damage - float(SharedSupport.parameters("shield").delay)))
+		ship.shields = minf(ship.stats.shields, ship.shields + recharge * float(SharedSupport.parameters("shield").recharge_fraction) * recharge_delta)
 	if ship.stats.shields > 0.0 and ship.shields <= ship.stats.shields * 0.2:
 		if ship.retreat_cooldown <= 0.0:
 			ship.retreat_time = 2.5
@@ -1938,10 +1938,10 @@ func _damage(target: Combatant, damage: float, origin: Vector2 = Vector2.ZERO, s
 		damage *= 4.0
 	var ion_shield := weapon_name == "Ion Emitter" and target.shields > 0
 	if weapon_name == "Ion Emitter":
-		damage *= 2.0 if target.shields > 0 else 0.5
+		damage *= float(SharedSupport.parameters("ion_damage").shield_multiplier) if target.shields > 0 else float(SharedSupport.parameters("ion_damage").hull_multiplier)
 	var absorbed := minf(target.shields, damage)
 	if ion_shield:
-		damage = absorbed + (damage - absorbed) * 0.25
+		damage = absorbed + (damage - absorbed) * float(SharedSupport.parameters("ion_damage").hull_multiplier) / float(SharedSupport.parameters("ion_damage").shield_multiplier)
 	target.shields -= absorbed
 	target.shield_damage_taken += absorbed
 	var actual := absorbed

@@ -1,0 +1,418 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"description": "Registered research modifier primitives and parameter forms shared by runtime, Problems and the future inspector.",
+	"oneOf": [
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "laser_damage_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "laser_range_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "missile_range_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "fragment_damage_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "railgun_hull_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "carrier_launch_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "carrier_damage_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "passive_repair_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "repair_aura_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "mark_damage_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "synchronization_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "research_output_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "cruise_speed_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 1,
+					"maximum": 2
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "cruise_fuel_multiplier"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 0,
+					"exclusiveMaximum": 1
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "travel_credits_per_day"
+				},
+				"value": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 100
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "energy_efficiency"
+				},
+				"value": {
+					"type": "number",
+					"exclusiveMinimum": 0,
+					"maximum": 0.3
+				},
+				"ordinary_efficiency_cap": {
+					"const": 0.3
+				},
+				"targets": {
+					"type": "array",
+					"items": {
+						"enum": [
+							"beam",
+							"shield"
+						]
+					},
+					"uniqueItems": true,
+					"minItems": 2,
+					"maxItems": 2
+				}
+			},
+			"required": [
+				"id",
+				"value",
+				"ordinary_efficiency_cap",
+				"targets"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "cargo_hold_capacity"
+				},
+				"value": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"refill_existing": {
+					"const": false
+				}
+			},
+			"required": [
+				"id",
+				"value",
+				"refill_existing"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "scan_spectroscopy"
+				},
+				"value": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "prismatic_lasers"
+				},
+				"value": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "splinter_missiles"
+				},
+				"value": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "pulse_shields"
+				},
+				"value": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"id",
+				"value"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"id": {
+					"const": "extractable_materials"
+				},
+				"values": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"x-ref": "material"
+					},
+					"minItems": 1,
+					"uniqueItems": true
+				}
+			},
+			"required": [
+				"id",
+				"values"
+			],
+			"additionalProperties": false
+		}
+	]
+}

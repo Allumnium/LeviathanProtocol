@@ -2,11 +2,6 @@ class_name EnemyRoles
 extends RefCounted
 
 const ENTITY_LIMIT := BattleSimulation.MAX_LIVE_COMBATANTS
-const PROTECTION_RADIUS := 140.0
-const PROTECTION := 0.2
-const REPAIR_RADIUS := 150.0
-const REPAIR_RATE := 1.0
-const DRONE_INTERVAL := 6.0
 var enabled := false
 var sources: Dictionary = {}
 var repair_links: Array[Dictionary] = []
@@ -32,9 +27,10 @@ func register_source(member) -> void:
 	if role in ["fighter", "scout"] and not member.has_tag("craft") and not _steering_anchors.has(member):
 		_steering_anchors.append(member)
 	if role == "support":
-		sources[member.entity_id] = {"role": role, "reserve": 10.0 * AlienShip.TIER_HULL[rank]}
+		var parameters := AlienShip.tier_parameters(member.alien.definition_id, rank)
+		sources[member.entity_id] = {"role": role, "reserve": float(SharedSupport.parameters("enemy_support").reserve) * float(parameters.get("hull", 1.0))}
 	elif role == "chrysalis":
-		sources[member.entity_id] = {"role": role, "remaining": 2 + rank, "spawned": 0, "cooldown": 4.0}
+		sources[member.entity_id] = {"role": role, "remaining": int(SharedSupport.parameters("enemy_chrysalis").base_count) + int(SharedSupport.parameters("enemy_chrysalis").tier_count) * rank, "spawned": 0, "cooldown": float(SharedSupport.parameters("enemy_chrysalis").initial_delay)}
 
 
 func role(member) -> String:
@@ -66,7 +62,7 @@ func _repair(sim, source, state: Dictionary, delta: float, repaired: Dictionary)
 	var lowest := 1.0
 	for ally in sim._members:
 		if ally == source or ally.faction != source.faction or not ally.is_alive() or not ally.has_tag("combatant") \
-			or ally.has_tag("craft") or repaired.has(ally.entity_id) or source.position.distance_to(ally.position) > REPAIR_RADIUS:
+			or ally.has_tag("craft") or repaired.has(ally.entity_id) or source.position.distance_to(ally.position) > float(SharedSupport.parameters("enemy_support").range):
 			continue
 		var ratio: float = ally.integrity / ally.stats.integrity
 		if ratio < lowest:
@@ -74,7 +70,7 @@ func _repair(sim, source, state: Dictionary, delta: float, repaired: Dictionary)
 			lowest = ratio
 	if target == null:
 		return
-	var amount := minf(minf(REPAIR_RATE * delta, state.reserve), target.stats.integrity - target.integrity)
+	var amount := minf(minf(float(SharedSupport.parameters("enemy_support").rate) * delta, state.reserve), target.stats.integrity - target.integrity)
 	target.integrity += amount
 	state.reserve -= amount
 	repaired[target.entity_id] = true
@@ -85,8 +81,8 @@ func protection(sim, target) -> float:
 		return 1.0
 	for member in sim.aliens:
 		if member != target and member.is_alive() and role(member) == "sentinel" \
-			and member.position.distance_squared_to(target.position) <= PROTECTION_RADIUS * PROTECTION_RADIUS:
-			return 1.0 - PROTECTION
+			and member.position.distance_squared_to(target.position) <= float(SharedSupport.parameters("enemy_sentinel").range) * float(SharedSupport.parameters("enemy_sentinel").range):
+			return 1.0 - float(SharedSupport.parameters("enemy_sentinel").protection)
 	return 1.0
 
 func choose_target(sim, source):
@@ -106,14 +102,14 @@ func choose_target(sim, source):
 						ShipPart.Type.CARGO_HOLD, ShipPart.Type.REPAIR_STATION]:
 						support = true
 			if support:
-				next -= 180
+				next -= float(SharedSupport.parameters("enemy_steering").scout_support_bias)
 			# Nearby armed escorts make a support hull less exposed. They do not
 			# make it untargetable or reveal an unseen ship's position/loadout.
-			for escort in sim.nearby_players(candidate.position, 90.0):
-				if escort == candidate or escort.position.distance_squared_to(candidate.position) >= 8100 \
+			for escort in sim.nearby_players(candidate.position, float(SharedSupport.parameters("enemy_steering").escort_range)):
+				if escort == candidate or escort.position.distance_squared_to(candidate.position) >= pow(float(SharedSupport.parameters("enemy_steering").escort_range), 2) \
 					or not escort.is_alive() or escort.stats.weapons.is_empty() or not sim.can_attack(source, escort):
 					continue
-				next += 220
+				next += float(SharedSupport.parameters("enemy_steering").escort_penalty)
 		if next < score:
 			best = candidate
 			score = next
@@ -123,7 +119,7 @@ func steering(sim, member, fallback: Vector2) -> Vector2:
 	var kind := role(member)
 	if kind == "fighter" and member.target != null:
 		var relative: Vector2 = member.target.position - member.position
-		if relative.length() > member.shortest_range() * 0.65:
+		if relative.length() > member.shortest_range() * float(SharedSupport.parameters("enemy_steering").fighter_range_fraction):
 			return relative.normalized()
 	elif kind in ["support", "sentinel", "chrysalis"]:
 		var anchor = null
@@ -136,7 +132,7 @@ func steering(sim, member, fallback: Vector2) -> Vector2:
 				anchor = ally
 				nearest = distance
 		if anchor != null:
-			var offset := 65.0 if kind == "sentinel" else 100.0
+			var offset := float(SharedSupport.parameters("enemy_steering").sentinel_offset) if kind == "sentinel" else float(SharedSupport.parameters("enemy_steering").support_offset)
 			var position: Vector2 = anchor.position - Vector2.from_angle(anchor.heading) * offset
 			return member.position.direction_to(position)
 	return fallback
@@ -151,15 +147,7 @@ func _launch(sim, parent, state: Dictionary) -> void:
 	var id: String = parent.entity_id + "/drone/%d" % int(state.spawned)
 	if sim.entities.has(id):
 		return
-	var stats := ShipStats.new()
-	stats.integrity = 1.5 * AlienShip.TIER_HULL[parent.alien.tier]
-	stats.weight = 3
-	stats.thrust = 12
-	stats.collision_radius = 6
-	var weapon := ShipWeaponStats.new("Drone Pulse", 1.2, 0.2 * AlienShip.TIER_DAMAGE[parent.alien.tier], 1, 140)
-	stats.weapons.append(weapon)
-	var definition := AlienShip.new("Chrysalis Drone", AlienShip.SCOUT_TEXTURE, stats)
-	definition.stats.collision_radius = 6
+	var definition := AlienShip.from_def("core:chrysalis_drone", parent.alien.tier)
 	definition.entity_id = id
 	definition.entity_kind = "craft"
 	definition.role_id = "drone"
@@ -168,13 +156,13 @@ func _launch(sim, parent, state: Dictionary) -> void:
 	actor.alien = definition
 	actor.faction = parent.faction
 	actor.tags.assign({"combatant": true, "craft": true, "summon": true})
-	actor.position = parent.position + Vector2.from_angle(parent.heading + PI * 0.5) * (parent.radius + 8)
+	actor.position = parent.position + Vector2.from_angle(parent.heading + PI * 0.5) * (parent.radius + float(SharedSupport.parameters("enemy_chrysalis").spawn_clearance))
 	actor.heading = parent.heading
 	if not sim.register_entity(actor):
 		return
 	state.remaining -= 1
 	state.spawned += 1
-	state.cooldown = DRONE_INTERVAL
+	state.cooldown = float(SharedSupport.parameters("enemy_chrysalis").interval)
 	sim._record_event("launch", {"source": parent.entity_id, "craft": id, "remaining": state.remaining})
 
 func snapshot() -> Dictionary:

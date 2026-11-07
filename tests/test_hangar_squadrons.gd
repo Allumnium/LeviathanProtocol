@@ -138,7 +138,7 @@ func fixture(stance: String) -> BattleSimulation:
 	stats.integrity = 10000
 	stats.weight = 10
 	stats.weapons.append(ShipWeaponStats.new("Test gun", 10, 0.01, 1, 200))
-	var enemy := AlienShip.new("Test", AlienShip.SCOUT_TEXTURE, stats)
+	var enemy := AlienShip.new("Test", load(AlienShip.definition("core:scout").art), stats)
 	var ships: Array[FleetShip] = [flagship, fighter]
 	var enemies: Array[RefCounted] = [enemy]
 	var sim := BattleSimulation.new()

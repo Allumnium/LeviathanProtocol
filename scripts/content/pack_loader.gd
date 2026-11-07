@@ -32,6 +32,8 @@ var _ref_regex := RegEx.create_from_string(REF_PATTERN)
 func _init(registry: SchemaRegistry = null) -> void:
 	schemas = registry if registry != null else SchemaRegistry.new()
 	checks["research"] = preload("res://scripts/content/research_checks.gd").validate
+	for type: String in ["enemy_unit", "encounter_tuning", "encounter", "ability", "support"]:
+		checks[type] = preload("res://scripts/content/combat_checks.gd").validate
 
 
 func load_packs(roots: Array = DEFAULT_ROOTS, schema_dirs: Array = DEFAULT_SCHEMA_DIRS) -> DefDatabase:

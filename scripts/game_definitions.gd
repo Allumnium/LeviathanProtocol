@@ -22,9 +22,7 @@ const REQUIRED_FIELDS := {
 		"ability_ids": TYPE_ARRAY, "ranks": TYPE_ARRAY},
 	"research": {"cost_rp": TYPE_FLOAT, "prerequisite_ids": TYPE_ARRAY, "story_gate_ids": TYPE_ARRAY,
 		"family_id": TYPE_STRING, "path_id": TYPE_STRING, "exclusion_ids": TYPE_ARRAY, "grants": TYPE_DICTIONARY},
-	"encounters": {"objective_rule": TYPE_STRING, "threat_multiplier": TYPE_FLOAT,
-		"required_entity_ids": TYPE_ARRAY, "frozen_roster": TYPE_ARRAY, "finite_waves": TYPE_ARRAY,
-		"reward": TYPE_DICTIONARY, "environment_ids": TYPE_ARRAY},
+	"encounters": {"story_eligible": TYPE_BOOL},
 	"nodes": {"inhabited_default": TYPE_BOOL, "combat": TYPE_BOOL, "goods_grade_id": TYPE_STRING},
 	"edges": {"duration_seconds": TYPE_ARRAY, "environment_ids": TYPE_ARRAY,
 		"mining_potential": TYPE_BOOL, "grants_rp": TYPE_BOOL, "surprise_aliens": TYPE_BOOL},
@@ -178,7 +176,7 @@ static func validate(value: Variant) -> Array[String]:
 	for entry in value.nodes:
 		if entry.get("goods_grade_id", "") != "":
 			_check_reference(ids, "goods", entry.goods_grade_id, errors)
-	for domain in ["encounters", "edges"]:
+	for domain in ["edges"]:
 		for entry in value[domain]:
 			for id in entry.get("environment_ids", []):
 				_check_reference(ids, "environments", id, errors)

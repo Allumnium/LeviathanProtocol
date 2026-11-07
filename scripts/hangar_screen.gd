@@ -1652,57 +1652,7 @@ func _render_squadron_assignment(owned: HangarShip) -> void:
 		refit_panel.add_child(split)
 
 func _part_effect(item: Dictionary) -> String:
-	var modifiers: Dictionary = GameState.research_grants().modifiers
-	if item.has("load_kind"):
-		return "%d %s" % [item.load_capacity, item.load_kind]
-	match item.id:
-		"research_lab": return "%s RP/day" % ScienceRules.format_rp(float(item.rank) * ResearchUpgrades.value(modifiers, "research_output_multiplier"))
-		"ammunition_magazine": return "+20% weapon cycling"
-		"tactical_computer": return "Cooldown reset / %ss per computer\nWaits for unshielded target" % ScienceRules.format_rp(12.0 / ResearchUpgrades.value(modifiers, "synchronization_multiplier"))
-		"command_uplink": return "Mark: +%d%% per uplink\n5s / 20s" % roundi((ResearchUpgrades.value(modifiers, "mark_damage_multiplier", 1.2) - 1) * 100)
-		"repair_station": return "Repair %.0f hull/s\n%.0f hull reserve per encounter" % [SharedSupport.REPAIR_RATE, SharedSupport.REPAIR_RESERVE]
-		"repair_drone_bay": return "%s hull/s shared per hangar\nSelf + allies | Range 220" % ScienceRules.format_rp(2.0 * ResearchUpgrades.value(modifiers, "repair_aura_multiplier"))
-		"shield_relay": return "%s shields | %s/s after 4s\nTransfer: 2/s each | Range 180" % [ScienceRules.format_rp(float(item.stats.shields)), ScienceRules.format_rp(float(item.stats.shields) * 0.04)]
-		"ion_emitter":
-			var weapon: Dictionary = item.stats.weapons[0]
-			var base_dps: float = float(weapon.damage) * float(weapon.count) / float(weapon.interval)
-			return "Shield DPS %s | Hull DPS %s\nRange %s" % [ScienceRules.format_rp(base_dps * 2),
-				ScienceRules.format_rp(base_dps * 0.5), ScienceRules.format_rp(float(weapon.range))]
-		"nanoforge": return "Deferred"
-	if item.id in HangarCarriers.CAPACITIES:
-		return "%d craft / 2 active" % int(HangarCarriers.CAPACITIES[item.id])
-	var values: Dictionary = item.stats
-	var effects: PackedStringArray = []
-	if "prismatic" in item.get("research_capabilities", []) and modifiers.has("prismatic_lasers"):
-		effects.append("Continuous / 1x to 2x DPS over 4s")
-	if "splitting_missile" in item.get("research_capabilities", []) and modifiers.has("splinter_missiles"):
-		effects.append("Splits: 3 x half damage")
-	if float(values.shields) > 0 and modifiers.has("pulse_shields"):
-		effects.append("Pulse: 25% shields / 8s")
-	if not values.weapons.is_empty():
-		var dps := 0.0
-		var reach := 0.0
-		for weapon: ShipWeaponStats in SlotCatalog.stats_for(item.id, int(item.rank)).weapons:
-			ResearchUpgrades.apply_weapon(weapon, modifiers)
-			dps += weapon.get_dps()
-			reach = maxf(reach, weapon.range_units)
-		effects.append("DPS %.1f | Range %.0f" % [dps, reach])
-		var missile_cost := 0
-		var charge := 0.0
-		for weapon: Dictionary in values.weapons:
-			missile_cost += int(weapon.get("missiles", 0)) * int(weapon.count)
-			charge = maxf(charge, float(weapon.get("charge", 0)))
-		if missile_cost > 0:
-			effects.append("%d missiles / salvo" % missile_cost)
-		if charge > 0:
-			effects.append("%ss charge" % ScienceRules.format_rp(charge))
-	if values.shields > 0:
-		effects.append("Shields %.0f | %.1f recharge/s after 4s" % [values.shields, values.shields * 0.04])
-	if values.thrust > 0:
-		effects.append("Thrust %.0f" % values.thrust)
-	if values.integrity > 0:
-		effects.append("Integrity +%.0f" % values.integrity)
-	return " | ".join(effects)
+	return preload("res://scripts/equipment_effects.gd").describe(item, GameState.research_grants().modifiers)
 
 func _result(ok: bool) -> void:
 	feedback.text = "" if ok else (GameState.last_save_error if not GameState.last_save_error.is_empty() else "Unavailable")

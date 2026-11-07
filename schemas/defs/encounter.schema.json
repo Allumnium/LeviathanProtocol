@@ -3,29 +3,262 @@
 	"type": "object",
 	"description": "A battle encounter template.",
 	"properties": {
-		"revision": {"$ref": "_common#/$defs/revision"},
-		"display_name": {"type": "string", "minLength": 1},
-		"implemented": {"type": "boolean"},
-		"objective_rule": {"$ref": "_common#/$defs/key"},
-		"threat_multiplier": {"type": "number", "exclusiveMinimum": 0},
-		"required_entity_ids": {"type": "array"},
-		"frozen_roster": {"type": "array"},
-		"finite_waves": {"type": "array"},
-		"reward": {
+		"revision": {
+			"$ref": "_common#/$defs/revision"
+		},
+		"display_name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"implemented": {
+			"type": "boolean"
+		},
+		"allocation": {
+			"oneOf": [
+				{
+					"type": "object",
+					"properties": {
+						"type": {
+							"enum": [
+								"standard",
+								"elite",
+								"boss"
+							]
+						},
+						"generator": {
+							"const": "roster"
+						},
+						"required": {
+							"type": "array",
+							"items": {
+								"type": "string",
+								"x-ref": "enemy_unit"
+							},
+							"minItems": 0
+						},
+						"waves": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 3
+						},
+						"wave_unit": {
+							"type": "string",
+							"x-ref": "enemy_unit"
+						},
+						"extras": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"unit": {
+										"type": "string",
+										"x-ref": "enemy_unit"
+									},
+									"count": {
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 10
+									}
+								},
+								"required": [
+									"unit",
+									"count"
+								],
+								"additionalProperties": false
+							},
+							"minItems": 0
+						}
+					},
+					"required": [
+						"type",
+						"generator",
+						"required",
+						"waves",
+						"wave_unit",
+						"extras"
+					],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"generator": {
+							"const": "warden"
+						}
+					},
+					"required": [
+						"generator"
+					],
+					"additionalProperties": false
+				}
+			]
+		},
+		"warden": {
 			"type": "object",
 			"properties": {
-				"credits": {"type": "integer", "minimum": 0},
-				"rp_snapshot": {"type": "array"},
-				"material_pool": {"type": "array"}
+				"base_template": {
+					"type": "string",
+					"x-ref": "encounter"
+				},
+				"body_unit": {
+					"type": "string",
+					"x-ref": "enemy_unit"
+				},
+				"pylon_unit": {
+					"type": "string",
+					"x-ref": "enemy_unit"
+				},
+				"boss": {
+					"type": "boolean"
+				},
+				"pylons": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 2
+				},
+				"body_hull_fraction": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"body_shield_fraction": {
+					"type": "number",
+					"minimum": 0
+				},
+				"body_cost_fraction": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"pylon_hull": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"pylon_cost": {
+					"type": "number",
+					"exclusiveMinimum": 0
+				},
+				"stationary_guard": {
+					"type": "boolean"
+				},
+				"escort_units": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"x-ref": "enemy_unit"
+					},
+					"minItems": 2,
+					"maxItems": 2
+				},
+				"escort_fighter_chance": {
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1
+				},
+				"rules": {
+					"type": "object",
+					"properties": {
+						"cycle_seconds": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"warning_seconds": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"vulnerability_seconds": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"lance_damage": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"half_width": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"pylon_protection": {
+							"type": "number",
+							"minimum": 0,
+							"exclusiveMaximum": 0.5
+						},
+						"exposed_multiplier": {
+							"type": "number",
+							"minimum": 1
+						},
+						"interrupt_fraction": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						},
+						"target_range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"body_x": {
+							"type": "number"
+						},
+						"pylon_offset_x": {
+							"type": "number"
+						},
+						"pylon_offset_y": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"cycle_seconds",
+						"warning_seconds",
+						"vulnerability_seconds",
+						"lance_damage",
+						"range",
+						"half_width",
+						"pylon_protection",
+						"exposed_multiplier",
+						"interrupt_fraction",
+						"target_range",
+						"body_x",
+						"pylon_offset_x",
+						"pylon_offset_y"
+					],
+					"additionalProperties": false
+				}
 			},
-			"required": ["credits", "rp_snapshot", "material_pool"],
+			"required": [
+				"base_template",
+				"body_unit",
+				"pylon_unit",
+				"boss",
+				"pylons",
+				"body_hull_fraction",
+				"body_shield_fraction",
+				"body_cost_fraction",
+				"pylon_hull",
+				"pylon_cost",
+				"stationary_guard",
+				"escort_units",
+				"escort_fighter_chance",
+				"rules"
+			],
 			"additionalProperties": false
 		},
-		"environment_ids": {"type": "array", "items": {"type": "string", "x-ref": "environment"}, "uniqueItems": true}
+		"story_eligible": {
+			"type": "boolean",
+			"description": "May be used by current story combat events; allocation-only framework templates remain excluded."
+		},
+		"reward_multiplier": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		}
 	},
 	"required": [
-		"revision", "display_name", "implemented", "objective_rule", "threat_multiplier", "required_entity_ids",
-		"frozen_roster", "finite_waves", "reward", "environment_ids"
+		"revision",
+		"display_name",
+		"implemented",
+		"story_eligible"
 	],
 	"additionalProperties": false
 }

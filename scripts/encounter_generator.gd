@@ -2,32 +2,39 @@ class_name EncounterGenerator
 extends RefCounted
 
 const VERSION := 1
-const DIFFICULTY := [0.8, 1.0, 1.25]
-const MULTIPLIERS := {"standard": 1.0, "elite": 1.4, "boss": 1.8}
 const MAX_SHIPS := BattleSimulation.MAX_LIVE_COMBATANTS
 const MAX_ENEMY_ENTITIES := BattleSimulation.MAX_LIVE_COMBATANTS
-const ENEMY_FLEET_MULTIPLIER := 3
 # The legacy map has 14 combat columns. Step 10 replaces this explicit bridge
 # with the actual 24 campaign rows, including noncombat stops.
 const LEGACY_COMBAT_ROWS := [1, 3, 5, 8, 9, 10, 12, 13, 16, 17, 18, 20, 21, 24]
 const WARDEN = preload("res://scripts/warden_battle.gd")
-const TEMPLATES := {
-	"bastion_warden": {"type": "boss", "required": [], "waves": 1, "craft": 0, "organs": 2},
-	"pylon_escort": {"type": "standard", "required": ["fighter"], "waves": 1, "craft": 0, "organs": 1},
-	"patrol": {"type": "standard", "required": ["fighter", "scout"], "waves": 1, "craft": 0, "organs": 0},
-	"elite": {"type": "elite", "required": ["sentinel", "fighter"], "waves": 1, "craft": 0, "organs": 0},
-	"boss_patrol": {"type": "boss", "required": ["sentinel", "fighter"], "waves": 1, "craft": 0, "organs": 0},
-	# Defense is live; the generic organ/craft framework remains allocation-only.
-	"relay_defense": {"type": "standard", "required": ["fighter"], "waves": 3, "craft": 0, "organs": 0},
-	"boss_framework": {"type": "boss", "required": ["fighter"], "waves": 1, "craft": 4, "organs": 2},
-}
+
+
+static func tuning() -> Dictionary:
+	return Content.get_def("encounter_tuning", "core:default")
+
+
+static func template(id: String) -> Dictionary:
+	var data := Content.get_def("encounter", id)
+	return data.allocation if data.get("implemented", false) and data.has("allocation") else {}
+
+
+static func rank_for(row: int) -> int:
+	return mini(2, int((row - 1) / int(tuning().rank_rows)))
+
+
+static func cheapest_cost(rank: int) -> float:
+	var result := INF
+	for id: String in tuning().allowed_units:
+		result = minf(result, AlienShip.threat_cost_for(id, rank))
+	return result
 
 
 static func threat(global_row: int, difficulty: int, encounter_type := "standard") -> float:
-	if global_row < 1 or global_row > 24 or difficulty < 0 or difficulty > 2 or not MULTIPLIERS.has(encounter_type):
+	if global_row < 1 or global_row > int(tuning().rows) or difficulty < 0 or difficulty > 2 or not tuning().type_multipliers.has(encounter_type):
 		return -1.0
-	var proximity := float(global_row - 1) / 23.0
-	return 100.0 * pow(5.0, proximity) * DIFFICULTY[difficulty] * MULTIPLIERS[encounter_type]
+	var proximity := float(global_row - 1) / float(tuning().rows - 1)
+	return float(tuning().threat_base) * pow(float(tuning().threat_growth), proximity) * float(tuning().difficulty[difficulty]) * float(tuning().type_multipliers[encounter_type])
 
 
 static func generate(run_seed: int, node_id: int, global_row: int, difficulty: int, template_id := "patrol", combat_index := 1, rocks := false, environment: Dictionary = {}, expand_fleet := true) -> Dictionary:
@@ -36,49 +43,43 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		return {}
 	if not environment.is_empty():
 		rocks = int(environment.asteroid_density) > 0
-	if not TEMPLATES.has(template_id) or combat_index < 1 or combat_index > 14:
+	if template(template_id).is_empty() or combat_index < 1 or combat_index > 14:
 		return {}
-	if template_id in ["bastion_warden", "pylon_escort"]:
+	if template(template_id).generator == "warden":
 		return _generate_warden(run_seed, node_id, global_row, difficulty, template_id, combat_index, rocks, environment, expand_fleet)
-	var template: Dictionary = TEMPLATES[template_id]
+	var template: Dictionary = template(template_id)
 	var budget := threat(global_row, difficulty, template.type)
 	if budget <= 0.0:
 		return {}
-	var hazard_budget := budget * 0.15 if rocks else 0.0
+	var hazard_budget := budget * float(tuning().hazard_fraction) if rocks else 0.0
 	var combat_budget := budget - hazard_budget
 	var seed_value := hash("%s/node/%d/row/%d/difficulty/%d/%s" % [str(run_seed), node_id, global_row, difficulty, template_id])
 	var random := RandomNumberGenerator.new()
 	random.seed = seed_value
-	var rank := mini(2, int((global_row - 1) / 8))
+	var rank := rank_for(global_row)
 	var roster: Array = []
 	var spent := 0.0
 	# Craft and organs consume the same budget as the body, escorts and all waves.
-	for kind in ["organ", "craft"]:
-		var count: int = template.organs if kind == "organ" else template.craft
-		for index in range(count):
-			var unit := AlienShip.threat_variant("sentinel" if kind == "organ" else "scout", 0)
-			unit.entity_kind = kind
-			unit.definition_id = "framework/" + kind
-			unit.threat_cost = 20.0 if kind == "organ" else 6.0
-			unit.stats.integrity = 12.0 if kind == "organ" else 1.0
-			unit.stats.shields = 8.0 if kind == "organ" else 0.0
-			unit.stats.thrust = 0.0 if kind == "organ" else 12.0
-			unit.stats.weapons[0].damage_per_shot = 0.5 if kind == "organ" else 0.25
-			unit.entity_id = "node/%d/%s/%d" % [node_id, kind, index]
+	for extra: Dictionary in template.extras:
+		for index in range(int(extra.count)):
+			var unit := AlienShip.from_def(extra.unit)
+			unit.entity_id = "node/%d/%s/%d" % [node_id, unit.entity_kind, index]
 			roster.append(unit.to_snapshot())
 			spent += unit.threat_cost
 	var required: Array = template.required.duplicate()
 	# Every announced wave gets a finite participant, even at the lowest budget.
 	for wave in range(1, int(template.waves)):
-		required.append("scout")
+		required.append(template.wave_unit)
 	var ships := 0
 	for index in range(required.size()):
 		var reserve := 0.0
 		for remaining in range(index + 1, required.size()):
-			reserve += AlienShip.ROLE_COSTS[required[remaining]]
+			reserve += AlienShip.threat_cost_for(required[remaining])
 		var unit: AlienShip
 		for candidate_rank in range(rank, -1, -1):
 			var candidate := AlienShip.threat_variant(required[index], candidate_rank)
+			if candidate == null:
+				continue
 			if spent + candidate.threat_cost + reserve <= combat_budget + 0.000001:
 				unit = candidate
 				break
@@ -89,11 +90,11 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		roster.append(unit.to_snapshot())
 		spent += unit.threat_cost
 		ships += 1
-	var roles := AlienShip.ROLE_COSTS.keys()
+	var roles: Array = tuning().allowed_units
 	while ships < MAX_SHIPS and roster.size() < MAX_ENEMY_ENTITIES:
 		var affordable: Array[String] = []
 		for role: String in roles:
-			if AlienShip.ROLE_COSTS[role] * AlienShip.TIER_COST[rank] <= combat_budget - spent + 0.000001:
+			if AlienShip.threat_cost_for(role, rank) <= combat_budget - spent + 0.000001:
 				affordable.append(role)
 		if affordable.is_empty():
 			break
@@ -103,26 +104,21 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 		roster.append(unit.to_snapshot())
 		spent += unit.threat_cost
 		ships += 1
-	var reward_multiplier := 1.4 if template.type == "elite" else (1.5 if template.type == "boss" else 1.0)
-	var act := int((global_row - 1) / 8)
-	var bundle := material_bundle(roundi([12, 18, 24][act] * reward_multiplier))
-	var material_pool: Array[int] = []
-	for amount in bundle:
-		material_pool.append(amount * 2)
 	var required_ids: Array[String] = []
 	for unit in roster:
 		if unit.kind == "ship":
 			required_ids.append(unit.entity_id)
 	var result := {"version": VERSION, "node_id": node_id, "global_row": global_row,
-		"proximity": float(global_row - 1) / 23.0, "template_id": template_id,
-		"encounter_type": template.type, "difficulty_multiplier": DIFFICULTY[difficulty],
-		"encounter_multiplier": MULTIPLIERS[template.type], "seed": str(seed_value),
-		"budget": budget, "spent": spent, "unspent_tolerance": 16.0 * AlienShip.TIER_COST[rank] + hazard_budget,
-		"wave_count": template.waves, "required_roles": template.required.duplicate(),
-		"allowed_roles": roles.duplicate(), "environment_ids": [], "roster": roster, "legacy": false, "enemy_roles": true,
+		"proximity": float(global_row - 1) / float(tuning().rows - 1), "template_id": template_id,
+		"encounter_type": template.type, "difficulty_multiplier": tuning().difficulty[difficulty],
+		"encounter_multiplier": tuning().type_multipliers[template.type], "seed": str(seed_value),
+		"budget": budget, "spent": spent, "unspent_tolerance": cheapest_cost(rank) + hazard_budget,
+		"generation": {"rows": tuning().rows, "threat_base": tuning().threat_base, "threat_growth": tuning().threat_growth,
+			"hazard_fraction": tuning().hazard_fraction, "fleet_multiplier": tuning().fleet_multiplier},
+		"wave_count": template.waves, "required_roles": template.required.map(func(id: String) -> String: return AlienShip.definition(id).role),
+		"allowed_roles": roles.map(func(id: String) -> String: return AlienShip.definition(id).role), "environment_ids": [], "roster": roster, "legacy": false, "enemy_roles": true,
 		"objective": {"type": "eliminate_targets", "required_target_ids": required_ids},
-		"rewards": {"credits": roundi((90 + 10 * combat_index) * reward_multiplier), "materials": bundle,
-			"material_pool": material_pool, "initial_recovery_rate": 0.5}}
+		"rewards": rewards_for(global_row, combat_index, float(Content.get_def("encounter", template_id).reward_multiplier))}
 	if rocks:
 		var count: int = 32 if environment.is_empty() else NodeEnvironment.ROCK_COUNTS[int(environment.asteroid_density)]
 		result["asteroids"] = AsteroidField.generate(hash("%s/rocks" % seed_value), count)
@@ -136,7 +132,7 @@ static func generate(run_seed: int, node_id: int, global_row: int, difficulty: i
 static func _finish_fleet(result: Dictionary, expand_fleet: bool) -> Dictionary:
 	if expand_fleet:
 		var originals: Array = result.roster.duplicate(true)
-		for wingmate in range(1, ENEMY_FLEET_MULTIPLIER):
+		for wingmate in range(1, int(tuning().fleet_multiplier)):
 			for entry: Dictionary in originals:
 				if result.roster.size() >= MAX_ENEMY_ENTITIES:
 					break
@@ -157,14 +153,19 @@ static func _finish_fleet(result: Dictionary, expand_fleet: bool) -> Dictionary:
 
 
 static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: int, template_id: String, combat_index: int, rocks: bool, environment: Dictionary, expand_fleet := true) -> Dictionary:
-	var boss := template_id == "bastion_warden"
-	var result := generate(run_seed, node_id, row, difficulty, "boss_patrol" if boss else "patrol", combat_index, rocks, environment, false)
+	var settings: Dictionary = Content.get_def("encounter", template_id).warden
+	var boss: bool = settings.boss
+	var result := generate(run_seed, node_id, row, difficulty, str(Content.db().record("encounter", settings.base_template).id), combat_index, rocks, environment, false)
 	if result.is_empty():
 		return {}
 	var budget: float = result.budget - result.get("hazard_budget", 0.0)
 	var roster: Array = []
-	var body := AlienShip.warden_variant(false, budget * 0.21, budget * 0.025, budget * 0.6) if boss else AlienShip.threat_variant("fighter", 0)
-	if not boss:
+	var body := AlienShip.from_def(settings.body_unit)
+	if boss:
+		body.stats.integrity = budget * float(settings.body_hull_fraction)
+		body.stats.shields = budget * float(settings.body_shield_fraction)
+		body.threat_cost = budget * float(settings.body_cost_fraction)
+	if settings.stationary_guard:
 		# A stationary forward guard keeps the weaker pylon lesson in sight;
 		# a rushing Fighter could die before the player ever saw its support.
 		body.stats.thrust = 0
@@ -172,8 +173,11 @@ static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: 
 	roster.append(body.to_snapshot())
 	var pylons: Array[String] = []
 	var spent := body.threat_cost
-	for index in range(2 if boss else 1):
-		var pylon := AlienShip.warden_variant(true, budget * 0.04 if boss else 5.0, 0, budget * 0.1 if boss else 18.0)
+	for index in range(int(settings.pylons)):
+		var pylon := AlienShip.from_def(settings.pylon_unit)
+		pylon.stats.integrity = budget * float(settings.pylon_hull) if boss else float(settings.pylon_hull)
+		pylon.stats.shields = 0
+		pylon.threat_cost = budget * float(settings.pylon_cost) if boss else float(settings.pylon_cost)
 		pylon.entity_id = "node/%d/pylon/%d" % [node_id, index]
 		roster.append(pylon.to_snapshot())
 		pylons.append(pylon.entity_id)
@@ -181,9 +185,10 @@ static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: 
 	var rng := RandomNumberGenerator.new()
 	result.seed = str(hash("%d/%d/%d/%s" % [run_seed, node_id, difficulty, template_id]))
 	rng.seed = int(result.seed)
-	var rank := mini(2, int((row - 1) / 8))
-	while budget - spent >= 16.0 * AlienShip.TIER_COST[rank] and roster.size() < MAX_SHIPS:
-		var role := "fighter" if budget - spent >= 22.0 * AlienShip.TIER_COST[rank] and rng.randf() < 0.5 else "scout"
+	var rank := rank_for(row)
+	result.unspent_tolerance = AlienShip.threat_cost_for(settings.escort_units[1], rank) + float(result.get("hazard_budget", 0))
+	while budget - spent >= AlienShip.threat_cost_for(settings.escort_units[1], rank) and roster.size() < MAX_SHIPS:
+		var role: String = settings.escort_units[0] if budget - spent >= AlienShip.threat_cost_for(settings.escort_units[0], rank) and rng.randf() < float(settings.escort_fighter_chance) else settings.escort_units[1]
 		var unit := AlienShip.threat_variant(role, rank)
 		unit.entity_id = "node/%d/ship/%d" % [node_id, roster.size()]
 		roster.append(unit.to_snapshot())
@@ -194,20 +199,30 @@ static func _generate_warden(run_seed: int, node_id: int, row: int, difficulty: 
 			if entry.kind == "ship" and entry.entity_id != body.entity_id:
 				required.append(entry.entity_id)
 	result.template_id = template_id
+	result.rewards = rewards_for(row, combat_index, float(Content.get_def("encounter", template_id).reward_multiplier))
 	result.roster = roster
 	result.spent = spent
 	result.required_roles = ["warden", "pylon"] if boss else ["fighter", "pylon"]
 	result.allowed_roles = ["warden", "pylon", "fighter", "scout"]
 	result.objective = {"type": "body_destroyed" if boss else "eliminate_targets", "required_target_ids": required}
 	result["arena_layout"] = "open"
-	result["warden"] = {"body_id": body.entity_id, "pylon_ids": pylons, "lance": boss,
-		"cycle_seconds": 12.0, "warning_seconds": 3.0, "vulnerability_seconds": 6.0,
-		"lance_damage": 6.0 * DIFFICULTY[difficulty], "range": 1560.0, "half_width": 22.0}
+	result["warden"] = settings.rules.duplicate(true)
+	result.warden.merge({"body_id": body.entity_id, "pylon_ids": pylons, "lance": boss,
+		"lance_damage": float(settings.rules.lance_damage) * float(tuning().difficulty[difficulty])}, true)
 	return _finish_fleet(result, expand_fleet)
 
 
+static func rewards_for(row: int, combat_index: int, multiplier: float) -> Dictionary:
+	var bundle := material_bundle(roundi(tuning().materials[rank_for(row)] * multiplier))
+	var material_pool: Array[int] = []
+	for amount: int in bundle:
+		material_pool.append(roundi(amount / float(tuning().initial_recovery_rate)))
+	return {"credits": roundi((float(tuning().credits_base) + float(tuning().credits_step) * combat_index) * multiplier),
+		"materials": bundle, "material_pool": material_pool, "initial_recovery_rate": tuning().initial_recovery_rate}
+
+
 static func material_bundle(total: int) -> Array[int]:
-	var weights := [0.30, 0.35, 0.20, 0.15] # Existing material IDs: O/D/T/C.
+	var weights: Array = tuning().material_weights # Existing material IDs: O/D/T/C.
 	var result: Array[int] = []
 	var fractions: Array = []
 	var assigned := 0
@@ -300,13 +315,22 @@ static func valid(encounter: Variant) -> bool:
 		return false
 	if not encounter is Dictionary or encounter.get("version") != VERSION:
 		return false
-	if encounter.has("arena_layout") and (not encounter.has("objective") or not TEMPLATES.has(encounter.get("template_id", "")) \
-		or encounter.get("wave_count") != TEMPLATES[encounter.template_id].waves):
+	if encounter.has("arena_layout") and not encounter.has("objective"):
+		return false
+	var generation: Variant = encounter.get("generation", tuning())
+	if not generation is Dictionary:
+		return false
+	for key in ["rows", "threat_base", "threat_growth", "hazard_fraction", "fleet_multiplier"]:
+		if not SaveValidation.bounded_number(generation.get(key)):
+			return false
+	if not SaveValidation.integer(generation.rows) or generation.rows < 2 or generation.rows > 24 \
+		or generation.threat_base <= 0 or generation.threat_growth <= 0 or generation.hazard_fraction < 0 or generation.hazard_fraction >= 1 \
+		or not SaveValidation.integer(generation.fleet_multiplier) or generation.fleet_multiplier < 1 or generation.fleet_multiplier > 10:
 		return false
 	for key in ["node_id", "global_row", "wave_count"]:
 		if not SaveValidation.integer(encounter.get(key)):
 			return false
-	if encounter.global_row < 1 or encounter.global_row > 24 or encounter.wave_count < 1 or encounter.wave_count > 3:
+	if encounter.global_row < 1 or encounter.global_row > int(generation.rows) or encounter.wave_count < 1 or encounter.wave_count > 3:
 		return false
 	if not encounter.get("legacy") is bool or not encounter.get("seed") is String:
 		return false
@@ -316,10 +340,10 @@ static func valid(encounter: Variant) -> bool:
 	for key in ["budget", "spent", "unspent_tolerance", "proximity", "difficulty_multiplier", "encounter_multiplier"]:
 		if not AlienShip._finite_number(encounter.get(key)) or encounter[key] < 0:
 			return false
-	var proximity := float(encounter.global_row - 1) / 23.0
+	var proximity := float(encounter.global_row - 1) / float(generation.rows - 1)
 	if not is_equal_approx(encounter.proximity, proximity) or encounter.difficulty_multiplier <= 0 or encounter.encounter_multiplier <= 0:
 		return false
-	var base_budget: float = 100.0 * pow(5.0, proximity) * encounter.difficulty_multiplier * encounter.encounter_multiplier
+	var base_budget: float = float(generation.threat_base) * pow(float(generation.threat_growth), proximity) * encounter.difficulty_multiplier * encounter.encounter_multiplier
 	if not encounter.get("roster") is Array or encounter.roster.is_empty() or encounter.roster.size() > MAX_ENEMY_ENTITIES:
 		return false
 	var ids: Dictionary = {}
@@ -353,7 +377,7 @@ static func valid(encounter: Variant) -> bool:
 		if not entry.copy_of is String or not by_id.has(entry.copy_of):
 			return false
 		copied[entry.copy_of] = int(copied.get(entry.copy_of, 0)) + 1
-		if copied[entry.copy_of] >= ENEMY_FLEET_MULTIPLIER:
+		if copied[entry.copy_of] >= int(generation.fleet_multiplier):
 			return false
 		var original: Dictionary = by_id[entry.copy_of]
 		if original.has("copy_of") or original.kind != "ship" \
@@ -392,7 +416,7 @@ static func valid(encounter: Variant) -> bool:
 		return false
 	if encounter.has("asteroids"):
 		if not AsteroidField.valid(encounter.asteroids) or not AlienShip._finite_number(encounter.get("hazard_budget")) \
-			or not is_equal_approx(encounter.hazard_budget, base_budget * 0.15) or spent + encounter.hazard_budget > encounter.budget + 0.000001:
+			or not is_equal_approx(encounter.hazard_budget, base_budget * float(generation.hazard_fraction)) or spent + encounter.hazard_budget > encounter.budget + 0.000001:
 			return false
 	if not encounter.legacy and encounter.budget - spent >= encounter.unspent_tolerance + 0.000001:
 		return false
@@ -411,11 +435,11 @@ static func valid(encounter: Variant) -> bool:
 	if rewards.has("material_pool"):
 		if not rewards.material_pool is Array or rewards.material_pool.size() != 4:
 			return false
-		for category in range(4):
-			if not SaveValidation.integer(rewards.material_pool[category]) or rewards.material_pool[category] != rewards.materials[category] * 2:
-				return false
-		if rewards.get("initial_recovery_rate") != 0.5:
+		if not SaveValidation.bounded_number(rewards.get("initial_recovery_rate")) or rewards.initial_recovery_rate <= 0 or rewards.initial_recovery_rate > 1:
 			return false
-	if encounter.template_id in ["bastion_warden", "pylon_escort"] and not encounter.has("warden"):
+		for category in range(4):
+			if not SaveValidation.integer(rewards.material_pool[category]) or rewards.material_pool[category] != roundi(rewards.materials[category] / float(rewards.initial_recovery_rate)):
+				return false
+	if (present_roles.has("warden") or present_roles.has("pylon")) and not encounter.has("warden"):
 		return false
 	return true

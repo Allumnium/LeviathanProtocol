@@ -9,6 +9,9 @@ var resource_knowledge: Dictionary = {0: {}, 1: {}}
 var last_commit_failed := false
 var retry_delay := 0.0
 
+static func behavior(id: String) -> String:
+	return GameDefinitions.find("abilities", id).get("behavior", "")
+
 static func initial_state() -> Dictionary:
 	return {"version": 1, "cooldowns": {}, "auto": {"scan": true}, "pins": ["scan"], "pause_aim": false}
 
@@ -46,7 +49,7 @@ func configure(context: Dictionary) -> bool:
 	retry_delay = 0.0
 	for id in context.get("ability_ids", []):
 		var definition := GameDefinitions.find("abilities", str(id))
-		if not id is String or definition.is_empty() or not definition.implemented or available.has(id):
+		if not id is String or definition.is_empty() or not definition.implemented or (context.get("credits_only", false) and definition.availability == "unavailable") or available.has(id):
 			return false
 		available.append(id)
 	return true
@@ -72,7 +75,7 @@ func sources(sim, faction: int, id: String) -> Array:
 				if unit.hp > 0 and _source_part(unit.part, definition, member.owned_ship):
 					result.append(member)
 					break
-		elif faction == 1 and id == "scan" and not member.has_tag("summon") and not member.has_tag("craft") and not member.has_tag("organ"):
+		elif faction == 1 and behavior(id) == "scan" and not member.has_tag("summon") and not member.has_tag("craft") and not member.has_tag("organ"):
 			result.append(member)
 	return result
 
@@ -108,18 +111,18 @@ func remaining(id: String, faction := 0) -> float:
 	return float((state.cooldowns if faction == 0 else enemy_cooldowns).get(id, 0.0))
 
 func can_cast(sim, id: String, point: Vector2, source_id := "", faction := 0) -> bool:
-	if sim.phase != 0 or (not sim.visibility_enabled and not (sim.credits_only and id == "ion_pulse")) \
-		or id not in ["scan", "seismic_cut", "ion_pulse", "gravity_well"] or not available.has(id) \
+	if sim.phase != 0 or (not sim.visibility_enabled and not (sim.credits_only and behavior(id) == "ion_pulse")) \
+		or behavior(id).is_empty() or not available.has(id) \
 		or faction not in [0, 1] or remaining(id, faction) > 0 or choose_source(sim, faction, id, point, source_id) == null:
 		return false
-	if id == "ion_pulse":
+	if behavior(id) == "ion_pulse":
 		var target = visible_target(sim, faction, point)
 		return target != null and choose_source(sim, faction, id, target.position, source_id) != null
-	if id == "gravity_well":
+	if behavior(id) == "gravity_well":
 		return sim.point_visible(faction, point)
-	if id == "seismic_cut":
+	if behavior(id) == "seismic_cut":
 		for member in sim.other_entities:
-			if member.has_tag("asteroid") and member.is_alive() and sim.team_can_see(faction, member) and member.position.distance_to(point) <= 100:
+			if member.has_tag("asteroid") and member.is_alive() and sim.team_can_see(faction, member) and member.position.distance_to(point) <= float(GameDefinitions.find("abilities", id).parameters.target_radius):
 				return true
 		return false
 	return true
@@ -140,25 +143,25 @@ func cast(sim, id: String, point: Vector2, source_id := "", faction := 0) -> boo
 		retry_delay = 0.0
 	else:
 		enemy_cooldowns[id] = float(definition.cooldown_seconds)
-	if id == "ion_pulse":
+	if behavior(id) == "ion_pulse":
 		var target = visible_target(sim, faction, point)
 		sim.doctrines.interrupt(sim, target)
 		effects.append({"id": id, "faction": faction, "source": source.entity_id, "target": target.entity_id,
-			"position": target.position, "radius": 12.0, "remaining": float(definition.duration_seconds)})
-	elif id == "gravity_well":
+			"position": target.position, "radius": float(definition.parameters.visual_radius), "remaining": float(definition.duration_seconds)})
+	elif behavior(id) == "gravity_well":
 		effects.append({"id": id, "faction": faction, "source": source.entity_id, "position": point,
 			"radius": float(definition.radius_units), "remaining": float(definition.duration_seconds)})
-	elif id == "scan":
+	elif behavior(id) == "scan":
 		effects.append({"id": id, "faction": faction, "source": source.entity_id, "position": point,
 			"radius": float(definition.radius_units), "remaining": float(definition.duration_seconds)})
 		for member in sim._members:
 			if member.has_tag("asteroid") and member.position.distance_squared_to(point) <= float(definition.radius_units) * float(definition.radius_units):
 				resource_knowledge[faction][member.entity_id] = member.resource_contents.duplicate(true)
-	elif id == "seismic_cut":
+	elif behavior(id) == "seismic_cut":
 		for member in sim._members:
 			if member == source or member.faction == faction or not member.is_alive() or member.position.distance_to(point) > float(definition.radius_units):
 				continue
-			sim._damage(member, 60.0 if member.has_tag("asteroid") else 15.0, origin(source, id), source, "Seismic Cut")
+			sim._damage(member, float(definition.parameters.rock_damage) if member.has_tag("asteroid") else float(definition.parameters.ship_damage), origin(source, id), source, "Seismic Cut")
 	sim._record_event("ability", {"ability": id, "source": source.entity_id, "faction": faction, "position": [point.x, point.y]})
 	sim.refresh_visibility()
 	return true
@@ -201,7 +204,7 @@ func advance(sim, delta: float) -> void:
 		var source = sim.entities.get(effect.source)
 		if effect.remaining <= 0 or source == null or not sources(sim, int(effect.faction), effect.id).has(source):
 			effects.remove_at(index)
-		elif effect.id == "ion_pulse":
+		elif behavior(effect.id) == "ion_pulse":
 			var target = sim.entities.get(effect.target)
 			if target == null or not target.is_alive():
 				effects.remove_at(index)
@@ -222,18 +225,20 @@ func visible_target(sim, faction: int, point: Vector2):
 
 func suppressed(member) -> bool:
 	for effect in effects:
-		if effect.id == "ion_pulse" and effect.get("target", "") == member.entity_id:
+		if behavior(effect.id) == "ion_pulse" and effect.get("target", "") == member.entity_id:
 			return true
 	return false
 
 func movement_rate(member) -> float:
 	for effect in effects:
-		if effect.id == "gravity_well" and int(effect.faction) != member.faction and member.position.distance_to(effect.position) <= effect.radius:
-			return 0.65
+		if behavior(effect.id) == "gravity_well" and int(effect.faction) != member.faction and member.position.distance_to(effect.position) <= effect.radius:
+			return float(GameDefinitions.find("abilities", effect.id).parameters.movement_rate)
 	return 1.0
 
 func auto_cast(sim) -> void:
-	for id in ["ion_pulse", "gravity_well"]:
+	for id: String in available:
+		if behavior(id) not in ["ion_pulse", "gravity_well"]:
+			continue
 		if not available.has(id) or not state.auto.get(id, true) or remaining(id) > 0 or retry_delay > 0:
 			continue
 		for target in sim._members:

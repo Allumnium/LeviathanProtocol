@@ -37,7 +37,7 @@ func alien(role := "fighter", shields := 0.0) -> AlienShip:
 	stats.weight = 10
 	stats.collision_radius = 12
 	stats.weapons.append(ShipWeaponStats.new("Target", 100, 0.01, 1, 1))
-	var result := AlienShip.new("Balance target", AlienShip.SCOUT_TEXTURE, stats)
+	var result := AlienShip.new("Balance target", load(AlienShip.definition("core:scout").art), stats)
 	result.role_id = role
 	return result
 

@@ -1,0 +1,608 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"description": "Registered engine support behaviors and their parameter schemas. Gameplay and generated equipment details consume the same records.",
+	"oneOf": [
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "repair_station"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"rate": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"reserve": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 1000000
+						},
+						"targets": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 10
+						}
+					},
+					"required": [
+						"rate",
+						"reserve",
+						"targets"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "repair_aura"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"rate": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"rate",
+						"range"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "shield_relay"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"rate": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"rate",
+						"range"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "mark"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"duration": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"cooldown": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"damage_multiplier": {
+							"type": "number",
+							"minimum": 1,
+							"maximum": 3
+						}
+					},
+					"required": [
+						"range",
+						"duration",
+						"cooldown",
+						"damage_multiplier"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "synchronization"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"interval": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"carrier_range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"interval",
+						"carrier_range"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "ammunition_cycle"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"bonus": {
+							"type": "number",
+							"minimum": 0
+						}
+					},
+					"required": [
+						"bonus"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "shield"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"delay": {
+							"type": "number",
+							"minimum": 0
+						},
+						"recharge_fraction": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						}
+					},
+					"required": [
+						"delay",
+						"recharge_fraction"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "ion_damage"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"shield_multiplier": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"hull_multiplier": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"shield_multiplier",
+						"hull_multiplier"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "prismatic"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"ramp_seconds": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"max_multiplier": {
+							"type": "number",
+							"minimum": 1,
+							"maximum": 5
+						}
+					},
+					"required": [
+						"ramp_seconds",
+						"max_multiplier"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "splinter"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"distance": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"radius": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"count": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 10
+						},
+						"damage_fraction": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						},
+						"speed_multiplier": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"distance",
+						"radius",
+						"count",
+						"damage_fraction",
+						"speed_multiplier"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "pulse_shield"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"interval": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"fraction": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						}
+					},
+					"required": [
+						"interval",
+						"fraction"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "enemy_support"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"reserve": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"rate": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"reserve",
+						"range",
+						"rate"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "enemy_sentinel"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"protection": {
+							"type": "number",
+							"minimum": 0,
+							"exclusiveMaximum": 0.5
+						}
+					},
+					"required": [
+						"range",
+						"protection"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "enemy_chrysalis"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"initial_delay": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"interval": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"base_count": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 10
+						},
+						"tier_count": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 10
+						},
+						"spawn_clearance": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						}
+					},
+					"required": [
+						"initial_delay",
+						"interval",
+						"base_count",
+						"tier_count",
+						"spawn_clearance"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		},
+		{
+			"type": "object",
+			"properties": {
+				"revision": {
+					"$ref": "_common#/$defs/revision"
+				},
+				"behavior": {
+					"const": "enemy_steering"
+				},
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"fighter_range_fraction": {
+							"type": "number",
+							"exclusiveMinimum": 0,
+							"maximum": 1
+						},
+						"sentinel_offset": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"support_offset": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"scout_support_bias": {
+							"type": "number",
+							"minimum": 0
+						},
+						"escort_range": {
+							"type": "number",
+							"exclusiveMinimum": 0
+						},
+						"escort_penalty": {
+							"type": "number",
+							"minimum": 0
+						}
+					},
+					"required": [
+						"fighter_range_fraction",
+						"sentinel_offset",
+						"support_offset",
+						"scout_support_bias",
+						"escort_range",
+						"escort_penalty"
+					],
+					"additionalProperties": false
+				}
+			},
+			"required": [
+				"revision",
+				"behavior",
+				"parameters"
+			],
+			"additionalProperties": false
+		}
+	]
+}

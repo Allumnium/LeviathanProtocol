@@ -1,0 +1,53 @@
+{
+	"def": "encounter_tuning",
+	"defs": [
+		{
+			"id": "default",
+			"revision": 1,
+			"catalog": [
+				"core:chrysalis",
+				"core:fighter",
+				"core:scout",
+				"core:sentinel",
+				"core:support"
+			],
+			"allowed_units": [
+				"core:scout",
+				"core:fighter",
+				"core:sentinel",
+				"core:support",
+				"core:chrysalis"
+			],
+			"difficulty": [
+				0.8,
+				1,
+				1.25
+			],
+			"type_multipliers": {
+				"standard": 1,
+				"elite": 1.4,
+				"boss": 1.8
+			},
+			"threat_base": 100,
+			"threat_growth": 5,
+			"rows": 24,
+			"rank_rows": 8,
+			"fleet_multiplier": 3,
+			"hazard_fraction": 0.15,
+			"materials": [
+				12,
+				18,
+				24
+			],
+			"material_weights": [
+				0.3,
+				0.35,
+				0.2,
+				0.15
+			],
+			"credits_base": 90,
+			"credits_step": 10,
+			"initial_recovery_rate": 0.5
+		}
+	]
+}

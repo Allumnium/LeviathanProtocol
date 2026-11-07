@@ -1,17 +1,6 @@
 class_name AlienShip
 extends RefCounted
 
-const CHRYSALIS_TEXTURE: Texture2D = preload("res://assets/aliens/drone_chrysalis_d.png")
-const FIGHTER_TEXTURE: Texture2D = preload("res://assets/drone_fighter.png")
-const SCOUT_TEXTURE: Texture2D = preload("res://assets/aliens/drone_scout_d.png")
-const SENTINEL_TEXTURE: Texture2D = preload("res://assets/aliens/drone_sentinel_d.png")
-const PYLON_TEXTURE: Texture2D = preload("res://assets/shield.png")
-const SUPPORT_TEXTURE: Texture2D = preload("res://assets/aliens/drone_support_d.png")
-const LARGE_ART := {
-	"fighter": "res://assets/aliens/drone_large_wing_d.png",
-	"chrysalis": "res://assets/aliens/drone_large_sporeback_d.png",
-}
-
 var display_name: String
 var texture: Texture2D
 var base_stats: ShipStats
@@ -24,12 +13,6 @@ var entity_id := ""
 var entity_kind := "ship"
 var wave_index := 0
 var copy_of := ""
-
-const ROLE_COSTS := {"scout": 16.0, "fighter": 22.0, "sentinel": 30.0, "support": 26.0, "chrysalis": 32.0}
-const TIER_COST := [1.0, 2.25, 3.75]
-const TIER_HULL := [1.0, 1.8, 2.6]
-const TIER_DAMAGE := [1.0, 1.6, 2.2]
-
 
 func _init(
 	p_display_name: String,
@@ -58,41 +41,59 @@ func scaled_for_difficulty(difficulty_multiplier: float) -> AlienShip:
 	return AlienShip.new(display_name, texture, base_stats, difficulty_multiplier)
 
 
-static func warden_variant(pylon: bool, hull: float, shield: float, cost: float) -> AlienShip:
+static func definition(id: String) -> Dictionary:
+	return Content.get_def("enemy_unit", id)
+
+
+static func tier_parameters(id: String, rank: int) -> Dictionary:
+	for entry: Dictionary in definition(id).get("tiers", []):
+		if int(entry.rank) == rank:
+			return entry
+	return {}
+
+
+static func threat_cost_for(id: String, rank := 0) -> float:
+	var parameters := tier_parameters(id, rank)
+	return float(definition(id).cost) * float(parameters.cost) if not parameters.is_empty() else INF
+
+
+static func from_def(id: String, rank := 0) -> AlienShip:
+	var data := definition(id)
+	var parameters := tier_parameters(id, rank)
+	if data.is_empty() or parameters.is_empty():
+		return null
 	var value := ShipStats.new()
-	value.integrity = hull
-	value.shields = shield
-	value.weight = 20 if pylon else 60
-	value.thrust = 0 if pylon else 2
-	value.collision_radius = 12 if pylon else 26
-	value.weapons.append(ShipWeaponStats.new("Pylon Pulse" if pylon else "Warden Pulse", 2.5 if pylon else 1.4, 0.2 if pylon else 0.8, 1, 630))
-	var unit := AlienShip.new("Shield Pylon" if pylon else "Bastion Warden", PYLON_TEXTURE if pylon else SENTINEL_TEXTURE, value)
+	value.integrity = float(data.stats.integrity) * float(parameters.hull)
+	value.shields = float(data.stats.shields) * float(parameters.hull)
+	value.weight = float(data.stats.weight) * float(parameters.weight)
+	value.thrust = float(data.stats.thrust) * float(parameters.thrust)
+	value.collision_radius = float(data.stats.collision_radius)
+	for weapon: Dictionary in data.stats.weapons:
+		var copy := ShipWeaponStats.new(weapon.name, weapon.interval, float(weapon.damage) * float(parameters.damage), int(weapon.count), weapon.range)
+		copy.is_projectile_weapon = weapon.projectile
+		copy.interceptable = weapon.interceptable
+		value.weapons.append(copy)
+	var unit := AlienShip.new(data.display_name, load(data.art), value)
 	unit.stats.collision_radius = value.collision_radius
-	unit.role_id = "pylon" if pylon else "warden"
-	unit.definition_id = "warden/pylon" if pylon else "warden/body"
-	unit.entity_kind = "organ" if pylon else "ship"
+	unit.definition_id = Content.db().resolve_id("enemy_unit", id)
+	unit.role_id = data.role
+	unit.entity_kind = data.kind
+	unit.tier = rank
+	unit.threat_cost = threat_cost_for(id, rank)
+	unit._apply_tier_art()
+	return unit
+
+
+static func warden_variant(pylon: bool, hull: float, shield: float, cost: float) -> AlienShip:
+	var unit := from_def("core:warden/pylon" if pylon else "core:warden/body")
+	unit.stats.integrity = hull
+	unit.stats.shields = shield
 	unit.threat_cost = cost
 	return unit
 
 
 static func threat_variant(role: String, rank: int) -> AlienShip:
-	if not ROLE_COSTS.has(role) or rank < 0 or rank > 2:
-		return null
-	for definition in get_catalog():
-		if definition.role_id != role:
-			continue
-		definition.definition_id = "%s/tier_%d" % [role, rank]
-		definition.tier = rank
-		definition._apply_tier_art()
-		definition.threat_cost = ROLE_COSTS[role] * TIER_COST[rank]
-		definition.stats.integrity *= TIER_HULL[rank]
-		definition.stats.shields *= TIER_HULL[rank]
-		definition.stats.weight *= 1.0 + rank * 0.5
-		definition.stats.thrust *= 1.0 + rank * 0.125
-		for weapon in definition.stats.weapons:
-			weapon.damage_per_shot *= TIER_DAMAGE[rank]
-		return definition
-	return null
+	return from_def(role, rank)
 
 
 func to_snapshot() -> Dictionary:
@@ -102,7 +103,7 @@ func to_snapshot() -> Dictionary:
 			weapon.projectiles_per_activation, weapon.range_units, weapon.is_projectile_weapon, weapon.interceptable])
 	var result := {"name": display_name, "stats": [stats.shields, stats.integrity, stats.weight, stats.thrust],
 		"weapons": weapons, "definition_id": definition_id, "role": role_id, "tier": tier,
-		"threat_cost": threat_cost, "entity_id": entity_id, "kind": entity_kind, "wave": wave_index}
+		"collision_radius": stats.collision_radius, "threat_cost": threat_cost, "entity_id": entity_id, "kind": entity_kind, "wave": wave_index}
 	if not copy_of.is_empty():
 		result.copy_of = copy_of
 	return result
@@ -111,18 +112,11 @@ func to_snapshot() -> Dictionary:
 static func from_snapshot(entry: Variant) -> AlienShip:
 	if not snapshot_valid(entry):
 		return null
-	var result: AlienShip
-	for definition in get_catalog():
-		if definition.display_name == entry.name:
-			result = definition
-			break
-	if entry.name in ["Shield Pylon", "Bastion Warden"]:
-		result = warden_variant(entry.name == "Shield Pylon", 1, 0, 1)
+	var result := from_def(entry.get("definition_id", ""), int(entry.get("tier", 0)))
 	if result == null:
 		return null
 	var restored := ShipStats.new()
-	if entry.name in ["Shield Pylon", "Bastion Warden"]:
-		restored.collision_radius = 12 if entry.name == "Shield Pylon" else 26
+	restored.collision_radius = float(entry.get("collision_radius", result.stats.collision_radius))
 	restored.shields = entry.stats[0]
 	restored.integrity = entry.stats[1]
 	restored.weight = entry.stats[2]
@@ -132,6 +126,7 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 		restored_weapon.is_projectile_weapon = weapon[5]
 		restored_weapon.interceptable = weapon[6] if weapon.size() > 6 else false
 		restored.weapons.append(restored_weapon)
+	result.display_name = entry.name
 	result.stats = restored
 	result.definition_id = entry.get("definition_id", "legacy")
 	result.role_id = entry.get("role", result.role_id)
@@ -146,18 +141,20 @@ static func from_snapshot(entry: Variant) -> AlienShip:
 
 
 func _apply_tier_art() -> void:
-	if tier > 0 and LARGE_ART.has(role_id):
-		texture = SurfaceArt.texture(LARGE_ART[role_id])
+	var data := definition(definition_id)
+	if tier > 0 and not data.is_empty():
+		texture = SurfaceArt.texture(data.tier_art)
 
 
 func art_scale() -> float:
-	return 1.5 if tier > 0 and LARGE_ART.has(role_id) else 1.0
+	var data := definition(definition_id)
+	return float(data.tier_art_scale) if tier > 0 and not data.is_empty() else 1.0
 
 
 static func snapshot_valid(entry: Variant) -> bool:
 	if not entry is Dictionary or not entry.get("name") is String or not entry.get("stats") is Array:
 		return false
-	if entry.name not in ["Scout", "Fighter", "Sentinel", "Support", "Chrysalis", "Shield Pylon", "Bastion Warden"]:
+	if not entry.get("definition_id") is String or not SaveValidation.integer(entry.get("tier", 0)) or definition(entry.get("definition_id", "")).is_empty() or tier_parameters(entry.get("definition_id", ""), int(entry.get("tier", 0))).is_empty():
 		return false
 	if entry.stats.size() != 4 or not entry.get("weapons") is Array or entry.weapons.is_empty():
 		return false
@@ -172,6 +169,8 @@ static func snapshot_valid(entry: Variant) -> bool:
 	for key in ["tier", "wave"]:
 		if entry.has(key) and (not SaveValidation.integer(entry[key]) or entry[key] < 0):
 			return false
+	if entry.has("collision_radius") and (not SaveValidation.bounded_number(entry.collision_radius) or entry.collision_radius <= 0):
+		return false
 	if entry.has("threat_cost") and (not _finite_number(entry.threat_cost) or entry.threat_cost < 0):
 		return false
 	for weapon in entry.weapons:
@@ -192,33 +191,10 @@ static func _finite_number(value: Variant) -> bool:
 
 
 static func get_catalog() -> Array[AlienShip]:
-	return [
-		AlienShip.new(
-			"Chrysalis",
-			CHRYSALIS_TEXTURE,
-			_create_base_stats(2.0, 12.0, 28.0, 9.0, "Spore Launcher", 1.5, 1.0, 600.0, true)
-		),
-		AlienShip.new(
-			"Fighter",
-			FIGHTER_TEXTURE,
-			_create_base_stats(1.0, 8.0, 14.0, 18.0, "Plasma Cannon", 0.8, 0.7, 540.0)
-		),
-		AlienShip.new(
-			"Scout",
-			SCOUT_TEXTURE,
-			_create_base_stats(0.0, 6.0, 8.0, 24.0, "Scout Pulse", 1.2, 0.6, 570.0)
-		),
-		AlienShip.new(
-			"Sentinel",
-			SENTINEL_TEXTURE,
-			_create_base_stats(3.0, 14.0, 36.0, 6.0, "Sentinel Beam", 2.0, 1.4, 690.0)
-		),
-		AlienShip.new(
-			"Support",
-			SUPPORT_TEXTURE,
-			_create_base_stats(2.0, 8.0, 18.0, 12.0, "Support Pulse", 2.5, 1.0, 630.0)
-		),
-	]
+	var result: Array[AlienShip] = []
+	for id: String in Content.get_def("encounter_tuning", "core:default").catalog:
+		result.append(from_def(id))
+	return result
 
 
 static func create_random_fleet(
@@ -302,26 +278,3 @@ func _scale_stats(difficulty_multiplier: float) -> ShipStats:
 		scaled_weapon.damage_per_shot *= difficulty_multiplier
 		scaled_stats.weapons.append(scaled_weapon)
 	return scaled_stats
-
-
-static func _create_base_stats(
-	shields: float,
-	integrity: float,
-	weight: float,
-	thrust: float,
-	weapon_name: String,
-	fire_interval_seconds: float,
-	damage_per_shot: float,
-	range_units: float,
-	interceptable := false
-) -> ShipStats:
-	var new_stats := ShipStats.new()
-	new_stats.shields = shields
-	new_stats.integrity = integrity
-	new_stats.weight = weight
-	new_stats.thrust = thrust
-	new_stats.weapons.append(
-		ShipWeaponStats.new(weapon_name, fire_interval_seconds, damage_per_shot, 1, range_units)
-	)
-	new_stats.weapons[0].interceptable = interceptable
-	return new_stats

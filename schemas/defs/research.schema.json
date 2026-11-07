@@ -3,57 +3,147 @@
 	"type": "object",
 	"description": "A research project.",
 	"properties": {
-		"revision": {"$ref": "_common#/$defs/revision"},
-		"display_name": {"type": "string", "minLength": 1},
-		"implemented": {"type": "boolean"},
-		"offered": {"type": "boolean", "description": "Whether this implemented project may be offered as a research card."},
-		"description": {"type": "string", "maxLength": 160, "x-text": true, "description": "One short gameplay sentence shown on the card."},
-		"equipment_requirement": {"type": "string", "x-text": true, "description": "Actionable message when matching deployed equipment is missing."},
-		"cost_rp": {"type": "integer", "minimum": 0},
-		"prerequisite_ids": {"type": "array", "items": {"type": "string", "x-ref": "research"}, "uniqueItems": true},
-		"story_gate_ids": {"type": "array", "items": {"type": "string", "x-ref": "story_gate"}, "uniqueItems": true},
-		"family_id": {"anyOf": [{"const": ""}, {"type": "string", "minLength": 1, "x-ref": "research_family"}]},
-		"path_id": {"$ref": "_common#/$defs/optional_key"},
-		"exclusion_ids": {"type": "array", "items": {"type": "string", "x-ref": "research"}, "uniqueItems": true},
+		"revision": {
+			"$ref": "_common#/$defs/revision"
+		},
+		"display_name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"implemented": {
+			"type": "boolean"
+		},
+		"offered": {
+			"type": "boolean",
+			"description": "Whether this implemented project may be offered as a research card."
+		},
+		"description": {
+			"type": "string",
+			"maxLength": 160,
+			"x-text": true,
+			"description": "One short gameplay sentence shown on the card."
+		},
+		"equipment_requirement": {
+			"type": "string",
+			"x-text": true,
+			"description": "Actionable message when matching deployed equipment is missing."
+		},
+		"cost_rp": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"prerequisite_ids": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"x-ref": "research"
+			},
+			"uniqueItems": true
+		},
+		"story_gate_ids": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"x-ref": "story_gate"
+			},
+			"uniqueItems": true
+		},
+		"family_id": {
+			"anyOf": [
+				{
+					"const": ""
+				},
+				{
+					"type": "string",
+					"minLength": 1,
+					"x-ref": "research_family"
+				}
+			]
+		},
+		"path_id": {
+			"$ref": "_common#/$defs/optional_key"
+		},
+		"exclusion_ids": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"x-ref": "research"
+			},
+			"uniqueItems": true
+		},
 		"grants": {
 			"type": "object",
 			"description": "What completing the project unlocks.",
 			"properties": {
-				"equipment_ids": {"type": "array", "items": {"type": "string", "x-ref": "part"}, "uniqueItems": true},
+				"equipment_ids": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"x-ref": "part"
+					},
+					"uniqueItems": true
+				},
 				"ranks": {
 					"type": "array",
 					"items": {
 						"type": "object",
-						"properties": {"equipment_id": {"type": "string", "x-ref": "part"}, "rank": {"type": "integer", "minimum": 1}},
-						"required": ["equipment_id", "rank"],
+						"properties": {
+							"equipment_id": {
+								"type": "string",
+								"x-ref": "part"
+							},
+							"rank": {
+								"type": "integer",
+								"minimum": 1
+							}
+						},
+						"required": [
+							"equipment_id",
+							"rank"
+						],
 						"additionalProperties": false
 					}
 				},
-				"ability_ids": {"type": "array", "items": {"type": "string", "x-ref": "ability"}, "uniqueItems": true},
+				"ability_ids": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"x-ref": "ability"
+					},
+					"uniqueItems": true
+				},
 				"modifiers": {
 					"type": "array",
 					"items": {
-						"type": "object",
-						"description": "A research modifier.",
-						"properties": {
-							"id": {"$ref": "_common#/$defs/key"},
-							"value": {"type": ["number", "boolean"]},
-							"values": {"type": "array", "items": {"type": "string"}},
-							"refill_existing": {"type": "boolean"}
-						},
-						"required": ["id"],
-						"additionalProperties": false
+						"$ref": "_research_modifiers"
 					}
 				}
 			},
-			"required": ["equipment_ids", "ranks", "ability_ids", "modifiers"],
+			"required": [
+				"equipment_ids",
+				"ranks",
+				"ability_ids",
+				"modifiers"
+			],
 			"additionalProperties": false
 		},
-		"equipment_capabilities_any": {"$ref": "_common#/$defs/keys"}
+		"equipment_capabilities_any": {
+			"$ref": "_common#/$defs/keys"
+		}
 	},
 	"required": [
-		"revision", "display_name", "implemented", "offered", "description", "cost_rp", "prerequisite_ids", "story_gate_ids", "family_id",
-		"path_id", "exclusion_ids", "grants"
+		"revision",
+		"display_name",
+		"implemented",
+		"offered",
+		"description",
+		"cost_rp",
+		"prerequisite_ids",
+		"story_gate_ids",
+		"family_id",
+		"path_id",
+		"exclusion_ids",
+		"grants"
 	],
 	"additionalProperties": false
 }

@@ -2,11 +2,6 @@ class_name ResearchCombat
 extends RefCounted
 
 const EFFECTS := ["prismatic_lasers", "splinter_missiles", "pulse_shields"]
-const RAMP_SECONDS := 4.0
-const SPLIT_DISTANCE := 100.0
-const SPLIT_RADIUS := 140.0
-const PULSE_INTERVAL := 8.0
-const PULSE_FRACTION := 0.25
 var enabled: Dictionary = {}
 var channels: Dictionary = {}
 var bursts: Dictionary = {}
@@ -47,11 +42,11 @@ func begin_step(sim, delta: float) -> void:
 			shield_clocks.erase(member.entity_id)
 			continue
 		var clock: float = float(shield_clocks.get(member.entity_id, 0.0)) + delta
-		var pulses := floori((clock + 0.000001) / PULSE_INTERVAL)
+		var pulses := floori((clock + 0.000001) / float(SharedSupport.parameters("pulse_shield").interval))
 		if pulses > 0:
-			clock = maxf(0, clock - pulses * PULSE_INTERVAL)
+			clock = maxf(0, clock - pulses * float(SharedSupport.parameters("pulse_shield").interval))
 			if not sim.abilities.suppressed(member):
-				var restored: float = minf(member.stats.shields - member.shields, member.stats.shields * PULSE_FRACTION * pulses)
+				var restored: float = minf(member.stats.shields - member.shields, member.stats.shields * float(SharedSupport.parameters("pulse_shield").fraction) * pulses)
 				if restored > 0:
 					member.shields += restored
 					pulse_rings.append({"source": member.entity_id, "remaining": 0.6})
@@ -66,8 +61,11 @@ func end_step(sim) -> void:
 			channels.erase(key)
 
 static func ramp_integral(time: float) -> float:
-	var ramp := minf(time, RAMP_SECONDS)
-	return ramp + ramp * ramp / (2 * RAMP_SECONDS) + maxf(0, time - RAMP_SECONDS) * 2
+	var parameters := SharedSupport.parameters("prismatic")
+	var seconds := float(parameters.ramp_seconds)
+	var maximum := float(parameters.max_multiplier)
+	var ramp := minf(time, seconds)
+	return ramp + ramp * ramp * (maximum - 1) / (2 * seconds) + maxf(0, time - seconds) * maximum
 
 func fire_laser(sim, source, index: int, weapon: ShipWeaponStats, origin: Vector2, delta: float) -> void:
 	var key := "%s/%d" % [source.entity_id, index]
@@ -108,7 +106,7 @@ func fire_laser(sim, source, index: int, weapon: ShipWeaponStats, origin: Vector
 	beam.target = target
 	beam.aim_position = target.position
 	beam.lifetime = 0.16
-	beam.intensity = 1 + minf(channel.held / RAMP_SECONDS, 1)
+	beam.intensity = 1 + minf(channel.held / float(SharedSupport.parameters("prismatic").ramp_seconds), 1) * (float(SharedSupport.parameters("prismatic").max_multiplier) - 1)
 	if beam not in sim.beams:
 		sim.beams.append(beam)
 	sim._damage(target, weapon.damage_per_shot * fraction, origin, source, weapon.weapon_name, false, true, fraction)
@@ -119,20 +117,20 @@ func synchronize(source, index: int, weapon: ShipWeaponStats) -> void:
 
 func split(sim, parent) -> bool:
 	if not parent.splinter or parent.guidance_lost or not parent.target.is_alive() \
-		or parent.position.distance_to(parent.target.position) > SPLIT_DISTANCE \
+		or parent.position.distance_to(parent.target.position) > float(SharedSupport.parameters("splinter").distance) \
 		or (sim.visibility_enabled and not sim.team_can_see(BattleSimulation.Faction.PLAYER, parent.target)):
 		return false
 	var targets: Array = [parent.target]
 	for candidate in sim._members:
 		if candidate != parent.target and candidate.is_alive() and candidate.targetable and candidate.automatic_targetable \
 			and candidate.faction == parent.target.faction and candidate.has_tag("combatant") \
-			and candidate.position.distance_to(parent.target.position) <= SPLIT_RADIUS \
+			and candidate.position.distance_to(parent.target.position) <= float(SharedSupport.parameters("splinter").radius) \
 			and (not sim.visibility_enabled or sim.team_can_see(BattleSimulation.Faction.PLAYER, candidate)):
 			targets.append(candidate)
-			if targets.size() == 3:
+			if targets.size() == int(SharedSupport.parameters("splinter").count):
 				break
 	sim._add_pending_damage(parent.target, -parent.damage)
-	for index in range(3):
+	for index in range(int(SharedSupport.parameters("splinter").count)):
 		var child := BattleSimulation.Projectile.new()
 		child.source = parent.source
 		child.origin = parent.position
@@ -146,15 +144,15 @@ func split(sim, parent) -> bool:
 		var multiplier := 1.0
 		if parent.source != null and parent.source.owned_ship is HangarShip:
 			multiplier = ResearchUpgrades.value(parent.source.owned_ship.research_modifiers, "fragment_damage_multiplier")
-		child.damage = parent.damage * 0.5 * multiplier
+		child.damage = parent.damage * float(SharedSupport.parameters("splinter").damage_fraction) * multiplier
 		child.hull_damage_multiplier = parent.hull_damage_multiplier
 		child.is_player = true
 		child.interceptable = true
-		child.speed = parent.speed * 1.5
+		child.speed = parent.speed * float(SharedSupport.parameters("splinter").speed_multiplier)
 		child.fragment = true
 		sim.projectiles.append(child)
 		sim._add_pending_damage(child.target, child.damage)
-	sim._record_event("missile_split", {"source": parent.source.entity_id, "target": parent.target.entity_id, "fragments": 3})
+	sim._record_event("missile_split", {"source": parent.source.entity_id, "target": parent.target.entity_id, "fragments": SharedSupport.parameters("splinter").count})
 	return true
 
 func snapshot() -> Dictionary:

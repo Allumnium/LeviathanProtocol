@@ -1,0 +1,491 @@
+{
+	"def": "enemy_unit",
+	"defs": [
+		{
+			"id": "scout",
+			"revision": 1,
+			"display_name": "Scout",
+			"role": "scout",
+			"kind": "ship",
+			"art": "res://assets/aliens/drone_scout_d.png",
+			"tier_art": "res://assets/aliens/drone_scout_d.png",
+			"tier_art_scale": 1,
+			"cost": 16,
+			"stats": {
+				"shields": 0,
+				"integrity": 6,
+				"weight": 8,
+				"thrust": 24,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Scout Pulse",
+						"interval": 1.2,
+						"damage": 0.6,
+						"count": 1,
+						"range": 570,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 1,
+					"cost": 2.25,
+					"hull": 1.8,
+					"damage": 1.6,
+					"weight": 1.5,
+					"thrust": 1.125
+				},
+				{
+					"rank": 2,
+					"cost": 3.75,
+					"hull": 2.6,
+					"damage": 2.2,
+					"weight": 2,
+					"thrust": 1.25
+				}
+			]
+		},
+		{
+			"id": "fighter",
+			"revision": 1,
+			"display_name": "Fighter",
+			"role": "fighter",
+			"kind": "ship",
+			"art": "res://assets/drone_fighter.png",
+			"tier_art": "res://assets/aliens/drone_large_wing_d.png",
+			"tier_art_scale": 1.5,
+			"cost": 22,
+			"stats": {
+				"shields": 1,
+				"integrity": 8,
+				"weight": 14,
+				"thrust": 18,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Plasma Cannon",
+						"interval": 0.8,
+						"damage": 0.7,
+						"count": 1,
+						"range": 540,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 1,
+					"cost": 2.25,
+					"hull": 1.8,
+					"damage": 1.6,
+					"weight": 1.5,
+					"thrust": 1.125
+				},
+				{
+					"rank": 2,
+					"cost": 3.75,
+					"hull": 2.6,
+					"damage": 2.2,
+					"weight": 2,
+					"thrust": 1.25
+				}
+			]
+		},
+		{
+			"id": "sentinel",
+			"revision": 1,
+			"display_name": "Sentinel",
+			"role": "sentinel",
+			"kind": "ship",
+			"art": "res://assets/aliens/drone_sentinel_d.png",
+			"tier_art": "res://assets/aliens/drone_sentinel_d.png",
+			"tier_art_scale": 1,
+			"cost": 30,
+			"stats": {
+				"shields": 3,
+				"integrity": 14,
+				"weight": 36,
+				"thrust": 6,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Sentinel Beam",
+						"interval": 2,
+						"damage": 1.4,
+						"count": 1,
+						"range": 690,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 1,
+					"cost": 2.25,
+					"hull": 1.8,
+					"damage": 1.6,
+					"weight": 1.5,
+					"thrust": 1.125
+				},
+				{
+					"rank": 2,
+					"cost": 3.75,
+					"hull": 2.6,
+					"damage": 2.2,
+					"weight": 2,
+					"thrust": 1.25
+				}
+			]
+		},
+		{
+			"id": "support",
+			"revision": 1,
+			"display_name": "Support",
+			"role": "support",
+			"kind": "ship",
+			"art": "res://assets/aliens/drone_support_d.png",
+			"tier_art": "res://assets/aliens/drone_support_d.png",
+			"tier_art_scale": 1,
+			"cost": 26,
+			"stats": {
+				"shields": 2,
+				"integrity": 8,
+				"weight": 18,
+				"thrust": 12,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Support Pulse",
+						"interval": 2.5,
+						"damage": 1,
+						"count": 1,
+						"range": 630,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 1,
+					"cost": 2.25,
+					"hull": 1.8,
+					"damage": 1.6,
+					"weight": 1.5,
+					"thrust": 1.125
+				},
+				{
+					"rank": 2,
+					"cost": 3.75,
+					"hull": 2.6,
+					"damage": 2.2,
+					"weight": 2,
+					"thrust": 1.25
+				}
+			]
+		},
+		{
+			"id": "chrysalis",
+			"revision": 1,
+			"display_name": "Chrysalis",
+			"role": "chrysalis",
+			"kind": "ship",
+			"art": "res://assets/aliens/drone_chrysalis_d.png",
+			"tier_art": "res://assets/aliens/drone_large_sporeback_d.png",
+			"tier_art_scale": 1.5,
+			"cost": 32,
+			"stats": {
+				"shields": 2,
+				"integrity": 12,
+				"weight": 28,
+				"thrust": 9,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Spore Launcher",
+						"interval": 1.5,
+						"damage": 1,
+						"count": 1,
+						"range": 600,
+						"projectile": false,
+						"interceptable": true
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 1,
+					"cost": 2.25,
+					"hull": 1.8,
+					"damage": 1.6,
+					"weight": 1.5,
+					"thrust": 1.125
+				},
+				{
+					"rank": 2,
+					"cost": 3.75,
+					"hull": 2.6,
+					"damage": 2.2,
+					"weight": 2,
+					"thrust": 1.25
+				}
+			]
+		},
+		{
+			"id": "warden/body",
+			"revision": 1,
+			"display_name": "Bastion Warden",
+			"role": "warden",
+			"kind": "ship",
+			"art": "res://assets/aliens/drone_sentinel_d.png",
+			"tier_art": "res://assets/aliens/drone_sentinel_d.png",
+			"tier_art_scale": 1,
+			"cost": 1,
+			"stats": {
+				"shields": 0,
+				"integrity": 1,
+				"weight": 60,
+				"thrust": 2,
+				"collision_radius": 26,
+				"weapons": [
+					{
+						"name": "Warden Pulse",
+						"interval": 1.4,
+						"damage": 0.8,
+						"count": 1,
+						"range": 630,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				}
+			]
+		},
+		{
+			"id": "warden/pylon",
+			"revision": 1,
+			"display_name": "Shield Pylon",
+			"role": "pylon",
+			"kind": "organ",
+			"art": "res://assets/shield.png",
+			"tier_art": "res://assets/shield.png",
+			"tier_art_scale": 1,
+			"cost": 1,
+			"stats": {
+				"shields": 0,
+				"integrity": 1,
+				"weight": 20,
+				"thrust": 0,
+				"collision_radius": 12,
+				"weapons": [
+					{
+						"name": "Pylon Pulse",
+						"interval": 2.5,
+						"damage": 0.2,
+						"count": 1,
+						"range": 630,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				}
+			]
+		},
+		{
+			"id": "framework/organ",
+			"revision": 1,
+			"display_name": "Sentinel",
+			"role": "sentinel",
+			"kind": "organ",
+			"art": "res://assets/aliens/drone_sentinel_d.png",
+			"tier_art": "res://assets/aliens/drone_sentinel_d.png",
+			"tier_art_scale": 1,
+			"cost": 20,
+			"stats": {
+				"shields": 8,
+				"integrity": 12,
+				"weight": 36,
+				"thrust": 0,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Sentinel Beam",
+						"interval": 2,
+						"damage": 0.5,
+						"count": 1,
+						"range": 690,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				}
+			]
+		},
+		{
+			"id": "framework/craft",
+			"revision": 1,
+			"display_name": "Scout",
+			"role": "scout",
+			"kind": "craft",
+			"art": "res://assets/aliens/drone_scout_d.png",
+			"tier_art": "res://assets/aliens/drone_scout_d.png",
+			"tier_art_scale": 1,
+			"cost": 6,
+			"stats": {
+				"shields": 0,
+				"integrity": 1,
+				"weight": 8,
+				"thrust": 12,
+				"collision_radius": 18,
+				"weapons": [
+					{
+						"name": "Scout Pulse",
+						"interval": 1.2,
+						"damage": 0.25,
+						"count": 1,
+						"range": 570,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				}
+			]
+		},
+		{
+			"id": "chrysalis_drone",
+			"revision": 1,
+			"display_name": "Chrysalis Drone",
+			"role": "drone",
+			"kind": "craft",
+			"art": "res://assets/aliens/drone_scout_d.png",
+			"tier_art": "res://assets/aliens/drone_scout_d.png",
+			"tier_art_scale": 1,
+			"cost": 0,
+			"stats": {
+				"shields": 0,
+				"integrity": 1.5,
+				"weight": 3,
+				"thrust": 12,
+				"collision_radius": 6,
+				"weapons": [
+					{
+						"name": "Drone Pulse",
+						"interval": 1.2,
+						"damage": 0.2,
+						"count": 1,
+						"range": 140,
+						"projectile": false,
+						"interceptable": false
+					}
+				]
+			},
+			"tiers": [
+				{
+					"rank": 0,
+					"cost": 1,
+					"hull": 1,
+					"damage": 1,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 1,
+					"cost": 2.25,
+					"hull": 1.8,
+					"damage": 1.6,
+					"weight": 1,
+					"thrust": 1
+				},
+				{
+					"rank": 2,
+					"cost": 3.75,
+					"hull": 2.6,
+					"damage": 2.2,
+					"weight": 1,
+					"thrust": 1
+				}
+			]
+		}
+	]
+}

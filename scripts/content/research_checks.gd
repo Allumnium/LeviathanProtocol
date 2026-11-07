@@ -29,6 +29,11 @@ static func validate(data: Dictionary, meta: Dictionary, db: DefDatabase) -> Arr
 		grant_count += data.grants[field].size()
 	if data.implemented and data.id != "foundation" and grant_count == 0:
 		problems.append({"path": "grants", "message": "Implemented research must grant an effect."})
+	if data.offered:
+		for id: String in data.grants.ability_ids:
+			var ability := db.get_def("ability", id, meta.pack)
+			if not ability.is_empty() and ability.get("availability") == "unavailable":
+				problems.append({"path": "grants.ability_ids", "causes": [{"type": "ability", "id": db.resolve_id("ability", id, meta.pack), "path": "availability"}], "message": "Offered research cannot grant an unavailable ability."})
 	var materials: Array[String] = []
 	for material: Dictionary in db.all("material"):
 		materials.append(str(material.id))
@@ -38,7 +43,7 @@ static func validate(data: Dictionary, meta: Dictionary, db: DefDatabase) -> Arr
 		if modifier_ids.has(modifier.id):
 			problems.append({"path": path, "message": "Research repeats modifier '%s'." % modifier.id})
 		modifier_ids[modifier.id] = true
-		if not Modifiers.valid(modifier, materials):
+		if not Modifiers.valid(modifier, materials, db.schemas):
 			problems.append({"path": path, "message": "Unknown modifier or invalid parameters for '%s'." % modifier.id})
 	# A bounded graph walk catches direct and transitive cycles without recursion.
 	var pending: Array = []

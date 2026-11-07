@@ -150,32 +150,7 @@
 				"modifiers": {
 					"type": "array",
 					"items": {
-						"type": "object",
-						"description": "A research modifier.",
-						"properties": {
-							"id": {
-								"$ref": "_common.schema.json#/$defs/key"
-							},
-							"value": {
-								"type": [
-									"number",
-									"boolean"
-								]
-							},
-							"values": {
-								"type": "array",
-								"items": {
-									"type": "string"
-								}
-							},
-							"refill_existing": {
-								"type": "boolean"
-							}
-						},
-						"required": [
-							"id"
-						],
-						"additionalProperties": false
+						"$ref": "_research_modifiers"
 					}
 				}
 			},

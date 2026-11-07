@@ -34,7 +34,7 @@ func enemy(role := "fighter") -> AlienShip:
 	stats.integrity = 5000
 	stats.weight = 10
 	stats.weapons.append(ShipWeaponStats.new("Fixture pulse", 100, 0.01, 1, 1))
-	var result := AlienShip.new("Fixture", AlienShip.SCOUT_TEXTURE, stats)
+	var result := AlienShip.new("Fixture", load(AlienShip.definition("core:scout").art), stats)
 	result.role_id = role
 	return result
 

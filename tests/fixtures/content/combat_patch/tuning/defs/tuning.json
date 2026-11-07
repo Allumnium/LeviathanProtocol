@@ -1,0 +1,148 @@
+{
+	"def": "patch",
+	"defs": [
+		{
+			"id": "scout_cost",
+			"target_def": "enemy_unit",
+			"target": "core:scout",
+			"set": {
+				"cost": 8
+			}
+		},
+		{
+			"id": "waves",
+			"target_def": "encounter",
+			"target": "core:relay_defense",
+			"set": {
+				"allocation.waves": 2,
+				"reward_multiplier": 1.2
+			}
+		},
+		{
+			"id": "copies",
+			"target_def": "encounter_tuning",
+			"target": "core:default",
+			"set": {
+				"fleet_multiplier": 2
+			}
+		},
+		{
+			"id": "healing",
+			"target_def": "support",
+			"target": "core:repair_aura",
+			"set": {
+				"parameters.rate": 3,
+				"parameters.range": 260
+			}
+		},
+		{
+			"id": "repairs",
+			"target_def": "support",
+			"target": "core:repair_station",
+			"set": {
+				"parameters.rate": 3,
+				"parameters.reserve": 30
+			}
+		},
+		{
+			"id": "relay",
+			"target_def": "support",
+			"target": "core:shield_relay",
+			"set": {
+				"parameters.rate": 3,
+				"parameters.range": 210
+			}
+		},
+		{
+			"id": "mark",
+			"target_def": "support",
+			"target": "core:mark",
+			"set": {
+				"parameters.duration": 6,
+				"parameters.cooldown": 18,
+				"parameters.damage_multiplier": 1.25
+			}
+		},
+		{
+			"id": "synchronization",
+			"target_def": "support",
+			"target": "core:synchronization",
+			"set": {
+				"parameters.interval": 9
+			}
+		},
+		{
+			"id": "ammunition",
+			"target_def": "support",
+			"target": "core:ammunition_cycle",
+			"set": {
+				"parameters.bonus": 0.3
+			}
+		},
+		{
+			"id": "shield",
+			"target_def": "support",
+			"target": "core:shield",
+			"set": {
+				"parameters.delay": 2,
+				"parameters.recharge_fraction": 0.06
+			}
+		},
+		{
+			"id": "ion_damage",
+			"target_def": "support",
+			"target": "core:ion_damage",
+			"set": {
+				"parameters.shield_multiplier": 3,
+				"parameters.hull_multiplier": 0.75
+			}
+		},
+		{
+			"id": "prismatic",
+			"target_def": "support",
+			"target": "core:prismatic",
+			"set": {
+				"parameters.ramp_seconds": 3,
+				"parameters.max_multiplier": 2.5
+			}
+		},
+		{
+			"id": "splinter",
+			"target_def": "support",
+			"target": "core:splinter",
+			"set": {
+				"parameters.count": 4,
+				"parameters.damage_fraction": 0.4
+			}
+		},
+		{
+			"id": "pulse",
+			"target_def": "support",
+			"target": "core:pulse_shield",
+			"set": {
+				"parameters.interval": 6,
+				"parameters.fraction": 0.3
+			}
+		},
+		{
+			"id": "ion_pulse",
+			"target_def": "ability",
+			"target": "core:ion_pulse",
+			"set": {
+				"cooldown_seconds": 18,
+				"range_units": 360,
+				"duration_seconds": 3,
+				"parameters.visual_radius": 18
+			}
+		},
+		{
+			"id": "lance",
+			"target_def": "encounter",
+			"target": "core:bastion_warden",
+			"set": {
+				"warden.rules.cycle_seconds": 10,
+				"warden.rules.warning_seconds": 2
+			}
+		}
+	]
+}
