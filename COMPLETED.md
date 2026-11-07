@@ -2,6 +2,10 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-07 - P1 content foundation (in progress)
+
+- [StableHash](scripts/core/stable_hash.gd) (FNV-1a 64-bit in 32-bit limbs), [StableRng](scripts/core/stable_rng.gd) (xoshiro128** with Murmur3-mixed seeds) and [RngStreams](scripts/core/rng_streams.gd) keyed by seed, stream, scope and persisted counter. [test_stable_rng.gd](tests/test_stable_rng.gd): 27 checks, zero failures, against independent reference vectors.
+
 ## 2026-11-07 - Scenario architecture plan
 
 - Added [the scenario architecture](docs/SCENARIO_ARCHITECTURE.md): data-only content packs with schemas, inheritance and patches; a safe formula language; facts, stats and pressures; transactional hooks and effects; quests with casting, child arcs and fronts; scenes, grammars, response lines and chronicle; rules; a tension-curve director; factions and data-driven encounters; staged galaxy generation; Leviathan, Adventure and Homeward modes; the in-game Scenario Editor; balance tools; and Workshop packaging. Recorded phases P1-P9 in TODO.

@@ -9,7 +9,6 @@ Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS
 Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
 
 - [ ] P1 Content foundation:
-  - [ ] Stable FNV-1a hash and named RNG streams.
   - [ ] Pack manifests/loader (`res://packs`, `user://packs`), dependency order and Problems.
   - [ ] Schema registry and validator (JSON Schema subset with `x-ref`/`x-expr`/`x-text`/`x-asset`/`x-editor`), `parent`/`abstract` inheritance and patch defs.
   - [ ] Formula language: lexer, Pratt parser, type checker, closure evaluator and function registry.
