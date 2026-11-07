@@ -1,0 +1,26 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A fitted fleet. Member IDs identify groups for patching; positions use saved formation coordinates.",
+	"properties": {
+		"members": {
+			"type": "array", "minItems": 1, "maxItems": 192,
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {"$ref": "_common#/$defs/key"},
+					"chassis": {"type": "string", "x-ref": "chassis"},
+					"selected_flagship": {"const": true},
+					"count": {"type": "integer", "minimum": 1, "maximum": 192},
+					"position": {"$ref": "_common#/$defs/vec2"},
+					"spacing": {"type": "number", "exclusiveMinimum": 0, "maximum": 100}
+				},
+				"required": ["id", "count", "position", "spacing"],
+				"oneOf": [{"required": ["chassis"]}, {"required": ["selected_flagship"]}],
+				"additionalProperties": false
+			}
+		}
+	},
+	"required": ["members"],
+	"additionalProperties": false
+}

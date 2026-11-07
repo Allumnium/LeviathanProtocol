@@ -30,6 +30,12 @@
 			"type": "string",
 			"minLength": 1
 		},
+		"default_loadout": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use a loadout ID such as name or pack:name",
+			"description": "ID of a loadout def."
+		},
 		"description": {
 			"type": "string"
 		},
@@ -176,6 +182,7 @@
 	"else": {
 		"required": [
 			"name",
+			"default_loadout",
 			"art",
 			"price",
 			"integrity",

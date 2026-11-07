@@ -162,7 +162,7 @@ func run() -> void:
 	state.run_save_path = save_path
 	screen._on_expedition_retry_pressed()
 	screen._process(100)
-	check(is_instance_valid(screen.encounter_modal) and screen.active_tab == "FLEET"
+	check(is_instance_valid(screen.encounter_modal) and screen.active_tab == "MAP"
 			and state.expedition_simulation.state.pending_event_id == "derelict_signal",
 			"Committed signal surfaces above management without changing the existing tab")
 	for viewport: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:

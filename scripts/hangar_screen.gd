@@ -879,12 +879,12 @@ func _refresh_expedition_controls() -> void:
 	missile_readout.text = "MISSILES %d" % GameState.missiles
 	var ammunition_error: String = GameState.station_service_error("ammunition")
 	missile_buy_button.visible = ammunition_error.is_empty()
-	missile_buy_button.disabled = GameState.credits < GameState.MISSILE_PACK_PRICE
+	missile_buy_button.disabled = GameState.credits < GameState.missile_quote().price
 	var docked: Dictionary = simulation.locations.get(state.docked_location_id, {})
 	travel_refuel_button.visible = not docked.is_empty() \
 			and "refuel" in simulation.services_for(docked) and state.fuel < state.fuel_capacity \
 			and not is_instance_valid(station_actions)
-	var refuel_cost := int(ceil((state.fuel_capacity - state.fuel) * 2.0))
+	var refuel_cost := GameState.refuel_cost()
 	travel_refuel_button.text = "REFUEL %d" % refuel_cost
 	travel_refuel_button.disabled = not GameState.station_service_error("refuel").is_empty() or GameState.credits < refuel_cost
 	travel_retry_button.visible = ExpeditionStateData.PauseReason.SAVE_ERROR in state.pause_reasons
@@ -1098,7 +1098,7 @@ func _build_travel_controls(top: Container, footer: HBoxContainer) -> void:
 	missile_readout.mouse_filter = MOUSE_FILTER_IGNORE
 	missile_readout.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	footer.add_child(missile_readout)
-	missile_buy_button = _button_with_sound("+%d MISSILES / %d cr" % [GameState.MISSILE_PACK, GameState.MISSILE_PACK_PRICE],
+	missile_buy_button = _button_with_sound("+%d MISSILES / %d cr" % [GameState.missile_quote().count, GameState.missile_quote().price],
 		_on_buy_missiles_pressed, &"")
 	missile_buy_button.name = "BuyMissiles"
 	footer.add_child(missile_buy_button)
@@ -1155,7 +1155,7 @@ func _sync_station_actions() -> void:
 	var docked: bool = not here.is_empty() and simulation.state.docked_location_id == here
 	var repair_cost: int = GameState.fleet_repair_cost()
 	var state = simulation.state
-	var refuel_cost := ceili((state.fuel_capacity - state.fuel) * 2.0)
+	var refuel_cost := GameState.refuel_cost()
 	var retry: Dictionary = simulation.retry_event_here()
 	var blocked: bool = not state.pending_event_id.is_empty() or GameState.battle_pending \
 			or GameState.completed or GameState.run_ended
@@ -1342,7 +1342,7 @@ func _on_expedition_refuel_pressed() -> void:
 	var state = GameState.expedition_simulation.state
 	var can_refuel: bool = GameState.station_service_error("refuel").is_empty() \
 		and state.fuel_capacity - state.fuel > 0.000001 \
-		and GameState.credits >= ceili((state.fuel_capacity - state.fuel) * 2.0)
+		and GameState.credits >= GameState.refuel_cost()
 	if not GameState.refuel_expedition():
 		expedition_status_override = GameState.last_save_error
 		if can_refuel:
@@ -1355,7 +1355,7 @@ func _on_expedition_refuel_pressed() -> void:
 
 func _on_buy_missiles_pressed() -> void:
 	var eligible: bool = GameState.station_service_error("ammunition").is_empty() \
-		and GameState.credits >= GameState.MISSILE_PACK_PRICE
+		and GameState.credits >= GameState.missile_quote().price
 	if GameState.buy_missiles():
 		expedition_status_override = ""
 		AudioManager.play_ui_sfx(&"loot")

@@ -70,7 +70,7 @@ func run() -> void:
 	var sim := battle()
 	check(state.pending_encounter.rewards.fuel == 8, "Authored fuel reward frozen into encounter")
 	check(state.settle_battle(sim) and state.expedition_simulation.state.fuel == 100
-		and state.missiles == state.STARTING_MISSILES + 12
+		and state.missiles == int(Content.get_def("run_start", "leviathan:charter").missiles) + 12
 		and state.last_equipment_loot.contains("+4.0 fuel")
 		and state.last_equipment_loot.contains("+12 missiles"), "Victory reports actual recovered fuel and salvaged missiles")
 

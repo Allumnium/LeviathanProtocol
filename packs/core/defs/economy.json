@@ -1,0 +1,11 @@
+{
+	"def": "economy",
+	"id": "default",
+	"passenger_fare": 8,
+	"passenger_death_fee": 20,
+	"missile_pack_size": 10,
+	"missile_pack_price": 50,
+	"fuel_unit_price": 2.0,
+	"tow_base_fee": 100.0,
+	"tow_per_nav_unit": 0.2
+}

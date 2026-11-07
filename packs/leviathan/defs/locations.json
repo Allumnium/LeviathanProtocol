@@ -3,6 +3,7 @@
 	"defs": [
 		{
 			"id": "start_station",
+			"trade_id": 0,
 			"name": "Haven Dock",
 			"act": 1,
 			"kind": "station",
@@ -24,6 +25,7 @@
 		},
 		{
 			"id": "refuel_station_1",
+			"trade_id": 1,
 			"name": "Port Meridian",
 			"act": 1,
 			"kind": "station",
@@ -45,6 +47,7 @@
 		},
 		{
 			"id": "derelict_1",
+			"trade_id": 2,
 			"name": "Derelict Field",
 			"act": 1,
 			"kind": "poi",
@@ -59,6 +62,7 @@
 		},
 		{
 			"id": "distress_1",
+			"trade_id": 3,
 			"name": "Distress Beacon",
 			"act": 1,
 			"kind": "poi",
@@ -73,6 +77,7 @@
 		},
 		{
 			"id": "anomaly_1",
+			"trade_id": 4,
 			"name": "Pale Nebula",
 			"act": 1,
 			"kind": "poi",
@@ -87,6 +92,7 @@
 		},
 		{
 			"id": "settlement_1",
+			"trade_id": 5,
 			"name": "Frontier Settlement",
 			"act": 1,
 			"kind": "station",
@@ -102,6 +108,7 @@
 		},
 		{
 			"id": "meridian_outpost",
+			"trade_id": 6,
 			"name": "Bastion Anchorage",
 			"act": 1,
 			"kind": "station",
@@ -123,6 +130,7 @@
 		},
 		{
 			"id": "act_2_gate",
+			"trade_id": 7,
 			"name": "Bastion Gate",
 			"act": 2,
 			"kind": "gate",
@@ -137,6 +145,8 @@
 		},
 		{
 			"id": "refuel_station_2",
+			"trade_id": 8,
+			"goods_unit_value": 6,
 			"name": "Act II Refueling Station",
 			"act": 2,
 			"kind": "station",
@@ -150,6 +160,7 @@
 		},
 		{
 			"id": "act_3_gate",
+			"trade_id": 9,
 			"name": "Act III Region Gate",
 			"act": 3,
 			"kind": "gate",
@@ -163,6 +174,8 @@
 		},
 		{
 			"id": "refuel_station_3",
+			"trade_id": 10,
+			"goods_unit_value": 6,
 			"name": "Act III Refueling Station",
 			"act": 3,
 			"kind": "station",

@@ -30,9 +30,9 @@ func run() -> void:
 			and state.fleet[1].chassis_id == "transport" and state.fleet[2].chassis_id == "fighter"
 			and state.fleet.slice(3).all(func(ship: HangarShip) -> bool: return ship.chassis_id == "drone"),
 			"Starting fleet includes selected flagship, Transport, Fighter and ten Drones")
-		check(state.fleet[0].formation == Vector2.ZERO and state.fleet[1].formation == Vector2(0, 1.1)
-			and state.fleet[2].formation == Vector2(0, -1.25),
-			"Starter formation centers flagship with forward Fighter and rear Transport")
+		check(state.fleet[0].formation == Vector2.ZERO and state.fleet[1].formation == Vector2(-0.85, 0)
+			and state.fleet[2].formation == Vector2(0, -0.8),
+			"Starter formation preserves the shared Fleet and battle layout")
 		check(state.fleet.filter(func(ship: HangarShip) -> bool: return ship.flagship).size() == 1
 			and state.get_deployed_fleet().size() == 13, "Exactly one mandatory flagship and all starter ships deploy")
 		var fitted := 0
@@ -47,8 +47,8 @@ func run() -> void:
 			and state.can_deploy(), "Defensive flagship has doubled built-in shields; others retain one plus fitted generators")
 		check(HangarCheckpoint.valid(state.hangar_snapshot()) and state.save_run_checkpoint()
 			and state.load_run_checkpoint() and state.fleet[0].chassis_id == chassis.id, "Selected flagship roundtrips atomically")
-		check(state.fleet[1].formation.is_equal_approx(Vector2(0, 1.1))
-			and state.fleet[2].formation == Vector2(0, -1.25),
+		check(state.fleet[1].formation.is_equal_approx(Vector2(-0.85, 0))
+			and state.fleet[2].formation == Vector2(0, -0.8),
 			"Continue retains starter formation positions")
 		check(not state.buy_ship(chassis.id), "Cannot buy a second flagship")
 		check(state.fleet[0].art_texture is CanvasTexture, "New flagship uses supplied mapped artwork")

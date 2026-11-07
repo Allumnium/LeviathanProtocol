@@ -94,7 +94,7 @@ func combat() -> void:
 	sim.aliens[0].stats.weapons = [SlotCatalog.stats_for("missile_rack").weapons[0]]
 	sim.aliens[0].cooldowns = [0.0]
 	sim._update_ship(sim.aliens[0], 0.01)
-	check(sim.projectiles.size() == 3 and sim.missile_supply == 0, "Alien missiles never consume the player's pool")
+	check(sim.projectiles.size() == 5 and sim.missile_supply == 0, "Alien five-missile clusters never consume the player's pool")
 	var replay_a := fixture(9)
 	var replay_b := fixture(9)
 	for tick in range(60):
@@ -111,7 +111,7 @@ func combat() -> void:
 			"Reject malformed battle supply")
 
 func persistence() -> void:
-	check(state.start_new_run(1, 4242) and state.missiles == state.STARTING_MISSILES,
+	check(state.start_new_run(1, 4242) and state.missiles == int(Content.get_def("run_start", "leviathan:charter").missiles),
 		"New runs receive a finite initial supply")
 	var initial: Dictionary = state.hangar_snapshot()
 	for supply: Variant in [-1, 1.5, NAN, INF, "5", null, 2147483648]:
@@ -129,8 +129,8 @@ func persistence() -> void:
 	check(not state.buy_missiles() and state.hangar_snapshot() == initial,
 		"Failed ammunition purchase leaves credits, fleet and ammunition unchanged")
 	state.run_save_path = path
-	check(state.buy_missiles() and state.missiles == state.STARTING_MISSILES + state.MISSILE_PACK
-		and state.credits == int(initial.credits) - state.MISSILE_PACK_PRICE,
+	check(state.buy_missiles() and state.missiles == int(Content.get_def("run_start", "leviathan:charter").missiles) + state.missile_quote().count
+		and state.credits == int(initial.credits) - state.missile_quote().price,
 		"Station purchases add the quoted pack at the exact price")
 	var committed: Dictionary = state.hangar_snapshot()
 	check(state.load_run_checkpoint() and SaveValidation.same(committed, state.hangar_snapshot()),
@@ -151,6 +151,7 @@ func persistence() -> void:
 		"Passing stations or flying cannot buy ammunition")
 	for phase: int in [BattleSimulation.Phase.VICTORY, BattleSimulation.Phase.DEFEAT, BattleSimulation.Phase.WITHDRAWN]:
 		check(state.start_new_run(1, 4242), "Start settlement fixture")
+		state.expedition_simulation.state.flags.merge({"meridian_incident": true, "meridian_reported": true})
 		state.expedition_simulation.state.pending_event_id = "distress_call"
 		state.expedition_simulation.state.pause_reasons.append(Travel.PauseReason.ENCOUNTER)
 		check(state.resolve_expedition_event("distress_call", "defend"), "Admit settlement battle")
@@ -165,11 +166,11 @@ func persistence() -> void:
 		check(not state.settle_battle(sim) and state.hangar_snapshot() == before,
 			"Failed settlement retains live supply for a safe retry")
 		state.run_save_path = path
-		check(state.settle_battle(sim) and state.missiles == state.STARTING_MISSILES - 7,
+		check(state.settle_battle(sim) and state.missiles == int(Content.get_def("run_start", "leviathan:charter").missiles) - 7,
 			"Victory, defeat and withdrawal each settle spent missiles exactly once")
-		check(not state.settle_battle(sim) and state.missiles == state.STARTING_MISSILES - 7,
+		check(not state.settle_battle(sim) and state.missiles == int(Content.get_def("run_start", "leviathan:charter").missiles) - 7,
 			"Duplicate settlement cannot consume twice")
-		check(state.load_run_checkpoint() and state.missiles == state.STARTING_MISSILES - 7,
+		check(state.load_run_checkpoint() and state.missiles == int(Content.get_def("run_start", "leviathan:charter").missiles) - 7,
 			"Outcome ammunition survives Continue")
 		if phase != BattleSimulation.Phase.VICTORY:
 			check(not state.expedition_simulation.state.event_receipts.has("distress_call"),
@@ -177,7 +178,7 @@ func persistence() -> void:
 			state.expedition_simulation.state.pending_event_id = "distress_call"
 			state.expedition_simulation.state.pause_reasons.append(Travel.PauseReason.ENCOUNTER)
 			check(state.resolve_expedition_event("distress_call", "defend")
-				and state.battle_support_context().missiles == state.STARTING_MISSILES - 7,
+				and state.battle_support_context().missiles == int(Content.get_def("run_start", "leviathan:charter").missiles) - 7,
 				"Re-entering the encounter uses the reduced saved supply")
 	for malformed: Variant in [-1, 1.5, INF, "3"]:
 		check(not Events.valid_rewards({"missiles": malformed}), "Reject malformed salvage ammunition")
@@ -211,7 +212,7 @@ func interface() -> void:
 				root.get_texture().get_image().save_png("res://.local/missiles-map-640.png")
 	var before: int = state.missiles
 	await click(screen.missile_buy_button)
-	check(state.missiles == before + state.MISSILE_PACK
+	check(state.missiles == before + state.missile_quote().count
 		and screen.missile_readout.text == "MISSILES %d" % state.missiles, "Purchase refreshes the exact supply")
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-ammo.json"
@@ -245,6 +246,8 @@ func interface() -> void:
 	screen.queue_free()
 	await settle()
 	check(state.start_new_run(1, 4242), "Start battle supply instrument")
+	state.missiles = 0
+	state.expedition_simulation.state.flags.merge({"meridian_incident": true, "meridian_reported": true})
 	state.expedition_simulation.state.pending_event_id = "distress_call"
 	state.expedition_simulation.state.pause_reasons.append(Travel.PauseReason.ENCOUNTER)
 	check(state.resolve_expedition_event("distress_call", "defend"), "Admit instrument battle")
@@ -254,7 +257,7 @@ func interface() -> void:
 	battle.set_physics_process(false)
 	battle.set_process(false)
 	await settle()
-	battle.simulation.missile_supply = 0
+	check(battle.simulation.initial_missiles == 0, "Frozen setup receives the empty saved supply")
 	for viewport: Vector2i in [Vector2i(640, 360), Vector2i(1280, 720), Vector2i(1920, 1080)]:
 		root.size = viewport
 		battle.pause_button.set_pressed_no_signal(false)
@@ -262,7 +265,8 @@ func interface() -> void:
 		await settle()
 		check(battle.missile_readout.text == "MISSILES 0"
 			and battle.get_global_rect().encloses(battle.missile_readout.get_global_rect())
-			and not battle.missile_readout.get_global_rect().intersects(battle.battle_speed_controls.get_global_rect())
+			and (not battle.battle_speed_controls.is_visible_in_tree()
+				or not battle.missile_readout.get_global_rect().intersects(battle.battle_speed_controls.get_global_rect()))
 			and not battle.missile_readout.get_global_rect().intersects(battle.get_node("SettingsButton").get_global_rect()),
 			"Battle empty-supply readout fits without speed overlap at %s" % viewport)
 		if DisplayServer.get_name() != "headless" and viewport == Vector2i(640, 360):

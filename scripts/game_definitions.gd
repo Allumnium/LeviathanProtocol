@@ -36,9 +36,13 @@ const REQUIRED_FIELDS := {
 }
 
 static var _registry: Dictionary = {}
+static var _database: DefDatabase
 
 
 static func _data() -> Dictionary:
+	if _database != Content.db():
+		_database = Content.db()
+		_registry.clear()
 	if not _registry.is_empty():
 		return _registry
 	var registry := {"schema_version": SCHEMA_VERSION, "content_revision": Content.db().content_hash}

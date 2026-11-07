@@ -3,6 +3,7 @@
 	"defs": [
 		{
 			"id": "flagship_basic",
+			"default_loadout": "flagship_basic/command",
 			"name": "Defensive Flagship",
 			"description": "A resilient command ship with reinforced shields and armor.",
 			"art": "res://assets/chassis/flagship_basic_d.png",
@@ -29,6 +30,7 @@
 		},
 		{
 			"id": "flagship_civic",
+			"default_loadout": "flagship_civic/merchant",
 			"name": "Civic Flagship",
 			"description": "An industrial command ship built for trade and a large escort fleet.",
 			"art": "res://assets/chassis/flagship_civic_d.png",
@@ -56,6 +58,7 @@
 		},
 		{
 			"id": "flagship_science",
+			"default_loadout": "flagship_science/survey",
 			"name": "Research Flagship",
 			"description": "A mobile laboratory with room for advanced labs and fleet support.",
 			"art": "res://assets/chassis/flagship_science_d.png",
@@ -82,6 +85,7 @@
 		},
 		{
 			"id": "flagship_offense",
+			"default_loadout": "flagship_offense/battleship",
 			"name": "Combat Flagship",
 			"description": "A heavily protected gunship with faster weapon cycling and a strong escort budget.",
 			"art": "res://assets/chassis/flagship_offense_d.png",
@@ -108,6 +112,7 @@
 		},
 		{
 			"id": "corsair",
+			"default_loadout": "corsair/raider",
 			"name": "Corsair",
 			"art": "res://assets/chassis/corsair_d.png",
 			"slots": [
@@ -126,6 +131,7 @@
 		},
 		{
 			"id": "fighter",
+			"default_loadout": "fighter/interceptor",
 			"name": "Fighter",
 			"art": "res://assets/chassis/fighter_d.png",
 			"slots": [
@@ -145,6 +151,7 @@
 		},
 		{
 			"id": "transport",
+			"default_loadout": "transport/freighter",
 			"name": "Transport",
 			"art": "res://assets/chassis/transport_d.png",
 			"slots": [
@@ -164,6 +171,7 @@
 		},
 		{
 			"id": "frigate",
+			"default_loadout": "frigate/picket",
 			"name": "Frigate",
 			"art": "res://assets/chassis/frigate_d.png",
 			"slots": [
@@ -186,6 +194,7 @@
 		},
 		{
 			"id": "drone",
+			"default_loadout": "drone/gun_drone",
 			"name": "Drone",
 			"art": "res://assets/chassis/drone_d.png",
 			"slots": [

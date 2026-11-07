@@ -4,6 +4,7 @@
 	"description": "A ship hull with equipment slots.",
 	"properties": {
 		"name": {"type": "string", "minLength": 1},
+		"default_loadout": {"type": "string", "x-ref": "loadout"},
 		"description": {"type": "string"},
 		"art": {"type": "string", "x-asset": "image"},
 		"price": {"type": "integer", "minimum": 0},
@@ -45,6 +46,6 @@
 		"delivery_income_multiplier": {"type": "number", "minimum": 1},
 		"research_rate_multiplier": {"type": "number", "minimum": 1}
 	},
-	"required": ["name", "art", "price", "integrity", "self_repair_hp_per_second", "mass", "thrust", "radius", "flagship", "slots"],
+	"required": ["name", "default_loadout", "art", "price", "integrity", "self_repair_hp_per_second", "mass", "thrust", "radius", "flagship", "slots"],
 	"additionalProperties": false
 }

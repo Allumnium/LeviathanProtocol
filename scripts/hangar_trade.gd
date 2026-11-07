@@ -1,9 +1,8 @@
 class_name HangarTrade
 extends RefCounted
 
-const PASSENGER_DEATH_FEE := 20
-const PASSENGER_CAPACITY := 4
-const CARGO_CAPACITY := 10
+static func economy() -> Dictionary:
+	return Content.get_def("economy", "core:default")
 
 static func load_spec(instance: Dictionary) -> Dictionary:
 	var item := SlotCatalog.find_equipment(str(instance.equipment_id), int(instance.get("rank", 1)))
@@ -36,7 +35,7 @@ static func depart(data: Dictionary, source: Dictionary, target: Dictionary) -> 
 				continue
 			var spec := load_spec(instance)
 			if spec.kind == "passengers" and target.inhabited:
-				instance["load"] = {"kind": "passengers", "quantity": spec.capacity, "unit_value": 8, "origin": int(source.id)}
+				instance["load"] = {"kind": "passengers", "quantity": spec.capacity, "unit_value": int(economy().passenger_fare), "origin": int(source.id)}
 			elif spec.kind == "cargo":
 				instance["load"] = {"kind": "cargo", "quantity": spec.capacity, "unit_value": int(source.goods_unit_value), "origin": int(source.id)}
 
@@ -65,7 +64,7 @@ static func settle_losses(data: Dictionary, lost_ships: Array[int]) -> void:
 				continue
 			var contents: Dictionary = instance.get("load", {})
 			if contents.get("kind") == "passengers":
-				data.credits -= int(contents.quantity) * PASSENGER_DEATH_FEE
+				data.credits -= int(contents.quantity) * int(economy().passenger_death_fee)
 			instance["load"] = {}
 
 static func has_load(instance: Dictionary) -> bool:
@@ -83,4 +82,5 @@ static func valid(instance: Dictionary) -> bool:
 		return false
 	if not HangarCheckpoint._integer(contents.get("unit_value"), 1):
 		return false
-	return int(contents.unit_value) in [3, 6, 10] if kind == "cargo" else int(contents.unit_value) == 8
+	# A load freezes its departure fare. Later price changes never rewrite it.
+	return int(contents.unit_value) <= 1000000

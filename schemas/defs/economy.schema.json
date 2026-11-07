@@ -1,0 +1,16 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "Trade fares, ammunition purchases, refueling and towing prices.",
+	"properties": {
+		"passenger_fare": {"type": "integer", "minimum": 1, "maximum": 1000000},
+		"passenger_death_fee": {"type": "integer", "minimum": 0, "maximum": 1000000},
+		"missile_pack_size": {"type": "integer", "minimum": 1, "maximum": 1000000},
+		"missile_pack_price": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+		"fuel_unit_price": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000000},
+		"tow_base_fee": {"type": "number", "minimum": 0, "maximum": 1000000},
+		"tow_per_nav_unit": {"type": "number", "minimum": 0, "maximum": 1000000}
+	},
+	"required": ["passenger_fare", "passenger_death_fee", "missile_pack_size", "missile_pack_price", "fuel_unit_price", "tow_base_fee", "tow_per_nav_unit"],
+	"additionalProperties": false
+}

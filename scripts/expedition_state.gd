@@ -141,10 +141,15 @@ static func valid_locations(value: Variant) -> bool:
 	if value.locations.is_empty() or value.locations.size() > 4096:
 		return false
 	var ids: Dictionary = {}
+	var trade_ids := {}
 	for location: Variant in value.locations:
 		if not location is Dictionary or not location.get("id") is String or location.id.is_empty() \
 				or ids.has(location.id) or not location.get("name") is String or location.name.is_empty():
 			return false
+		if not SaveValidation.integer(location.get("trade_id")) or int(location.trade_id) < 0 \
+				or trade_ids.has(int(location.trade_id)):
+			return false
+		trade_ids[int(location.trade_id)] = true
 		if not SaveValidation.integer(location.get("act")) or int(location.act) < 1 or int(location.act) > 3 \
 				or location.get("kind") not in LOCATION_KINDS or not SaveValidation.vector(location.get("position")):
 			return false
@@ -164,6 +169,9 @@ static func valid_locations(value: Variant) -> bool:
 		if location.kind == "station":
 			if not location.get("station_key") is String or location.station_key.is_empty() \
 					or location.services.is_empty():
+				return false
+			if "trade" in location.services and (not SaveValidation.integer(location.get("goods_unit_value")) \
+					or int(location.goods_unit_value) < 1 or int(location.goods_unit_value) > 1000000):
 				return false
 		elif not location.services.is_empty():
 			return false

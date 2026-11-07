@@ -261,7 +261,7 @@ func persistence_and_unlocks() -> void:
 
 	start()
 	proposal = state.hangar_snapshot()
-	proposal.research.research_points = 19.6
+	proposal.research.research_points = 19.95
 	check(HangarCheckpoint.valid(proposal), "Nearly completed research fixture is valid: " + str(proposal.research))
 	check(state._commit_hangar(proposal), "Persist nearly completed income research: " + state.last_save_error)
 	check(state.depart_expedition("refuel_station_1"), "Depart with nearly completed income research: " + state.last_save_error)
@@ -278,7 +278,7 @@ func persistence_and_unlocks() -> void:
 	check(state.credits == before.credits + 1, "Chosen research starts paying on subsequent travel")
 	start()
 	proposal = state.hangar_snapshot()
-	proposal.research.research_points = 19.6
+	proposal.research.research_points = 19.95
 	check(state._commit_hangar(proposal) and state.depart_expedition("refuel_station_1"),
 		"Start cruise with nearly completed fuel research")
 	result = state.advance_expedition(1, true)
@@ -356,6 +356,8 @@ func arrival_and_ui() -> void:
 	screen.active_tab = "MAP"
 	screen._refresh()
 	await settle()
+	# The screen sets the normal 8x map speed; isolate two simulation seconds here.
+	check(state.expedition_simulation.set_speed(1), "Isolate UI income checks at 1x")
 	var map: Control = screen.graph
 	map.camera_position = Vector2(17, 29)
 	map.camera_zoom = 0.8
@@ -365,8 +367,8 @@ func arrival_and_ui() -> void:
 	var remaining: float = state.expedition_simulation.state.position_nu.distance_to(
 		Vector2(state.expedition_simulation.locations["refuel_station_1"].position[0],
 			state.expedition_simulation.locations["refuel_station_1"].position[1]))
-	check(screen.feedback.text.contains("ETA %ds" % ceili(remaining / 5)),
-		"Underway ETA shares the researched cruise rate")
+	check(screen.feedback.text.contains("ETA %ds" % ceili(remaining / 5 / Travel.MAP_SPEED)),
+		"Underway ETA shares the researched cruise rate and fixed Map speed")
 	await settle()
 	check(screen.graph == map and map.camera_position == Vector2(17, 29) and is_equal_approx(map.camera_zoom, 0.8)
 		and screen.header.text == str(state.credits) and not screen.refresh_queued,

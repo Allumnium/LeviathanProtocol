@@ -2,6 +2,13 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-07 - P2 starters and economy; development notes
+
+- Added [fleet packages](packs/core/defs/fleet_packages.json), [campaign starts](packs/leviathan/defs/run_start.json) and [economy definitions](packs/core/defs/economy.json), with schemas and regenerated VS Code exports. Actual New Run, passenger fares/loss fees, ammunition purchases, refueling and tug prices read definitions; displayed service prices use the same quotes. Shipped balance, thirteen-ship formation, fitted UIDs and rollback remain. Chassis declare default-loadout IDs, shipyard defaults follow them, and locations declare stable trade IDs; carried fares stay frozen at departure.
+- GameDefinitions, SlotCatalog and ShipLoadouts caches follow the loaded database. The [patch-only integration fixture](tests/fixtures/content/p2/patches/defs/tuning.json) changes resources, fleet size, default fits, cargo/passenger fares and service prices through real transactions, including Continue, exactly-once settlement, reordering and failed saves. [test_content_transactions](tests/test_content_transactions.gd): 64 logic checks and 14 native checks, zero failures; reviewed 640x360/1280x720/1920x1080 captures and actual ammunition/refuel pointer purchases.
+- Corrected stale formation, tab, travel-output/speed and ammunition/event/setup fixtures without changing gameplay: flagship selection 307, research travel 260, expedition events 90, fleet missiles 118; expansion trade-only 74, expedition state 16, packs 106, all zero failures (1,049 focused checks including the new suite). Strict pack validation: 280 defs, zero errors/warnings/disabled packs. Reward fixture compile-checked. No full baseline, campaign sweep or soak; existing certificate-store and renderer/ObjectDB shutdown diagnostics remain.
+- Created [THOUGHTS.md](THOUGHTS.md) for dated questions, UX/gameplay observations, ideas and refactor opportunities; added the ongoing requirement to [AGENTS.md](AGENTS.md). Installed the reusable `godot-project-notes` skill under the user's Codex skills directory for Godot work. P2 research, enemy/support authorities, stable generation and legacy cleanup remain open in TODO.
+
 ## 2026-11-07 - P1 content foundation
 
 - [StableHash](scripts/core/stable_hash.gd) (FNV-1a 64-bit in 32-bit limbs), [StableRng](scripts/core/stable_rng.gd) (xoshiro128** with Murmur3-mixed seeds) and [RngStreams](scripts/core/rng_streams.gd) keyed by seed, stream, scope and persisted counter. [test_stable_rng.gd](tests/test_stable_rng.gd): 27 checks, zero failures, against independent reference vectors.

@@ -16,10 +16,12 @@
 					"campaign_edge",
 					"campaign_node",
 					"chassis",
+					"economy",
 					"encounter",
 					"environment",
 					"equipment",
 					"event",
+					"fleet_package",
 					"goods",
 					"loadout",
 					"location",
@@ -27,6 +29,7 @@
 					"part",
 					"patch",
 					"research",
+					"run_start",
 					"travel_tuning"
 				],
 				"description": "Def type of every entry that does not set its own."
@@ -169,6 +172,37 @@
 				"if": {
 					"properties": {
 						"def": {
+							"const": "economy"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "economy.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
 							"const": "encounter"
 						}
 					},
@@ -283,6 +317,37 @@
 								},
 								"else": {
 									"$ref": "event.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "fleet_package"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "fleet_package.schema.json"
 								}
 							}
 						}
@@ -510,6 +575,37 @@
 				"if": {
 					"properties": {
 						"def": {
+							"const": "run_start"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "run_start.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
 							"const": "travel_tuning"
 						}
 					},
@@ -570,10 +666,12 @@
 						"campaign_edge",
 						"campaign_node",
 						"chassis",
+						"economy",
 						"encounter",
 						"environment",
 						"equipment",
 						"event",
+						"fleet_package",
 						"goods",
 						"loadout",
 						"location",
@@ -581,6 +679,7 @@
 						"part",
 						"patch",
 						"research",
+						"run_start",
 						"travel_tuning"
 					]
 				}
@@ -650,6 +749,21 @@
 					"if": {
 						"properties": {
 							"def": {
+								"const": "economy"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "economy.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
 								"const": "encounter"
 							}
 						},
@@ -704,6 +818,21 @@
 					},
 					"then": {
 						"$ref": "event.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "fleet_package"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "fleet_package.schema.json"
 					}
 				},
 				{
@@ -809,6 +938,21 @@
 					},
 					"then": {
 						"$ref": "research.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "run_start"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "run_start.schema.json"
 					}
 				},
 				{

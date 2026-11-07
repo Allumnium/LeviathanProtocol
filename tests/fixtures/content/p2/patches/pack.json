@@ -1,0 +1,7 @@
+{
+	"id": "p2_tuning",
+	"name": "P2 transaction tuning fixture",
+	"version": "1.0.0",
+	"kind": "content",
+	"depends": [{"id": "core", "version": ">=1.0"}, {"id": "leviathan", "version": ">=1.0"}]
+}

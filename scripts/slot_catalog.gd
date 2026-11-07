@@ -8,8 +8,17 @@ const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 static var _chassis: Array[Dictionary] = []
 static var _equipment: Array[Dictionary] = []
 static var _equipment_textures: Dictionary[String, Texture2D] = {}
+static var _database: DefDatabase
+
+static func _ensure_database() -> void:
+	if _database != Content.db():
+		_database = Content.db()
+		_chassis.clear()
+		_equipment.clear()
+		_equipment_textures.clear()
 
 static func chassis() -> Array[Dictionary]:
+	_ensure_database()
 	if _chassis.is_empty():
 		var data := {"version": 1, "chassis": Content.copies("chassis")}
 		if not valid_chassis(data):
@@ -46,6 +55,7 @@ static func chassis_bonuses(entry: Dictionary) -> String:
 	return "\n".join(lines) if not lines.is_empty() else "No special bonuses"
 
 static func equipment(include_retired := false) -> Array[Dictionary]:
+	_ensure_database()
 	if _equipment.is_empty():
 		var data := {"version": 1, "equipment": []}
 		for entry: Dictionary in Content.copies("equipment"):

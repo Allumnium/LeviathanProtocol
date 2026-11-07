@@ -8,9 +8,6 @@ signal travel_plan_changed
 enum Difficulty { EASY, MEDIUM, HARD }
 const ExpeditionSimulationScript = preload("res://scripts/expedition_simulation.gd")
 const ShipLoadouts = preload("res://scripts/ship_loadouts.gd")
-const STARTING_MISSILES := 30
-const MISSILE_PACK := 10
-const MISSILE_PACK_PRICE := 50
 var fleet: Array[FleetShip] = []
 var squadrons: Array = []
 var next_ship_id := 1
@@ -77,16 +74,27 @@ func _ready() -> void:
 	run_seed = 1
 
 
-func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, _use_campaign := true, flagship_id := "flagship_basic") -> bool:
+func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, _use_campaign := true, flagship_id := "flagship_basic", start_id := "leviathan:charter") -> bool:
 	var selected := SlotCatalog.find_chassis(flagship_id)
 	if selected_difficulty not in [0, 1, 2] or seed_value < -1 or selected.is_empty() or not selected.flagship:
 		push_error("Cannot start a run with invalid difficulty, seed or flagship.")
 		return false
+	var start := Content.get_def("run_start", start_id)
+	if start.is_empty():
+		last_save_error = "Starting configuration '%s' is missing." % start_id
+		return false
+	var start_pack := str(Content.db().meta("run_start", start_id).pack)
+	var package := Content.db().get_def("fleet_package", start.fleet, start_pack)
+	var package_pack := str(Content.db().meta("fleet_package", start.fleet, start_pack).get("pack", ""))
+	var starting_ships := _prepare_starting_fleet(package, flagship_id, package_pack)
+	if starting_ships.is_empty():
+		return false
+	var start_location := Content.db().get_def("location", start.location, start_pack)
 	var before := hangar_snapshot()
 	var previous_generation := hangar_generation
 	run_seed = _new_run_seed() if seed_value == -1 else seed_value
 	expedition_simulation = ExpeditionSimulationScript.new()
-	if not expedition_simulation.configure(run_seed):
+	if not expedition_simulation.configure(run_seed, str(start_location.get("id", ""))):
 		var setup_error: String = expedition_simulation.last_error
 		if not before.is_empty():
 			run_seed = int(before.seed)
@@ -99,8 +107,8 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 		return false
 	difficulty = selected_difficulty as Difficulty
 	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
-	credits = 700
-	missiles = STARTING_MISSILES
+	credits = int(start.credits)
+	missiles = int(start.missiles)
 	run_score = RunScore.initial()
 	current_research_ids = ["foundation"]
 	research_completion_notices.clear()
@@ -128,20 +136,10 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	last_equipment_loot = ""
 	_build_campaign()
 	current_research_ids.assign(["foundation"])
-	# Every starting ship arrives fully fitted with its class's default loadout.
-	var lead := _add_chassis(flagship_id, true)
-	lead.formation = Vector2.ZERO
-	_install_loadout(lead, ShipLoadouts.default_for(flagship_id))
-	var transport := _add_chassis("transport")
-	transport.formation = Vector2(-0.85, 0)
-	_install_loadout(transport, ShipLoadouts.default_for("transport"))
-	var fighter := _add_chassis("fighter")
-	fighter.formation = Vector2(0, -0.8)
-	_install_loadout(fighter, ShipLoadouts.default_for("fighter"))
-	for index in range(10):
-		var drone := _add_chassis("drone")
-		drone.formation = Vector2(1.6, 0) + HangarSquadrons.box_offset(index, 10, 0.6)
-		_install_loadout(drone, ShipLoadouts.default_for("drone"))
+	for member: Dictionary in starting_ships:
+		var owned := _add_chassis(member.chassis, member.flagship)
+		owned.formation = member.formation
+		_install_loadout(owned, member.loadout)
 	squadrons = HangarSquadrons.initial(hangar_snapshot())
 	_apply_squadron_orders()
 	hangar_generation = -1
@@ -156,6 +154,40 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 		return false
 	_notify_hangar()
 	return true
+
+func _prepare_starting_fleet(package: Dictionary, flagship_id: String, package_pack: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var groups := {}
+	var flagships := 0
+	for member: Dictionary in package.get("members", []):
+		if groups.has(member.id):
+			last_save_error = "Starting fleet has duplicate member ID '%s'." % member.id
+			return []
+		groups[member.id] = true
+		var chassis_id: String = flagship_id if member.get("selected_flagship", false) else \
+			str(Content.db().get_def("chassis", member.chassis, package_pack).get("id", ""))
+		var chassis := SlotCatalog.find_chassis(chassis_id)
+		var loadout := ShipLoadouts.default_for(chassis_id)
+		if chassis.is_empty() or loadout.is_empty() or not ShipLoadouts.available(loadout, ["foundation"]):
+			last_save_error = "Starting fleet needs an available default loadout for '%s'." % chassis_id
+			return []
+		flagships += int(chassis.flagship) * int(member.count)
+		if result.size() + int(member.count) > BattleSimulation.MAX_LIVE_COMBATANTS:
+			last_save_error = "Starting fleet exceeds the live combatant limit."
+			return []
+		for index in int(member.count):
+			result.append({"chassis": chassis_id, "flagship": bool(chassis.flagship), "loadout": loadout,
+				"formation": Vector2(member.position[0], member.position[1])
+					+ HangarSquadrons.box_offset(index, int(member.count), float(member.spacing))})
+	if flagships != 1:
+		last_save_error = "Starting fleet requires exactly one flagship."
+		return []
+	# Battle and fleet systems use the flagship as the lead ship.
+	for index in result.size():
+		if result[index].flagship:
+			result.push_front(result.pop_at(index))
+			break
+	return result
 
 func _install_loadout(owned: HangarShip, loadout: Dictionary) -> void:
 	for slot_id: String in loadout.get("mounts", {}):
@@ -427,6 +459,12 @@ func save_expedition_checkpoint() -> bool:
 		return false
 	return save_run_checkpoint()
 
+func refuel_cost() -> int:
+	if expedition_simulation == null or expedition_simulation.state == null:
+		return 0
+	var travel = expedition_simulation.state
+	return ceili(maxf(0, travel.fuel_capacity - travel.fuel) * float(HangarTrade.economy().fuel_unit_price))
+
 func refuel_expedition() -> bool:
 	if expedition_simulation == null or expedition_simulation.state == null:
 		last_save_error = "No active expedition state."
@@ -439,7 +477,7 @@ func refuel_expedition() -> bool:
 	if missing <= 0.000001:
 		last_save_error = "The expedition fuel tanks are already full."
 		return false
-	var price := int(ceil(missing * 2.0))
+	var price := refuel_cost()
 	if credits < price:
 		last_save_error = "Not enough credits to refuel. Cost: %d." % price
 		return false
@@ -453,19 +491,24 @@ func refuel_expedition() -> bool:
 	credits_changed.emit()
 	return true
 
+func missile_quote() -> Dictionary:
+	var economy := HangarTrade.economy()
+	return {"count": int(economy.missile_pack_size), "price": int(economy.missile_pack_price)}
+
 func buy_missiles() -> bool:
 	last_save_error = station_service_error("ammunition")
 	if not last_save_error.is_empty():
 		return false
-	if credits < MISSILE_PACK_PRICE:
-		last_save_error = "Not enough credits. Cost: %d." % MISSILE_PACK_PRICE
+	var quote := missile_quote()
+	if credits < quote.price:
+		last_save_error = "Not enough credits. Cost: %d." % quote.price
 		return false
-	if missiles > 2147483647 - MISSILE_PACK:
+	if missiles > 2147483647 - int(quote.count):
 		last_save_error = "Missile storage limit reached."
 		return false
 	var proposal := hangar_snapshot()
-	proposal.credits -= MISSILE_PACK_PRICE
-	proposal.missiles += MISSILE_PACK
+	proposal.credits -= int(quote.price)
+	proposal.missiles += int(quote.count)
 	return _commit_hangar(proposal)
 
 func prepare_checkpoint_resume() -> bool:
@@ -624,10 +667,9 @@ func station_trade_node(location_id: String) -> Dictionary:
 	var location: Dictionary = expedition_simulation.locations.get(location_id, {})
 	if location.is_empty():
 		return {}
-	var value := int(location.get("goods_unit_value", 6))
-	return {"id": expedition_simulation.locations.keys().find(location_id),
+	return {"id": int(location.trade_id),
 		"inhabited": location.kind == "station" and "trade" in expedition_simulation.services_for(location),
-		"goods_unit_value": value if value in [3, 6, 10] else 6}
+		"goods_unit_value": int(location.get("goods_unit_value", 0))}
 
 # Commits a course change; leaving a dock loads cargo/passengers atomically.
 func depart_expedition(location_id: String, engage := false) -> bool:
@@ -717,8 +759,10 @@ func rescue_quote() -> Dictionary:
 	if best.is_empty():
 		return {}
 	var refill: float = simulation.state.fuel_capacity - simulation.state.fuel
+	var economy := HangarTrade.economy()
 	return {"location_id": best.id, "name": best.name, "distance": best_distance,
-		"fee": int(ceil(refill * 2.0 + 100.0 + best_distance * 0.2))}
+		"fee": int(ceil(refill * float(economy.fuel_unit_price) + float(economy.tow_base_fee)
+			+ best_distance * float(economy.tow_per_nav_unit)))}
 
 func accept_rescue() -> bool:
 	var quote := rescue_quote()
@@ -993,7 +1037,7 @@ func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unch
 	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
 	return true
 
-# Ships are sold fully fitted; an unspecified loadout uses the first available fit.
+# Ships are sold fully fitted; an unspecified loadout uses the chassis default.
 func buy_ship(key: String, loadout_id := "") -> bool:
 	return buy_ships(key, 1, 0, loadout_id)
 

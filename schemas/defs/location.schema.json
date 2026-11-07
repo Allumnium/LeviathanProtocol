@@ -4,6 +4,7 @@
 	"description": "A place on the expedition map.",
 	"properties": {
 		"name": {"type": "string", "minLength": 1},
+		"trade_id": {"type": "integer", "minimum": 0, "description": "Stable load origin ID, independent of file order."},
 		"act": {"type": "integer", "minimum": 1, "maximum": 3},
 		"kind": {"enum": ["station", "poi", "gate"]},
 		"region": {"$ref": "_common#/$defs/key"},
@@ -14,7 +15,7 @@
 		"safe": {"type": "boolean"},
 		"description": {"type": "string"},
 		"station_key": {"$ref": "_common#/$defs/key"},
-		"goods_unit_value": {"type": "integer", "minimum": 0},
+		"goods_unit_value": {"type": "integer", "minimum": 1, "maximum": 1000000},
 		"featured": {
 			"type": "array",
 			"items": {"$ref": "_common#/$defs/key"},
@@ -26,6 +27,6 @@
 		"poi_type": {"enum": ["derelict", "asteroid_field", "distress", "anomaly", "hidden"]},
 		"required_flag": {"$ref": "_common#/$defs/flag"}
 	},
-	"required": ["name", "act", "kind", "region", "position", "services", "discovered", "accessible", "safe"],
+	"required": ["name", "trade_id", "act", "kind", "region", "position", "services", "discovered", "accessible", "safe"],
 	"additionalProperties": false
 }

@@ -1,0 +1,10 @@
+{
+	"def": "fleet_package",
+	"id": "convoy",
+	"members": [
+		{"id": "flagship", "selected_flagship": true, "count": 1, "position": [0, 0], "spacing": 0.6},
+		{"id": "transport", "chassis": "transport", "count": 1, "position": [-0.85, 0], "spacing": 0.6},
+		{"id": "fighter", "chassis": "fighter", "count": 1, "position": [0, -0.8], "spacing": 0.6},
+		{"id": "drones", "chassis": "drone", "count": 10, "position": [1.6, 0], "spacing": 0.6}
+	]
+}

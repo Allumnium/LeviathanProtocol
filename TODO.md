@@ -8,8 +8,11 @@ Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS
 
 Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
 
-- [ ] Pre-existing focused failures, identical at `c7c1056` before P1 conversion: `test_flagship_selection` 8 (starter formation positions), `test_research_travel` 9 (travel research income/cruise timing), `test_legacy_archives` 5 (square run checkpoint fixture; suite retires with P2 legacy cleanup), `test_expedition_events` 1 (committed signal above management). Triage before P2 leans on these suites.
+- [ ] Retire `test_legacy_archives` with the P2e reference audit/legacy cleanup; its five pre-existing square-checkpoint fixture failures remain out of the active gameplay suites. The recorded flagship, research-travel and expedition-event failures were stale fixtures, corrected and verified in [COMPLETED.md](COMPLETED.md).
 - [ ] P2 One authority: move research filters, enemy costs/templates, trade fares, support/ability constants, starting fleet and equipment effect text into defs; explicit IDs instead of array order; stable seeds; delete unused legacy readers.
+- [ ] P2c: research availability/grants and equipment eligibility in defs; remove runtime rewrites and hardcoded research-family/story-gate authorities; prove patched eligibility and effects.
+- [ ] P2d: enemy-unit and encounter-template defs, registered support/ability parameters and equipment effect descriptions; patch-only enemy-cost proof without balance changes.
+- [ ] P2e: use stable named generation streams and explicit encounter IDs; audit references before deleting unused legacy readers/helpers and their retired suites. Default loadouts and station trade IDs are now explicit. Finish with only affected focused checks and pack/schema validation.
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
 - [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.
 - [ ] P5 Editor v1: shell, schema forms, Quest/Story Lab/Text workspaces, Playtest overlay and main-menu entry.

@@ -1,11 +1,18 @@
 extends RefCounted
 
 # Named, fully fitted loadouts per ship class (loadout defs, id <chassis>/<name>).
-# The first loadout of a class is its default; ships are bought and refitted from
-# these, and single mounts can be swapped for compatible available parts.
+# Chassis defs identify their default loadout explicitly. Player fitting uses
+# complete loadouts; backend mount swaps also serve controlled fixtures.
 const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
 static var _obtainable: Dictionary = {}
+static var _database: DefDatabase
+
+static func _ensure_database() -> void:
+	if _database != Content.db():
+		_database = Content.db()
+		_loadouts.clear()
+		_obtainable.clear()
 
 static func parse_key(key: String) -> Dictionary:
 	var parts := key.split("@")
@@ -22,6 +29,7 @@ static func item_for(key: String) -> Dictionary:
 
 # Catalog eligibility is independent of a run's earned research.
 static func obtainable(item: Dictionary) -> bool:
+	_ensure_database()
 	if item.is_empty():
 		return false
 	if _obtainable.is_empty():
@@ -31,6 +39,7 @@ static func obtainable(item: Dictionary) -> bool:
 	return _obtainable.has(item.id)
 
 static func all() -> Dictionary:
+	_ensure_database()
 	if not _loadouts.is_empty():
 		return _loadouts
 	for loadout: Dictionary in Content.copies("loadout"):
@@ -85,7 +94,11 @@ static func available_for(chassis_id: String, research_ids: Array) -> Array:
 	return for_chassis(chassis_id).filter(func(loadout: Dictionary) -> bool: return available(loadout, research_ids))
 
 static func purchase_for(chassis_id: String, research_ids: Array) -> Dictionary:
+	var preferred := default_for(chassis_id)
+	if available(preferred, research_ids):
+		return preferred
 	var options := available_for(chassis_id, research_ids)
+	options.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.id < b.id)
 	return options[0] if not options.is_empty() else {}
 
 static func find(chassis_id: String, loadout_id: String) -> Dictionary:
@@ -95,8 +108,12 @@ static func find(chassis_id: String, loadout_id: String) -> Dictionary:
 	return {}
 
 static func default_for(chassis_id: String) -> Dictionary:
-	var options := for_chassis(chassis_id)
-	return options[0] if not options.is_empty() else {}
+	var chassis := Content.get_def("chassis", chassis_id)
+	var definition := Content.db().get_def("loadout", str(chassis.get("default_loadout", "")),
+		str(Content.db().meta("chassis", chassis_id).get("pack", "")))
+	if definition.get("chassis", "") != chassis_id:
+		return {}
+	return find(chassis_id, str(definition.id).trim_prefix(chassis_id + "/"))
 
 static func slot_by_id(chassis: Dictionary, slot_id: String) -> Dictionary:
 	for slot: Dictionary in chassis.get("slots", []):

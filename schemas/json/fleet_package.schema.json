@@ -1,0 +1,112 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "fleet_package def",
+	"type": "object",
+	"description": "A fitted fleet. Member IDs identify groups for patching; positions use saved formation coordinates.",
+	"properties": {
+		"def": {
+			"const": "fleet_package",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"members": {
+			"type": "array",
+			"minItems": 1,
+			"maxItems": 192,
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"$ref": "_common.schema.json#/$defs/key"
+					},
+					"chassis": {
+						"type": "string",
+						"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+						"patternErrorMessage": "Use a chassis ID such as name or pack:name",
+						"description": "ID of a chassis def."
+					},
+					"selected_flagship": {
+						"const": true
+					},
+					"count": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 192
+					},
+					"position": {
+						"$ref": "_common.schema.json#/$defs/vec2"
+					},
+					"spacing": {
+						"type": "number",
+						"exclusiveMinimum": 0,
+						"maximum": 100
+					}
+				},
+				"required": [
+					"id",
+					"count",
+					"position",
+					"spacing"
+				],
+				"oneOf": [
+					{
+						"required": [
+							"chassis"
+						]
+					},
+					{
+						"required": [
+							"selected_flagship"
+						]
+					}
+				],
+				"additionalProperties": false
+			}
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"members"
+		]
+	}
+}

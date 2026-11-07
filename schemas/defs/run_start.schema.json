@@ -1,0 +1,13 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "Starting resources, fitted fleet and dock; composed into scenario recipes in P6.",
+	"properties": {
+		"fleet": {"type": "string", "x-ref": "fleet_package"},
+		"location": {"type": "string", "x-ref": "location"},
+		"credits": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+		"missiles": {"type": "integer", "minimum": 0, "maximum": 2147483647}
+	},
+	"required": ["fleet", "location", "credits", "missiles"],
+	"additionalProperties": false
+}

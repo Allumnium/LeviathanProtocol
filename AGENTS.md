@@ -2,7 +2,8 @@
 
 ## Read only what the task needs
 
-- [TODO.md](TODO.md): active slice work (remaining D4, then D5).
+- [TODO.md](TODO.md): active scenario architecture work (P2 next).
+- [THOUGHTS.md](THOUGHTS.md): dated questions, concerns, UX/gameplay observations, imaginative improvement ideas and potentially valuable refactors; proposals are not implementation authorization.
 - [docs/HANGAR.md](docs/HANGAR.md): current gameplay, UI and persistence.
 - [docs/SCENARIO_ARCHITECTURE.md](docs/SCENARIO_ARCHITECTURE.md): target architecture for content packs, procedural scenarios, the director, the Scenario Editor and Workshop; phases in TODO.md.
 - [tests/README.md](tests/README.md): focused verification.
@@ -14,6 +15,7 @@
 ## Workflow
 
 - Put actionable plans in TODO.md before implementation. Move verified finished items into COMPLETED.md with a brief date/result; leave unfinished work and blockers open.
+- During Godot project work, create or append to THOUGHTS.md as useful observations arise. Record questions, concerns, potential bad UX/gameplay, imaginative improvements and valuable refactors with context and possible next steps. Preserve earlier entries, distinguish observations from proposals, and record resolutions when known. Keep approved actionable work in TODO.md; do not implement speculative ideas solely because they are in THOUGHTS.md.
 - Commit completed, verified work periodically at coherent milestones, and push those commits to the configured remote branch without waiting for the user to ask. This is standing authorization for routine commits and pushes. Preserve unrelated user changes; do not force-push, rewrite published history or guess a remote destination. If no remote is configured or pushing is blocked, keep local commits, record the blocker in TODO.md and request the missing information.
 - Run only the smallest relevant tests with isolated APPDATA. Use focused native visual/interaction checks for UI; scene-tree text alone does not establish visibility.
 - Full baselines, all campaign variants, long soaks and broad native acceptance require explicit user request. Ask before expanding coverage; do not rerun unchanged passing checks.

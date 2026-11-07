@@ -1,0 +1,8 @@
+{
+	"def": "run_start",
+	"id": "charter",
+	"fleet": "core:convoy",
+	"location": "start_station",
+	"credits": 700,
+	"missiles": 30
+}

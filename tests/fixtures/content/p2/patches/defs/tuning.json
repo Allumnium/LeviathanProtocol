@@ -1,0 +1,21 @@
+{
+	"def": "patch",
+	"defs": [
+		{"id": "start", "target": "leviathan:charter", "target_def": "run_start", "set": {"credits": 913, "missiles": 7}},
+		{"id": "fleet", "target": "core:convoy", "target_def": "fleet_package", "set": {"members": [
+			{"id": "transport", "chassis": "core:transport", "count": 1, "position": [-0.85, 0], "spacing": 0.6},
+			{"id": "flagship", "selected_flagship": true, "count": 1, "position": [0, 0], "spacing": 0.6},
+			{"id": "fighter", "chassis": "fighter", "count": 1, "position": [0, -0.8], "spacing": 0.6},
+			{"id": "drones", "chassis": "drone", "count": 2, "position": [1.6, 0], "spacing": 0.6}
+		]}},
+		{"id": "default_fit", "target": "core:fighter", "target_def": "chassis", "set": {"default_loadout": "core:fighter/skirmisher"}},
+		{"id": "economy", "target": "core:default", "target_def": "economy", "set": {
+			"passenger_fare": 11, "passenger_death_fee": 31, "missile_pack_size": 3, "missile_pack_price": 17,
+			"fuel_unit_price": 3.0, "tow_base_fee": 80.0, "tow_per_nav_unit": 0.4
+		}},
+		{"id": "origin", "target": "leviathan:start_station", "target_def": "location", "set": {"trade_id": 1017, "goods_unit_value": 5}},
+		{"id": "destination", "target": "leviathan:refuel_station_1", "target_def": "location", "set": {"trade_id": 22}},
+		{"id": "equipment_cache", "target": "core:cargo_hold", "target_def": "equipment", "set": {"price": 777}},
+		{"id": "registry_cache", "target": "core:ion_pulse", "target_def": "ability", "set": {"display_name": "Fixture Pulse"}}
+	]
+}

@@ -17,7 +17,7 @@ var boundary_sequence := 0
 var events: Array = []
 
 
-func configure(seed_value: int) -> bool:
+func configure(seed_value: int, start_location_id := "start_station") -> bool:
 	last_error = ""
 	var tuning_data := State.tuning_catalog()
 	if not State.valid_tuning(tuning_data):
@@ -33,7 +33,9 @@ func configure(seed_value: int) -> bool:
 	if not Events.valid(events_data, locations):
 		return _fail("Invalid expedition event data.")
 	events = events_data.events
-	var start: Dictionary = locations.get("start_station", {})
+	var start: Dictionary = locations.get(start_location_id, {})
+	if start.is_empty() or start.kind != "station" or not start.accessible:
+		return _fail("Starting location must be an accessible station.")
 	state = State.new()
 	if not state.initialize(seed_value, start, tuning):
 		state = null
