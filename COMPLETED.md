@@ -4,7 +4,8 @@ Keep new entries brief: completion date, delivered behavior and focused verifica
 
 ## 2026-11-07 - Scenario architecture plan
 
-- Added [the scenario architecture](docs/SCENARIO_ARCHITECTURE.md): data-only content packs with schemas, inheritance and patches; a safe formula language; facts, stats and pressures; transactional hooks and effects; quests with casting, child arcs and fronts; scenes, grammars, response lines and chronicle; rules; a tension-curve director; factions and data-driven encounters; staged galaxy generation; Leviathan, Adventure and Homeward modes; the in-game Scenario Editor; balance tools; and Workshop packaging. Recorded phases P1-P9 and five open decisions in TODO.
+- Added [the scenario architecture](docs/SCENARIO_ARCHITECTURE.md): data-only content packs with schemas, inheritance and patches; a safe formula language; facts, stats and pressures; transactional hooks and effects; quests with casting, child arcs and fronts; scenes, grammars, response lines and chronicle; rules; a tension-curve director; factions and data-driven encounters; staged galaxy generation; Leviathan, Adventure and Homeward modes; the in-game Scenario Editor; balance tools; and Workshop packaging. Recorded phases P1-P9 in TODO.
+- [Settled decisions](docs/SCENARIO_ARCHITECTURE.md#23-decisions-settled-2026-11-07): continuous travel with fuel range, time passes only in travel and waits, string formulas, human fleets on player chassis, editor before galaxy generation, and `def` as the def-type discriminator.
 - Document links checked with zero failures. Documentation-only; no game suites run.
 
 ## 2026-11-05 - Equipment, events and Act I expansion

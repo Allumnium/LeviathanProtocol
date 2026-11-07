@@ -38,7 +38,7 @@ The architecture succeeds when a designer can do the following without code:
 | Term | Meaning |
 | --- | --- |
 | Pack | A folder with `pack.json` plus definitions and assets. It is the unit of loading and Workshop publishing. |
-| Def | An immutable definition with `type` and `id`, such as an equipment, quest, faction or scenario. |
+| Def | An immutable definition with `def` (its type) and `id`, such as an equipment, quest, faction or scenario. |
 | DefDatabase | The resolved, validated, compiled defs from every active pack. |
 | Scenario | A recipe: mode, galaxy parameters, populations, quest pools, director profile, rules and pins. |
 | Run document | Mutable state for one run. It is saved atomically. |
@@ -115,7 +115,7 @@ user://packs/<id>/             local authoring projects and editable copies
 
 ### 5.3 Def files, IDs and references
 
-A file is either one def or `{"defs": [...]}`. Every def has `type` and `id`. Qualified IDs are `pack:local`. An unqualified reference resolves first to the current pack, then to dependencies in declared order. Ambiguity is an error. Each def may include a `notes` field, which the validator ignores and the editor displays. This replaces JSON comments.
+A file is either one def or `{"def": "<type>", "defs": [...]}`, where the file-level `def` is the default for its entries and an entry may override it. Every def has `def` (its type) and `id`. The discriminator is `def`, not `type`, because content fields such as equipment categories already use `type`. IDs use lowercase letters, digits and `_`, with `@` and `/` reserved for variants, such as `armor_block@2` for rank 2 and `transport/survey` for a chassis-specific loadout. Qualified IDs are `pack:local`. An unqualified reference resolves first to the current pack, then to dependencies in declared order. Ambiguity is an error. Each def may include a `notes` field, which the validator ignores and the editor displays. This replaces JSON comments.
 
 Runtime identity never depends on array order. Station trade IDs, encounter node IDs and default loadouts become explicit fields.
 
@@ -125,7 +125,7 @@ Runtime identity never depends on array order. Station trade IDs, encounter node
 - A `patch` def changes another pack's def without copying it:
 
 ```json
-{"type": "patch", "id": "pirate_tuning", "target": "core:pirate_raider",
+{"def": "patch", "id": "pirate_tuning", "target": "core:pirate_raider",
  "set": {"cost": 14, "stats.hull": 120},
  "append": {"tags": ["late_game"]},
  "remove": {"tags": ["early_game"]}}
@@ -219,7 +219,7 @@ Designers add free-form `vars` and `tags` to global, site, actor, faction and qu
 Stats are derived formulas that are cached per transaction and optionally smoothed:
 
 ```json
-{"type": "stat", "id": "wealth", "label": "Wealth", "icon": "core:art/icons/wealth.png",
+{"def": "stat", "id": "wealth", "label": "Wealth", "icon": "core:art/icons/wealth.png",
  "formula": "credits + fleet.market_value + cargo.value", "smoothing_days": 5}
 ```
 
@@ -228,7 +228,7 @@ Core stats include `wealth`, `fleet_power` (from the battle calibration in secti
 ### 7.3 Pressures and clocks
 
 ```json
-{"type": "pressure", "id": "swarm", "label": "Swarm", "min": 0, "max": 100, "initial": 0,
+{"def": "pressure", "id": "swarm", "label": "Swarm", "min": 0, "max": 100, "initial": 0,
  "rate_per_day": "0.4 + 0.02 * stat.alien_awareness",
  "thresholds": [{"at": 50, "hook": "swarm.surging"}, {"at": 90, "hook": "swarm.overwhelming"}],
  "visible": "meter"}
@@ -322,7 +322,7 @@ The run document has these sections: `meta` (format, version, scenario, mode, se
 
 ```json
 {
-  "type": "quest", "id": "smugglers_debt", "kind": "secondary",
+  "def": "quest", "id": "smugglers_debt", "kind": "secondary",
   "group": "frontier_side_arcs", "tags": ["crime", "arc"],
   "title": "Debt at {role.origin.name}",
   "admission": {"when": "day >= 5 and standing(faction.syndicate) > -30", "unique": true, "cooldown_days": 30},
@@ -388,7 +388,7 @@ The designer controls structure, endpoints and tone. The generator controls whic
 A front is the antagonist's quest:
 
 ```json
-{"type": "quest", "id": "warlord_rise", "kind": "front",
+{"def": "quest", "id": "warlord_rise", "kind": "front",
  "roles": {"warlord": {"actor": {"spawn": {"archetype": "pirate_warlord"}}},
            "haven": {"site": {"spawn": {"archetype": "pirate_haven", "region": "this.lawless > 0.6"}}}},
  "clock": {"max": 100, "rate_per_day": "0.6 + 0.2 * count('site', this.owner == role.warlord.faction)"},
@@ -408,7 +408,7 @@ The Leviathan swarm, corporate cover-ups, military assembly and Homeward mutinie
 Scenes generalize today's expedition events and keep the four-option limit:
 
 ```json
-{"type": "scene", "id": "fixer_offer",
+{"def": "scene", "id": "fixer_offer",
  "nodes": [
    {"id": "start", "speaker": "role.fixer", "art": "role.fixer.portrait",
     "text": [{"if": "has_tag(role.fixer, 'spared_by_player')", "text": "\"You let me live once. Let's both profit.\""},
@@ -433,7 +433,7 @@ A node may start a battle and continue to `on_won`, `on_lost` or `on_withdrawn` 
 For flavor that should feel alive without bespoke scripting, packs provide lines keyed by concept:
 
 ```json
-{"type": "line", "concept": "station_greeting", "speaker": "faction:syndicate",
+{"def": "line", "concept": "station_greeting", "speaker": "faction:syndicate",
  "when": "stat.notoriety > 60", "text": "\"Keep your guns cold, {fleet.flagship.name}.\""}
 ```
 
@@ -448,12 +448,12 @@ The engine selects the most specific match. Specificity is the number of satisfi
 A rule is either continuous (`while`) or one-shot (`on` and/or `when`, with `cooldown_days` and `max_times`).
 
 ```json
-{"type": "rule", "id": "rich_targets", "while": "stat.wealth > 2000",
+{"def": "rule", "id": "rich_targets", "while": "stat.wealth > 2000",
  "modify": [{"target": "encounter_unit_weight", "ids": ["pirate_raider", "pirate_gunship", "pirate_corvette"],
              "multiply": "1 + (stat.wealth - 2000) / 2000"},
             {"target": "quest_weight", "tags_any": ["pirate"], "multiply": 1.5}]}
 
-{"type": "rule", "id": "bounty_hunters", "on": "travel.arrived",
+{"def": "rule", "id": "bounty_hunters", "on": "travel.arrived",
  "when": "site.region.lawless > 0.5 and stat.notoriety > 40", "cooldown_days": 20,
  "do": [{"start_quest": {"id": "bounty_hunters_ambush"}}]}
 ```
@@ -467,7 +467,7 @@ A rule is either continuous (`while`) or one-shot (`on` and/or `when`, with `coo
 ### 12.1 Profile
 
 ```json
-{"type": "director_profile", "id": "measured",
+{"def": "director_profile", "id": "measured",
  "progress": "days",
  "target_tension": {"points": [[0, 0.15], [20, 0.4], [45, 0.3], [70, 0.7], [90, 0.5]]},
  "tension": "0.4 * threats_active + 0.3 * (1 - fleet.hull_ratio) + 0.3 * recent('ship.lost', 10)",
@@ -566,7 +566,7 @@ The generated galaxy is saved in the run document and never regenerated, so gene
 ## 16. Scenarios and modes
 
 ```json
-{"type": "scenario", "id": "leviathan_protocol", "mode": "leviathan",
+{"def": "scenario", "id": "leviathan_protocol", "mode": "leviathan",
  "title": "The Leviathan Protocol", "preview": "art/preview.png",
  "galaxy": {"preset": "medium", "shape": "spiral_arm", "lawless": 0.35, "alien_presence": 0.25},
  "start": {"site": {"archetype": "home_port", "region": "frontier"}, "fleet": "leviathan_charter", "credits": 700},
@@ -668,7 +668,7 @@ Each phase leaves the game playable, adds its editor surface when the editor exi
 2. Add a pack manifest and loader for `res://packs` and `user://packs`, with dependency ordering and Problems.
 3. Add a schema registry, a validator for the JSON Schema subset and its extensions, inheritance and patch defs.
 4. Add the formula language: lexer, Pratt parser, type checker, evaluator and function registry.
-5. Add `DefDatabase` with typed lookups and a content hash, plus a `Content` autoload.
+5. Add `DefDatabase` with typed lookups and a content hash, plus a static `Content` API that loads lazily, so tests, tools and the editor need no autoload.
 6. Convert `data/*.json` into defs. Point `GameDefinitions`, `SlotCatalog`, `ShipLoadouts`, `ExpeditionState` and `ExpeditionEvents` at `Content`, then delete `data/`.
 7. Add `tools/validate_packs.gd` and `tools/export_schemas.gd`, plus the VS Code schema mapping.
 
@@ -778,10 +778,11 @@ Acceptance: a pack published from one account installs on another, is playable a
 | Workshop extension lags Godot 4.7 | Keep the `WorkshopService` abstraction; local packs work first |
 | Content volume is the real bottleneck | P8 library targets; the editor and VS Code schemas make content cheap to write |
 
-## 23. Decisions needed before P1
+## 23. Decisions (settled 2026-11-07)
 
-1. **Travel model:** keep continuous free flight with fuel range (recommended) or move to lanes.
-2. **Time model:** time passes only during travel and explicit waits (recommended) or also while docked.
-3. **Formula syntax:** use string formulas as above (recommended) or verbose structured JSON conditions.
-4. **Human enemy fleets** use player chassis and loadouts (recommended).
-5. **Phase order:** build the editor before procedural generation (recommended) or generate the galaxy first.
+1. **Travel model:** continuous free flight with fuel range.
+2. **Time model:** time passes only during travel and explicit waits.
+3. **Formula syntax:** string formulas as above.
+4. **Human enemy fleets** use player chassis and loadouts.
+5. **Phase order:** the editor (P5) comes before procedural generation.
+6. **Def discriminator:** `def` names the def type, because content already uses `type` for categories.

@@ -4,17 +4,16 @@ The current D4/D5 implementation is delivered. Open dependencies remain below; D
 
 Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS.md). Delivered work: [COMPLETED.md](COMPLETED.md). Next direction: [scenario architecture](docs/SCENARIO_ARCHITECTURE.md).
 
-## Scenario architecture (proposed)
+## Scenario architecture
 
 Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
 
-- [ ] Settle [the open decisions](docs/SCENARIO_ARCHITECTURE.md#23-decisions-needed-before-p1): travel model, time model, formula syntax, human enemy fleets and phase order.
 - [ ] P1 Content foundation:
   - [ ] Stable FNV-1a hash and named RNG streams.
   - [ ] Pack manifests/loader (`res://packs`, `user://packs`), dependency order and Problems.
   - [ ] Schema registry and validator (JSON Schema subset with `x-ref`/`x-expr`/`x-text`/`x-asset`/`x-editor`), `parent`/`abstract` inheritance and patch defs.
   - [ ] Formula language: lexer, Pratt parser, type checker, closure evaluator and function registry.
-  - [ ] `DefDatabase` and `Content` autoload; convert `data/*.json` into `packs/core` and `packs/leviathan`, repoint catalog readers, delete `data/`.
+  - [ ] `DefDatabase` and static `Content` API; convert `data/*.json` into `packs/core` and `packs/leviathan`, repoint catalog readers, delete `data/`.
   - [ ] `tools/validate_packs.gd`, `tools/export_schemas.gd` and VS Code schema mapping.
 - [ ] P2 One authority: move research filters, enemy costs/templates, trade fares, support/ability constants, starting fleet and equipment effect text into defs; explicit IDs instead of array order; stable seeds; delete unused legacy readers.
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
