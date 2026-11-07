@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d8k31jf0syef"
-path="res://.godot/imported/element_4.png-eb58a20c914aec775d582d87c127b237.ctex"
+uid="uid://c113cbbdl06je"
+path="res://.godot/imported/element_2.png-4dee350251f1fbd3f2181482d0d99ad6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/panels/Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a/elements/element_4.png"
-dest_files=["res://.godot/imported/element_4.png-eb58a20c914aec775d582d87c127b237.ctex"]
+source_file="res://assets/ui/panels/Futuristic_2D_pixel_art_spaceship_interface_with_a/Futuristic_2D_pixel_art_spaceship_interface_with_a/element_2.png"
+dest_files=["res://.godot/imported/element_2.png-4dee350251f1fbd3f2181482d0d99ad6.ctex"]
 
 [params]
 
