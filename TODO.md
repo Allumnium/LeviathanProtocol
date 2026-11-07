@@ -2,13 +2,34 @@
 
 The current D4/D5 implementation is delivered. Open dependencies remain below; D4's random-encounter effect is deferred. Preserve the implemented travel/research/trade -> battle -> report/refit loop.
 
-Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS.md). Delivered work: [COMPLETED.md](COMPLETED.md).
+Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS.md). Delivered work: [COMPLETED.md](COMPLETED.md). Next direction: [scenario architecture](docs/SCENARIO_ARCHITECTURE.md).
+
+## Scenario architecture (proposed)
+
+Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
+
+- [ ] Settle [the open decisions](docs/SCENARIO_ARCHITECTURE.md#23-decisions-needed-before-p1): travel model, time model, formula syntax, human enemy fleets and phase order.
+- [ ] P1 Content foundation:
+  - [ ] Stable FNV-1a hash and named RNG streams.
+  - [ ] Pack manifests/loader (`res://packs`, `user://packs`), dependency order and Problems.
+  - [ ] Schema registry and validator (JSON Schema subset with `x-ref`/`x-expr`/`x-text`/`x-asset`/`x-editor`), `parent`/`abstract` inheritance and patch defs.
+  - [ ] Formula language: lexer, Pratt parser, type checker, closure evaluator and function registry.
+  - [ ] `DefDatabase` and `Content` autoload; convert `data/*.json` into `packs/core` and `packs/leviathan`, repoint catalog readers, delete `data/`.
+  - [ ] `tools/validate_packs.gd`, `tools/export_schemas.gd` and VS Code schema mapping.
+- [ ] P2 One authority: move research filters, enemy costs/templates, trade fares, support/ability constants, starting fleet and equipment effect text into defs; explicit IDs instead of array order; stable seeds; delete unused legacy readers.
+- [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
+- [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.
+- [ ] P5 Editor v1: shell, schema forms, Quest/Story Lab/Text workspaces, Playtest overlay and main-menu entry.
+- [ ] P6 Galaxy, scenarios and casting: generator stages, pins, spawn casting, knowledge/rumors, `GalaxyView` and scenario browser.
+- [ ] P7 Director, factions, fronts and encounters: profiles, threat points, encounter composer, standing/territory, human enemy fleets, incidents, Adventure mode and Forecast.
+- [ ] P8 Depth: Leviathan Act II skeleton, Homeward with captains/politics, Captain's Log, Battle Bench calibration and base-library targets.
+- [ ] P9 Packaging and Workshop: local install/export, read-only sources, GodotSteam publishing and subscription.
 
 ## D4 - Research that you can feel
 
 Research changes fleet behavior, not access to ordinary equipment. Keep the earned Prismatic Lasers, Siege I, Bastion I, Field Engineering and Civil Hospitality effects. Do not grant completed research/branches to make starting fits legal.
 
-- [ ] Fewer random encounters: deferred until a random-encounter system exists; do not suppress authored/story encounters.
+- [ ] Fewer random encounters: deferred until the director exists (P7); do not suppress authored/story encounters.
 
 ## Individual experience and loadout-only fitting
 
@@ -26,6 +47,6 @@ Research changes fleet behavior, not access to ordinary equipment. Keep the earn
 
 ## Deferred reference, not active scope
 
-The [older continuous-world expansion plan](docs/history/plans/CONTINUOUS_EXPEDITION_2026_11_04.md) preserves the former E01-E14 tasks, design contracts and unresolved work. It is archived, **not completed** and not a requirement for this slice. Procedural world cells/POIs, rescue/tow, seamless in-world combat, a new checkpoint format and broad performance/soak campaigns need an explicit scope decision before being resumed.
+The [older continuous-world expansion plan](docs/history/plans/CONTINUOUS_EXPEDITION_2026_11_04.md) preserves the former E01-E14 tasks, design contracts and unresolved work. It is archived, **not completed** and not a requirement. Procedural worlds, factions and the new run format now follow [the scenario architecture](docs/SCENARIO_ARCHITECTURE.md); do not resume the archived tasks.
 
 Keep [the story specification](docs/STORY_SPEC.md) as narrative reference. The approved [Act I expansion](docs/ACT_I_EXPANSION_PLAN.md) is delivered in [COMPLETED.md](COMPLETED.md); Act II/III, infestation branches and endings remain outside implementation scope.

@@ -2,6 +2,11 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-07 - Scenario architecture plan
+
+- Added [the scenario architecture](docs/SCENARIO_ARCHITECTURE.md): data-only content packs with schemas, inheritance and patches; a safe formula language; facts, stats and pressures; transactional hooks and effects; quests with casting, child arcs and fronts; scenes, grammars, response lines and chronicle; rules; a tension-curve director; factions and data-driven encounters; staged galaxy generation; Leviathan, Adventure and Homeward modes; the in-game Scenario Editor; balance tools; and Workshop packaging. Recorded phases P1-P9 and five open decisions in TODO.
+- Document links checked with zero failures. Documentation-only; no game suites run.
+
 ## 2026-11-05 - Equipment, events and Act I expansion
 
 - Delivered approved [A1-A3 story/content](docs/ACT_I_EXPANSION_PLAN.md): seven main beats around Port Meridian's visit, actual departure, optional defense, outcome report and causal Protocol; eight frontier side-event briefs. Direct alien content follows the incident. Saved Meridian keeps services; leaving/withdrawal closes trade, refuel, ammunition and shipyard access. Battle outcomes, receipts, rewards, Continue and detour return commit atomically; flagship loss still ends the run. The Warden mechanics/finale remain, with an assembly-route epilogue.

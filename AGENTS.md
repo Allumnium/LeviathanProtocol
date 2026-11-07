@@ -4,6 +4,7 @@
 
 - [TODO.md](TODO.md): active slice work (remaining D4, then D5).
 - [docs/HANGAR.md](docs/HANGAR.md): current gameplay, UI and persistence.
+- [docs/SCENARIO_ARCHITECTURE.md](docs/SCENARIO_ARCHITECTURE.md): target architecture for content packs, procedural scenarios, the director, the Scenario Editor and Workshop; phases in TODO.md.
 - [tests/README.md](tests/README.md): focused verification.
 - [COMPLETED.md](COMPLETED.md): concise delivery record.
 - [docs/STORY_SPEC.md](docs/STORY_SPEC.md): narrative reference, not an implementation backlog.
