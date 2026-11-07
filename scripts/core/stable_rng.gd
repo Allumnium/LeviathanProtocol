@@ -79,7 +79,7 @@ func randf() -> float:
 
 
 func randf_range(from: float, to: float) -> float:
-	return from + (to - from) * randf()
+	return from + (to - from) * self.randf()
 
 
 ## Uniform integer in [from, to], inclusive and unbiased.
@@ -92,7 +92,7 @@ func randi_range(from: int, to: int) -> int:
 	if span <= 1:
 		return from
 	if span > MASK32:
-		return from + int(randf() * float(span))
+		return from + int(self.randf() * float(span))
 	var limit := (MASK32 + 1) - ((MASK32 + 1) % span)
 	var value := next_u32()
 	while value >= limit:
@@ -101,7 +101,7 @@ func randi_range(from: int, to: int) -> int:
 
 
 func chance(probability: float) -> bool:
-	return randf() < probability
+	return self.randf() < probability
 
 
 ## Returns an index chosen by non-negative weights, or -1 when nothing can be chosen.
@@ -111,7 +111,7 @@ func weighted_index(weights: Array) -> int:
 		total += maxf(float(weight), 0.0)
 	if total <= 0.0:
 		return -1
-	var roll := randf() * total
+	var roll := self.randf() * total
 	var last_positive := -1
 	for index in weights.size():
 		var weight := maxf(float(weights[index]), 0.0)
@@ -127,12 +127,12 @@ func weighted_index(weights: Array) -> int:
 func pick(values: Array) -> Variant:
 	if values.is_empty():
 		return null
-	return values[randi_range(0, values.size() - 1)]
+	return values[self.randi_range(0, values.size() - 1)]
 
 
 func shuffle(values: Array) -> void:
 	for index in range(values.size() - 1, 0, -1):
-		var other := randi_range(0, index)
+		var other := self.randi_range(0, index)
 		var swap: Variant = values[index]
 		values[index] = values[other]
 		values[other] = swap

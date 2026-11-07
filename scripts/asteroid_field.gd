@@ -21,8 +21,7 @@ var replayed_rejections: Dictionary = {}
 var last_replayed_rejection := false
 
 static func generate(seed_value: int, count := 32) -> Dictionary:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
+	var rng := RngStreams.new(seed_value).fixed("asteroids.layout.v1", "roots")
 	var field := AsteroidField.new()
 	var total := clampi(count, 0, MAX_ROOTS)
 	var clusters := ceili(total / 16.0)
@@ -280,7 +279,7 @@ func _flush_fractures(sim) -> void:
 			continue
 		r.status = "split"
 		var mass := int(r.mass) / 2
-		var normal := Vector2.from_angle(float((id + "/split").hash() & 0xffff) / 65536.0 * TAU)
+		var normal := Vector2.from_angle(float(StableHash.u32(id + "/split") & 0xffff) / 65536.0 * TAU)
 		var first := []
 		var second := []
 		for amount in r.ore:

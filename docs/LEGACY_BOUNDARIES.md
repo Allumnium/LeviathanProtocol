@@ -1,32 +1,9 @@
-# Retired runtime and archive readers
+# Retired code and shared combat data
 
-The physical hangar is the only playable model. C2 removes the disconnected material `game_state.gd`, old formation board, builder starfield, lock/tab helper, upgrade panel, square design preview and unused save-design/help/victory windows. The active campaign, help and battle reports use the hangar UI.
+The physical hangar is the only playable model. Old material construction, square/hex design libraries and archive readers are retired. P2e audited their references, then deleted `scripts/legacy/`, its isolated data/dependencies, the archive fixtures and `test_legacy_archives`. Legacy-save compatibility is outside the current contract. Existing user files and source artwork were not changed.
 
-Forty-six earlier test/capture scripts are preserved as `.gd.txt` under `docs/history/pre_hangar_tests/`. Godot does not import or run them. They describe square materials, old designer paths, reserves, family slots or the old GameState API. Port useful assertions to current tests when needed; do not restore their gameplay dependencies. The two shared stats/replay suites remain runnable alongside the physical-game suites.
+Earlier test/capture scripts under [history/pre_hangar_tests/](history/pre_hangar_tests/) and disconnected scenes under [history/retired_ui/](history/retired_ui/) are historical references. Godot excludes them from active imports. Their former resource paths are not runtime dependencies or current requirements.
 
-## Compatibility boundary
+`Ship`, `FleetShip`, `ShipPart`, `ShipStats`, recipes and pattern metadata retain active combat and focused regression callers. They are shared data structures, not a player construction system. `GameDefinitions` projects scoped content into the shared equipment/research/combat interfaces. The physical renderer skips square catalog initialization unless a shared fixture renders that representation.
 
-[history/retired_ui/](history/retired_ui/) preserves disconnected builder/help scenes and retired stock controls with their script UID sidecars. Its `.gdignore` excludes these deliberately historical files from Godot imports; their original `res://` references are not active dependencies. The save-design dialog remains under scenes because a runnable UI regression still uses it. Compatibility readers and their dependencies remain active.
-
-`scripts/legacy/` holds the square checkpoint/progress, ledger, roster, passenger/cargo schemas and prototype slot library, alongside the existing hex readers. Historical class names remain for decoder dependencies. Pure legacy helpers reconstruct and validate the historical data in memory; no historical runtime or UI calls them to mutate a player run.
-
-Read-only entry points:
-
-| Data | Reader |
-| --- | --- |
-| `ship_designs.json` (unwrapped version 1) | `LegacySquareDesignLibrary` |
-| `run_checkpoint.json` (checksummed versions 1/2) | `LegacySquareRunReader` / `RunCheckpoint.decode` |
-| `hex_designs.json` | `LegacyHexDesignLibrary` |
-| `slot_designs.json` | `SlotDesignLibrary` |
-
-Readers do not expose save methods, convert into physical ships, resume old campaigns, promote staged files or overwrite archives. Checksummed readers can inspect the newest valid main/staged/backup generation. Invalid input leaves the last readable in-memory archive intact. The old checkpoint capture method and prototype slot-library writer are removed.
-
-`tests/fixtures/legacy_square_run_v2.json` was captured from the original writer before removal: seed 1357, three square ships and 34 frozen encounters. It complements the frozen square and hex blueprint fixtures. Current archive tests verify original reads, malformed data, schema separation, recovery and byte preservation. Tests use isolated APPDATA.
-
-## Shared code retained deliberately
-
-`Ship`, `FleetShip`, `ShipPart`, `ShipStats`, recipes and pattern metadata still support the square decoder and shared combat regression fixtures. `GameDefinitions` still validates the original metadata used by the active equipment/research catalog. These are compatibility/shared DTOs, not an active construction system.
-
-The generic save/command checks live in `SaveValidation`; current storage, campaign and combat code no longer imports the old run schemas for number/JSON validation. Active trade owns its casualty-fee constant. Square renderer/catalog initialization is lazy, used only when a historical DTO is actually rendered; physical chassis previews and battles skip it.
-
-Player art and old user save files are unchanged. Optional gameplay remains deferred.
+`CampaignGraph`, `CampaignContent`, `SwarmNavigation` and `HangarCheckpoint` still support the current runtime and checkpoint validation. P3 replaces them with the run document and its systems; they were deliberately retained during the P2e reference audit. Current storage uses `SaveValidation` and `AtomicRunStore`.

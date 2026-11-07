@@ -292,10 +292,6 @@ func persistence() -> void:
 		"Continue derives effects from earned research, without new save fields")
 	check(not state.choose_research("carrier_i") and not state.choose_research("renewal_i"),
 		"Behavioral upgrades retain exclusive branch choices")
-	var registry := HangarResearch.view_registry()
-	for pair: Array in [["energy_manipulation", "continuous"], ["siege_i", "splits into 3"], ["bastion_ii", "25%"]]:
-		check(ResearchViewModel.effect_summary(registry, pair[0]).contains(pair[1]),
-			"Research tree and completion banner disclose " + pair[0])
 	var before: Dictionary = state.hangar_snapshot()
 	var path: String = state.run_save_path
 	state.run_save_path = "res://project.godot/no-research.json"

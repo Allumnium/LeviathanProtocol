@@ -42,7 +42,7 @@ func scaled_for_difficulty(difficulty_multiplier: float) -> AlienShip:
 
 
 static func definition(id: String) -> Dictionary:
-	return Content.get_def("enemy_unit", id)
+	return Content.view("enemy_unit", id)
 
 
 static func tier_parameters(id: String, rank: int) -> Dictionary:
@@ -75,7 +75,7 @@ static func from_def(id: String, rank := 0) -> AlienShip:
 		value.weapons.append(copy)
 	var unit := AlienShip.new(data.display_name, load(data.art), value)
 	unit.stats.collision_radius = value.collision_radius
-	unit.definition_id = Content.db().resolve_id("enemy_unit", id)
+	unit.definition_id = Content.qualified_id("enemy_unit", id)
 	unit.role_id = data.role
 	unit.entity_kind = data.kind
 	unit.tier = rank

@@ -65,8 +65,8 @@ func registry_checks() -> void:
 			var node := ResearchViewModel.find(invalid, "research", id)
 			node.grants.modifiers[0].value = value
 			check(not ResearchRules.validate_registry(invalid).is_empty(), "Reject malformed travel modifier: " + str(value))
-		check(definition.cost_rp == 20 and definition.prerequisite_ids == ["foundation"]
-			and definition.family_id.is_empty(), "Travel upgrades retain costs and do not force branches")
+		check(not definition.has("cost_rp") and definition.prerequisite_ids == ["foundation"]
+			and definition.family_id.is_empty(), "Travel upgrades use the shared bar and do not force branches")
 	for value: Variant in [0, 1, -1, NAN, INF, "1.25", null, 2.01]:
 		var invalid := registry.duplicate(true)
 		var node := ResearchViewModel.find(invalid, "research", "field_engineering")
@@ -344,7 +344,7 @@ func arrival_and_ui() -> void:
 			var destination: Dictionary = state.expedition_simulation.locations["refuel_station_1"]
 			var distance: float = state.expedition_simulation.state.position_nu.distance_to(Vector2(destination.position[0], destination.position[1]))
 			var rate := 5.0 if researched else 4.0
-			check(text.contains("ETA %ds at 1x · %ds at 10x" % [ceili(distance / rate), ceili(distance / rate / 10)]),
+			check(text.contains("ETA %ds at %dx" % [ceili(distance / rate / Travel.MAP_SPEED), Travel.MAP_SPEED]),
 				"Selected-trip ETA uses the researched cruise rate at " + str(resolution))
 			if resolution == Vector2i(1280, 720) and researched:
 				await capture_native("cruise-map.png")
@@ -386,11 +386,12 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://research-travel.json"
 	state.credits_changed.connect(func() -> void: credit_notifications += 1)
-	registry_checks()
-	rates_and_speeds()
-	cruise_timing()
-	stopped_and_boundaries()
-	persistence_and_unlocks()
+	if not "--ui-only" in OS.get_cmdline_user_args():
+		registry_checks()
+		rates_and_speeds()
+		cruise_timing()
+		stopped_and_boundaries()
+		persistence_and_unlocks()
 	await arrival_and_ui()
 	print("RESEARCH TRAVEL: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

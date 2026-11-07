@@ -37,9 +37,10 @@ static func all() -> Dictionary:
 		var chassis_id := str(loadout.get("chassis", ""))
 		var def_id := str(loadout.id)
 		loadout.erase("chassis")
-		loadout.id = def_id.trim_prefix(chassis_id + "/")
+		loadout.definition_id = def_id
+		loadout.id = def_id.trim_prefix(chassis_id + "/") if not def_id.contains(":") else def_id
 		var chassis := SlotCatalog.find_chassis(chassis_id)
-		if chassis.is_empty() or def_id != "%s/%s" % [chassis_id, loadout.id] or not _valid(chassis, loadout):
+		if chassis.is_empty() or not _valid(chassis, loadout):
 			push_error("Invalid loadout %s." % def_id)
 			continue
 		if not _loadouts.has(chassis_id):
@@ -67,7 +68,7 @@ static func _valid(chassis: Dictionary, loadout: Variant) -> bool:
 	return true
 
 static func for_chassis(chassis_id: String) -> Array:
-	return all().get(chassis_id, [])
+	return all().get(Content.runtime_id("chassis", chassis_id), [])
 
 static func equipment_available(item: Dictionary, research_ids: Array) -> bool:
 	if not obtainable(item):
@@ -93,18 +94,15 @@ static func purchase_for(chassis_id: String, research_ids: Array) -> Dictionary:
 	return options[0] if not options.is_empty() else {}
 
 static func find(chassis_id: String, loadout_id: String) -> Dictionary:
+	var canonical := Content.runtime_id("loadout", loadout_id)
 	for loadout: Dictionary in for_chassis(chassis_id):
-		if loadout.id == loadout_id:
+		if loadout.id == loadout_id or loadout.definition_id == canonical:
 			return loadout
 	return {}
 
 static func default_for(chassis_id: String) -> Dictionary:
-	var chassis := Content.get_def("chassis", chassis_id)
-	var definition := Content.db().get_def("loadout", str(chassis.get("default_loadout", "")),
-		str(Content.db().meta("chassis", chassis_id).get("pack", "")))
-	if definition.get("chassis", "") != chassis_id:
-		return {}
-	return find(chassis_id, str(definition.id).trim_prefix(chassis_id + "/"))
+	var chassis := SlotCatalog.find_chassis(chassis_id)
+	return find(chassis.id, str(chassis.default_loadout)) if not chassis.is_empty() else {}
 
 static func slot_by_id(chassis: Dictionary, slot_id: String) -> Dictionary:
 	for slot: Dictionary in chassis.get("slots", []):

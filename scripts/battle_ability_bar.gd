@@ -36,7 +36,7 @@ func _ready() -> void:
 			ordered.append(id)
 	for id in ordered.slice(0, 6):
 		var button := Button.new()
-		button.name = "Ability_" + id
+		button.name = "Ability_" + id.validate_node_name()
 		button.custom_minimum_size = Vector2(64, 24)
 		button.toggle_mode = true
 		button.pressed.connect(begin_targeting.bind(id))

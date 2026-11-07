@@ -2,7 +2,7 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"title": "loadout def",
 	"type": "object",
-	"description": "A named, fully fitted ship for sale. The id is <chassis>/<name>; the first loadout of a chassis is its default.",
+	"description": "A named, fully fitted ship for sale. The owning chassis explicitly references its default loadout.",
 	"properties": {
 		"def": {
 			"const": "loadout",

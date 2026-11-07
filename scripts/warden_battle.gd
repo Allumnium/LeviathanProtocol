@@ -179,7 +179,7 @@ func avoidance(sim, member, desired: Vector2) -> Vector2:
 	var across := direction.cross(relative)
 	if along < -member.radius or along > float(rules.range) + member.radius or absf(across) > float(rules.half_width) + member.radius + 30:
 		return desired
-	var side := signf(across) if absf(across) > 1 else (1.0 if member.entity_id.hash() % 2 == 0 else -1.0)
+	var side := signf(across) if absf(across) > 1 else (1.0 if StableHash.u32(member.entity_id) % 2 == 0 else -1.0)
 	return (desired + Vector2(-direction.y, direction.x) * side * member.speed * 2).limit_length(member.speed)
 
 func label(sim) -> String:

@@ -189,14 +189,15 @@
 								"type": "object",
 								"description": "Starts a battle.",
 								"properties": {
+									"id": {
+										"$ref": "_common.schema.json#/$defs/key",
+										"description": "Stable encounter instance identity within this pack; independent of event file order."
+									},
 									"template": {
-										"enum": [
-											"patrol",
-											"elite",
-											"relay_defense",
-											"pylon_escort",
-											"bastion_warden"
-										]
+										"type": "string",
+										"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+										"patternErrorMessage": "Use an encounter ID such as name or pack:name",
+										"description": "ID of an encounter def."
 									},
 									"row": {
 										"type": "integer",
@@ -246,7 +247,8 @@
 								},
 								"required": [
 									"template",
-									"row"
+									"row",
+									"id"
 								],
 								"additionalProperties": false
 							}

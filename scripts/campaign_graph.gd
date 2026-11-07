@@ -11,11 +11,10 @@ static func generate(seed_value: int, navigation_version := 1) -> Dictionary:
 	if navigation_version == 2:
 		var network := _build(seed_value, false)
 		network.navigation_version = 2
-		var layout := RandomNumberGenerator.new()
-		layout.seed = hash("%d/beacon-layout/v2" % seed_value)
+		var streams := RngStreams.new(seed_value)
 		for node: Dictionary in network.nodes:
 			if node.kind not in ["start", "staging", "boss"]:
-				node.position[0] += layout.randf_range(-0.009, 0.009)
+				node.position[0] += streams.fixed("campaign.beacon_layout.v1", str(node.id)).randf_range(-0.009, 0.009)
 		network.edges = []
 		for row in range(24):
 			var left: Array = network.nodes.filter(func(node: Dictionary) -> bool: return node.row == row)
@@ -57,8 +56,7 @@ static func generate(seed_value: int, navigation_version := 1) -> Dictionary:
 
 
 static func _build(seed_value: int, fallback: bool) -> Dictionary:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 0 if fallback else seed_value
+	var streams := RngStreams.new(0 if fallback else seed_value)
 	var graph := {"version": VERSION, "seed": str(seed_value), "fallback": fallback,
 		"nodes": [], "edges": [], "staging": [], "bosses": [], "final": -1}
 	graph.nodes.append({"id": 0, "row": 0, "act": 0, "local_row": 0, "lane": 0,
@@ -66,6 +64,7 @@ static func _build(seed_value: int, fallback: bool) -> Dictionary:
 	var previous: Array[int] = [0]
 	var combat_index := 0
 	for row in range(1, 25):
+		var rng := streams.fixed("campaign.graph_row.v1", str(row))
 		var act := int((row - 1) / 8)
 		var local_row := (row - 1) % 8 + 1
 		var count := 1

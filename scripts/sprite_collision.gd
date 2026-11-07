@@ -29,7 +29,7 @@ static func outlines(texture: Texture2D, region := Rect2i()) -> Array[PackedVect
 	return polygons
 
 static func rock_region(id: String) -> Rect2i:
-	var sprite := int(id.hash() & 63)
+	var sprite := int(StableHash.u32(id) & 63)
 	return Rect2i(Vector2i(sprite % 8, sprite / 8) * 32, Vector2i(32, 32))
 
 static func hangar_rect(owned: HangarShip) -> Rect2:

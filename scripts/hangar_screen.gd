@@ -1020,7 +1020,7 @@ func _enter_battle() -> void:
 	if get_viewport().gui_is_dragging():
 		get_viewport().gui_cancel_drag()
 	AudioManager.play_ui_sfx(&"warp")
-	var boss: bool = GameState.pending_encounter.get("template_id", "") == "bastion_warden"
+	var boss: bool = GameState.pending_encounter.get("warden", {}).get("lance", false)
 	AudioManager.play_battle_music(boss)
 	SceneFadeScript.cover_and_change(self, "res://scenes/auto_battle.tscn", "THE WARDEN" if boss else "ENGAGING")
 
@@ -1429,7 +1429,7 @@ func _render_refit_panel() -> void:
 		var fitted: bool = loadout.id == current
 		var option := UiKit.button(str(loadout.name) + ("  FITTED" if fitted else ""),
 			_refit_to.bind(loadout.id), &"")
-		option.name = "Loadout_" + str(loadout.id)
+		option.name = "Loadout_" + str(loadout.id).validate_node_name()
 		option.clip_text = true
 		option.disabled = fitted or not access
 		refit_panel.add_child(option)
@@ -1583,7 +1583,7 @@ func _show_squadron_details(group: Dictionary) -> void:
 	for choice: Dictionary in ShipLoadouts.available_for(group.chassis, GameState.current_research_ids):
 		var option := _button(choice.name, func() -> void:
 			_result(GameState.refit_squadron(int(group.id), choice.id)))
-		option.name = "SquadronLoadout_" + str(choice.id)
+		option.name = "SquadronLoadout_" + str(choice.id).validate_node_name()
 		option.toggle_mode = true
 		option.button_pressed = choice.id == group.loadout
 		_shipyard_action(option, choice.id != group.loadout)
@@ -1757,18 +1757,17 @@ func _station_stock(key: String, all_ids: Array) -> Array:
 	var simulation = GameState.expedition_simulation
 	var station: Dictionary = {} if simulation == null else simulation.locations.get(simulation.state.docked_location_id, {})
 	var ids: Array = station.get(key, all_ids).duplicate()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%d/shop/%s/%s" % [GameState.run_seed, str(station.get("id", "")), key])
-	for index in range(ids.size() - 1, 0, -1):
-		var swap := rng.randi_range(0, index)
-		var held: Variant = ids[index]
-		ids[index] = ids[swap]
-		ids[swap] = held
+	ids.sort()
+	var rng := RngStreams.new(GameState.run_seed).fixed("shipyard.stock.v1", StableHash.key([station.get("id", ""), key]))
+	rng.shuffle(ids)
 	var featured: Array = station.get("featured", [])
+	var def_type := "chassis" if key == "chassis_stock" else "equipment"
+	var owner := str(Content.db().meta("location", Content.qualified_id("location", str(station.get("id", "")))).get("pack", "leviathan"))
 	for index in range(featured.size() - 1, -1, -1):
-		if featured[index] in ids:
-			ids.erase(featured[index])
-			ids.push_front(featured[index])
+		var id := Content.runtime_id(def_type, str(featured[index]), owner)
+		if id in ids:
+			ids.erase(id)
+			ids.push_front(id)
 	return ids
 
 func _shop_thumbnail(texture: Texture2D, lit: bool) -> TextureRect:
@@ -1966,7 +1965,7 @@ func _render_map_details() -> void:
 		var fuel_needed: float = distance * GameState.expedition_fuel_rate()
 		lines.append("%d NU away" % roundi(distance))
 		lines.append("%d fuel%s" % [ceili(fuel_needed), " (out of range)" if fuel_needed > state.fuel else ""])
-		lines.append("ETA %ds at 1x · %ds at 10x" % [ceili(distance / cruise), ceili(distance / cruise / 10.0)])
+		lines.append("ETA %ds at %dx" % [ceili(distance / cruise / ExpeditionStateData.MAP_SPEED), ExpeditionStateData.MAP_SPEED])
 	var services: PackedStringArray = []
 	for service: String in simulation.services_for(location):
 		services.append(service.capitalize())

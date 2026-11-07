@@ -126,12 +126,12 @@ func run() -> void:
 	before = state.hangar_snapshot()
 	var invalid := Content.get_def("fleet_package", "core:convoy").duplicate(true)
 	invalid.members.append(invalid.members[0].duplicate(true))
-	check(state._prepare_starting_fleet(invalid, "flagship_basic", "core").is_empty()
+	check(state._prepare_starting_fleet(invalid, "flagship_basic").is_empty()
 		and not state.last_save_error.is_empty() and SaveValidation.same(before, state.hangar_snapshot()),
 		"Duplicate group IDs fail before mutating a run")
 	invalid = Content.get_def("fleet_package", "core:convoy").duplicate(true)
 	invalid.members[1].count = 2
-	check(state._prepare_starting_fleet(invalid, "flagship_basic", "core").is_empty(), "Multiple flagships cannot start a run")
+	check(state._prepare_starting_fleet(invalid, "flagship_basic").is_empty(), "Multiple flagships cannot start a run")
 	check(not state.start_new_run(1, 7341, true, "flagship_basic", "missing")
 		and SaveValidation.same(before, state.hangar_snapshot()), "A missing start definition leaves the run unchanged")
 	check(state.start_new_run(1, 7341) and state.buy_ship("fighter")

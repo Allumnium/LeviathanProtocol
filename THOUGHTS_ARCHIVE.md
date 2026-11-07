@@ -41,3 +41,47 @@ Resolved entries moved from [THOUGHTS.md](THOUGHTS.md), preserving their context
 - **Resolved 2026-11-07:** Abilities explicitly declare research/unavailable status. Unimplemented descriptions say they are unavailable; the current player context rejects unavailable abilities and offered research cannot grant them. Ion Pulse retains its original shipped mechanics. Registered behavior/parameter schemas validate the existing engine operations; actual patched casts and unavailable-option rejection pass the combat fixture.
 - **Original editor opportunity (2026-11-07):** Research modifier validation has one implementation, but the inspector registry needs parameter schemas so authors can select supported primitives rather than discover names through errors.
 - **Resolved 2026-11-07:** Added shared research-modifier and ability-behavior schemas plus the support behavior schema. Runtime research validation now consumes the same registered modifier forms as pack loading and exported JSON schemas; the future inspector can inspect those forms without a separate parameter whitelist. Focused research content/redesign/pack checks pass.
+
+## 2026-11-07 - Retired archive diagnostics
+
+- **Original note (2026-11-07):** **Concern / remaining legacy diagnostics:** The five pre-existing square-checkpoint fixture failures remain with `test_legacy_archives`, pending its reference audit and retirement in P2e. The active-suite stale-fixture corrections are recorded in [the archive](THOUGHTS_ARCHIVE.md).
+- **Resolved 2026-11-07 (P2e):** Audited references and deleted the archive-only square/hex readers, their isolated helpers/data, the three fixtures and retired suite. Active scripts/scenes/tests have no remaining references. Shared combat DTOs and current campaign/checkpoint dependencies remain; the five obsolete decoder failures no longer belong to the test set.
+
+## 2026-11-07 - Runtime projection caches
+
+- **Original note (2026-11-07):** **Refactor opportunity / remaining caches:** Audit remaining UI/static caches as their authorities move in later P2 checkpoints. GameDefinitions, SlotCatalog, ShipLoadouts and shared support parameters now follow database replacement; their resolutions are archived.
+- **Resolved 2026-11-07 (P2e):** Content now caches writable runtime projections by DefDatabase identity, and the migrated catalog/asset views invalidate on database replacement. The two-pack fixture verifies replacement/restoration after scoped fittings and grants. Full run-frozen tuning/art remains P3 work, recorded separately below.
+
+## 2026-11-07 - Consistent Map trip estimates
+
+- **Original note (2026-11-07):** **UX concern / contradictory trip estimates:** `_render_map_details` still formats selected-trip estimates at 1x and 10x, while the actual Map has fixed 8x controls and the underway estimate uses 8x. A focused future UX change should use the current travel speed consistently.
+- **Resolved 2026-11-07 (P2e):** Selected-trip ETA now uses ExpeditionState.MAP_SPEED (8x), matching underway travel and researched cruise rate. Reviewed native captures at 640x360, 1280x720 and 1920x1080; the updated focused travel UI section passes 33 checks.
+
+## 2026-11-07 - Direct pack-folder roots
+
+- **Original note (2026-11-07):** **Tooling concern / pack-root diagnostics:** PackLoader discovers packs inside root directories. Passing a pack directory itself can produce a warning about its `defs` child instead of loading that pack. The CLI comment calls roots "pack folders," which is easy to misread. Consider accepting both forms or reporting the expected container layout explicitly.
+- **Resolved 2026-11-07 (P2e):** PackLoader accepts either a container or a folder containing pack.json. Overlapping direct/container/absolute paths are deduplicated by physical directory; distinct packs with duplicate manifest IDs still fail. Focused checks confirm identical shipped content hashes and no spurious Problems. The CLI comment describes both forms.
+
+## 2026-11-07 - Fleet and start preflight
+
+- **Original note (2026-11-07):** **Refactor opportunity / relational validation:** Schemas validate new start/package fields, and new-run preflight rejects duplicate member IDs, unavailable fits, multiple flagships and oversized fleets. Moving reusable cross-definition checks into the loader's type-check registry would let the future Problems panel diagnose these before Playtest.
+- **Resolved 2026-11-07 (P2e):** Added loader checks for complete compatible/obtainable loadouts, matching chassis defaults, unique member IDs, the live fleet limit, exactly one flagship, ordinary starting equipment and accessible starting docks. Causal references blame and roll back the patching pack, including edits to referenced chassis/equipment/location definitions. The focused relations suite passes 31 checks.
+
+## 2026-11-07 - Retired research readers and prices
+
+- **Original note (2026-11-07):** **Refactor opportunity / retired research views:** Active cards now read shared `research_tuning` for costs and counts. The unused focused-research/tree readers and nominal `cost_rp` metadata still exist for the legacy audit. Remove them in P2e so Library forms do not imply that an ignored per-project price controls the shared bar.
+- **Resolved 2026-11-07 (P2e):** Removed unused focus/tree/effect-summary readers and nominal cost_rp metadata from definitions, validation and both schema sets. Active cards use the shared research bar and authored descriptions. Removed three obsolete text assertions; 205 active combat-effect checks pass.
+
+## 2026-11-07 - Scoped runtime identities
+
+- **Original note (2026-11-07):** **Refactor concern / qualified identities:** Qualified family and gate references now work, with a single commitment identity for qualified/local family aliases and explicit gate-to-run-flag bindings. Other legacy registry views still require globally unique local research/equipment IDs. Finish their move to scoped Content lookups before claiming complete namespace support for independent packs.
+- **Resolved 2026-11-07 (P2e):** Content.view resolves schema references in the owning pack without changing authored data. Shipped owner scopes retain fixed shorthand; external identities remain qualified even when globally unique. Two independent same-name packs pass actual starter/fitting/refit/research/encounter/rescue/Continue checks, plus native card/refit interactions. Explicit core references cannot be rebound to a namesake. Registry primitive metadata uniqueness is scoped, and current engine enum lookups stay bound to core.
+
+## 2026-11-07 - Actionable generation failures
+
+- **Original note (2026-11-07):** **Observation and imaginative editor proposal / generation receipt:** The current allocator returns an empty encounter when required units cannot fit the budget. A structurally valid price edit can therefore need a feasibility diagnostic. An encounter inspector could show its budget as a receipt: mandatory units, reserved reinforcements, hazard share, tier prices and remaining points. This would explain an unaffordable composition or why a price change alters the roster. Reuse generation records rather than inventing a parallel allocator; add actionable failure details with the future composer/Problems work.
+- **Resolved diagnostic portion 2026-11-07 (P2e):** Encounter generation can return per-call diagnostics naming the required unit, available points, minimum cost and reserved units. Actual story choices surface these errors while preserving receipts, resources, the pending choice and save bytes. Verified with a structurally valid unaffordable price patch. The proposed graphical generation receipt remains open in THOUGHTS.md for the composer/editor.
+
+## 2026-11-07 - StableRng helper dispatch
+
+- **Observed and resolved 2026-11-07 (P2e):** StableRng helper calls to unqualified randf/randi_range resolved to Godot globals, so ranged floats, chance, weighted choice, pick and shuffle could consume global randomness. Explicit self calls now keep those draws inside the stable stream. Added five independent reference/global-RNG-isolation checks; all 32 RNG checks pass. Versioned generation streams also have fixed encounter/research reference outputs and order/isolation/Continue checks.

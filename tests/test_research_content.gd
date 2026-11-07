@@ -36,7 +36,7 @@ func gated_offer() -> void:
 	state._allocate_research(data.research, 0)
 	check(state._commit_hangar(data), "Commit a custom declared story gate")
 	var offer: Array = state.research_offer.duplicate()
-	check(offer.size() == 2 and "applied_energy" in offer and "field_notes" in offer,
+	check(offer.size() == 2 and "applied_energy" in offer and "research_tuning_test:field_notes" in offer,
 		"Actual offers include the patched card and a newly authored inherited card")
 	check(state.load_run_checkpoint() and state.research_offer == offer, "Continue preserves custom offers exactly")
 
@@ -62,15 +62,15 @@ func mechanics() -> void:
 	check(not state.choose_research("applied_energy") and SaveValidation.same(before, state.hangar_snapshot()), "Failed patched choice rolls back RP, grants, branch and offer")
 	state.run_save_path = save_path
 	check(state.choose_research("applied_energy") and state.research_points == 0
-		and state.research_branch_choices.get("fieldcraft") == "practical", "Actual choice commits the custom family path and shared-bar debit")
+		and state.research_branch_choices.get("research_tuning_test:fieldcraft") == "practical", "Actual choice commits the custom family path and shared-bar debit")
 	check(is_equal_approx(state.owned_ship(drone_id).get_stats().weapons[0].damage_per_shot, weapon_before * 1.35), "Patched modifier changes actual fitted laser damage")
 	check(Loadouts.equipment_available(SlotCatalog.find_equipment("beam_lance"), state.current_research_ids)
 		and Loadouts.equipment_available(SlotCatalog.find_equipment("tactical_computer"), state.current_research_ids), "Authored equipment grants are applied without filtering by card ID")
-	check(state.load_run_checkpoint() and state.research_branch_choices.get("fieldcraft") == "practical"
+	check(state.load_run_checkpoint() and state.research_branch_choices.get("research_tuning_test:fieldcraft") == "practical"
 		and is_equal_approx(state.owned_ship(drone_id).get_stats().weapons[0].damage_per_shot, weapon_before * 1.35), "Custom grants and branch survive Continue")
-	var opposite := Content.get_def("research", "applied_energy").duplicate(true)
+	var opposite := Content.view("research", "applied_energy")
 	opposite.id = "opposite"
-	opposite.family_id = "fieldcraft"
+	opposite.family_id = "research_tuning_test:fieldcraft"
 	opposite.path_id = "theory"
 	var opposite_catalog: Array[Dictionary] = [opposite]
 	check(ResearchRules.requirements("opposite", state.current_research_ids, state.story_flags,
@@ -78,13 +78,13 @@ func mechanics() -> void:
 	check(HangarResearch.threshold(state.run_progress_snapshot()) == 24, "Patched progression advances to its next threshold")
 	var data: Dictionary = state.hangar_snapshot()
 	state._allocate_research(data.research, 24)
-	check(state._commit_hangar(data) and state.research_offer == ["field_notes"] and state.choose_research("field_notes"), "A new inherited research ID can be offered and chosen")
+	check(state._commit_hangar(data) and state.research_offer == ["research_tuning_test:field_notes"] and state.choose_research("research_tuning_test:field_notes"), "A new inherited research ID can be offered and chosen")
 	for event: Dictionary in state.expedition_simulation.events:
 		state.expedition_simulation.state.event_receipts[event.id] = true
 	check(state.depart_expedition("refuel_station_1"), "Depart to verify the new authored effect")
 	var result: Dictionary = state.advance_expedition(10, true)
 	check(result.ok and result.income == 6, "New-card travel income executes through the actual travel transaction")
-	check(state.current_research_ids.has("field_notes") and not state.current_research_ids.has("civil_hospitality"), "An inherited card does not require or silently grant its template")
+	check(state.current_research_ids.has("research_tuning_test:field_notes") and not state.current_research_ids.has("civil_hospitality"), "An inherited card does not require or silently grant its template")
 	Content.set_database(shipped)
 	check(Loadouts.equipment_available(SlotCatalog.find_equipment("tactical_computer"), ["foundation"])
 		and HangarResearch.threshold({"research_ids": ["foundation"]}) == 20, "Restoring shipped content restores its access and bar tuning")
@@ -180,7 +180,7 @@ func native_cards() -> void:
 		root.push_input(event, true)
 		await process_frame
 	await settle()
-	check(state.current_research_ids.has("applied_energy") and state.research_branch_choices.get("fieldcraft") == "practical"
+	check(state.current_research_ids.has("applied_energy") and state.research_branch_choices.get("research_tuning_test:fieldcraft") == "practical"
 		and not is_instance_valid(screen.research_dialog), "Actual pointer choice commits the authored research and closes its window")
 	check(screen.research_status.text == "0 / 24 RP", "The header displays the patched next threshold")
 	screen.queue_free()

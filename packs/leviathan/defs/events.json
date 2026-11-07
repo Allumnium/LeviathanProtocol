@@ -46,6 +46,7 @@
 					"label": "DEFEND MERIDIAN / BATTLE",
 					"effects": {
 						"combat": {
+							"id": "first_contact_fight",
 							"template": "patrol",
 							"row": 2,
 							"strength": 2.5,
@@ -88,7 +89,7 @@
 				{
 					"id": "fight",
 					"label": "BATTLE STATIONS",
-					"effects": {"combat": {"template": "patrol", "row": 4, "strength": 3.5}}
+					"effects": {"combat": {"id": "drone_vanguard_fight","template": "patrol", "row": 4, "strength": 3.5}}
 				}
 			],
 			"requires_flags": ["meridian_incident", "meridian_reported"],
@@ -134,7 +135,7 @@
 				{
 					"id": "fight",
 					"label": "BATTLE STATIONS",
-					"effects": {"combat": {"template": "elite", "row": 5, "strength": 4}}
+					"effects": {"combat": {"id": "swarm_scouts_fight","template": "elite", "row": 5, "strength": 4}}
 				}
 			],
 			"requires_flags": ["meridian_incident", "meridian_reported"],
@@ -154,7 +155,7 @@
 				{
 					"id": "blast",
 					"label": "FLUSH THEM OUT",
-					"effects": {"combat": {"template": "patrol", "row": 5, "strength": 4, "asteroids": 2, "credits": 180}}
+					"effects": {"combat": {"id": "asteroid_corridor_blast","template": "patrol", "row": 5, "strength": 4, "asteroids": 2, "credits": 180}}
 				}
 			],
 			"requires_flags": ["meridian_incident", "meridian_reported"]
@@ -186,6 +187,7 @@
 					"label": "DEFEND THE HAULER",
 					"effects": {
 						"combat": {
+							"id": "distress_call_defend",
 							"template": "relay_defense",
 							"row": 6,
 							"strength": 5,
@@ -232,7 +234,7 @@
 					"id": "engage",
 					"label": "ENGAGE",
 					"effects": {
-						"combat": {"template": "bastion_warden", "row": 10, "strength": 7, "credits": 400},
+						"combat": {"id": "bastion_warden_engage","template": "bastion_warden", "row": 10, "strength": 7, "credits": 400},
 						"complete": true
 					}
 				}

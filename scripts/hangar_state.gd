@@ -79,17 +79,15 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	if selected_difficulty not in [0, 1, 2] or seed_value < -1 or selected.is_empty() or not selected.flagship:
 		push_error("Cannot start a run with invalid difficulty, seed or flagship.")
 		return false
-	var start := Content.get_def("run_start", start_id)
+	var start := Content.view("run_start", start_id)
 	if start.is_empty():
 		last_save_error = "Starting configuration '%s' is missing." % start_id
 		return false
-	var start_pack := str(Content.db().meta("run_start", start_id).pack)
-	var package := Content.db().get_def("fleet_package", start.fleet, start_pack)
-	var package_pack := str(Content.db().meta("fleet_package", start.fleet, start_pack).get("pack", ""))
-	var starting_ships := _prepare_starting_fleet(package, flagship_id, package_pack)
+	var package := Content.view("fleet_package", start.fleet)
+	var starting_ships := _prepare_starting_fleet(package, selected.id)
 	if starting_ships.is_empty():
 		return false
-	var start_location := Content.db().get_def("location", start.location, start_pack)
+	var start_location := Content.view("location", start.location)
 	var before := hangar_snapshot()
 	var previous_generation := hangar_generation
 	run_seed = _new_run_seed() if seed_value == -1 else seed_value
@@ -155,7 +153,7 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	_notify_hangar()
 	return true
 
-func _prepare_starting_fleet(package: Dictionary, flagship_id: String, package_pack: String) -> Array[Dictionary]:
+func _prepare_starting_fleet(package: Dictionary, flagship_id: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var groups := {}
 	var flagships := 0
@@ -165,7 +163,7 @@ func _prepare_starting_fleet(package: Dictionary, flagship_id: String, package_p
 			return []
 		groups[member.id] = true
 		var chassis_id: String = flagship_id if member.get("selected_flagship", false) else \
-			str(Content.db().get_def("chassis", member.chassis, package_pack).get("id", ""))
+			Content.runtime_id("chassis", member.chassis)
 		var chassis := SlotCatalog.find_chassis(chassis_id)
 		var loadout := ShipLoadouts.default_for(chassis_id)
 		if chassis.is_empty() or loadout.is_empty() or not ShipLoadouts.available(loadout, ["foundation"]):
@@ -218,7 +216,7 @@ func _new_equipment(key: String, rank := 1) -> Dictionary:
 		return {}
 	var uid := str(next_equipment_id)
 	next_equipment_id += 1
-	var instance := {"uid": uid, "equipment_id": key, "rank": rank}
+	var instance := {"uid": uid, "equipment_id": item.id, "rank": rank}
 	equipment_inventory[uid] = instance
 	return instance
 
@@ -603,7 +601,6 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 	if effects.has("combat"):
 		var encounter := _expedition_encounter(event_id, effects)
 		if encounter.is_empty():
-			last_save_error = "Could not generate the encounter."
 			return false
 		proposal.pending = true
 		proposal.pending_encounter = encounter
@@ -627,13 +624,14 @@ func resolve_expedition_event(event_id: String, choice: String) -> bool:
 
 func _expedition_encounter(event_id: String, effects: Dictionary) -> Dictionary:
 	var combat: Dictionary = effects.combat
-	var index: int = expedition_simulation.events.find(ExpeditionSimulationScript.Events.find(expedition_simulation.events, event_id))
-	var node_id := 1000 + maxi(0, index)
+	var node_id: String = combat.id
 	var environment := {"version": 1, "asteroid_density": int(combat.get("asteroids", 0)),
 		"solar_intensity": 1.0, "nebula": bool(combat.get("nebula", false))}
+	var diagnostics := {}
 	var encounter := EncounterGenerator.generate(run_seed, node_id, int(combat.row), difficulty,
-		str(combat.template), clampi(int(combat.row), 1, 14), false, environment)
+		str(combat.template), clampi(int(combat.row), 1, 14), false, environment, true, diagnostics)
 	if encounter.is_empty():
+		last_save_error = diagnostics.get("error", "Could not generate the encounter.")
 		return {}
 	# Hostile strength reuses the Swarm hull/shield/damage scaling.
 	var strength := float(combat.get("strength", 1.0))
@@ -1244,6 +1242,7 @@ func research_choice_ready() -> bool:
 	return not research_offer.is_empty() and research_points >= HangarResearch.threshold(run_progress_snapshot())
 
 func choose_research(key: String) -> bool:
+	key = Content.runtime_id("research", key)
 	if battle_pending or run_ended or completed or not research_choice_ready() or key not in research_offer:
 		last_save_error = "Choose one of the offered upgrades."
 		return false
@@ -1527,8 +1526,8 @@ func equipment_loot(node_id: int) -> Dictionary:
 			candidates.append(item)
 	if candidates.is_empty():
 		return {}
-	var rng := RandomNumberGenerator.new()
-	rng.seed = run_seed + node_id * 7919
+	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return ShipLoadouts.key_for(a) < ShipLoadouts.key_for(b))
+	var rng := RngStreams.new(run_seed).fixed("equipment.loot.v1", str(node_id))
 	return candidates[rng.randi_range(0, candidates.size() - 1)]
 
 func cancel_battle(_surviving_player_ship_count := -1, _terminal_defeat := false, _staged: Dictionary = {}) -> bool:

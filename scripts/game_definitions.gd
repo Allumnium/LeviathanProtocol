@@ -1,7 +1,7 @@
 class_name GameDefinitions
 extends RefCounted
 
-# A legacy registry view over core content defs. The content revision is the
+# A combat/registry projection over scoped content defs. The revision is the
 # loaded content hash, independent of blueprint/archive/run save versions.
 const SCHEMA_VERSION := 1
 const DOMAINS := [
@@ -20,7 +20,7 @@ const REQUIRED_FIELDS := {
 	"equipment": {"type_id": TYPE_FLOAT, "enum_key": TYPE_STRING, "recipe": TYPE_STRING,
 		"capstone": TYPE_BOOL, "regular_slots_only": TYPE_BOOL, "offensive_capstone": TYPE_BOOL,
 		"ability_ids": TYPE_ARRAY, "ranks": TYPE_ARRAY},
-	"research": {"cost_rp": TYPE_FLOAT, "prerequisite_ids": TYPE_ARRAY, "story_gate_ids": TYPE_ARRAY,
+	"research": { "prerequisite_ids": TYPE_ARRAY, "story_gate_ids": TYPE_ARRAY,
 		"family_id": TYPE_STRING, "path_id": TYPE_STRING, "exclusion_ids": TYPE_ARRAY, "grants": TYPE_DICTIONARY},
 	"encounters": {"story_eligible": TYPE_BOOL},
 	"nodes": {"inhabited_default": TYPE_BOOL, "combat": TYPE_BOOL, "goods_grade_id": TYPE_STRING},
@@ -72,15 +72,16 @@ static func entries(domain: String, implemented_only := false) -> Array[Dictiona
 
 
 static func find(domain: String, id: String) -> Dictionary:
+	var canonical := Content.runtime_id(DEF_TYPES[domain], id)
 	for entry: Dictionary in _data().get(domain, []):
-		if entry.id == id:
+		if entry.id == canonical:
 			return entry.duplicate(true)
 	return {}
 
 
 static func equipment(type_id: int) -> Dictionary:
 	for entry: Dictionary in _data().get("equipment", []):
-		if int(entry.type_id) == type_id:
+		if not str(entry.id).contains(":") and int(entry.type_id) == type_id:
 			return entry.duplicate(true)
 	return {}
 
@@ -132,9 +133,10 @@ static func validate(value: Variant) -> Array[String]:
 	var type_ids: Dictionary = {}
 	for entry in value.equipment:
 		var type_id: Variant = entry.get("type_id")
-		if not _nonnegative_integer(type_id) or type_ids.has(type_id):
+		var scoped_type := "%s/%s" % [str(entry.id).get_slice(":", 0) if str(entry.id).contains(":") else "core", str(type_id)]
+		if not _nonnegative_integer(type_id) or type_ids.has(scoped_type):
 			errors.append("Invalid or duplicate equipment type ID: %s" % entry.id)
-		type_ids[type_id] = true
+		type_ids[scoped_type] = true
 		if not entry.get("recipe") is String or not _valid_recipe(entry.get("recipe", "")):
 			errors.append("Invalid material recipe: %s" % entry.id)
 		for ability_id in entry.get("ability_ids", []):
@@ -143,10 +145,10 @@ static func validate(value: Variant) -> Array[String]:
 			if not rank is Dictionary or not _positive_integer(rank.get("rank")) or not rank.get("recipe") is String or not _valid_recipe(rank.recipe):
 				errors.append("Invalid equipment rank: %s" % entry.id)
 	if errors.is_empty():
-		errors.append_array(MaterialRecipe.validate_registry(value.equipment))
+		errors.append_array(MaterialRecipe.validate_registry(value.equipment.filter(func(entry: Dictionary) -> bool: return not str(entry.id).contains(":"))))
 	for entry in value.research:
-		if not _nonnegative_integer(entry.get("cost_rp")) or not entry.get("grants") is Dictionary:
-			errors.append("Invalid research cost/grants: %s" % entry.id)
+		if not entry.get("grants") is Dictionary:
+			errors.append("Invalid research grants: %s" % entry.id)
 			continue
 		for key in ["prerequisite_ids", "exclusion_ids"]:
 			for id in entry.get(key, []):

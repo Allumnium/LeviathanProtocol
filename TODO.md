@@ -8,9 +8,8 @@ Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS
 
 Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
 
-- [ ] Retire `test_legacy_archives` with the P2e reference audit/legacy cleanup; its five pre-existing square-checkpoint fixture failures remain out of the active gameplay suites. The recorded flagship, research-travel and expedition-event failures were stale fixtures, corrected and verified in [COMPLETED.md](COMPLETED.md).
-- [ ] P2 One authority: finish stable generation streams, explicit runtime identities and audited legacy cleanup (P2e). Research, enemy costs/templates, economy, starters, support/ability parameters and generated equipment descriptions are delivered in [COMPLETED.md](COMPLETED.md); patch-only enemy-cost, fare and starting-credit proofs pass.
-- [ ] P2e: use stable named generation streams and explicit encounter IDs; audit references before deleting unused legacy readers/helpers and their retired suites, including unused research-focus/tree readers and nominal per-project prices. Finish qualified runtime-reference migration where registry views still require globally unique local IDs. Default loadouts and station trade IDs are now explicit; the unused modal fitting canvas is deleted. Finish with only affected focused checks and pack/schema validation.
+P2 is complete: definitions control runtime behavior; generation uses stable named streams and explicit identities; scoped references support independent packs; audited legacy readers and ignored research metadata are removed. Focused verification is recorded in [COMPLETED.md](COMPLETED.md).
+
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
 - [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.
 - [ ] P5 Editor v1: shell, schema forms, Quest/Story Lab/Text workspaces, Playtest overlay and main-menu entry.

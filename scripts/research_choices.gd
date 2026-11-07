@@ -25,7 +25,7 @@ func _ready() -> void:
 	for id: String in GameState.research_offer:
 		var definition := GameDefinitions.find("research", id)
 		var card := PanelContainer.new()
-		card.name = "Card_" + id
+		card.name = "Card_" + id.validate_node_name()
 		card.theme_type_variation = &"ContextPanel"
 		card.size_flags_horizontal = SIZE_EXPAND_FILL
 		card.custom_minimum_size.y = 180
@@ -51,7 +51,7 @@ func _ready() -> void:
 			branch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			body.add_child(branch)
 		var choose := UiKit.button("CHOOSE", _choose.bind(id))
-		choose.name = "Choose_" + id
+		choose.name = "Choose_" + id.validate_node_name()
 		body.add_child(choose)
 		buttons[id] = choose
 		var requirement := UiKit.label(ResearchUpgrades.requirement(id), &"ResearchDescriptionText")

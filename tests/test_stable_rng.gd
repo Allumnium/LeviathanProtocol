@@ -40,6 +40,18 @@ func run() -> void:
 	for index in 10:
 		rolls.append(dice.randi_range(1, 6))
 	check(rolls == [6, 5, 4, 6, 5, 2, 2, 4, 6, 4], "Unbiased dice reference rolls")
+	check(StableRng.from_key("key").randf_range(-2, 6) == -2 + 8 * (4102585624.0 / 4294967296.0), "Float range consumes the stable reference word")
+	check(not StableRng.from_key("key").chance(0.5), "Chance uses the stable float reference")
+	check(StableRng.from_key("key").weighted_index([1, 0, 3]) == 2, "Weighted choice uses the stable float reference")
+	check(StableRng.from_key("dice").pick(["a", "b", "c", "d", "e", "f"]) == "f", "Picking uses the stable dice reference")
+	var first_deck := [0, 1, 2, 3, 4, 5, 6, 7]
+	var next_deck := first_deck.duplicate()
+	StableRng.from_key("deck").shuffle(first_deck)
+	seed(12345) # Unrelated global draws cannot affect stable convenience methods.
+	for index in range(10):
+		randf()
+	StableRng.from_key("deck").shuffle(next_deck)
+	check(first_deck == next_deck, "Shuffle repeats independently of global RNG state")
 
 	check(streams.counter("galaxy") == 1, "Stream counter advances per request")
 	var second := draws(streams.rng("galaxy"), 3)

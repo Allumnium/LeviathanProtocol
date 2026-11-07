@@ -47,8 +47,7 @@ static func prepare_offer(progress: Dictionary, seed_value: int, count: int, dep
 	var pool := available(progress, deployed)
 	var ids: Array = progress.research_ids.duplicate()
 	ids.sort()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value ^ (",".join(ids)).hash()
+	var rng := RngStreams.new(seed_value).fixed("research.offer.v1", StableHash.key(ids))
 	while not pool.is_empty() and progress.research_offer.size() < count:
 		var index := rng.randi_range(0, pool.size() - 1)
 		progress.research_offer.append(pool[index])

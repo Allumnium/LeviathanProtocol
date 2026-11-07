@@ -32,6 +32,9 @@ var _ref_regex := RegEx.create_from_string(REF_PATTERN)
 func _init(registry: SchemaRegistry = null) -> void:
 	schemas = registry if registry != null else SchemaRegistry.new()
 	checks["research"] = preload("res://scripts/content/research_checks.gd").validate
+	checks["event"] = preload("res://scripts/content/event_checks.gd").validate
+	for type: String in ["chassis", "loadout", "fleet_package", "run_start"]:
+		checks[type] = preload("res://scripts/content/fleet_checks.gd").validate
 	for type: String in ["enemy_unit", "encounter_tuning", "encounter", "ability", "support"]:
 		checks[type] = preload("res://scripts/content/combat_checks.gd").validate
 
@@ -87,13 +90,21 @@ func load_packs(roots: Array = DEFAULT_ROOTS, schema_dirs: Array = DEFAULT_SCHEM
 func _discover(roots: Array, problems: ContentProblems) -> Array[PackManifest]:
 	var found: Array[PackManifest] = []
 	var seen := {}
+	var seen_paths := {}
 	for root: String in roots:
 		if not DirAccess.dir_exists_absolute(root):
 			continue
-		var folders := Array(DirAccess.get_directories_at(root))
-		folders.sort()
-		for folder: String in folders:
-			var pack_root := root.path_join(folder)
+		var folders: Array = [root]
+		if not FileAccess.file_exists(root.path_join("pack.json")):
+			folders = Array(DirAccess.get_directories_at(root)).map(func(folder: String) -> String: return root.path_join(folder))
+			folders.sort()
+		for pack_root: String in folders:
+			var absolute := ProjectSettings.globalize_path(pack_root).simplify_path().replace("\\", "/")
+			if OS.get_name() == "Windows":
+				absolute = absolute.to_lower()
+			if seen_paths.has(absolute):
+				continue
+			seen_paths[absolute] = true
 			var manifest_path := pack_root.path_join("pack.json")
 			if not FileAccess.file_exists(manifest_path):
 				problems.warning("Folder has no pack.json", "", pack_root)

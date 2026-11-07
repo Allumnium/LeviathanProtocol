@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json-schema.org/draft/2020-12/schema",
 	"type": "object",
-	"description": "A named, fully fitted ship for sale. The id is <chassis>/<name>; the first loadout of a chassis is its default.",
+	"description": "A named, fully fitted ship for sale. The owning chassis explicitly references its default loadout.",
 	"properties": {
 		"chassis": {"type": "string", "x-ref": "chassis"},
 		"name": {"type": "string", "minLength": 1},

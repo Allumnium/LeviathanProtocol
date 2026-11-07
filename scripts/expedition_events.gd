@@ -6,7 +6,16 @@ const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "c
 
 # Event defs in load order; within a trigger the first ready event fires.
 static func catalog() -> Dictionary:
-	return {"version": 1, "events": Content.copies("event")}
+	var events: Array = []
+	for record: Dictionary in Content.db().records("event"):
+		if record.abstract:
+			continue
+		var event := Content.view("event", record.qid)
+		for option: Dictionary in event.get("options", []):
+			if option.get("effects", {}).has("combat"):
+				option.effects.combat.id = record.pack + ":" + str(option.effects.combat.id)
+		events.append(event)
+	return {"version": 1, "events": events}
 
 # Older fixtures only declared `distance_nu`; they remain distance triggers with
 # the original Investigate / Continue Course choices.
@@ -161,7 +170,7 @@ static func _valid_effects(effects: Dictionary, locations: Dictionary) -> bool:
 				return false
 	if effects.has("combat"):
 		var combat: Variant = effects.combat
-		if not combat is Dictionary or not Content.get_def("encounter", str(combat.get("template", ""))).get("story_eligible", false) \
+		if not combat is Dictionary or not combat.get("id") is String or combat.id.is_empty() or not Content.get_def("encounter", str(combat.get("template", ""))).get("story_eligible", false) \
 				or not SaveValidation.integer(combat.get("row")) or combat.row < 1 or combat.row > 24 \
 				or not SaveValidation.integer(combat.get("asteroids", 0)) or int(combat.get("asteroids", 0)) not in [0, 1, 2, 3] \
 				or not combat.get("nebula", false) is bool:

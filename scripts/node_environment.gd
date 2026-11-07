@@ -5,8 +5,7 @@ const ROCK_COUNTS := [0, 16, 32, 48]
 const DENSITY_NAMES := ["Clear", "Sparse", "Medium", "Dense"]
 
 static func generate(run_seed: int, node: Dictionary) -> Dictionary:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%d/node/%d/environment/v1" % [run_seed, int(node.id)])
+	var rng := RngStreams.new(run_seed).fixed("campaign.environment.v1", str(node.id))
 	var density := rng.randi_range(0, 3)
 	# Keep ports and the opening encounter clear for safe refitting/onboarding.
 	if node.get("inhabited", false) or int(node.row) <= 1:

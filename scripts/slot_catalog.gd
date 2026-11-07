@@ -28,8 +28,9 @@ static func chassis() -> Array[Dictionary]:
 	return _chassis.duplicate(true)
 
 static func find_chassis(id: String) -> Dictionary:
+	var canonical := Content.runtime_id("chassis", id)
 	for entry in chassis():
-		if entry.id == id:
+		if entry.id == canonical:
 			return entry
 	return {}
 
@@ -82,8 +83,9 @@ static func equipment_key(id: String, rank: int) -> String:
 	return id if rank == 1 else "%s@%d" % [id, rank]
 
 static func find_equipment(id: String, rank := 1) -> Dictionary:
+	var canonical := Content.runtime_id("equipment", equipment_key(id, rank)).get_slice("@", 0)
 	for item in equipment(true):
-		if item.id == id and item.rank == rank:
+		if item.id == canonical and item.rank == rank:
 			return item
 	return {}
 
@@ -254,7 +256,7 @@ static func valid_chassis(data: Variant) -> bool:
 				return false
 		if entry.has("description") and not entry.description is String:
 			return false
-		if entry.has("builtin_shield") and entry.builtin_shield != "shield_generator":
+		if entry.has("builtin_shield") and Content.runtime_id("equipment", entry.builtin_shield) != "shield_generator":
 			return false
 		if entry.has("builtin_shield_count") and (not entry.has("builtin_shield") \
 			or not SaveValidation.integer(entry.builtin_shield_count) or entry.builtin_shield_count < 1):

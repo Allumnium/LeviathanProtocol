@@ -80,7 +80,7 @@ var _deployment_box := false
 
 
 func _ready() -> void:
-	AudioManager.play_battle_music(GameState.pending_encounter.get("template_id", "") == "bastion_warden")
+	AudioManager.play_battle_music(GameState.pending_encounter.get("warden", {}).get("lance", false))
 	SceneFadeScript.reveal(self)
 	if not GameState.battle_pending or not simulation.setup_owned(
 		GameState.get_deployed_fleet(), GameState.battle_aliens,

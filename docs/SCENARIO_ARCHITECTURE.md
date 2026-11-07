@@ -643,15 +643,15 @@ packs/core/, packs/leviathan/, schemas/defs/, schemas/json/ (generated), tools/
 
 | Current | Fate |
 | --- | --- |
-| `data/*.json` | Converted in P1. `core` defines material, part, research, ability, environment, goods, encounter, campaign_node, campaign_edge, chassis, equipment, loadout and travel_tuning defs; `leviathan` defines location and event defs. Legacy hex data moved to `scripts/legacy/` |
-| `game_definitions.gd`, `slot_catalog.gd`, `ship_loadouts.gd` | Thin views over `DefDatabase` (P1), then callers use `Content` directly (P2) |
+| `data/*.json` | Converted in P1. Content packs own the active definitions; audited legacy hex data was deleted in P2e |
+| `game_definitions.gd`, `slot_catalog.gd`, `ship_loadouts.gd` | Runtime projections over `Content.view` resolve scoped refs and invalidate caches on database replacement (P2e); retain shared combat interfaces |
 | `hangar_research.gd` filters and rewrites, `research_rules.gd` whitelist | Research defs state their own availability and prerequisites; modifiers become registered knobs (P2) |
 | `alien_ship.gd` costs and tiers, `encounter_generator.gd` templates and threat curve | `enemy_unit` and `encounter` defs (P2); threat points come from the director (P7) |
 | `hangar_trade.gd`, `shared_support.gd`, `battle_abilities.gd` constants, `hangar_screen.gd` `_part_effect` text | Economy, support and ability defs; effect text generated from behaviors (P2) |
 | `start_new_run` hardcoded fleet and credits | Scenario `start` block plus a fleet package def (P2/P6) |
 | `hangar_state.gd` | Thin `GameState` facade over `Run`, `Content` and systems (P3) |
 | `hangar_checkpoint.gd`, `campaign_graph.gd`, `campaign_content.gd`, `swarm_navigation.gd`, `run_score.gd` | Replaced by the run document, galaxy, pressures, stats and chronicle (P3) |
-| `scripts/legacy/`, `test_legacy_archives.gd`, unused square or hex helpers | Audit references and delete unused code (P2), because legacy saves are out of scope |
+| `scripts/legacy/`, `test_legacy_archives.gd`, unused square or hex helpers | Audited and deleted in P2e; shared combat DTOs with active callers remain, as described in [LEGACY_BOUNDARIES.md](LEGACY_BOUNDARIES.md) |
 | `expedition_events.gd` | Quests, scenes and rules (P4) |
 | `expedition_state.gd`, `expedition_simulation.gd` | Travel system reading galaxy sites and zones from the run document (P3/P6) |
 | `expedition_map.gd` | `GalaxyView` (P6) |
@@ -659,6 +659,8 @@ packs/core/, packs/leviathan/, schemas/defs/, schemas/json/ (generated), tools/
 | `main_menu.gd` | Scenario browser, run list and editor entry (P5/P6) |
 
 ## 20. Implementation phases
+
+P2 is delivered in [COMPLETED.md](../COMPLETED.md). Current runtime adapters use `Content.view`: authored references resolve in their owning pack, external runtime identities stay qualified and the shipped owner scopes retain fixed shorthand IDs. Generation uses versioned named streams and authored story combat instance IDs; P3 adds the run document, counters and frozen content authority. The adapters retain shared combat interfaces until their callers move into run systems.
 
 Each phase leaves the game playable, adds its editor surface when the editor exists, deletes the code it replaces and closes with focused tests. Sizes are relative: S is a few sessions, M is about a week of focused sessions and L is several weeks.
 

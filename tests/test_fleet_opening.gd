@@ -126,7 +126,7 @@ func alien_formation_checks() -> void:
 			check(bounds.size.x <= 144 and bounds.size.y <= 144, "Alien squadron occupies its own tight box")
 	check(sim.aliens.size() > EncounterGenerator.initial_fleet(plan).size(), "Frozen expanded wave actually deploys its wingmates")
 	var saved: Dictionary = state.hangar_snapshot()
-	var event := {"combat": {"row": 2, "template": "patrol", "strength": 1.2}}
+	var event := {"combat": {"id": "fixture:formation_count", "row": 2, "template": "patrol", "strength": 1.2}}
 	var production: Dictionary = state._expedition_encounter("formation-count-fixture", event)
 	var originals: int = production.roster.filter(func(entry: Dictionary) -> bool: return not entry.has("copy_of")).size()
 	check(EncounterGenerator.valid(production) and production.roster.size() == originals * 3,

@@ -4,20 +4,15 @@ extends RefCounted
 static func family_key(ref: String) -> String:
 	if ref.is_empty():
 		return ""
-	var qid := Content.db().resolve_id("research_family", ref)
-	if qid.is_empty():
-		return ref
-	var local := str(Content.db().get_def("research_family", qid).id)
-	return local if Content.db().resolve_id("research_family", local) == qid else qid
+	var canonical := Content.runtime_id("research_family", ref)
+	return ref if canonical.is_empty() else canonical
 
 static func family_paths() -> Dictionary:
 	var result := {}
 	for record: Dictionary in Content.db().records("research_family"):
 		if record.abstract:
 			continue
-		result[record.qid] = record.data.paths
-		if Content.db().resolve_id("research_family", record.id) == record.qid:
-			result[record.id] = record.data.paths
+		result[Content.runtime_id("research_family", record.qid)] = record.data.paths
 	return result
 
 
@@ -94,7 +89,7 @@ static func validate_registry(registry: Dictionary) -> Array[String]:
 			if modifier_ids.has(modifier.id):
 				errors.append("Duplicate research modifier: %s/%s" % [node.id, modifier.id])
 			modifier_ids[modifier.id] = true
-	if not nodes.has("foundation") or nodes.foundation.cost_rp != 0 or not nodes.foundation.prerequisite_ids.is_empty() \
+	if not nodes.has("foundation") or not nodes.foundation.prerequisite_ids.is_empty() \
 		or not nodes.foundation.family_id.is_empty() or not nodes.foundation.exclusion_ids.is_empty() or not nodes.foundation.story_gate_ids.is_empty():
 		errors.append("Foundation must be an unrestricted free starting node.")
 	if not errors.is_empty():
@@ -241,6 +236,7 @@ static func resolve(research_ids: Array, catalog: Array[Dictionary] = []) -> Dic
 
 
 static func requirements(id: String, research_ids: Array, story_flags: Dictionary = {}, branches: Dictionary = {}, catalog: Array[Dictionary] = []) -> Dictionary:
+	id = Content.runtime_id("research", id) if Content.has_def("research", id) else id
 	var definitions := catalog if not catalog.is_empty() else GameDefinitions.entries("research")
 	var by_id: Dictionary = {}
 	for definition in definitions:

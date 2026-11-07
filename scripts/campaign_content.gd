@@ -22,9 +22,9 @@ static func populate(geometry: Dictionary, seed_value: int) -> Dictionary:
 	var graph := geometry.duplicate(true)
 	graph.content_version = VERSION
 	graph.routes = []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("%d/campaign-content/v1" % seed_value)
+	var streams := RngStreams.new(seed_value)
 	for node in graph.nodes:
+		var rng := streams.fixed("campaign.node_content.v1", str(node.id))
 		var act := maxi(0, int(node.act) - 1)
 		var port_row := 4 if act == 0 else 3
 		var inhabited: bool = node.kind in ["start", "staging"] or (node.kind == "noncombat" and int(node.local_row) == port_row)
@@ -53,6 +53,7 @@ static func populate(geometry: Dictionary, seed_value: int) -> Dictionary:
 				node.story_ids = ["ending"]
 		node.environment = NodeEnvironment.generate(seed_value, node)
 	for edge in graph.edges:
+		var rng := streams.fixed("campaign.route_content.v1", StableHash.key(edge))
 		var exits := 0
 		for candidate in graph.edges:
 			if candidate[0] == edge[0]:
@@ -67,7 +68,7 @@ static func populate(geometry: Dictionary, seed_value: int) -> Dictionary:
 			hazard = ["debris", "ion_storm", "gravity"][rng.randi_range(0, 2)]
 		graph.routes.append({"from": edge[0], "to": edge[1], "hazard": hazard,
 			"duration": 0 if hazard == "none" else rng.randi_range(20, 40),
-			"seed": str(rng.randi()), "mining_potential": "low" if hazard == "debris" else "none",
+			"seed": str(rng.next_u32()), "mining_potential": "low" if hazard == "debris" else "none",
 			"active": false})
 	return graph
 

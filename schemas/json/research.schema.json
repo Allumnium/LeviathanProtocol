@@ -49,10 +49,6 @@
 			"type": "string",
 			"description": "Actionable message when matching deployed equipment is missing."
 		},
-		"cost_rp": {
-			"type": "integer",
-			"minimum": 0
-		},
 		"prerequisite_ids": {
 			"type": "array",
 			"items": {
@@ -196,7 +192,6 @@
 			"implemented",
 			"offered",
 			"description",
-			"cost_rp",
 			"prerequisite_ids",
 			"story_gate_ids",
 			"family_id",

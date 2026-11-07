@@ -3,7 +3,7 @@ extends SceneTree
 ## Loads packs and prints every Problem; exits 1 on errors.
 ## godot --headless --path . --script res://tools/validate_packs.gd [-- [--strict] [--user] [root ...]]
 ## --strict also fails on warnings; --user adds user://packs; extra roots are
-## pack folders such as a project under development.
+## either pack folders containing pack.json or containers of pack folders.
 
 
 func _initialize() -> void:

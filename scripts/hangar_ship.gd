@@ -21,7 +21,7 @@ func initialize_chassis(chassis_key: String, ship_id: int, is_lead := false) -> 
 	chassis = SlotCatalog.find_chassis(chassis_key)
 	if chassis.is_empty():
 		return false
-	chassis_id = chassis_key
+	chassis_id = chassis.id
 	art_texture = SurfaceArt.texture(chassis.art)
 	if art_texture == null:
 		return false

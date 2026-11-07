@@ -107,7 +107,7 @@ func initialize(seed_value: int, start_location: Dictionary, tuning: Dictionary)
 
 
 static func tuning_catalog() -> Dictionary:
-	var tuning := Content.get_def("travel_tuning", "default").duplicate(true)
+	var tuning := Content.get_def("travel_tuning", "core:default").duplicate(true)
 	tuning.erase("id")
 	return tuning
 

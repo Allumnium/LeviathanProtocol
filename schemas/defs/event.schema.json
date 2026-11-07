@@ -60,7 +60,8 @@
 								"type": "object",
 								"description": "Starts a battle.",
 								"properties": {
-									"template": {"enum": ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]},
+									"id": {"$ref": "_common#/$defs/key", "description": "Stable encounter instance identity within this pack; independent of event file order."},
+									"template": {"type": "string", "x-ref": "encounter"},
 									"row": {"type": "integer", "minimum": 1, "maximum": 24},
 									"strength": {"type": "number", "minimum": 1, "maximum": 10},
 									"credits": {"type": "integer", "minimum": 0},
@@ -73,7 +74,7 @@
 									"victory_flags": {"$ref": "_common#/$defs/flags"},
 									"withdrawal_flags": {"$ref": "_common#/$defs/flags"}
 								},
-								"required": ["template", "row"],
+								"required": ["template", "row", "id"],
 								"additionalProperties": false
 							}
 						},
