@@ -11,7 +11,6 @@ Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases)
 - [ ] P1 Content foundation:
   - [ ] Pack manifests/loader (`res://packs`, `user://packs`), dependency order and Problems.
   - [ ] Schema registry and validator (JSON Schema subset with `x-ref`/`x-expr`/`x-text`/`x-asset`/`x-editor`), `parent`/`abstract` inheritance and patch defs.
-  - [ ] Formula language: lexer, Pratt parser, type checker, closure evaluator and function registry.
   - [ ] `DefDatabase` and static `Content` API; convert `data/*.json` into `packs/core` and `packs/leviathan`, repoint catalog readers, delete `data/`.
   - [ ] `tools/validate_packs.gd`, `tools/export_schemas.gd` and VS Code schema mapping.
 - [ ] P2 One authority: move research filters, enemy costs/templates, trade fares, support/ability constants, starting fleet and equipment effect text into defs; explicit IDs instead of array order; stable seeds; delete unused legacy readers.

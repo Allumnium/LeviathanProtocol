@@ -5,6 +5,7 @@ Keep new entries brief: completion date, delivered behavior and focused verifica
 ## 2026-11-07 - P1 content foundation (in progress)
 
 - [StableHash](scripts/core/stable_hash.gd) (FNV-1a 64-bit in 32-bit limbs), [StableRng](scripts/core/stable_rng.gd) (xoshiro128** with Murmur3-mixed seeds) and [RngStreams](scripts/core/rng_streams.gd) keyed by seed, stream, scope and persisted counter. [test_stable_rng.gd](tests/test_stable_rng.gd): 27 checks, zero failures, against independent reference vectors.
+- [Formula language](scripts/expr/formula.gd): lexer, Pratt parser, static type checker against context schemas (namespaces, `*` wildcards, entities), closure evaluator, whitelisted functions with lazy `fn:` arguments, recorded context reads, 1-based error columns with suggestions, short-circuiting and fail-closed conditions. [test_expr.gd](tests/test_expr.gd): 84 checks, zero failures; 10k evaluations in about 115 ms.
 
 ## 2026-11-07 - Scenario architecture plan
 
