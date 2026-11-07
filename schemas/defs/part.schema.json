@@ -1,0 +1,32 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "Part identity shared by equipment ranks: recipe, abilities and rank recipes.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"type_id": {"type": "integer", "minimum": 0},
+		"enum_key": {"type": "string", "minLength": 1},
+		"recipe": {"type": "string"},
+		"description": {"type": "string"},
+		"capstone": {"type": "boolean"},
+		"regular_slots_only": {"type": "boolean"},
+		"offensive_capstone": {"type": "boolean"},
+		"ability_ids": {"type": "array", "items": {"type": "string", "x-ref": "ability"}, "uniqueItems": true},
+		"ranks": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {"rank": {"type": "integer", "minimum": 1}, "recipe": {"type": "string", "minLength": 1}},
+				"required": ["rank", "recipe"],
+				"additionalProperties": false
+			}
+		}
+	},
+	"required": [
+		"revision", "display_name", "implemented", "type_id", "enum_key", "recipe", "description", "capstone",
+		"regular_slots_only", "offensive_capstone", "ability_ids", "ranks"
+	],
+	"additionalProperties": false
+}

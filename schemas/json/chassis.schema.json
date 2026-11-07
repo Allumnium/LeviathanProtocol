@@ -1,0 +1,190 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "chassis def",
+	"type": "object",
+	"description": "A ship hull with equipment slots.",
+	"properties": {
+		"def": {
+			"const": "chassis",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"description": {
+			"type": "string"
+		},
+		"art": {
+			"type": "string",
+			"description": "Pack-relative image file."
+		},
+		"price": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"integrity": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"self_repair_hp_per_second": {
+			"type": "number",
+			"minimum": 0
+		},
+		"mass": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"thrust": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"radius": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"flagship": {
+			"type": "boolean"
+		},
+		"slots": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"description": "An equipment mount on the chassis art.",
+				"properties": {
+					"id": {
+						"$ref": "_common.schema.json#/$defs/key"
+					},
+					"size": {
+						"$ref": "_common.schema.json#/$defs/size"
+					},
+					"type": {
+						"enum": [
+							"general",
+							"engine",
+							"offense",
+							"defense",
+							"tech",
+							"civic",
+							"combat",
+							"utility",
+							"civil"
+						]
+					},
+					"rect": {
+						"type": "array",
+						"items": {
+							"type": "number"
+						},
+						"minItems": 4,
+						"maxItems": 4,
+						"description": "x, y, width, height on the 512x512 art."
+					}
+				},
+				"required": [
+					"id",
+					"size",
+					"type",
+					"rect"
+				],
+				"additionalProperties": false
+			},
+			"minItems": 1
+		},
+		"builtin_shield": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use an equipment ID such as name or pack:name",
+			"description": "ID of an equipment def."
+		},
+		"builtin_shield_count": {
+			"type": "integer",
+			"minimum": 1
+		},
+		"flat_damage_reduction": {
+			"type": "number",
+			"minimum": 0
+		},
+		"weapon_cycle_bonus": {
+			"type": "number",
+			"minimum": 0
+		},
+		"weapon_damage_multiplier": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"dodge_chance": {
+			"type": "number",
+			"minimum": 0,
+			"maximum": 1
+		},
+		"research_option_bonus": {
+			"type": "integer",
+			"minimum": 0,
+			"maximum": 1
+		},
+		"delivery_income_multiplier": {
+			"type": "number",
+			"minimum": 1
+		},
+		"research_rate_multiplier": {
+			"type": "number",
+			"minimum": 1
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"name",
+			"art",
+			"price",
+			"integrity",
+			"self_repair_hp_per_second",
+			"mass",
+			"thrust",
+			"radius",
+			"flagship",
+			"slots"
+		]
+	}
+}

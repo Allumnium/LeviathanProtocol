@@ -19,23 +19,20 @@ var events: Array = []
 
 func configure(seed_value: int) -> bool:
 	last_error = ""
-	var tuning_json := JSON.new()
-	if tuning_json.parse(FileAccess.get_file_as_string("res://data/expedition_tuning.json")) != OK \
-			or not State.valid_tuning(tuning_json.data):
+	var tuning_data := State.tuning_catalog()
+	if not State.valid_tuning(tuning_data):
 		return _fail("Invalid expedition tuning data.")
-	tuning = tuning_json.data
-	var locations_json := JSON.new()
-	if locations_json.parse(FileAccess.get_file_as_string(tuning.locations_path)) != OK \
-			or not State.valid_locations(locations_json.data):
+	tuning = tuning_data
+	var locations_data := State.locations_catalog()
+	if not State.valid_locations(locations_data):
 		return _fail("Invalid expedition location data.")
 	locations.clear()
-	for location: Dictionary in locations_json.data.locations:
-		locations[location.id] = location.duplicate(true)
-	var events_json := JSON.new()
-	if events_json.parse(FileAccess.get_file_as_string(Events.DATA_PATH)) != OK \
-			or not Events.valid(events_json.data, locations):
+	for location: Dictionary in locations_data.locations:
+		locations[location.id] = location
+	var events_data := Events.catalog()
+	if not Events.valid(events_data, locations):
 		return _fail("Invalid expedition event data.")
-	events = events_json.data.events.duplicate(true)
+	events = events_data.events
 	var start: Dictionary = locations.get("start_station", {})
 	state = State.new()
 	if not state.initialize(seed_value, start, tuning):

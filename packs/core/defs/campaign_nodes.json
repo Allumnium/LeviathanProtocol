@@ -1,0 +1,104 @@
+{
+	"def": "campaign_node",
+	"defs": [
+		{
+			"id": "patrol",
+			"revision": 1,
+			"display_name": "Patrol",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": true,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "elite",
+			"revision": 1,
+			"display_name": "Elite",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": true,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "convoy_escort",
+			"revision": 1,
+			"display_name": "Convoy Escort",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": true,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "interception",
+			"revision": 1,
+			"display_name": "Interception",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": true,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "relay_defense",
+			"revision": 1,
+			"display_name": "Relay Defense",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": true,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "port",
+			"revision": 1,
+			"display_name": "Port",
+			"implemented": false,
+			"inhabited_default": true,
+			"combat": false,
+			"goods_grade_id": "basic"
+		},
+		{
+			"id": "salvage_field",
+			"revision": 1,
+			"display_name": "Salvage Field",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": false,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "scenic_survey",
+			"revision": 1,
+			"display_name": "Scenic Survey",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": false,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "signal_event",
+			"revision": 1,
+			"display_name": "Signal Event",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": false,
+			"goods_grade_id": ""
+		},
+		{
+			"id": "staging_checkpoint",
+			"revision": 1,
+			"display_name": "Staging Checkpoint",
+			"implemented": false,
+			"inhabited_default": true,
+			"combat": false,
+			"goods_grade_id": "basic"
+		},
+		{
+			"id": "boss",
+			"revision": 1,
+			"display_name": "Boss",
+			"implemented": false,
+			"inhabited_default": false,
+			"combat": true,
+			"goods_grade_id": ""
+		}
+	]
+}

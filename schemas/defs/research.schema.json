@@ -1,0 +1,56 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A research project.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"cost_rp": {"type": "integer", "minimum": 0},
+		"prerequisite_ids": {"type": "array", "items": {"type": "string", "x-ref": "research"}, "uniqueItems": true},
+		"story_gate_ids": {"$ref": "_common#/$defs/keys"},
+		"family_id": {"$ref": "_common#/$defs/optional_key"},
+		"path_id": {"$ref": "_common#/$defs/optional_key"},
+		"exclusion_ids": {"type": "array", "items": {"type": "string", "x-ref": "research"}, "uniqueItems": true},
+		"grants": {
+			"type": "object",
+			"description": "What completing the project unlocks.",
+			"properties": {
+				"equipment_ids": {"type": "array", "items": {"type": "string", "x-ref": "part"}, "uniqueItems": true},
+				"ranks": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {"equipment_id": {"type": "string", "x-ref": "part"}, "rank": {"type": "integer", "minimum": 1}},
+						"required": ["equipment_id", "rank"],
+						"additionalProperties": false
+					}
+				},
+				"ability_ids": {"type": "array", "items": {"type": "string", "x-ref": "ability"}, "uniqueItems": true},
+				"modifiers": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"description": "A research modifier.",
+						"properties": {
+							"id": {"$ref": "_common#/$defs/key"},
+							"value": {"type": ["number", "boolean"]},
+							"values": {"type": "array", "items": {"type": "string"}},
+							"refill_existing": {"type": "boolean"}
+						},
+						"required": ["id"],
+						"additionalProperties": false
+					}
+				}
+			},
+			"required": ["equipment_ids", "ranks", "ability_ids", "modifiers"],
+			"additionalProperties": false
+		},
+		"equipment_capabilities_any": {"$ref": "_common#/$defs/keys"}
+	},
+	"required": [
+		"revision", "display_name", "implemented", "cost_rp", "prerequisite_ids", "story_gate_ids", "family_id",
+		"path_id", "exclusion_ids", "grants"
+	],
+	"additionalProperties": false
+}

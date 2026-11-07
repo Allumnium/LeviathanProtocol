@@ -43,7 +43,7 @@ Science and healing are not additional XP sources in this first proposal. Resear
 
 ## Proposed complete loadout mapping
 
-The [progression mapping](loadout_progression_proposal.json) mirrors the [36 active presets](../data/ship_loadouts.json): exactly four per chassis across nine chassis. Its minimum levels are design metadata, not runtime restrictions. Mounts and equipment match the implemented expansion, including its four new parts; physical chassis layouts are unchanged.
+The [progression mapping](loadout_progression_proposal.json) mirrors the [36 active presets](../packs/core/defs/loadouts.json): exactly four per chassis across nine chassis. Its minimum levels are design metadata, not runtime restrictions. Mounts and equipment match the implemented expansion, including its four new parts; physical chassis layouts are unchanged.
 
 | Chassis | Level 1 | Level 2 | Level 3 | Level 4 | Level 5 |
 | --- | --- | --- | --- | --- | --- |

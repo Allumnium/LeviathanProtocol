@@ -1,0 +1,99 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "travel_tuning def",
+	"type": "object",
+	"description": "Expedition travel and fuel tuning.",
+	"properties": {
+		"def": {
+			"const": "travel_tuning",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"nav_units_per_day": {
+			"type": "number",
+			"minimum": 1,
+			"maximum": 10000
+		},
+		"cruise_units_per_sim_second": {
+			"type": "number",
+			"minimum": 0.1,
+			"maximum": 100
+		},
+		"tactical_units_per_nav_unit": {
+			"type": "number",
+			"minimum": 0.1,
+			"maximum": 100
+		},
+		"fuel_capacity": {
+			"type": "number",
+			"minimum": 1,
+			"maximum": 100000
+		},
+		"fuel_per_nav_unit": {
+			"type": "number",
+			"minimum": 0.0001,
+			"maximum": 1000
+		},
+		"fixed_tick_seconds": {
+			"type": "number",
+			"minimum": 0.00833333333333333,
+			"maximum": 0.1
+		},
+		"arrival_radius": {
+			"type": "number",
+			"minimum": 0.1,
+			"maximum": 100
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"nav_units_per_day",
+			"cruise_units_per_sim_second",
+			"tactical_units_per_nav_unit",
+			"fuel_capacity",
+			"fuel_per_nav_unit",
+			"fixed_tick_seconds",
+			"arrival_radius"
+		]
+	}
+}

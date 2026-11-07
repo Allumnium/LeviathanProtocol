@@ -1,0 +1,31 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A place on the expedition map.",
+	"properties": {
+		"name": {"type": "string", "minLength": 1},
+		"act": {"type": "integer", "minimum": 1, "maximum": 3},
+		"kind": {"enum": ["station", "poi", "gate"]},
+		"region": {"$ref": "_common#/$defs/key"},
+		"position": {"$ref": "_common#/$defs/vec2"},
+		"services": {"type": "array", "items": {"enum": ["shipyard", "refuel", "trade", "communications"]}, "uniqueItems": true},
+		"discovered": {"type": "boolean"},
+		"accessible": {"type": "boolean"},
+		"safe": {"type": "boolean"},
+		"description": {"type": "string"},
+		"station_key": {"$ref": "_common#/$defs/key"},
+		"goods_unit_value": {"type": "integer", "minimum": 0},
+		"featured": {
+			"type": "array",
+			"items": {"$ref": "_common#/$defs/key"},
+			"description": "Equipment or chassis ids shown first."
+		},
+		"stock": {"type": "array", "items": {"type": "string", "x-ref": "equipment"}, "uniqueItems": true},
+		"chassis_stock": {"type": "array", "items": {"type": "string", "x-ref": "chassis"}, "uniqueItems": true},
+		"closed_flags": {"$ref": "_common#/$defs/flags"},
+		"poi_type": {"enum": ["derelict", "asteroid_field", "distress", "anomaly", "hidden"]},
+		"required_flag": {"$ref": "_common#/$defs/flag"}
+	},
+	"required": ["name", "act", "kind", "region", "position", "services", "discovered", "accessible", "safe"],
+	"additionalProperties": false
+}

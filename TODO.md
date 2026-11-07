@@ -8,9 +8,7 @@ Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS
 
 Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
 
-- [ ] P1 Content foundation:
-  - [ ] Convert `data/*.json` into `packs/core` and `packs/leviathan` with schemas, repoint `GameDefinitions`/`SlotCatalog`/`ShipLoadouts`/`ExpeditionState`/`ExpeditionEvents` through `Content`, delete `data/`.
-  - [ ] `tools/validate_packs.gd`, `tools/export_schemas.gd` and VS Code schema mapping.
+- [ ] Pre-existing focused failures, identical at `c7c1056` before P1 conversion: `test_flagship_selection` 8 (starter formation positions), `test_research_travel` 9 (travel research income/cruise timing), `test_legacy_archives` 5 (square run checkpoint fixture; suite retires with P2 legacy cleanup), `test_expedition_events` 1 (committed signal above management). Triage before P2 leans on these suites.
 - [ ] P2 One authority: move research filters, enemy costs/templates, trade fares, support/ability constants, starting fleet and equipment effect text into defs; explicit IDs instead of array order; stable seeds; delete unused legacy readers.
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
 - [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.

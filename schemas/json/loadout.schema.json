@@ -1,0 +1,93 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "loadout def",
+	"type": "object",
+	"description": "A named, fully fitted ship for sale. The id is <chassis>/<name>; the first loadout of a chassis is its default.",
+	"properties": {
+		"def": {
+			"const": "loadout",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"chassis": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use a chassis ID such as name or pack:name",
+			"description": "ID of a chassis def."
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"role": {
+			"type": "string"
+		},
+		"mounts": {
+			"type": "object",
+			"description": "Slot id -> equipment id.",
+			"additionalProperties": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use an equipment ID such as name or pack:name",
+				"description": "ID of an equipment def."
+			}
+		},
+		"previous_mounts": {
+			"type": "object",
+			"description": "Slot id -> equipment id.",
+			"additionalProperties": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use an equipment ID such as name or pack:name",
+				"description": "ID of an equipment def."
+			}
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"chassis",
+			"name",
+			"mounts"
+		]
+	}
+}

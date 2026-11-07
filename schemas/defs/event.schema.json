@@ -1,0 +1,92 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A story event. Within a trigger, the first ready event in file order fires.",
+	"properties": {
+		"trigger": {"enum": ["distance", "zone", "arrival", "start", "departure", "story"]},
+		"title": {"type": "string", "minLength": 1},
+		"text": {"type": "string", "minLength": 1, "x-text": true},
+		"art": {"type": "string", "x-asset": "image"},
+		"location_id": {"type": "string", "x-ref": "location"},
+		"destination_id": {"type": "string", "x-ref": "location"},
+		"distance_nu": {"type": "number", "minimum": 0},
+		"position": {"$ref": "_common#/$defs/vec2"},
+		"radius": {"type": "number", "exclusiveMinimum": 0, "maximum": 1000},
+		"requires_flag": {"$ref": "_common#/$defs/flag"},
+		"requires_flags": {"$ref": "_common#/$defs/flags"},
+		"excludes_flags": {"$ref": "_common#/$defs/flags"},
+		"text_variants": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"description": "Replaces the event text when its conditions match.",
+				"properties": {
+					"text": {"type": "string", "minLength": 1, "x-text": true},
+					"chassis": {"type": "string", "x-ref": "chassis"},
+					"capability": {"$ref": "_common#/$defs/key"},
+					"requires_flags": {"$ref": "_common#/$defs/flags"},
+					"excludes_flags": {"$ref": "_common#/$defs/flags"}
+				},
+				"required": ["text"],
+				"additionalProperties": false
+			}
+		},
+		"options": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"description": "A choice offered by the event.",
+				"properties": {
+					"id": {"$ref": "_common#/$defs/key"},
+					"label": {"type": "string", "minLength": 1},
+					"effects": {
+						"type": "object",
+						"description": "What choosing the option does.",
+						"properties": {
+							"credits": {"type": "integer"},
+							"fuel": {"type": "number"},
+							"research": {"type": "number", "minimum": 0},
+							"hull_damage": {"type": "number", "minimum": 0, "maximum": 0.5},
+							"missiles": {"type": "integer", "minimum": 0},
+							"requires_credits": {"type": "integer", "minimum": 0},
+							"requires_fuel": {"type": "number", "minimum": 0},
+							"flag": {"$ref": "_common#/$defs/flag"},
+							"flags": {"$ref": "_common#/$defs/flags"},
+							"detour": {"type": "boolean"},
+							"complete": {"type": "boolean"},
+							"discover": {"type": "array", "items": {"type": "string", "x-ref": "location"}, "uniqueItems": true},
+							"rescue_ship": {"type": "string", "x-ref": "chassis"},
+							"combat": {
+								"type": "object",
+								"description": "Starts a battle.",
+								"properties": {
+									"template": {"enum": ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]},
+									"row": {"type": "integer", "minimum": 1, "maximum": 24},
+									"strength": {"type": "number", "minimum": 1, "maximum": 10},
+									"credits": {"type": "integer", "minimum": 0},
+									"research": {"type": "number", "minimum": 0},
+									"fuel": {"type": "number"},
+									"missiles": {"type": "integer", "minimum": 0},
+									"asteroids": {"type": "integer", "minimum": 0, "maximum": 3},
+									"nebula": {"type": "boolean"},
+									"rescue_ship": {"type": "string", "x-ref": "chassis"},
+									"victory_flags": {"$ref": "_common#/$defs/flags"},
+									"withdrawal_flags": {"$ref": "_common#/$defs/flags"}
+								},
+								"required": ["template", "row"],
+								"additionalProperties": false
+							}
+						},
+						"additionalProperties": false
+					}
+				},
+				"required": ["id", "label"],
+				"additionalProperties": false
+			},
+			"minItems": 1,
+			"maxItems": 4
+		}
+	},
+	"required": ["trigger", "title", "text", "options"],
+	"additionalProperties": false
+}

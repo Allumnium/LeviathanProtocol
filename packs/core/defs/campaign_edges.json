@@ -1,0 +1,27 @@
+{
+	"def": "campaign_edge",
+	"defs": [
+		{
+			"id": "safe",
+			"revision": 1,
+			"display_name": "Safe",
+			"implemented": false,
+			"duration_seconds": [0, 0],
+			"environment_ids": [],
+			"mining_potential": false,
+			"grants_rp": false,
+			"surprise_aliens": false
+		},
+		{
+			"id": "hazardous",
+			"revision": 1,
+			"display_name": "Hazardous",
+			"implemented": false,
+			"duration_seconds": [20, 40],
+			"environment_ids": [],
+			"mining_potential": false,
+			"grants_rp": false,
+			"surprise_aliens": false
+		}
+	]
+}

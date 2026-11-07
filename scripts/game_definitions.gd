@@ -1,13 +1,20 @@
 class_name GameDefinitions
 extends RefCounted
 
-# Content revisions are independent of blueprint/archive/run save versions.
+# A legacy registry view over core content defs. The content revision is the
+# loaded content hash, independent of blueprint/archive/run save versions.
 const SCHEMA_VERSION := 1
-const DATA_PATH := "res://data/definitions.json"
 const DOMAINS := [
 	"materials", "equipment", "research", "encounters", "nodes", "edges",
 	"abilities", "environments", "goods",
 ]
+const DEF_TYPES := {
+	"materials": "material", "equipment": "part", "research": "research", "encounters": "encounter",
+	"nodes": "campaign_node", "edges": "campaign_edge", "abilities": "ability",
+	"environments": "environment", "goods": "goods",
+}
+# Defs omit fields that do not apply; readers still expect them as null.
+const NULLABLE_FIELDS := {"abilities": ["range_units", "radius_units"]}
 const REQUIRED_FIELDS := {
 	"materials": {"serialized_id": TYPE_FLOAT, "symbol": TYPE_STRING, "target_purchase_price": TYPE_FLOAT},
 	"equipment": {"type_id": TYPE_FLOAT, "enum_key": TYPE_STRING, "recipe": TYPE_STRING,
@@ -34,12 +41,19 @@ static var _registry: Dictionary = {}
 static func _data() -> Dictionary:
 	if not _registry.is_empty():
 		return _registry
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
-	var errors := validate(parsed)
+	var registry := {"schema_version": SCHEMA_VERSION, "content_revision": Content.db().content_hash}
+	for domain: String in DOMAINS:
+		var entries := Content.copies(DEF_TYPES[domain])
+		for entry: Dictionary in entries:
+			for field: String in NULLABLE_FIELDS.get(domain, []):
+				if not entry.has(field):
+					entry[field] = null
+		registry[domain] = entries
+	var errors := validate(registry)
 	if not errors.is_empty():
 		push_error("Invalid game definitions: %s" % "; ".join(errors))
 		return {}
-	_registry = parsed
+	_registry = registry
 	return _registry
 
 

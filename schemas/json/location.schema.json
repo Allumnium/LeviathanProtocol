@@ -1,0 +1,161 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "location def",
+	"type": "object",
+	"description": "A place on the expedition map.",
+	"properties": {
+		"def": {
+			"const": "location",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"act": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 3
+		},
+		"kind": {
+			"enum": [
+				"station",
+				"poi",
+				"gate"
+			]
+		},
+		"region": {
+			"$ref": "_common.schema.json#/$defs/key"
+		},
+		"position": {
+			"$ref": "_common.schema.json#/$defs/vec2"
+		},
+		"services": {
+			"type": "array",
+			"items": {
+				"enum": [
+					"shipyard",
+					"refuel",
+					"trade",
+					"communications"
+				]
+			},
+			"uniqueItems": true
+		},
+		"discovered": {
+			"type": "boolean"
+		},
+		"accessible": {
+			"type": "boolean"
+		},
+		"safe": {
+			"type": "boolean"
+		},
+		"description": {
+			"type": "string"
+		},
+		"station_key": {
+			"$ref": "_common.schema.json#/$defs/key"
+		},
+		"goods_unit_value": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"featured": {
+			"type": "array",
+			"items": {
+				"$ref": "_common.schema.json#/$defs/key"
+			},
+			"description": "Equipment or chassis ids shown first."
+		},
+		"stock": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use an equipment ID such as name or pack:name",
+				"description": "ID of an equipment def."
+			},
+			"uniqueItems": true
+		},
+		"chassis_stock": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use a chassis ID such as name or pack:name",
+				"description": "ID of a chassis def."
+			},
+			"uniqueItems": true
+		},
+		"closed_flags": {
+			"$ref": "_common.schema.json#/$defs/flags"
+		},
+		"poi_type": {
+			"enum": [
+				"derelict",
+				"asteroid_field",
+				"distress",
+				"anomaly",
+				"hidden"
+			]
+		},
+		"required_flag": {
+			"$ref": "_common.schema.json#/$defs/flag"
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"name",
+			"act",
+			"kind",
+			"region",
+			"position",
+			"services",
+			"discovered",
+			"accessible",
+			"safe"
+		]
+	}
+}

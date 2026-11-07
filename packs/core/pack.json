@@ -1,0 +1,8 @@
+{
+	"id": "core",
+	"name": "Core",
+	"version": "1.0.0",
+	"authors": ["Allumnium"],
+	"kind": "content",
+	"description": "Ships, equipment, research and shared rules used by every scenario."
+}

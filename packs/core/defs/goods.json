@@ -1,0 +1,32 @@
+{
+	"def": "goods",
+	"defs": [
+		{
+			"id": "basic",
+			"revision": 1,
+			"display_name": "Basic Goods",
+			"implemented": true,
+			"unit_value": 3,
+			"freeze_value_on_load": true,
+			"settlement_order": ["sell", "refill"]
+		},
+		{
+			"id": "uncommon",
+			"revision": 1,
+			"display_name": "Uncommon Goods",
+			"implemented": true,
+			"unit_value": 6,
+			"freeze_value_on_load": true,
+			"settlement_order": ["sell", "refill"]
+		},
+		{
+			"id": "rare",
+			"revision": 1,
+			"display_name": "Rare Goods",
+			"implemented": true,
+			"unit_value": 10,
+			"freeze_value_on_load": true,
+			"settlement_order": ["sell", "refill"]
+		}
+	]
+}

@@ -1,0 +1,124 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "encounter def",
+	"type": "object",
+	"description": "A battle encounter template.",
+	"properties": {
+		"def": {
+			"const": "encounter",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"revision": {
+			"$ref": "_common.schema.json#/$defs/revision"
+		},
+		"display_name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"implemented": {
+			"type": "boolean"
+		},
+		"objective_rule": {
+			"$ref": "_common.schema.json#/$defs/key"
+		},
+		"threat_multiplier": {
+			"type": "number",
+			"exclusiveMinimum": 0
+		},
+		"required_entity_ids": {
+			"type": "array"
+		},
+		"frozen_roster": {
+			"type": "array"
+		},
+		"finite_waves": {
+			"type": "array"
+		},
+		"reward": {
+			"type": "object",
+			"properties": {
+				"credits": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"rp_snapshot": {
+					"type": "array"
+				},
+				"material_pool": {
+					"type": "array"
+				}
+			},
+			"required": [
+				"credits",
+				"rp_snapshot",
+				"material_pool"
+			],
+			"additionalProperties": false
+		},
+		"environment_ids": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use an environment ID such as name or pack:name",
+				"description": "ID of an environment def."
+			},
+			"uniqueItems": true
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"revision",
+			"display_name",
+			"implemented",
+			"objective_rule",
+			"threat_multiplier",
+			"required_entity_ids",
+			"frozen_roster",
+			"finite_waves",
+			"reward",
+			"environment_ids"
+		]
+	}
+}

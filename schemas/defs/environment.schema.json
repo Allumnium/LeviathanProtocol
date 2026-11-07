@@ -1,0 +1,15 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A battlefield environment.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"clock": {"enum": ["simulation"]},
+		"affects_both_factions": {"type": "boolean"},
+		"tuning": {"type": "object", "description": "Environment-specific tuning values."}
+	},
+	"required": ["revision", "display_name", "implemented", "clock", "affects_both_factions", "tuning"],
+	"additionalProperties": false
+}

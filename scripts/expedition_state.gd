@@ -106,8 +106,18 @@ func initialize(seed_value: int, start_location: Dictionary, tuning: Dictionary)
 	return true
 
 
+static func tuning_catalog() -> Dictionary:
+	var tuning := Content.get_def("travel_tuning", "default").duplicate(true)
+	tuning.erase("id")
+	return tuning
+
+
+static func locations_catalog() -> Dictionary:
+	return {"version": 1, "locations": Content.copies("location")}
+
+
 static func valid_tuning(value: Variant) -> bool:
-	if not value is Dictionary or value.get("version") != 1:
+	if not value is Dictionary:
 		return false
 	var bounds := {
 		"nav_units_per_day": Vector2(1.0, 10000.0),
@@ -122,7 +132,7 @@ static func valid_tuning(value: Variant) -> bool:
 		if not SaveValidation.number(value.get(key)) or float(value[key]) < bounds[key].x \
 				or float(value[key]) > bounds[key].y:
 			return false
-	return value.get("locations_path") is String and value.locations_path.begins_with("res://data/")
+	return true
 
 
 static func valid_locations(value: Variant) -> bool:

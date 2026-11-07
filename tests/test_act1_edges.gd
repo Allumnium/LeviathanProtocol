@@ -27,7 +27,7 @@ func run() -> void:
 	state = root.get_node("GameState")
 	state.run_save_path = "user://act1-edges.json"
 	check(state.start_new_run(1, 8302), "Start edge fixture")
-	var catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Events.DATA_PATH))
+	var catalog: Dictionary = Events.catalog()
 	var sim = state.expedition_simulation
 	var bad := catalog.duplicate(true)
 	bad.events[0].requires_flags = ["misspelled_story_flag"]

@@ -1,0 +1,844 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Leviathan def file",
+	"description": "One def, or {\"def\": type, \"defs\": [...]}.",
+	"type": "object",
+	"if": {
+		"required": [
+			"defs"
+		]
+	},
+	"then": {
+		"properties": {
+			"def": {
+				"enum": [
+					"ability",
+					"campaign_edge",
+					"campaign_node",
+					"chassis",
+					"encounter",
+					"environment",
+					"equipment",
+					"event",
+					"goods",
+					"loadout",
+					"location",
+					"material",
+					"part",
+					"patch",
+					"research",
+					"travel_tuning"
+				],
+				"description": "Def type of every entry that does not set its own."
+			},
+			"defs": {
+				"type": "array"
+			},
+			"notes": {
+				"type": "string",
+				"description": "Designer notes; ignored by the game."
+			}
+		},
+		"additionalProperties": false,
+		"allOf": [
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "ability"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "ability.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "campaign_edge"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "campaign_edge.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "campaign_node"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "campaign_node.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "chassis"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "chassis.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "encounter"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "encounter.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "environment"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "environment.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "equipment"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "equipment.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "event"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "event.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "goods"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "goods.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "loadout"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "loadout.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "location"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "location.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "material"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "material.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "part"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "part.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "patch"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "patch.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "research"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "research.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"properties": {
+						"def": {
+							"const": "travel_tuning"
+						}
+					},
+					"required": [
+						"def"
+					]
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"if": {
+									"required": [
+										"def"
+									]
+								},
+								"then": {
+									"$ref": "#/definitions/any_def"
+								},
+								"else": {
+									"$ref": "travel_tuning.schema.json"
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"if": {
+					"not": {
+						"required": [
+							"def"
+						]
+					}
+				},
+				"then": {
+					"properties": {
+						"defs": {
+							"items": {
+								"$ref": "#/definitions/typed_def"
+							}
+						}
+					}
+				}
+			}
+		]
+	},
+	"else": {
+		"$ref": "#/definitions/typed_def"
+	},
+	"definitions": {
+		"any_def": {
+			"type": "object",
+			"properties": {
+				"def": {
+					"enum": [
+						"ability",
+						"campaign_edge",
+						"campaign_node",
+						"chassis",
+						"encounter",
+						"environment",
+						"equipment",
+						"event",
+						"goods",
+						"loadout",
+						"location",
+						"material",
+						"part",
+						"patch",
+						"research",
+						"travel_tuning"
+					]
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "ability"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "ability.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "campaign_edge"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "campaign_edge.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "campaign_node"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "campaign_node.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "chassis"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "chassis.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "encounter"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "encounter.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "environment"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "environment.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "equipment"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "equipment.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "event"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "event.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "goods"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "goods.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "loadout"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "loadout.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "location"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "location.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "material"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "material.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "part"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "part.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "patch"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "patch.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "research"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "research.schema.json"
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"def": {
+								"const": "travel_tuning"
+							}
+						},
+						"required": [
+							"def"
+						]
+					},
+					"then": {
+						"$ref": "travel_tuning.schema.json"
+					}
+				}
+			]
+		},
+		"typed_def": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/any_def"
+				},
+				{
+					"required": [
+						"def"
+					]
+				}
+			]
+		}
+	}
+}

@@ -1,0 +1,94 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Leviathan pack manifest",
+	"type": "object",
+	"properties": {
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]{1,63}$",
+			"patternErrorMessage": "Use 2-64 lowercase letters, digits or _, starting with a letter"
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"version": {
+			"type": "string",
+			"pattern": "^\\d+\\.\\d+\\.\\d+$",
+			"patternErrorMessage": "Use a version such as 1.2.0"
+		},
+		"authors": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"kind": {
+			"enum": [
+				"content",
+				"scenario"
+			]
+		},
+		"game_version": {
+			"type": "string",
+			"description": "Version range such as >=1.0, ^1.2 or *."
+		},
+		"depends": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "string",
+						"pattern": "^[a-z][a-z0-9_]{1,63}$",
+						"patternErrorMessage": "Use 2-64 lowercase letters, digits or _, starting with a letter"
+					},
+					{
+						"type": "object",
+						"properties": {
+							"id": {
+								"type": "string",
+								"pattern": "^[a-z][a-z0-9_]{1,63}$",
+								"patternErrorMessage": "Use 2-64 lowercase letters, digits or _, starting with a letter"
+							},
+							"version": {
+								"type": "string",
+								"description": "Version range such as >=1.0, ^1.2 or *."
+							}
+						},
+						"required": [
+							"id"
+						],
+						"additionalProperties": false
+					}
+				]
+			}
+		},
+		"load_after": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"tags": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			}
+		},
+		"steam": {
+			"type": "object"
+		},
+		"description": {
+			"type": "string"
+		},
+		"notes": {
+			"type": "string"
+		}
+	},
+	"required": [
+		"id",
+		"name",
+		"version"
+	],
+	"additionalProperties": false
+}

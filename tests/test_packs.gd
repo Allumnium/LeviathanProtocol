@@ -28,6 +28,7 @@ func run() -> void:
 	check_good_packs()
 	check_broken_packs()
 	check_content_facade()
+	check_shipped_packs()
 	ExprContexts.unregister("fixture")
 	print("test_packs: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures > 0 else 0)
@@ -163,3 +164,13 @@ func check_content_facade() -> void:
 	check(Content.get_def("gadget", "blaster").power == 3 and Content.all("gadget").size() == 3, "Content reads the set database")
 	check(Content.formula("widget", "scout", "weight") != null and Content.has_def("widget", "raider"), "Content exposes formulas and lookups")
 	Content.set_database(null)
+
+
+func check_shipped_packs() -> void:
+	var db := PackLoader.new().load_packs(["res://packs"], Content.SCHEMA_DIRS)
+	check(db.problems.items.is_empty(), "shipped packs load without problems: %s" % db.problems.text())
+	check(db.has_pack("core") and db.has_pack("leviathan"), "core and leviathan packs load")
+	for def_type in ["material", "part", "research", "ability", "environment", "goods", "encounter", "campaign_node", "campaign_edge", "chassis", "equipment", "loadout", "travel_tuning", "location", "event"]:
+		check(not db.all(def_type).is_empty(), "shipped packs define %s" % def_type)
+	var stale := SchemaExporter.stale(SchemaExporter.render())
+	check(stale.is_empty(), "schemas/json is current; run tools/export_schemas.gd: %s" % ", ".join(stale))

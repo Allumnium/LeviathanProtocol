@@ -1,0 +1,22 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A named, fully fitted ship for sale. The id is <chassis>/<name>; the first loadout of a chassis is its default.",
+	"properties": {
+		"chassis": {"type": "string", "x-ref": "chassis"},
+		"name": {"type": "string", "minLength": 1},
+		"role": {"type": "string"},
+		"mounts": {
+			"type": "object",
+			"description": "Slot id -> equipment id.",
+			"additionalProperties": {"type": "string", "x-ref": "equipment"}
+		},
+		"previous_mounts": {
+			"type": "object",
+			"description": "Slot id -> equipment id.",
+			"additionalProperties": {"type": "string", "x-ref": "equipment"}
+		}
+	},
+	"required": ["chassis", "name", "mounts"],
+	"additionalProperties": false
+}

@@ -1,0 +1,31 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A battle encounter template.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"objective_rule": {"$ref": "_common#/$defs/key"},
+		"threat_multiplier": {"type": "number", "exclusiveMinimum": 0},
+		"required_entity_ids": {"type": "array"},
+		"frozen_roster": {"type": "array"},
+		"finite_waves": {"type": "array"},
+		"reward": {
+			"type": "object",
+			"properties": {
+				"credits": {"type": "integer", "minimum": 0},
+				"rp_snapshot": {"type": "array"},
+				"material_pool": {"type": "array"}
+			},
+			"required": ["credits", "rp_snapshot", "material_pool"],
+			"additionalProperties": false
+		},
+		"environment_ids": {"type": "array", "items": {"type": "string", "x-ref": "environment"}, "uniqueItems": true}
+	},
+	"required": [
+		"revision", "display_name", "implemented", "objective_rule", "threat_multiplier", "required_entity_ids",
+		"frozen_roster", "finite_waves", "reward", "environment_ids"
+	],
+	"additionalProperties": false
+}

@@ -1,0 +1,50 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A ship hull with equipment slots.",
+	"properties": {
+		"name": {"type": "string", "minLength": 1},
+		"description": {"type": "string"},
+		"art": {"type": "string", "x-asset": "image"},
+		"price": {"type": "integer", "minimum": 0},
+		"integrity": {"type": "number", "exclusiveMinimum": 0},
+		"self_repair_hp_per_second": {"type": "number", "minimum": 0},
+		"mass": {"type": "number", "exclusiveMinimum": 0},
+		"thrust": {"type": "number", "exclusiveMinimum": 0},
+		"radius": {"type": "number", "exclusiveMinimum": 0},
+		"flagship": {"type": "boolean"},
+		"slots": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"description": "An equipment mount on the chassis art.",
+				"properties": {
+					"id": {"$ref": "_common#/$defs/key"},
+					"size": {"$ref": "_common#/$defs/size"},
+					"type": {"enum": ["general", "engine", "offense", "defense", "tech", "civic", "combat", "utility", "civil"]},
+					"rect": {
+						"type": "array",
+						"items": {"type": "number"},
+						"minItems": 4,
+						"maxItems": 4,
+						"description": "x, y, width, height on the 512x512 art."
+					}
+				},
+				"required": ["id", "size", "type", "rect"],
+				"additionalProperties": false
+			},
+			"minItems": 1
+		},
+		"builtin_shield": {"type": "string", "x-ref": "equipment"},
+		"builtin_shield_count": {"type": "integer", "minimum": 1},
+		"flat_damage_reduction": {"type": "number", "minimum": 0},
+		"weapon_cycle_bonus": {"type": "number", "minimum": 0},
+		"weapon_damage_multiplier": {"type": "number", "exclusiveMinimum": 0},
+		"dodge_chance": {"type": "number", "minimum": 0, "maximum": 1},
+		"research_option_bonus": {"type": "integer", "minimum": 0, "maximum": 1},
+		"delivery_income_multiplier": {"type": "number", "minimum": 1},
+		"research_rate_multiplier": {"type": "number", "minimum": 1}
+	},
+	"required": ["name", "art", "price", "integrity", "self_repair_hp_per_second", "mass", "thrust", "radius", "flagship", "slots"],
+	"additionalProperties": false
+}

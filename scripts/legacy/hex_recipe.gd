@@ -3,7 +3,7 @@ extends RefCounted
 
 # Frozen archive footprints only. No active matching, grants or material rules.
 
-const DATA_PATH := "res://data/legacy/hex_recipes.json"
+const DATA_PATH := "res://scripts/legacy/hex_recipes.json"
 const TOPOLOGY := "hex_axial_v1"
 static var _recipes: Dictionary = {}
 

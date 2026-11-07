@@ -1,0 +1,15 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A crafting material.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"serialized_id": {"type": "integer", "minimum": 0},
+		"symbol": {"type": "string", "minLength": 1},
+		"target_purchase_price": {"type": "integer", "minimum": 0}
+	},
+	"required": ["revision", "display_name", "implemented", "serialized_id", "symbol", "target_purchase_price"],
+	"additionalProperties": false
+}

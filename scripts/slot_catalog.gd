@@ -4,7 +4,6 @@ extends RefCounted
 const TYPES := ["offense", "defense", "tech", "civic"]
 const SLOT_TYPES := ["general", "engine", "offense", "defense", "tech", "civic", "combat", "utility", "civil"]
 const SIZES := ["S", "M", "L", "XL"]
-const EQUIPMENT_PATH := "res://data/slot_equipment.json"
 const PlaceholderAssets = preload("res://scripts/placeholders.gd")
 static var _chassis: Array[Dictionary] = []
 static var _equipment: Array[Dictionary] = []
@@ -12,7 +11,7 @@ static var _equipment_textures: Dictionary[String, Texture2D] = {}
 
 static func chassis() -> Array[Dictionary]:
 	if _chassis.is_empty():
-		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/slot_chassis.json"))
+		var data := {"version": 1, "chassis": Content.copies("chassis")}
 		if not valid_chassis(data):
 			push_error("Invalid slot chassis catalog.")
 			return []
@@ -48,7 +47,15 @@ static func chassis_bonuses(entry: Dictionary) -> String:
 
 static func equipment(include_retired := false) -> Array[Dictionary]:
 	if _equipment.is_empty():
-		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(EQUIPMENT_PATH))
+		var data := {"version": 1, "equipment": []}
+		for entry: Dictionary in Content.copies("equipment"):
+			# Rank variants use the def id <part>@<rank>; the catalog keys by part id and rank.
+			var def_id := str(entry.id)
+			entry.id = def_id.get_slice("@", 0)
+			if def_id != equipment_key(entry.id, int(entry.get("rank", 0))):
+				push_error("Equipment id %s does not match its rank." % def_id)
+				return []
+			data.equipment.append(entry)
 		if not valid_equipment(data):
 			push_error("Invalid slot equipment catalog.")
 			return []
@@ -59,6 +66,10 @@ static func equipment(include_retired := false) -> Array[Dictionary]:
 		if include_retired or not item.get("retired", false):
 			result.append(item.duplicate(true))
 	return result
+
+## Equipment def id and loadout mount key: "id" at rank 1, otherwise "id@rank".
+static func equipment_key(id: String, rank: int) -> String:
+	return id if rank == 1 else "%s@%d" % [id, rank]
 
 static func find_equipment(id: String, rank := 1) -> Dictionary:
 	for item in equipment(true):

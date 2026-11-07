@@ -1,7 +1,7 @@
 class_name LegacyHexChassisCatalog
 extends RefCounted
 
-const DATA_PATH := "res://data/legacy/hex_chassis.json"
+const DATA_PATH := "res://scripts/legacy/hex_chassis.json"
 static var _entries: Array[Dictionary] = []
 
 # Return fresh definitions: an editor cannot mutate the canonical hull/masks.

@@ -1,0 +1,9 @@
+{
+	"id": "leviathan",
+	"name": "Leviathan Protocol",
+	"version": "1.0.0",
+	"authors": ["Allumnium"],
+	"kind": "scenario",
+	"description": "The Leviathan Protocol campaign.",
+	"depends": [{"id": "core", "version": ">=1.0"}]
+}

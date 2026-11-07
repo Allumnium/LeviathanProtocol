@@ -1,0 +1,219 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "equipment def",
+	"type": "object",
+	"description": "Mountable equipment. Ranks above 1 use the id <part>@<rank>.",
+	"properties": {
+		"def": {
+			"const": "equipment",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"art": {
+			"type": "string",
+			"description": "Pack-relative image file."
+		},
+		"art_mount": {
+			"type": "array",
+			"items": {
+				"type": "number",
+				"minimum": 0
+			},
+			"minItems": 3,
+			"maxItems": 3,
+			"description": "x, y and scale of the art mount point."
+		},
+		"part_type": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"rank": {
+			"type": "integer",
+			"minimum": 1
+		},
+		"revision": {
+			"$ref": "_common.schema.json#/$defs/revision"
+		},
+		"size": {
+			"$ref": "_common.schema.json#/$defs/size"
+		},
+		"type": {
+			"enum": [
+				"offense",
+				"defense",
+				"tech",
+				"civic"
+			]
+		},
+		"stats": {
+			"type": "object",
+			"properties": {
+				"integrity": {
+					"type": "number",
+					"minimum": 0
+				},
+				"shields": {
+					"type": "number",
+					"minimum": 0
+				},
+				"thrust": {
+					"type": "number",
+					"minimum": 0
+				},
+				"weight": {
+					"type": "number",
+					"minimum": 0
+				},
+				"weapons": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"description": "A weapon on this equipment.",
+						"properties": {
+							"name": {
+								"type": "string",
+								"minLength": 1
+							},
+							"interval": {
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							"damage": {
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							"count": {
+								"type": "integer",
+								"minimum": 1
+							},
+							"range": {
+								"type": "number",
+								"exclusiveMinimum": 0
+							},
+							"charge": {
+								"type": "number",
+								"minimum": 0
+							},
+							"projectile": {
+								"type": "boolean"
+							},
+							"interceptable": {
+								"type": "boolean"
+							},
+							"mount": {
+								"$ref": "_common.schema.json#/$defs/vec2"
+							},
+							"missiles": {
+								"type": "integer",
+								"minimum": 0
+							}
+						},
+						"required": [
+							"name",
+							"interval",
+							"damage",
+							"count",
+							"range",
+							"charge",
+							"projectile",
+							"interceptable",
+							"mount"
+						],
+						"additionalProperties": false
+					}
+				}
+			},
+			"required": [
+				"integrity",
+				"shields",
+				"thrust",
+				"weight",
+				"weapons"
+			],
+			"additionalProperties": false
+		},
+		"retired": {
+			"type": "boolean"
+		},
+		"price": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"hit_points": {
+			"type": "integer",
+			"minimum": 1
+		},
+		"research_capabilities": {
+			"$ref": "_common.schema.json#/$defs/keys"
+		},
+		"load_kind": {
+			"enum": [
+				"cargo",
+				"passengers"
+			]
+		},
+		"load_capacity": {
+			"type": "integer",
+			"minimum": 1
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"name",
+			"part_type",
+			"rank",
+			"revision",
+			"size",
+			"type",
+			"stats",
+			"retired",
+			"price",
+			"hit_points",
+			"research_capabilities"
+		]
+	}
+}

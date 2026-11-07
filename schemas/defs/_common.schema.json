@@ -1,0 +1,22 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"description": "Shared building blocks for def schemas.",
+	"$defs": {
+		"key": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*$",
+			"x-pattern-message": "Use lowercase letters, digits and _, starting with a letter"
+		},
+		"optional_key": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]*)?$",
+			"x-pattern-message": "Use lowercase letters, digits and _, or leave empty"
+		},
+		"flag": {"type": "string", "minLength": 1, "description": "A story flag set by an event."},
+		"flags": {"type": "array", "items": {"$ref": "#/$defs/flag"}, "uniqueItems": true, "maxItems": 32},
+		"revision": {"type": "integer", "minimum": 1},
+		"size": {"enum": ["S", "M", "L", "XL"]},
+		"vec2": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+		"keys": {"type": "array", "items": {"$ref": "#/$defs/key"}, "uniqueItems": true}
+	}
+}

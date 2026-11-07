@@ -1,0 +1,19 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "Expedition travel and fuel tuning.",
+	"properties": {
+		"nav_units_per_day": {"type": "number", "minimum": 1, "maximum": 10000},
+		"cruise_units_per_sim_second": {"type": "number", "minimum": 0.1, "maximum": 100},
+		"tactical_units_per_nav_unit": {"type": "number", "minimum": 0.1, "maximum": 100},
+		"fuel_capacity": {"type": "number", "minimum": 1, "maximum": 100000},
+		"fuel_per_nav_unit": {"type": "number", "minimum": 0.0001, "maximum": 1000},
+		"fixed_tick_seconds": {"type": "number", "minimum": 0.008333333333333333, "maximum": 0.1},
+		"arrival_radius": {"type": "number", "minimum": 0.1, "maximum": 100}
+	},
+	"required": [
+		"nav_units_per_day", "cruise_units_per_sim_second", "tactical_units_per_nav_unit", "fuel_capacity",
+		"fuel_per_nav_unit", "fixed_tick_seconds", "arrival_radius"
+	],
+	"additionalProperties": false
+}

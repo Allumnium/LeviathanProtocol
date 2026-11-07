@@ -1,10 +1,13 @@
 extends RefCounted
 
-const DATA_PATH := "res://data/expedition_events.json"
 const TRIGGERS := ["distance", "zone", "arrival", "start", "departure", "story"]
 const COMBAT_TEMPLATES := ["patrol", "elite", "relay_defense", "pylon_escort", "bastion_warden"]
 const EFFECT_KEYS := ["detour", "credits", "fuel", "research", "hull_damage", "combat", "flag",
 	"discover", "requires_credits", "complete", "rescue_ship", "missiles", "flags", "requires_fuel"]
+
+# Event defs in load order; within a trigger the first ready event fires.
+static func catalog() -> Dictionary:
+	return {"version": 1, "events": Content.copies("event")}
 
 # Older fixtures only declared `distance_nu`; they remain distance triggers with
 # the original Investigate / Continue Course choices.

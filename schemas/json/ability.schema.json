@@ -1,0 +1,128 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "ability def",
+	"type": "object",
+	"description": "An active ability granted by equipment.",
+	"properties": {
+		"def": {
+			"const": "ability",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"revision": {
+			"$ref": "_common.schema.json#/$defs/revision"
+		},
+		"display_name": {
+			"type": "string",
+			"minLength": 1
+		},
+		"implemented": {
+			"type": "boolean"
+		},
+		"source_equipment_id": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use a part ID such as name or pack:name",
+			"description": "ID of a part def."
+		},
+		"cooldown_seconds": {
+			"type": "number",
+			"minimum": 0
+		},
+		"range_units": {
+			"type": "number",
+			"minimum": 0
+		},
+		"radius_units": {
+			"type": "number",
+			"minimum": 0
+		},
+		"duration_seconds": {
+			"type": "number",
+			"minimum": 0
+		},
+		"target_rule": {
+			"type": "string",
+			"minLength": 1
+		},
+		"capstone": {
+			"type": "boolean"
+		},
+		"cooldown_scope": {
+			"enum": [
+				"fleet_per_type"
+			]
+		},
+		"clock": {
+			"enum": [
+				"simulation"
+			]
+		},
+		"initial_cooldown_fraction": {
+			"type": "number",
+			"minimum": 0,
+			"maximum": 1
+		},
+		"description": {
+			"type": "string"
+		},
+		"source_research_capability": {
+			"$ref": "_common.schema.json#/$defs/key"
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"revision",
+			"display_name",
+			"implemented",
+			"source_equipment_id",
+			"cooldown_seconds",
+			"duration_seconds",
+			"target_rule",
+			"capstone",
+			"cooldown_scope",
+			"clock",
+			"initial_cooldown_fraction"
+		]
+	}
+}

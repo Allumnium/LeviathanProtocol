@@ -1,9 +1,8 @@
 extends RefCounted
 
-# Named, fully fitted loadouts per ship class (data/ship_loadouts.json). The
-# first loadout of a class is its default; ships are bought and refitted from
+# Named, fully fitted loadouts per ship class (loadout defs, id <chassis>/<name>).
+# The first loadout of a class is its default; ships are bought and refitted from
 # these, and single mounts can be swapped for compatible available parts.
-const PATH := "res://data/ship_loadouts.json"
 const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
 static var _obtainable: Dictionary = {}
@@ -13,7 +12,7 @@ static func parse_key(key: String) -> Dictionary:
 	return {"id": parts[0], "rank": int(parts[1]) if parts.size() > 1 else 1}
 
 static func key_for(item: Dictionary) -> String:
-	return str(item.id) if int(item.rank) == 1 else "%s@%d" % [item.id, int(item.rank)]
+	return SlotCatalog.equipment_key(str(item.id), int(item.rank))
 
 static func item_for(key: String) -> Dictionary:
 	if key.is_empty():
@@ -34,21 +33,19 @@ static func obtainable(item: Dictionary) -> bool:
 static func all() -> Dictionary:
 	if not _loadouts.is_empty():
 		return _loadouts
-	var json := JSON.new()
-	if json.parse(FileAccess.get_file_as_string(PATH)) != OK or not json.data is Dictionary \
-			or json.data.get("version") != 1 or not json.data.get("loadouts") is Dictionary:
-		push_error("Invalid ship loadout data.")
-		return _loadouts
-	for chassis_id: String in json.data.loadouts:
+	for loadout: Dictionary in Content.copies("loadout"):
+		var chassis_id := str(loadout.get("chassis", ""))
+		var def_id := str(loadout.id)
+		loadout.erase("chassis")
+		loadout.id = def_id.trim_prefix(chassis_id + "/")
 		var chassis := SlotCatalog.find_chassis(chassis_id)
-		var valid: Array[Dictionary] = []
-		for loadout: Variant in json.data.loadouts[chassis_id]:
-			if chassis.is_empty() or not _valid(chassis, loadout):
-				push_error("Invalid loadout for %s: %s" % [chassis_id, str(loadout)])
-				continue
-			valid.append(loadout)
-		if not valid.is_empty():
-			_loadouts[chassis_id] = valid
+		if chassis.is_empty() or def_id != "%s/%s" % [chassis_id, loadout.id] or not _valid(chassis, loadout):
+			push_error("Invalid loadout %s." % def_id)
+			continue
+		if not _loadouts.has(chassis_id):
+			var options: Array[Dictionary] = []
+			_loadouts[chassis_id] = options
+		_loadouts[chassis_id].append(loadout)
 	return _loadouts
 
 static func _valid(chassis: Dictionary, loadout: Variant) -> bool:

@@ -1,0 +1,59 @@
+{
+	"def": "environment",
+	"defs": [
+		{
+			"id": "asteroid_drift",
+			"revision": 2,
+			"display_name": "Asteroid Drift",
+			"implemented": true,
+			"clock": "simulation",
+			"affects_both_factions": true,
+			"tuning": {
+				"collision_damage_per_mass": 6,
+				"mass_classes": [8, 4, 2, 1],
+				"live_rock_limit": 96,
+				"initial_root_limit": 48,
+				"collision_cooldown_seconds": 0.75,
+				"radius_factor": 8,
+				"birth_grace_seconds": 0.5,
+				"hp_per_mass": 12
+			}
+		},
+		{
+			"id": "ion_storm",
+			"revision": 1,
+			"display_name": "Ion Storm",
+			"implemented": false,
+			"clock": "simulation",
+			"affects_both_factions": true,
+			"tuning": {"suppression_seconds": 5, "warning_seconds": 3, "shield_recharge_reduction": 0.5, "cycle_seconds": 15}
+		},
+		{
+			"id": "gravity_current",
+			"revision": 1,
+			"display_name": "Gravity Current",
+			"implemented": false,
+			"clock": "simulation",
+			"affects_both_factions": true,
+			"tuning": {"max_drift_base_speed_fraction": 0.2}
+		},
+		{
+			"id": "sensor_nebula",
+			"revision": 1,
+			"display_name": "Sensor Nebula",
+			"implemented": false,
+			"clock": "simulation",
+			"affects_both_factions": true,
+			"tuning": {"scan_unaffected": true, "sight_radar_reduction": 0.35}
+		},
+		{
+			"id": "volatile_debris",
+			"revision": 1,
+			"display_name": "Volatile Debris",
+			"implemented": false,
+			"clock": "simulation",
+			"affects_both_factions": true,
+			"tuning": {"requires_explicit_preview": true}
+		}
+	]
+}

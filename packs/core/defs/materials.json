@@ -1,0 +1,41 @@
+{
+	"def": "material",
+	"defs": [
+		{
+			"id": "offense",
+			"revision": 1,
+			"display_name": "Offense",
+			"implemented": true,
+			"serialized_id": 0,
+			"symbol": "O",
+			"target_purchase_price": 5
+		},
+		{
+			"id": "defense",
+			"revision": 1,
+			"display_name": "Defense",
+			"implemented": true,
+			"serialized_id": 1,
+			"symbol": "D",
+			"target_purchase_price": 2
+		},
+		{
+			"id": "tech",
+			"revision": 1,
+			"display_name": "Tech",
+			"implemented": true,
+			"serialized_id": 2,
+			"symbol": "T",
+			"target_purchase_price": 8
+		},
+		{
+			"id": "civic",
+			"revision": 1,
+			"display_name": "Civic",
+			"implemented": true,
+			"serialized_id": 3,
+			"symbol": "C",
+			"target_purchase_price": 6
+		}
+	]
+}

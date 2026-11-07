@@ -14,11 +14,12 @@ static var _db: DefDatabase
 
 static func db() -> DefDatabase:
 	if _db == null:
-		reload()
+		load_all()
 	return _db
 
 
-static func reload(roots: Array = ROOTS, schema_dirs: Array = SCHEMA_DIRS) -> DefDatabase:
+## Not named reload: Content.reload() would call Script.reload() instead.
+static func load_all(roots: Array = ROOTS, schema_dirs: Array = SCHEMA_DIRS) -> DefDatabase:
 	var loader := PackLoader.new()
 	loader.checks = checks
 	_db = loader.load_packs(roots, schema_dirs)
@@ -46,6 +47,16 @@ static func has_def(def_type: String, id: String) -> bool:
 
 static func all(def_type: String) -> Array[Dictionary]:
 	return db().all(def_type)
+
+
+## Writable deep copies of every def of a type in load order, with `id` first.
+static func copies(def_type: String) -> Array:
+	var result := []
+	for data in all(def_type):
+		var entry := {"id": data.id}
+		entry.merge(data.duplicate(true))
+		result.append(entry)
+	return result
 
 
 static func formula(def_type: String, id: String, path: String) -> Formula:

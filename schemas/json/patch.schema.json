@@ -1,0 +1,79 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "patch def",
+	"description": "Changes another def without copying it.",
+	"type": "object",
+	"properties": {
+		"def": {
+			"const": "patch"
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"target": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to change, such as laser or core:laser."
+		},
+		"target_def": {
+			"enum": [
+				"ability",
+				"campaign_edge",
+				"campaign_node",
+				"chassis",
+				"encounter",
+				"environment",
+				"equipment",
+				"event",
+				"goods",
+				"loadout",
+				"location",
+				"material",
+				"part",
+				"research",
+				"travel_tuning"
+			],
+			"description": "Def type of the target when its ID is shared."
+		},
+		"set": {
+			"type": "object",
+			"description": "Path such as stats.hull, slots[gun] or tags[2] -> value."
+		},
+		"append": {
+			"type": "object",
+			"description": "Path such as stats.hull, slots[gun] or tags[2] -> value."
+		},
+		"remove": {
+			"type": "object",
+			"description": "Path such as stats.hull, slots[gun] or tags[2] -> value."
+		}
+	},
+	"required": [
+		"id",
+		"target"
+	],
+	"anyOf": [
+		{
+			"required": [
+				"set"
+			]
+		},
+		{
+			"required": [
+				"append"
+			]
+		},
+		{
+			"required": [
+				"remove"
+			]
+		}
+	],
+	"additionalProperties": false
+}

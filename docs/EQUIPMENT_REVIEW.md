@@ -24,7 +24,7 @@ Before this pass, Shield Relay transferred at most two shields per second per ho
 
 Implemented: two shields per second per operational relay, so two copies transfer up to four per second. Retain range 180, the current recipient selection and fraction equalization, donor/recipient capacity limits and shield conservation. Do not add free shields, extra capacity, regeneration or a new targeting system.
 
-Sources: [support doctrines](../scripts/combat_doctrines.gd), [equipment catalog](../data/slot_equipment.json).
+Sources: [support doctrines](../scripts/combat_doctrines.gd), [equipment catalog](../packs/core/defs/equipment.json).
 
 ## Weapons
 
@@ -40,7 +40,7 @@ These figures exclude chassis/research bonuses, travel time, interception, prote
 
 Research remains unchanged. Applied Energy gives lasers +15% damage; Prismatic Lasers ramps qualifying Laser/Double Laser beams to twice damage, excluding Beam Lance. Guided Munitions adds 25% missile range. Siege I produces three half-damage fragments per parent and Siege II increases fragment damage by 20%. At the tuned missile damage, aggregate nominal output is 10.8 DPS with splitting, or 12.96 with Siege II, only if all fragments hit. Applied Energy gives the tuned lance 13.8 nominal DPS. Existing Command I strengthens each stacked uplink contribution to +30%.
 
-Sources: [equipment catalog](../data/slot_equipment.json), [damage and firing](../scripts/battle_simulation.gd), [charge and support behavior](../scripts/combat_doctrines.gd), [research combat](../scripts/research_combat.gd), [research modifiers](../scripts/research_upgrades.gd).
+Sources: [equipment catalog](../packs/core/defs/equipment.json), [damage and firing](../scripts/battle_simulation.gd), [charge and support behavior](../scripts/combat_doctrines.gd), [research combat](../scripts/research_combat.gd), [research modifiers](../scripts/research_upgrades.gd).
 
 ## Focused verification results
 

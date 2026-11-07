@@ -1,0 +1,15 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A legacy campaign map node type.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"inhabited_default": {"type": "boolean"},
+		"combat": {"type": "boolean"},
+		"goods_grade_id": {"anyOf": [{"const": ""}, {"type": "string", "x-ref": "goods"}]}
+	},
+	"required": ["revision", "display_name", "implemented", "inhabited_default", "combat", "goods_grade_id"],
+	"additionalProperties": false
+}

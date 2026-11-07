@@ -147,7 +147,7 @@ One schema drives:
 
 1. Load-time validation and Problems.
 2. Automatically generated editor inspector forms and reference pickers.
-3. Exported JSON Schema for VS Code. `tools/export_schemas.gd` writes `schemas/json/` and `.vscode/settings.json` maps `packs/**/defs/**/*.json` to the dispatching schema, which enables autocomplete and inline errors for hand editing.
+3. Exported JSON Schema for VS Code. `tools/export_schemas.gd` writes `schemas/json/` and `.vscode/settings.json` maps `packs/*/defs/**/*.json` to the dispatching `def_file` schema and `packs/*/pack.json` to the manifest schema, which enables autocomplete and inline errors for hand editing. `test_packs.gd` fails while the export is stale.
 4. Generated reference documentation for modders.
 
 Engine behaviors that data composes, such as weapon types, effect operations, objective types and generator stages, register their parameter schemas in the same registry.
@@ -643,7 +643,7 @@ packs/core/, packs/leviathan/, schemas/defs/, schemas/json/ (generated), tools/
 
 | Current | Fate |
 | --- | --- |
-| `data/*.json` | One-time conversion into `packs/core` and `packs/leviathan` defs (P1); then deleted |
+| `data/*.json` | Converted in P1. `core` defines material, part, research, ability, environment, goods, encounter, campaign_node, campaign_edge, chassis, equipment, loadout and travel_tuning defs; `leviathan` defines location and event defs. Legacy hex data moved to `scripts/legacy/` |
 | `game_definitions.gd`, `slot_catalog.gd`, `ship_loadouts.gd` | Thin views over `DefDatabase` (P1), then callers use `Content` directly (P2) |
 | `hangar_research.gd` filters and rewrites, `research_rules.gd` whitelist | Research defs state their own availability and prerequisites; modifiers become registered knobs (P2) |
 | `alien_ship.gd` costs and tiers, `encounter_generator.gd` templates and threat curve | `enemy_unit` and `encounter` defs (P2); threat points come from the director (P7) |

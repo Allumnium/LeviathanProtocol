@@ -2,5 +2,15 @@
     "files.exclude": {
         "**/*.import": true,
         "**/*~": true
-    }
+    },
+    "json.schemas": [
+        {
+            "fileMatch": ["**/packs/*/defs/**/*.json"],
+            "url": "./schemas/json/def_file.schema.json"
+        },
+        {
+            "fileMatch": ["**/packs/*/pack.json"],
+            "url": "./schemas/json/pack.schema.json"
+        }
+    ]
 }

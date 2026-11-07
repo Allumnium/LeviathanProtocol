@@ -1,0 +1,15 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A trade goods grade.",
+	"properties": {
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"display_name": {"type": "string", "minLength": 1},
+		"implemented": {"type": "boolean"},
+		"unit_value": {"type": "integer", "minimum": 0},
+		"freeze_value_on_load": {"type": "boolean"},
+		"settlement_order": {"$ref": "_common#/$defs/keys"}
+	},
+	"required": ["revision", "display_name", "implemented", "unit_value", "freeze_value_on_load", "settlement_order"],
+	"additionalProperties": false
+}

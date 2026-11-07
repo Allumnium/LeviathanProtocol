@@ -1,0 +1,67 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "Mountable equipment. Ranks above 1 use the id <part>@<rank>.",
+	"properties": {
+		"name": {"type": "string", "minLength": 1},
+		"art": {"type": "string", "x-asset": "image"},
+		"art_mount": {
+			"type": "array",
+			"items": {"type": "number", "minimum": 0},
+			"minItems": 3,
+			"maxItems": 3,
+			"description": "x, y and scale of the art mount point."
+		},
+		"part_type": {"type": "integer", "minimum": 0},
+		"rank": {"type": "integer", "minimum": 1},
+		"revision": {"$ref": "_common#/$defs/revision"},
+		"size": {"$ref": "_common#/$defs/size"},
+		"type": {"enum": ["offense", "defense", "tech", "civic"]},
+		"stats": {
+			"type": "object",
+			"properties": {
+				"integrity": {"type": "number", "minimum": 0},
+				"shields": {"type": "number", "minimum": 0},
+				"thrust": {"type": "number", "minimum": 0},
+				"weight": {"type": "number", "minimum": 0},
+				"weapons": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"description": "A weapon on this equipment.",
+						"properties": {
+							"name": {"type": "string", "minLength": 1},
+							"interval": {"type": "number", "exclusiveMinimum": 0},
+							"damage": {"type": "number", "exclusiveMinimum": 0},
+							"count": {"type": "integer", "minimum": 1},
+							"range": {"type": "number", "exclusiveMinimum": 0},
+							"charge": {"type": "number", "minimum": 0},
+							"projectile": {"type": "boolean"},
+							"interceptable": {"type": "boolean"},
+							"mount": {"$ref": "_common#/$defs/vec2"},
+							"missiles": {"type": "integer", "minimum": 0}
+						},
+						"required": [
+							"name", "interval", "damage", "count", "range", "charge", "projectile", "interceptable",
+							"mount"
+						],
+						"additionalProperties": false
+					}
+				}
+			},
+			"required": ["integrity", "shields", "thrust", "weight", "weapons"],
+			"additionalProperties": false
+		},
+		"retired": {"type": "boolean"},
+		"price": {"type": "integer", "minimum": 0},
+		"hit_points": {"type": "integer", "minimum": 1},
+		"research_capabilities": {"$ref": "_common#/$defs/keys"},
+		"load_kind": {"enum": ["cargo", "passengers"]},
+		"load_capacity": {"type": "integer", "minimum": 1}
+	},
+	"required": [
+		"name", "part_type", "rank", "revision", "size", "type", "stats", "retired", "price", "hit_points",
+		"research_capabilities"
+	],
+	"additionalProperties": false
+}

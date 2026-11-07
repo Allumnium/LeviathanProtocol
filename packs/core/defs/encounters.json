@@ -1,0 +1,109 @@
+{
+	"def": "encounter",
+	"defs": [
+		{
+			"id": "patrol",
+			"revision": 1,
+			"display_name": "Patrol",
+			"implemented": false,
+			"objective_rule": "destroy_required_hostiles",
+			"threat_multiplier": 1,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "elite",
+			"revision": 1,
+			"display_name": "Elite",
+			"implemented": false,
+			"objective_rule": "destroy_required_hostiles",
+			"threat_multiplier": 1.4,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "convoy_escort",
+			"revision": 1,
+			"display_name": "Convoy Escort",
+			"implemented": false,
+			"objective_rule": "convoy_extraction",
+			"threat_multiplier": 1,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "interception",
+			"revision": 1,
+			"display_name": "Interception",
+			"implemented": false,
+			"objective_rule": "marked_carrier_before_timer",
+			"threat_multiplier": 1,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "relay_defense",
+			"revision": 1,
+			"display_name": "Relay Defense",
+			"implemented": false,
+			"objective_rule": "finite_waves",
+			"threat_multiplier": 1,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "bastion_warden",
+			"revision": 2,
+			"display_name": "Bastion Warden",
+			"implemented": true,
+			"objective_rule": "body_destroyed",
+			"threat_multiplier": 1.8,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "brood_architect",
+			"revision": 1,
+			"display_name": "Brood Architect",
+			"implemented": false,
+			"objective_rule": "body_and_living_escorts_destroyed",
+			"threat_multiplier": 1.8,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		},
+		{
+			"id": "leviathan",
+			"revision": 1,
+			"display_name": "Leviathan",
+			"implemented": false,
+			"objective_rule": "core_destroyed",
+			"threat_multiplier": 1.8,
+			"required_entity_ids": [],
+			"frozen_roster": [],
+			"finite_waves": [],
+			"reward": {"credits": 0, "rp_snapshot": [], "material_pool": []},
+			"environment_ids": []
+		}
+	]
+}
