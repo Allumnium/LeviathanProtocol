@@ -1,0 +1,11 @@
+{
+	"id": "needs_new_base",
+	"name": "Needs New Base",
+	"version": "1.0.0",
+	"depends": [
+		{
+			"id": "base",
+			"version": ">=2.0"
+		}
+	]
+}

@@ -131,7 +131,7 @@ Runtime identity never depends on array order. Station trade IDs, encounter node
  "remove": {"tags": ["early_game"]}}
 ```
 
-Paths can select array items by their `id`, such as `stages[escape].deadline`. Patches apply after all defs load, in pack order. When two packs set the same path, the editor reports a conflict warning.
+Paths can select array items by their `id` or position, such as `stages[escape].deadline` or `slots[0].size`. `target_def` names the def type when several types share the target ID. Patches apply in pack order to authored defs before inheritance, so a patch to a template reaches every def that inherits from it; an operation on an inherited array copies that array into the patched def first. A patch whose qualified target pack is not loaded is skipped with a warning, which allows optional compatibility patches. When two packs set the same path, the later pack wins and the loader reports a conflict warning.
 
 ### 5.5 Schemas are the single source of truth
 
@@ -157,21 +157,21 @@ Engine behaviors that data composes, such as weapon types, effect operations, ob
 The loader runs these steps:
 
 1. Discover packs.
-2. Order them topologically by dependencies, then by ID.
+2. Order them topologically by dependencies and `load_after`, then by ID.
 3. Parse JSON.
-4. Resolve inheritance.
-5. Apply patches.
+4. Apply patches.
+5. Resolve inheritance.
 6. Validate schemas.
 7. Resolve references.
 8. Compile formulas.
 9. Run type-specific checks, such as reachable quest stages and objectives with a role.
 10. Freeze the database and compute its content hash.
 
-Each problem includes severity, pack, file, def ID, JSON path and message. Errors disable that pack and any pack that depends on it. Warnings load. `tools/validate_packs.gd` prints the same problems from the command line for CI and hand editing.
+Each problem includes severity, pack, file, def ID, JSON path and message. Errors disable that pack and any pack that depends on it, and the remaining packs load again without it, so a broken patch leaves no changes behind. A schema error on a patched path is blamed on the patching pack, so a broken mod cannot disable `core`. Warnings load. `tools/validate_packs.gd` prints the same problems from the command line for CI and hand editing.
 
 ### 5.7 Assets
 
-`core:art/...` addresses built-in `res://` assets. Pack assets load at runtime with `Image.load_from_file` and `AudioStreamOggVorbis.load_from_file` and are cached by content hash. Missing art keeps the existing visible missing-art marker.
+`res://` paths address built-in assets. A relative path is inside the def's own pack, and `pack:path` is inside another loaded pack. Pack assets load at runtime with `Image.load_from_file` and `AudioStreamOggVorbis.load_from_file` and are cached by content hash. A missing file is a load warning, and missing art keeps the existing visible missing-art marker.
 
 ### 5.8 Runs freeze their content
 
@@ -629,9 +629,9 @@ The full stage graph is the only node-graph surface. Everything else uses forms 
 ## 19. Code organization and migration map
 
 ```text
-scripts/core/       stable_hash.gd, rng_streams.gd, atomic_run_store.gd
-scripts/content/    pack_manifest.gd, pack_loader.gd, def_database.gd, schema_registry.gd, def_validator.gd, patcher.gd, problems.gd
-scripts/expr/       lexer.gd, parser.gd, type_checker.gd, evaluator.gd, functions.gd
+scripts/core/       stable_hash.gd, stable_rng.gd, rng_streams.gd, atomic_run_store.gd
+scripts/content/    pack_manifest.gd, pack_loader.gd, def_database.gd, schema_registry.gd, def_patcher.gd, content_problems.gd, content.gd
+scripts/expr/       lexer.gd, parser.gd, type_checker.gd, evaluator.gd, functions.gd, formula.gd, expr_contexts.gd
 scripts/run/        run_document.gd, run_transaction.gd, hooks.gd, fact_view.gd, effects/*.gd
 scripts/world/      galaxy/*.gd (stages), sites.gd, factions.gd, actors.gd, stats.gd, pressures.gd
 scripts/story/      quests.gd, casting.gd, scenes.gd, text_template.gd, grammar.gd, response_lines.gd, chronicle.gd, director.gd, rules.gd

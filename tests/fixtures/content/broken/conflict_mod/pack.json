@@ -1,0 +1,11 @@
+{
+	"id": "conflict_mod",
+	"name": "Conflict Mod",
+	"version": "1.0.0",
+	"depends": [
+		"base"
+	],
+	"load_after": [
+		"addon"
+	]
+}

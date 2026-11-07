@@ -1,0 +1,8 @@
+{
+	"id": "bad_schema",
+	"name": "Bad Schema",
+	"version": "1.0.0",
+	"depends": [
+		"base"
+	]
+}

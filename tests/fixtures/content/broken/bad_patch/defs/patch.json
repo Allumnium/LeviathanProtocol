@@ -1,0 +1,9 @@
+{
+	"def": "patch",
+	"id": "oops",
+	"target": "scout",
+	"set": {
+		"stats.hull": 999,
+		"slots[missing].size": 1
+	}
+}

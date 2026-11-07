@@ -1,0 +1,8 @@
+{
+	"def": "patch",
+	"id": "compat",
+	"target": "elsewhere:thing",
+	"set": {
+		"power": 1
+	}
+}

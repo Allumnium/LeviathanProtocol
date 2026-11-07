@@ -1,0 +1,17 @@
+{
+	"def": "gadget",
+	"defs": [
+		{
+			"id": "blaster",
+			"power": 3,
+			"mode": "auto"
+		},
+		{
+			"id": "shield",
+			"power": 2,
+			"mode": {
+				"rate": 0.5
+			}
+		}
+	]
+}

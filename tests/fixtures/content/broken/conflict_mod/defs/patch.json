@@ -1,0 +1,8 @@
+{
+	"def": "patch",
+	"id": "harder_scout",
+	"target": "scout",
+	"set": {
+		"stats.hull": 30
+	}
+}

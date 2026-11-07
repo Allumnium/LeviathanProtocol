@@ -54,6 +54,18 @@ static func compile(text: String, schema: Dictionary = {}, expected_type: String
 	return formula
 
 
+## A literal field value used where a formula is allowed, such as "weight": 2.
+static func constant(value: Variant, expected_type: String = "any") -> Formula:
+	var formula := Formula.new()
+	formula.source = JSON.stringify(value)
+	formula.expected = expected_type
+	formula._functions = standard_functions()
+	var fixed: Variant = float(value) if value is int else value
+	formula.result_type = "null" if fixed == null else ("bool" if fixed is bool else ("number" if fixed is float else "any"))
+	formula._root = func(_env: ExprEvaluator.Env) -> Variant: return fixed
+	return formula
+
+
 static func _describe(kind: String) -> String:
 	match kind:
 		"bool":

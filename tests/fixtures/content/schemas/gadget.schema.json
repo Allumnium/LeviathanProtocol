@@ -1,0 +1,35 @@
+{
+	"type": "object",
+	"additionalProperties": false,
+	"required": [
+		"power"
+	],
+	"properties": {
+		"power": {
+			"type": "integer",
+			"minimum": 0
+		},
+		"mode": {
+			"oneOf": [
+				{
+					"type": "string",
+					"enum": [
+						"auto"
+					]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": [
+						"rate"
+					],
+					"properties": {
+						"rate": {
+							"type": "number"
+						}
+					}
+				}
+			]
+		}
+	}
+}

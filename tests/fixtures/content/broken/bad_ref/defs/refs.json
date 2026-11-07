@@ -1,0 +1,24 @@
+{
+	"def": "widget",
+	"defs": [
+		{
+			"id": "dangling",
+			"name": "Dangling",
+			"stats": {
+				"hull": 1
+			},
+			"parts": [
+				"blaster",
+				"blastr"
+			]
+		},
+		{
+			"id": "orphan",
+			"parent": "nope",
+			"name": "Orphan",
+			"stats": {
+				"hull": 1
+			}
+		}
+	]
+}

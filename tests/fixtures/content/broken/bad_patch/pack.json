@@ -1,0 +1,8 @@
+{
+	"id": "bad_patch",
+	"name": "Bad Patch",
+	"version": "1.0.0",
+	"depends": [
+		"base"
+	]
+}

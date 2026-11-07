@@ -1,0 +1,8 @@
+{
+	"id": "bad_formula",
+	"name": "Bad Formula",
+	"version": "1.0.0",
+	"depends": [
+		"base"
+	]
+}

@@ -1,0 +1,53 @@
+{
+	"defs": [
+		{
+			"def": "widget",
+			"id": "raider",
+			"parent": "base:hull_template",
+			"name": "Raider",
+			"parts": [
+				"blaster",
+				"base:shield"
+			],
+			"slots": [
+				{
+					"id": "mid",
+					"size": 3
+				}
+			]
+		},
+		{
+			"def": "patch",
+			"id": "toughen_scout",
+			"target": "scout",
+			"set": {
+				"stats.hull": 25,
+				"slots[fore].size": 2
+			},
+			"append": {
+				"tags": [
+					"patched"
+				]
+			}
+		},
+		{
+			"def": "patch",
+			"id": "retune_template",
+			"target": "base:hull_template",
+			"target_def": "widget",
+			"set": {
+				"stats.speed": 7
+			}
+		},
+		{
+			"def": "patch",
+			"id": "trim_brick",
+			"target": "brick",
+			"remove": {
+				"slots": [
+					"aft"
+				]
+			}
+		}
+	]
+}

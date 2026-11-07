@@ -1,0 +1,8 @@
+{
+	"id": "cycle_b",
+	"name": "Cycle B",
+	"version": "1.0.0",
+	"depends": [
+		"cycle_a"
+	]
+}

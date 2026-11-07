@@ -29,6 +29,7 @@ Useful focused entry points:
 - [test_fleet_without_command.gd](test_fleet_without_command.gd): 39-ship purchases/rescue/deployment/Continue without capacity research, affordability/overflow and save rollback, explicit flagship validation, removed logistics cards and remaining offers/progression. Native `-- --native-only` verifies actual group purchases beyond the former budget and Fleet/setup readouts at supported resolutions; requires the explicit completion check. Replaces the retired command-capacity suite.
 - [test_stable_rng.gd](test_stable_rng.gd): stable hash and RNG reference vectors, stream counters, save/restore and distribution sanity. New `class_name` scripts need one `--headless --import` before `--script` runs can resolve them.
 - [test_expr.gd](test_expr.gd): formula precedence, typing and runtime errors with columns, context paths, lazy arguments and a 10k-evaluation timing check.
+- [test_packs.gd](test_packs.gd): pack ordering, version ranges, schema keywords, patches, inheritance, references, formulas, freezing and the expected Problems from [broken fixture packs](fixtures/content/broken/).
 
 - [test_map_clock.gd](test_map_clock.gd): native fixed 8x travel clock/distance, Pause/Play without speed selectors, actual Fleet/Map pointer switches, hidden-page suspension, preserved manual/mandatory pauses, Continue pause and supported-resolution header captures. Checks frozen full snapshots while away; requires its explicit completion check. Low-level simulation speed APIs remain available for controlled model tests.
 

@@ -1,0 +1,22 @@
+{
+	"def": "widget",
+	"defs": [
+		{
+			"id": "wonky",
+			"name": "Wonky",
+			"stats": {
+				"hull": 1
+			},
+			"weight": "credits +* 2",
+			"enabled_if": "danger"
+		},
+		{
+			"id": "literal",
+			"name": "Literal",
+			"stats": {
+				"hull": 1
+			},
+			"weight": true
+		}
+	]
+}

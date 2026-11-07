@@ -1,0 +1,14 @@
+{
+	"defs": [
+		{
+			"def": "gadget",
+			"id": "Bad-Id",
+			"power": 1
+		},
+		{
+			"def": "gizmo",
+			"id": "thing",
+			"power": 1
+		}
+	]
+}

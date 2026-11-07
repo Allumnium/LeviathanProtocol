@@ -1,0 +1,8 @@
+{
+	"id": "after_cycle",
+	"name": "After Cycle",
+	"version": "1.0.0",
+	"depends": [
+		"cycle_a"
+	]
+}

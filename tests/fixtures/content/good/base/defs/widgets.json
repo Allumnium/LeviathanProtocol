@@ -1,0 +1,69 @@
+{
+	"def": "widget",
+	"defs": [
+		{
+			"id": "hull_template",
+			"abstract": true,
+			"notes": "Shared hull",
+			"kind": "small",
+			"stats": {
+				"hull": 10,
+				"speed": 5
+			},
+			"tags": [
+				"light"
+			],
+			"slots": [
+				{
+					"id": "fore",
+					"size": 1
+				},
+				{
+					"id": "aft",
+					"size": 2
+				}
+			]
+		},
+		{
+			"id": "scout",
+			"parent": "hull_template",
+			"name": "Scout",
+			"stats": {
+				"hull": 20
+			},
+			"parts": [
+				"blaster"
+			],
+			"weight": "credits / 100 + 1",
+			"enabled_if": "danger < 3",
+			"icon": "defs/gadgets/lance.json"
+		},
+		{
+			"id": "brick",
+			"parent": "hull_template",
+			"name": "Brick",
+			"kind": null,
+			"tags": [
+				"heavy"
+			],
+			"weight": 2,
+			"icon": "art/missing.png"
+		},
+		{
+			"id": "brick@2",
+			"parent": "brick",
+			"name": "Brick II",
+			"stats": {
+				"hull": 40
+			}
+		},
+		{
+			"id": "group/drone",
+			"name": "Drone",
+			"stats": {
+				"hull": 1
+			},
+			"enabled_if": true
+		}
+	]
+}

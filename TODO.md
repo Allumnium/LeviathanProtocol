@@ -9,9 +9,7 @@ Current behavior: [docs/HANGAR.md](docs/HANGAR.md). Workflow: [AGENTS.md](AGENTS
 Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases). Each phase keeps the game playable, deletes what it replaces and ends with focused tests. Saves may break.
 
 - [ ] P1 Content foundation:
-  - [ ] Pack manifests/loader (`res://packs`, `user://packs`), dependency order and Problems.
-  - [ ] Schema registry and validator (JSON Schema subset with `x-ref`/`x-expr`/`x-text`/`x-asset`/`x-editor`), `parent`/`abstract` inheritance and patch defs.
-  - [ ] `DefDatabase` and static `Content` API; convert `data/*.json` into `packs/core` and `packs/leviathan`, repoint catalog readers, delete `data/`.
+  - [ ] Convert `data/*.json` into `packs/core` and `packs/leviathan` with schemas, repoint `GameDefinitions`/`SlotCatalog`/`ShipLoadouts`/`ExpeditionState`/`ExpeditionEvents` through `Content`, delete `data/`.
   - [ ] `tools/validate_packs.gd`, `tools/export_schemas.gd` and VS Code schema mapping.
 - [ ] P2 One authority: move research filters, enemy costs/templates, trade fares, support/ability constants, starting fleet and equipment effect text into defs; explicit IDs instead of array order; stable seeds; delete unused legacy readers.
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.

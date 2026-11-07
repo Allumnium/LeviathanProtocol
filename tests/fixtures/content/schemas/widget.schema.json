@@ -1,0 +1,90 @@
+{
+	"type": "object",
+	"additionalProperties": false,
+	"required": [
+		"name",
+		"stats"
+	],
+	"properties": {
+		"name": {
+			"type": "string",
+			"minLength": 1,
+			"x-text": "name"
+		},
+		"kind": {
+			"enum": [
+				"small",
+				"large"
+			]
+		},
+		"stats": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"hull"
+			],
+			"properties": {
+				"hull": {
+					"type": "number",
+					"minimum": 0
+				},
+				"speed": {
+					"type": "number"
+				}
+			}
+		},
+		"tags": {
+			"type": "array",
+			"items": {
+				"$ref": "_common.schema.json#/$defs/tag"
+			},
+			"uniqueItems": true
+		},
+		"slots": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": [
+					"id",
+					"size"
+				],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"size": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"rect": {
+						"$ref": "_common.schema.json#/$defs/pair"
+					}
+				}
+			}
+		},
+		"parts": {
+			"type": "array",
+			"items": {
+				"type": "string",
+				"x-ref": "gadget"
+			}
+		},
+		"weight": {
+			"x-expr": {
+				"type": "number",
+				"context": "fixture"
+			}
+		},
+		"enabled_if": {
+			"x-expr": {
+				"type": "bool",
+				"context": "fixture"
+			}
+		},
+		"icon": {
+			"type": "string",
+			"x-asset": "image"
+		}
+	}
+}

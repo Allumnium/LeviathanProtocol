@@ -1,0 +1,8 @@
+{
+	"def": "patch",
+	"id": "soften",
+	"target": "brick",
+	"set": {
+		"stats.hull": "soft"
+	}
+}

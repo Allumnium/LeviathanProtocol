@@ -1,0 +1,8 @@
+{
+	"id": "patch_breaks_schema",
+	"name": "Patch Breaks Schema",
+	"version": "1.0.0",
+	"depends": [
+		"base"
+	]
+}

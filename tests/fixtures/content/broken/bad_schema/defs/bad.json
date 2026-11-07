@@ -1,0 +1,18 @@
+{
+	"def": "widget",
+	"id": "bad_hull",
+	"name": "Bad",
+	"stats": {
+		"hull": "lots"
+	},
+	"colour": "red",
+	"slots": [
+		{
+			"id": "fore",
+			"size": 0
+		}
+	],
+	"tags": [
+		"Loud"
+	]
+}
