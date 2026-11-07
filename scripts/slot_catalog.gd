@@ -134,7 +134,13 @@ static func slot_label(slot: Dictionary) -> String:
 		_: return "%s | %s" % [slot.size, str(slot.type).capitalize()]
 
 static func unlocked(item: Dictionary, grants: Dictionary) -> bool:
-	return not item.is_empty() and not item.get("retired", false) and grants.get("error", "").is_empty() and item.id in grants.get("equipment_ids", []) and item.rank <= int(grants.get("ranks", {}).get(item.id, 0))
+	if item.is_empty() or item.get("retired", false):
+		return false
+	match item.get("availability", "unavailable"):
+		"ordinary": return true
+		"research": return grants.get("error", "").is_empty() and item.id in grants.get("equipment_ids", []) \
+			and item.rank <= int(grants.get("ranks", {}).get(item.id, 0))
+	return false
 
 static func stats_for(id: String, rank := 1) -> ShipPartStats:
 	var item := find_equipment(id, rank)
@@ -159,6 +165,8 @@ static func valid_equipment(data: Variant) -> bool:
 	var seen := {}
 	for item: Variant in data.equipment:
 		if not item is Dictionary or not item.get("research_capabilities", []) is Array:
+			return false
+		if item.get("availability") not in ["ordinary", "research", "unavailable"]:
 			return false
 		var capabilities_seen := {}
 		for capability: Variant in item.get("research_capabilities", []):

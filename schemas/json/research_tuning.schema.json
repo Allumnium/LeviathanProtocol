@@ -1,0 +1,69 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "research_tuning def",
+	"type": "object",
+	"description": "Shared research-bar progression and base card count; the Science flagship adds its declared bonus.",
+	"properties": {
+		"def": {
+			"const": "research_tuning",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"threshold_step": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 1000000
+		},
+		"base_options": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 3
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"threshold_step",
+			"base_options"
+		]
+	}
+}

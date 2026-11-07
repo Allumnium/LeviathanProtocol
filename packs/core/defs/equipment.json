@@ -14,7 +14,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "beam_lance",
@@ -46,7 +47,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": ["laser"]
+			"research_capabilities": ["laser"],
+			"availability": "research"
 		},
 		{
 			"id": "cargo_hold",
@@ -63,7 +65,8 @@
 			"hit_points": 60,
 			"research_capabilities": [],
 			"load_kind": "cargo",
-			"load_capacity": 10
+			"load_capacity": 10,
+			"availability": "ordinary"
 		},
 		{
 			"id": "crew_quarters",
@@ -77,7 +80,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "double_laser",
@@ -109,7 +113,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": ["laser", "prismatic"]
+			"research_capabilities": ["laser", "prismatic"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "extraction_drill",
@@ -141,7 +146,8 @@
 			"retired": true,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "focusing_lens",
@@ -155,7 +161,8 @@
 			"retired": false,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "gravitic_snare",
@@ -169,7 +176,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "ion_emitter",
@@ -201,7 +209,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": ["ion"]
+			"research_capabilities": ["ion"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "large_thruster",
@@ -215,7 +224,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "laser",
@@ -247,7 +257,8 @@
 			"retired": false,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": ["laser", "prismatic"]
+			"research_capabilities": ["laser", "prismatic"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "mini_turret",
@@ -281,7 +292,8 @@
 			"retired": false,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "mining_laser",
@@ -313,7 +325,8 @@
 			"retired": true,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "missile_rack",
@@ -346,7 +359,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": ["guided_missile", "splitting_missile"]
+			"research_capabilities": ["guided_missile", "splitting_missile"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "nanoforge",
@@ -360,7 +374,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "observation_deck",
@@ -374,7 +389,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "ore_processor",
@@ -388,7 +404,8 @@
 			"retired": true,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "passenger_cabin",
@@ -404,7 +421,8 @@
 			"hit_points": 25,
 			"research_capabilities": [],
 			"load_kind": "passengers",
-			"load_capacity": 4
+			"load_capacity": 4,
+			"availability": "ordinary"
 		},
 		{
 			"id": "point_defense_turret",
@@ -436,7 +454,8 @@
 			"retired": false,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "reactive_bulkhead",
@@ -450,7 +469,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "repair_drone_bay",
@@ -464,7 +484,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": ["repair_aura"]
+			"research_capabilities": ["repair_aura"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "repair_station",
@@ -478,7 +499,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "research_lab",
@@ -494,7 +516,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": ["research"]
+			"research_capabilities": ["research"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "research_lab@3",
@@ -508,7 +531,8 @@
 			"retired": false,
 			"price": 750,
 			"hit_points": 60,
-			"research_capabilities": ["research"]
+			"research_capabilities": ["research"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "seismic_cutter",
@@ -522,7 +546,8 @@
 			"retired": true,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "unavailable"
 		},
 		{
 			"id": "shield_generator",
@@ -536,7 +561,8 @@
 			"retired": false,
 			"price": 85,
 			"hit_points": 25,
-			"research_capabilities": ["shield"]
+			"research_capabilities": ["shield"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "shield_relay",
@@ -550,7 +576,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": ["shield"]
+			"research_capabilities": ["shield"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "hull_plate",
@@ -565,7 +592,8 @@
 			"retired": false,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "thruster",
@@ -579,7 +607,8 @@
 			"retired": false,
 			"price": 40,
 			"hit_points": 15,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "flight_deck",
@@ -593,7 +622,8 @@
 			"retired": true,
 			"price": 190,
 			"hit_points": 25,
-			"research_capabilities": ["carrier"]
+			"research_capabilities": ["carrier"],
+			"availability": "unavailable"
 		},
 		{
 			"id": "torpedo_bomber_bay",
@@ -607,7 +637,8 @@
 			"retired": true,
 			"price": 280,
 			"hit_points": 40,
-			"research_capabilities": ["carrier"]
+			"research_capabilities": ["carrier"],
+			"availability": "unavailable"
 		},
 		{
 			"id": "ammunition_magazine",
@@ -621,7 +652,8 @@
 			"retired": false,
 			"price": 120,
 			"hit_points": 25,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "railgun",
@@ -653,7 +685,8 @@
 			"retired": false,
 			"price": 240,
 			"hit_points": 40,
-			"research_capabilities": ["railgun"]
+			"research_capabilities": ["railgun"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "command_uplink",
@@ -667,7 +700,8 @@
 			"retired": false,
 			"price": 140,
 			"hit_points": 25,
-			"research_capabilities": ["command"]
+			"research_capabilities": ["command"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "tactical_computer",
@@ -681,7 +715,8 @@
 			"retired": false,
 			"price": 220,
 			"hit_points": 35,
-			"research_capabilities": ["synchronization"]
+			"research_capabilities": ["synchronization"],
+			"availability": "ordinary"
 		},
 		{
 			"id": "armor_block@2",
@@ -695,7 +730,8 @@
 			"retired": false,
 			"price": 160,
 			"hit_points": 40,
-			"research_capabilities": []
+			"research_capabilities": [],
+			"availability": "ordinary"
 		},
 		{
 			"id": "autocannon",
@@ -727,7 +763,8 @@
 					}
 				],
 				"weight": 8
-			}
+			},
+			"availability": "ordinary"
 		},
 		{
 			"id": "light_shield",
@@ -741,7 +778,8 @@
 			"price": 40,
 			"hit_points": 25,
 			"research_capabilities": ["shield"],
-			"stats": {"integrity": 0, "shields": 6, "thrust": 0, "weapons": [], "weight": 3}
+			"stats": {"integrity": 0, "shields": 6, "thrust": 0, "weapons": [], "weight": 3},
+			"availability": "ordinary"
 		},
 		{
 			"id": "cargo_pod",
@@ -757,7 +795,8 @@
 			"research_capabilities": [],
 			"stats": {"integrity": 0, "shields": 0, "thrust": 0, "weapons": [], "weight": 4},
 			"load_kind": "cargo",
-			"load_capacity": 4
+			"load_capacity": 4,
+			"availability": "ordinary"
 		},
 		{
 			"id": "passenger_berth",
@@ -773,7 +812,8 @@
 			"research_capabilities": [],
 			"stats": {"integrity": 0, "shields": 0, "thrust": 0, "weapons": [], "weight": 12},
 			"load_kind": "passengers",
-			"load_capacity": 12
+			"load_capacity": 12,
+			"availability": "ordinary"
 		}
 	]
 }

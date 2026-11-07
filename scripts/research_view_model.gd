@@ -4,7 +4,6 @@ extends RefCounted
 const GROUP_NAMES := {"shared": "Foundation", "science": "Science", "civil": "Hospitality", "logistics": "Logistics",
 	"sensors": "Sensors", "mining": "Mining", "energy": "Energy", "survival": "Survival",
 	"force_projection": "Force projection", "fleet_operations": "Fleet operations"}
-const GATE_NAMES := {"boss_i_defeated": "Defeat the Bastion Warden", "boss_ii_defeated": "Defeat the Brood Architect", "boss_iii_defeated": "Defeat the Leviathan"}
 
 static func group_for(node: Dictionary) -> String:
 	if not node.family_id.is_empty():
@@ -80,27 +79,8 @@ static func names(registry: Dictionary, domain: String, ids: Array) -> String:
 		result.append(find(registry, domain, id).get("display_name", id))
 	return ", ".join(result)
 
-static func description(_registry: Dictionary, id: String) -> String:
-	var explanations := {
-		"applied_energy": "Lasers deal 15% more damage.",
-		"field_engineering": "Cruise faster using less fuel.",
-		"guided_munitions": "Guided missiles gain 25% range.",
-		"laboratory_ii": "Operating labs produce 20% more research.",
-		"laboratory_iii": "Operating labs produce 40% more research in total.",
-		"energy_manipulation": "Lasers become sustained beams that grow stronger over time.",
-		"civil_hospitality": "Travel earns credits for the expedition.",
-		"optics_ii": "Lasers gain 20% range and Beam Lance becomes available.",
-		"disruption_i": "Ion Pulse interrupts enemies and suppresses shield recovery.",
-		"bastion_ii": "Shields periodically recover, even under fire.",
-		"renewal_i": "Hull repair and Repair Drone Hangar healing become 25% faster.",
-		"siege_i": "Missiles split near their target.",
-		"siege_ii": "Fragments and railgun hull hits deal 20% more damage.",
-		"carrier_i": "Flight decks launch craft 25% faster.",
-		"carrier_ii": "Carrier craft deal 20% more damage and Bomber Bay becomes available.",
-		"command_i": "Uplink marks add 30% allied damage per uplink.",
-		"command_ii": "Tactical Computers synchronize salvos 25% faster."
-	}
-	return explanations.get(id, "")
+static func description(registry: Dictionary, id: String) -> String:
+	return str(find(registry, "research", id).get("description", ""))
 
 static func effect_summary(registry: Dictionary, id: String) -> String:
 	var node := find(registry, "research", id)
@@ -159,7 +139,7 @@ static func details(registry: Dictionary, id: String, visible_ids: Array) -> Str
 	var lines: Array[String] = ["%s — %d RP" % [node.display_name, int(node.cost_rp)]]
 	lines.append("Requires (all): " + (names(registry, "research", node.prerequisite_ids) if not node.prerequisite_ids.is_empty() else "Starting knowledge"))
 	for gate: String in node.story_gate_ids:
-		lines.append("Story: " + GATE_NAMES.get(gate, gate))
+		lines.append("Story: " + Content.get_def("story_gate", gate).get("label", gate))
 	lines.append("\nOne research unlocks:")
 	for equipment_id: String in node.grants.equipment_ids:
 		var equipment := find(registry, "equipment", equipment_id)
@@ -211,6 +191,6 @@ static func details(registry: Dictionary, id: String, visible_ids: Array) -> Str
 				prior.append_array(find(registry, "research", next).get("prerequisite_ids", []))
 			if seen.has(id):
 				lines.append("• %s (%d RP): %s%s" % [later.display_name, int(later.cost_rp), names(registry, "equipment", later.grants.equipment_ids),
-					"; " + GATE_NAMES[later.story_gate_ids[0]] if not later.story_gate_ids.is_empty() else ""])
+					"; " + str(Content.get_def("story_gate", later.story_gate_ids[0]).get("label", later.story_gate_ids[0])) if not later.story_gate_ids.is_empty() else ""])
 	lines.append("\nRecipes: O Offense · D Defense · T Tech · C Civic · . outside footprint")
 	return "\n".join(lines)

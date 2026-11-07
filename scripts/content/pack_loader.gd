@@ -31,6 +31,7 @@ var _ref_regex := RegEx.create_from_string(REF_PATTERN)
 
 func _init(registry: SchemaRegistry = null) -> void:
 	schemas = registry if registry != null else SchemaRegistry.new()
+	checks["research"] = preload("res://scripts/content/research_checks.gd").validate
 
 
 func load_packs(roots: Array = DEFAULT_ROOTS, schema_dirs: Array = DEFAULT_SCHEMA_DIRS) -> DefDatabase:
@@ -319,7 +320,18 @@ func _build(enabled: Array[PackManifest], parsed: Dictionary, problems: ContentP
 				continue
 			var found: Array = checks[def_type].call(entry.data, db.meta(def_type, entry.qid), db)
 			for item: Dictionary in found:
-				problems.add(str(item.get("severity", ContentProblems.ERROR)), item.message, entry.pack, entry.file, entry.id, str(item.get("path", "")))
+				var path := str(item.get("path", ""))
+				var blame := _blame(db, entry, path)
+				for related: String in item.get("related_paths", []):
+					if blame.is_empty():
+						blame = _blame(db, entry, related)
+				for cause: Dictionary in item.get("causes", []):
+					if blame.is_empty():
+						var record := db.record(cause.type, cause.id)
+						if not record.is_empty():
+							blame = _blame(db, record, cause.path)
+				var source: Dictionary = entry if blame.is_empty() else blame
+				problems.add(str(item.get("severity", ContentProblems.ERROR)), item.message, source.pack, source.file, source.id, path)
 	return db
 
 

@@ -1,0 +1,24 @@
+{
+	"def": "patch",
+	"defs": [
+		{"def": "research_family", "id": "fieldcraft", "label": "Fieldcraft", "paths": ["practical", "theory"]},
+		{"def": "story_gate", "id": "field_trial", "label": "Complete a field trial", "flag": "field_trial"},
+		{"id": "card_tuning", "target": "core:default", "target_def": "research_tuning", "set": {"threshold_step": 12, "base_options": 2}},
+		{"id": "applied", "target": "core:applied_energy", "target_def": "research", "set": {
+			"family_id": "research_tuning_test:fieldcraft", "path_id": "practical", "story_gate_ids": ["research_tuning_test:field_trial"],
+			"description": "Lasers strike harder.", "equipment_capabilities_any": ["research"], "equipment_requirement": "Deploy a research lab.",
+			"grants.equipment_ids": ["beam_lance", "tactical_computer"], "grants.modifiers[laser_damage_multiplier].value": 1.35
+		}},
+		{"id": "gate_computer", "target": "core:tactical_computer", "target_def": "equipment", "set": {"availability": "research"}},
+		{"id": "hide_engineering", "target": "core:field_engineering", "target_def": "research", "set": {"offered": false}},
+		{"id": "hide_hospitality", "target": "core:civil_hospitality", "target_def": "research", "set": {"offered": false}},
+		{"id": "hide_labs", "target": "core:laboratory_ii", "target_def": "research", "set": {"offered": false}},
+		{"id": "hide_renewal", "target": "core:renewal_i", "target_def": "research", "set": {"offered": false}},
+		{"id": "hide_bastion", "target": "core:bastion_ii", "target_def": "research", "set": {"offered": false}},
+		{"id": "hide_optics", "target": "core:optics_ii", "target_def": "research", "set": {"offered": false}},
+		{"id": "hide_prismatic", "target": "core:energy_manipulation", "target_def": "research", "set": {"offered": false}},
+		{"def": "research", "id": "field_notes", "parent": "core:civil_hospitality", "display_name": "Field Notes",
+			"offered": true, "description": "Cruising earns extra expedition funding.", "story_gate_ids": ["field_trial"],
+			"grants": {"equipment_ids": [], "ability_ids": [], "ranks": [], "modifiers": [{"id": "travel_credits_per_day", "value": 6}]}}
+	]
+}

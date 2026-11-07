@@ -68,7 +68,8 @@ func run() -> void:
 	check(SlotCatalog.find_equipment("repair_drone_bay").name == "Repair Drone Hangar", "Equipment has the requested name")
 	check(SlotCatalog.equipment().all(func(item: Dictionary) -> bool: return item.id not in ["flight_deck", "torpedo_bomber_bay"]), "Both carrier modules are absent from the active catalog")
 	check(HangarResearch.view_registry().research.all(func(node: Dictionary) -> bool: return node.id not in ["carrier_i", "carrier_ii"]), "Carrier research is removed from choices")
-	check(HangarResearch.RESEARCH_ONLY_EQUIPMENT == ["beam_lance"], "Beam Lance is the remaining equipment unlock")
+	check(SlotCatalog.equipment().filter(func(item: Dictionary) -> bool: return item.availability == "research").map(
+		func(item: Dictionary) -> String: return item.id) == ["beam_lance"], "Beam Lance is the remaining equipment unlock")
 	for chassis: Dictionary in SlotCatalog.chassis():
 		for fit: Dictionary in ShipLoadouts.for_chassis(chassis.id):
 			check(not fit.mounts.values().any(func(key: String) -> bool: return key in ["flight_deck", "torpedo_bomber_bay"]), "Named fits contain no retired carrier modules")

@@ -1,0 +1,7 @@
+{
+	"id": "research_tuning_test",
+	"name": "Research authority fixture",
+	"version": "1.0.0",
+	"kind": "content",
+	"depends": [{"id": "core", "version": ">=1.0"}, {"id": "leviathan", "version": ">=1.0"}]
+}

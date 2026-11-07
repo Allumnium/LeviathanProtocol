@@ -13,15 +13,13 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": [
-					"command_center", "hull_plate", "armor_block", "mini_turret", "thruster", "shield_generator",
-					"crew_quarters", "research_lab", "cargo_hold", "autocannon", "light_shield", "cargo_pod",
-					"passenger_berth"
-				],
+				"equipment_ids": [],
 				"ranks": [],
-				"ability_ids": ["scan"],
+				"ability_ids": [],
 				"modifiers": []
-			}
+			},
+			"description": "",
+			"offered": true
 		},
 		{
 			"id": "applied_energy",
@@ -35,12 +33,15 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["laser", "double_laser"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "laser_damage_multiplier", "value": 1.15}]
 			},
-			"equipment_capabilities_any": ["laser"]
+			"equipment_capabilities_any": ["laser"],
+			"description": "Lasers deal 15% more damage.",
+			"offered": true,
+			"equipment_requirement": "Deploy lasers."
 		},
 		{
 			"id": "field_engineering",
@@ -54,11 +55,13 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["large_thruster", "repair_station"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "cruise_fuel_multiplier", "value": 0.75}, {"id": "cruise_speed_multiplier", "value": 1.25}]
-			}
+			},
+			"description": "Cruise faster using less fuel.",
+			"offered": true
 		},
 		{
 			"id": "guided_munitions",
@@ -72,12 +75,15 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["point_defense_turret", "missile_rack"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "missile_range_multiplier", "value": 1.25}]
 			},
-			"equipment_capabilities_any": ["guided_missile"]
+			"equipment_capabilities_any": ["guided_missile"],
+			"description": "Guided missiles gain 25% range.",
+			"offered": true,
+			"equipment_requirement": "Deploy guided missiles."
 		},
 		{
 			"id": "laboratory_ii",
@@ -92,11 +98,14 @@
 			"exclusion_ids": [],
 			"grants": {
 				"equipment_ids": [],
-				"ranks": [{"equipment_id": "research_lab", "rank": 2}],
+				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "research_output_multiplier", "value": 1.2}]
 			},
-			"equipment_capabilities_any": ["research"]
+			"equipment_capabilities_any": ["research"],
+			"description": "Operating labs produce 20% more research.",
+			"offered": true,
+			"equipment_requirement": "Deploy a research lab."
 		},
 		{
 			"id": "laboratory_iii",
@@ -111,11 +120,14 @@
 			"exclusion_ids": [],
 			"grants": {
 				"equipment_ids": [],
-				"ranks": [{"equipment_id": "research_lab", "rank": 3}],
+				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "research_output_multiplier", "value": 1.4}]
 			},
-			"equipment_capabilities_any": ["research"]
+			"equipment_capabilities_any": ["research"],
+			"description": "Operating labs produce 40% more research in total.",
+			"offered": true,
+			"equipment_requirement": "Deploy a research lab."
 		},
 		{
 			"id": "energy_manipulation",
@@ -134,7 +146,10 @@
 				"ability_ids": [],
 				"modifiers": [{"id": "prismatic_lasers", "value": true}]
 			},
-			"equipment_capabilities_any": ["prismatic"]
+			"equipment_capabilities_any": ["prismatic"],
+			"description": "Lasers become sustained beams that grow stronger over time.",
+			"offered": true,
+			"equipment_requirement": "Deploy compatible lasers."
 		},
 		{
 			"id": "civil_hospitality",
@@ -148,11 +163,13 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["passenger_cabin", "observation_deck"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "travel_credits_per_day", "value": 4}]
-			}
+			},
+			"description": "Travel earns credits for the expedition.",
+			"offered": true
 		},
 		{
 			"id": "luxury_habitation",
@@ -165,7 +182,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["luxury_suites"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"grants": {"equipment_ids": ["luxury_suites"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "grand_hospitality",
@@ -178,7 +197,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["grand_promenade"], "ranks": [], "ability_ids": ["sanctuary"], "modifiers": []}
+			"grants": {"equipment_ids": ["grand_promenade"], "ranks": [], "ability_ids": ["sanctuary"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "material_handling",
@@ -191,7 +212,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["tractor_array"], "ranks": [], "ability_ids": ["tether"], "modifiers": []}
+			"grants": {"equipment_ids": ["tractor_array"], "ranks": [], "ability_ids": ["tether"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "selective_recovery",
@@ -204,7 +227,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["sorting_refinery"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"grants": {"equipment_ids": ["sorting_refinery"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "industrial_integration",
@@ -217,7 +242,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["industrial_foundry"], "ranks": [], "ability_ids": ["field_patch"], "modifiers": []}
+			"grants": {"equipment_ids": ["industrial_foundry"], "ranks": [], "ability_ids": ["field_patch"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "freight_engineering",
@@ -235,7 +262,9 @@
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"refill_existing": false, "id": "cargo_hold_capacity", "value": 15}]
-			}
+			},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "analysis_methods",
@@ -248,7 +277,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["analysis_array"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"grants": {"equipment_ids": ["analysis_array"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "quantum_observation",
@@ -261,7 +292,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["quantum_observatory"], "ranks": [], "ability_ids": ["forecast"], "modifiers": []}
+			"grants": {"equipment_ids": ["quantum_observatory"], "ranks": [], "ability_ids": ["forecast"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "sensor_networks",
@@ -274,7 +307,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["sensor_array", "radar_relay"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"grants": {"equipment_ids": ["sensor_array", "radar_relay"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "cloaking_theory",
@@ -287,7 +322,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["cloak_generator"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"grants": {"equipment_ids": ["cloak_generator"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "mineral_spectroscopy",
@@ -305,13 +342,15 @@
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "scan_spectroscopy", "value": true}]
-			}
+			},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "basic_extraction",
 			"revision": 2,
 			"display_name": "Basic Extraction",
-			"implemented": true,
+			"implemented": false,
 			"cost_rp": 40,
 			"prerequisite_ids": ["foundation"],
 			"story_gate_ids": [],
@@ -323,13 +362,15 @@
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "extractable_materials", "values": ["offense", "defense"]}]
-			}
+			},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "deep_extraction",
 			"revision": 2,
 			"display_name": "Deep Extraction",
-			"implemented": true,
+			"implemented": false,
 			"cost_rp": 80,
 			"prerequisite_ids": ["basic_extraction"],
 			"story_gate_ids": [],
@@ -341,7 +382,9 @@
 				"ranks": [],
 				"ability_ids": ["seismic_cut"],
 				"modifiers": [{"id": "extractable_materials", "values": ["tech", "civic"]}]
-			}
+			},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "planetary_fracture",
@@ -354,20 +397,24 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["planetcracker_core"], "ranks": [], "ability_ids": ["planetcrack"], "modifiers": []}
+			"grants": {"equipment_ids": ["planetcracker_core"], "ranks": [], "ability_ids": ["planetcrack"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "optics_i",
 			"revision": 2,
 			"display_name": "Optics I",
-			"implemented": true,
+			"implemented": false,
 			"cost_rp": 60,
 			"prerequisite_ids": ["applied_energy"],
 			"story_gate_ids": [],
-			"family_id": "energy",
-			"path_id": "optics",
-			"exclusion_ids": ["disruption_i", "disruption_ii", "disruption_iii"],
-			"grants": {"equipment_ids": ["focusing_lens"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"family_id": "",
+			"path_id": "",
+			"exclusion_ids": [],
+			"grants": {"equipment_ids": ["focusing_lens"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "optics_ii",
@@ -386,7 +433,10 @@
 				"ability_ids": [],
 				"modifiers": [{"id": "laser_range_multiplier", "value": 1.2}]
 			},
-			"equipment_capabilities_any": ["laser"]
+			"equipment_capabilities_any": ["laser"],
+			"description": "Lasers gain 20% range and Beam Lance becomes available.",
+			"offered": true,
+			"equipment_requirement": "Deploy lasers."
 		},
 		{
 			"id": "optics_iii",
@@ -399,7 +449,9 @@
 			"family_id": "energy",
 			"path_id": "optics",
 			"exclusion_ids": ["disruption_i", "disruption_ii", "disruption_iii"],
-			"grants": {"equipment_ids": ["stellar_lance"], "ranks": [], "ability_ids": ["stellar_lance"], "modifiers": []}
+			"grants": {"equipment_ids": ["stellar_lance"], "ranks": [], "ability_ids": ["stellar_lance"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "disruption_i",
@@ -411,9 +463,12 @@
 			"story_gate_ids": [],
 			"family_id": "energy",
 			"path_id": "disruption",
-			"exclusion_ids": ["optics_i", "optics_ii", "optics_iii"],
-			"grants": {"equipment_ids": ["ion_emitter"], "ranks": [], "ability_ids": ["ion_pulse"], "modifiers": []},
-			"equipment_capabilities_any": ["ion"]
+			"exclusion_ids": ["optics_ii","optics_iii"],
+			"grants": {"equipment_ids": [], "ranks": [], "ability_ids": ["ion_pulse"], "modifiers": []},
+			"equipment_capabilities_any": ["ion"],
+			"description": "Ion Pulse interrupts enemies and suppresses shield recovery.",
+			"offered": true,
+			"equipment_requirement": "Deploy an Ion Emitter."
 		},
 		{
 			"id": "disruption_ii",
@@ -425,8 +480,10 @@
 			"story_gate_ids": [],
 			"family_id": "energy",
 			"path_id": "disruption",
-			"exclusion_ids": ["optics_i", "optics_ii", "optics_iii"],
-			"grants": {"equipment_ids": ["gravitic_snare"], "ranks": [], "ability_ids": ["gravity_well"], "modifiers": []}
+			"exclusion_ids": ["optics_ii","optics_iii"],
+			"grants": {"equipment_ids": ["gravitic_snare"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "disruption_iii",
@@ -438,21 +495,25 @@
 			"story_gate_ids": ["boss_ii_defeated"],
 			"family_id": "energy",
 			"path_id": "disruption",
-			"exclusion_ids": ["optics_i", "optics_ii", "optics_iii"],
-			"grants": {"equipment_ids": ["singularity_projector"], "ranks": [], "ability_ids": ["singularity"], "modifiers": []}
+			"exclusion_ids": ["optics_ii","optics_iii"],
+			"grants": {"equipment_ids": ["singularity_projector"], "ranks": [], "ability_ids": ["singularity"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "bastion_i",
 			"revision": 2,
 			"display_name": "Bastion I",
-			"implemented": true,
+			"implemented": false,
 			"cost_rp": 60,
 			"prerequisite_ids": ["foundation"],
 			"story_gate_ids": [],
-			"family_id": "survival",
-			"path_id": "bastion",
-			"exclusion_ids": ["renewal_i", "renewal_ii", "renewal_iii"],
-			"grants": {"equipment_ids": ["reactive_bulkhead"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"family_id": "",
+			"path_id": "",
+			"exclusion_ids": [],
+			"grants": {"equipment_ids": ["reactive_bulkhead"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "bastion_ii",
@@ -466,12 +527,15 @@
 			"path_id": "bastion",
 			"exclusion_ids": ["renewal_i", "renewal_ii", "renewal_iii"],
 			"grants": {
-				"equipment_ids": ["shield_relay"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "pulse_shields", "value": true}]
 			},
-			"equipment_capabilities_any": ["shield"]
+			"equipment_capabilities_any": ["shield"],
+			"description": "Shields periodically recover, even under fire.",
+			"offered": true,
+			"equipment_requirement": "Deploy shields."
 		},
 		{
 			"id": "bastion_iii",
@@ -484,7 +548,9 @@
 			"family_id": "survival",
 			"path_id": "bastion",
 			"exclusion_ids": ["renewal_i", "renewal_ii", "renewal_iii"],
-			"grants": {"equipment_ids": ["aegis_citadel"], "ranks": [], "ability_ids": ["aegis"], "modifiers": []}
+			"grants": {"equipment_ids": ["aegis_citadel"], "ranks": [], "ability_ids": ["aegis"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "renewal_i",
@@ -496,14 +562,17 @@
 			"story_gate_ids": [],
 			"family_id": "survival",
 			"path_id": "renewal",
-			"exclusion_ids": ["bastion_i", "bastion_ii", "bastion_iii"],
+			"exclusion_ids": ["bastion_ii","bastion_iii"],
 			"grants": {
-				"equipment_ids": ["repair_drone_bay"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "passive_repair_multiplier", "value": 1.25}, {"id": "repair_aura_multiplier", "value": 1.25}]
 			},
-			"equipment_capabilities_any": ["passive_repair", "repair_aura"]
+			"equipment_capabilities_any": ["passive_repair", "repair_aura"],
+			"description": "Hull repair and Repair Drone Hangar healing become 25% faster.",
+			"offered": true,
+			"equipment_requirement": "Deploy passive hull repair or a Repair Drone Hangar."
 		},
 		{
 			"id": "renewal_ii",
@@ -515,8 +584,10 @@
 			"story_gate_ids": [],
 			"family_id": "survival",
 			"path_id": "renewal",
-			"exclusion_ids": ["bastion_i", "bastion_ii", "bastion_iii"],
-			"grants": {"equipment_ids": ["nanoforge"], "ranks": [], "ability_ids": [], "modifiers": []}
+			"exclusion_ids": ["bastion_ii","bastion_iii"],
+			"grants": {"equipment_ids": ["nanoforge"], "ranks": [], "ability_ids": [], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "renewal_iii",
@@ -528,13 +599,15 @@
 			"story_gate_ids": ["boss_ii_defeated"],
 			"family_id": "survival",
 			"path_id": "renewal",
-			"exclusion_ids": ["bastion_i", "bastion_ii", "bastion_iii"],
+			"exclusion_ids": ["bastion_ii","bastion_iii"],
 			"grants": {
 				"equipment_ids": ["ark_restoration_core"],
 				"ranks": [],
 				"ability_ids": ["ark_restoration"],
 				"modifiers": []
-			}
+			},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "siege_i",
@@ -548,12 +621,15 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["ammunition_magazine"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "splinter_missiles", "value": true}]
 			},
-			"equipment_capabilities_any": ["splitting_missile"]
+			"equipment_capabilities_any": ["splitting_missile"],
+			"description": "Missiles split near their target.",
+			"offered": true,
+			"equipment_requirement": "Deploy splitting missiles."
 		},
 		{
 			"id": "siege_ii",
@@ -567,12 +643,15 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["railgun"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "fragment_damage_multiplier", "value": 1.2}, {"id": "railgun_hull_multiplier", "value": 1.2}]
 			},
-			"equipment_capabilities_any": ["splitting_missile", "railgun"]
+			"equipment_capabilities_any": ["splitting_missile", "railgun"],
+			"description": "Fragments and railgun hull hits deal 20% more damage.",
+			"offered": true,
+			"equipment_requirement": "Deploy splitting missiles or railguns."
 		},
 		{
 			"id": "siege_iii",
@@ -585,7 +664,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["siege_mass_driver"], "ranks": [], "ability_ids": ["siege_volley"], "modifiers": []}
+			"grants": {"equipment_ids": ["siege_mass_driver"], "ranks": [], "ability_ids": ["siege_volley"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "carrier_i",
@@ -604,7 +685,10 @@
 				"ability_ids": [],
 				"modifiers": [{"id": "carrier_launch_multiplier", "value": 1.25}]
 			},
-			"equipment_capabilities_any": ["carrier"]
+			"equipment_capabilities_any": ["carrier"],
+			"description": "",
+			"offered": false,
+			"equipment_requirement": "Deploy a flight deck."
 		},
 		{
 			"id": "carrier_ii",
@@ -623,7 +707,10 @@
 				"ability_ids": [],
 				"modifiers": [{"id": "carrier_damage_multiplier", "value": 1.2}]
 			},
-			"equipment_capabilities_any": ["carrier"]
+			"equipment_capabilities_any": ["carrier"],
+			"description": "",
+			"offered": false,
+			"equipment_requirement": "Deploy a flight deck."
 		},
 		{
 			"id": "carrier_iii",
@@ -636,7 +723,9 @@
 			"family_id": "",
 			"path_id": "",
 			"exclusion_ids": [],
-			"grants": {"equipment_ids": ["hive_carrier_core"], "ranks": [], "ability_ids": ["hive_sortie"], "modifiers": []}
+			"grants": {"equipment_ids": ["hive_carrier_core"], "ranks": [], "ability_ids": ["hive_sortie"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "command_i",
@@ -650,12 +739,15 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["command_uplink"],
+				"equipment_ids": [],
 				"ranks": [],
-				"ability_ids": ["focus_mark"],
+				"ability_ids": [],
 				"modifiers": [{"id": "mark_damage_multiplier", "value": 1.3}]
 			},
-			"equipment_capabilities_any": ["command"]
+			"equipment_capabilities_any": ["command"],
+			"description": "Uplink marks add 30% allied damage per uplink.",
+			"offered": true,
+			"equipment_requirement": "Deploy a Command Uplink."
 		},
 		{
 			"id": "command_ii",
@@ -669,12 +761,15 @@
 			"path_id": "",
 			"exclusion_ids": [],
 			"grants": {
-				"equipment_ids": ["tactical_computer"],
+				"equipment_ids": [],
 				"ranks": [],
 				"ability_ids": [],
 				"modifiers": [{"id": "synchronization_multiplier", "value": 1.25}]
 			},
-			"equipment_capabilities_any": ["synchronization"]
+			"equipment_capabilities_any": ["synchronization"],
+			"description": "Tactical Computers synchronize salvos 25% faster.",
+			"offered": true,
+			"equipment_requirement": "Deploy a Tactical Computer."
 		},
 		{
 			"id": "command_iii",
@@ -687,7 +782,9 @@
 			"family_id": "fleet_operations",
 			"path_id": "command",
 			"exclusion_ids": ["covert_i", "covert_ii", "covert_iii"],
-			"grants": {"equipment_ids": ["admiralty_nexus"], "ranks": [], "ability_ids": ["admiralty_offensive"], "modifiers": []}
+			"grants": {"equipment_ids": ["admiralty_nexus"], "ranks": [], "ability_ids": ["admiralty_offensive"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "covert_i",
@@ -700,7 +797,9 @@
 			"family_id": "fleet_operations",
 			"path_id": "covert",
 			"exclusion_ids": ["command_iii"],
-			"grants": {"equipment_ids": ["ecm_suite"], "ranks": [], "ability_ids": ["ecm_burst"], "modifiers": []}
+			"grants": {"equipment_ids": ["ecm_suite"], "ranks": [], "ability_ids": ["ecm_burst"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "covert_ii",
@@ -713,7 +812,9 @@
 			"family_id": "fleet_operations",
 			"path_id": "covert",
 			"exclusion_ids": ["command_iii"],
-			"grants": {"equipment_ids": ["phase_drive"], "ranks": [], "ability_ids": ["phase_step"], "modifiers": []}
+			"grants": {"equipment_ids": ["phase_drive"], "ranks": [], "ability_ids": ["phase_step"], "modifiers": []},
+			"description": "",
+			"offered": false
 		},
 		{
 			"id": "covert_iii",
@@ -726,7 +827,9 @@
 			"family_id": "fleet_operations",
 			"path_id": "covert",
 			"exclusion_ids": ["command_iii"],
-			"grants": {"equipment_ids": ["ghost_network"], "ranks": [], "ability_ids": ["ghost_veil"], "modifiers": []}
+			"grants": {"equipment_ids": ["ghost_network"], "ranks": [], "ability_ids": ["ghost_veil"], "modifiers": []},
+			"description": "",
+			"offered": false
 		}
 	]
 }

@@ -45,8 +45,9 @@ func _ready() -> void:
 		description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		body.add_child(description)
 		# Branch commitments are a choice consequence, rather than a prerequisite diagram.
-		if not definition.family_id.is_empty() and not GameState.research_branch_choices.has(definition.family_id):
-			var branch := UiKit.label("Locks other " + str(definition.family_id).replace("_", " ") + " paths.", &"ResearchDescriptionText")
+		if not definition.family_id.is_empty() and not GameState.research_branch_choices.has(ResearchRules.family_key(definition.family_id)):
+			var family := Content.get_def("research_family", definition.family_id)
+			var branch := UiKit.label("Locks other " + str(family.get("label", definition.family_id)).to_lower() + " paths.", &"ResearchDescriptionText")
 			branch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			body.add_child(branch)
 		var choose := UiKit.button("CHOOSE", _choose.bind(id))

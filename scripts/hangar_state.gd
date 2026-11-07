@@ -1147,8 +1147,8 @@ func deployment_error() -> String:
 		return "Equip a weapon"
 	for owned: HangarShip in fleet:
 		for instance: Dictionary in owned.mounts.values():
-			if instance.equipment_id in HangarResearch.DEFERRED_PURCHASES:
-				return "Unequip deferred equipment"
+			if not ShipLoadouts.obtainable(SlotCatalog.find_equipment(instance.equipment_id, int(instance.get("rank", 1)))):
+				return "Unequip unavailable equipment"
 	return ""
 
 func is_run_lost() -> bool:
@@ -1259,7 +1259,7 @@ func choose_research(key: String) -> bool:
 	data.research.research_offer.clear()
 	var definition := GameDefinitions.find("research", key)
 	if not definition.family_id.is_empty():
-		data.research.branch_choices[definition.family_id] = definition.path_id
+		data.research.branch_choices[ResearchRules.family_key(definition.family_id)] = definition.path_id
 	_allocate_research(data.research, 0.0)
 	return _commit_hangar(data)
 
@@ -1522,7 +1522,7 @@ func equipment_loot(node_id: int) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	var grants := research_grants()
 	for item in SlotCatalog.equipment():
-		if item.id not in HangarResearch.DEFERRED_PURCHASES and SlotCatalog.unlocked(item, grants) and fleet.any(func(owned: FleetShip) -> bool:
+		if ShipLoadouts.obtainable(item) and SlotCatalog.unlocked(item, grants) and fleet.any(func(owned: FleetShip) -> bool:
 			return (owned as HangarShip).chassis.slots.any(func(slot: Dictionary) -> bool: return SlotCatalog.compatible(slot, item))):
 			candidates.append(item)
 	if candidates.is_empty():

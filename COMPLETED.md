@@ -2,6 +2,13 @@
 
 Keep new entries brief: completion date, delivered behavior and focused verification. Historical reports are references, not standing retest requirements.
 
+## 2026-11-07 - P2c research definitions control gameplay
+
+- Research defs now author effective grants, offer availability, descriptions and matching-equipment messages; equipment defs author ordinary/research/unavailable access. Removed research ID lists and grant/prerequisite/text rewrites. Added [shared bar/card tuning](packs/core/defs/research_tuning.json), [family definitions](packs/core/defs/research_families.json), [story-gate definitions](packs/core/defs/story_gates.json) and schema exports. Qualified family/gate references resolve consistently, and gate flags are explicit. Deleted the retired modal fitting canvas and UID after an active-code/scene/test reference audit found no callers.
+- [Research checks](scripts/content/research_checks.gd) and shared modifier validation run through Content and CLI loading. Cross-field and prerequisite-cycle errors blame the patching pack, including malformed referenced definitions, a family-definition edit or an ancestor that creates a transitive cycle. [test_research_content](tests/test_research_content.gd): 48 logic and 26 native checks, zero failures; authored patches/new inherited cards change actual offers, equipment grants, fitted damage and travel income, with Continue and rollback. Reviewed three-resolution captures and actual card pointer choice.
+- A pre-change capture matched all 18 effective internal nodes, 16 visible descriptions and 40 equipment-access variants after migration. Focused redesign 96, choices 35, hangar research 168, healing 65 and packs 106 checks passed, zero failures (544 checks including the new suite). Replaced the unavailable-legacy-equipment fixture with current checkpoint/fitting rejection and live deployment guards, per the no-legacy-save contract. Strict validation: 288 defs, zero errors/warnings/disabled packs; no full baseline, campaign sweep or soak. Existing certificate-store/renderer shutdown diagnostics remain.
+- Resolved research-authority notes moved to [THOUGHTS_ARCHIVE.md](THOUGHTS_ARCHIVE.md); remaining namespace, primitive-inspector and retired-reader concerns stay in [THOUGHTS.md](THOUGHTS.md) and TODO. P2d enemy/support/ability authorities are next.
+
 ## 2026-11-07 - Archive resolved development thoughts
 
 - Moved resolved starter ownership, catalog cache, frozen fare and active-suite fixture notes to [THOUGHTS_ARCHIVE.md](THOUGHTS_ARCHIVE.md), retaining original dates/context and resolution outcomes. Open portions stay in [THOUGHTS.md](THOUGHTS.md).

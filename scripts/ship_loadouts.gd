@@ -5,14 +5,12 @@ extends RefCounted
 # complete loadouts; backend mount swaps also serve controlled fixtures.
 const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
-static var _obtainable: Dictionary = {}
 static var _database: DefDatabase
 
 static func _ensure_database() -> void:
 	if _database != Content.db():
 		_database = Content.db()
 		_loadouts.clear()
-		_obtainable.clear()
 
 static func parse_key(key: String) -> Dictionary:
 	var parts := key.split("@")
@@ -29,14 +27,7 @@ static func item_for(key: String) -> Dictionary:
 
 # Catalog eligibility is independent of a run's earned research.
 static func obtainable(item: Dictionary) -> bool:
-	_ensure_database()
-	if item.is_empty():
-		return false
-	if _obtainable.is_empty():
-		for entry: Dictionary in SlotCatalog.equipment():
-			if entry.id not in HangarResearch.DEFERRED_PURCHASES and entry.id not in HangarResearch.DEFERRED_EQUIPMENT:
-				_obtainable[entry.id] = true
-	return _obtainable.has(item.id)
+	return not item.is_empty() and not item.get("retired", false) and item.get("availability", "unavailable") in ["ordinary", "research"]
 
 static func all() -> Dictionary:
 	_ensure_database()
@@ -81,10 +72,10 @@ static func for_chassis(chassis_id: String) -> Array:
 static func equipment_available(item: Dictionary, research_ids: Array) -> bool:
 	if not obtainable(item):
 		return false
-	if HangarResearch.starting_equipment(item):
+	if item.availability == "ordinary":
 		return true
 	var grants := ResearchRules.resolve(research_ids, HangarResearch.catalog())
-	return int(grants.ranks.get(item.id, 0)) >= int(item.rank)
+	return SlotCatalog.unlocked(item, grants)
 
 static func available(loadout: Dictionary, research_ids: Array) -> bool:
 	return not loadout.is_empty() and loadout.mounts.values().all(func(key: Variant) -> bool:

@@ -32,15 +32,9 @@ static func matches(id: String, deployed: Array[FleetShip]) -> bool:
 	return targets.is_empty() or deployed.any(func(ship: FleetShip) -> bool: return ship_matches(ship, targets))
 
 static func requirement(id: String) -> String:
-	var names := {"laser": "lasers", "prismatic": "compatible lasers", "ion": "an Ion Emitter",
-		"guided_missile": "guided missiles", "splitting_missile": "splitting missiles", "railgun": "railguns",
-		"carrier": "a flight deck", "shield": "shields", "passive_repair": "passive hull repair",
-		"repair_aura": "a Repair Drone Hangar", "command": "a Command Uplink",
-		"synchronization": "a Tactical Computer", "research": "a research lab"}
-	var labels: Array[String] = []
-	for capability: String in GameDefinitions.find("research", id).get("equipment_capabilities_any", []):
-		labels.append(names.get(capability, capability))
-	return "Deploy " + " or ".join(labels) + "." if not labels.is_empty() else ""
+	var node := Content.get_def("research", id)
+	return str(node.get("equipment_requirement", "Deploy matching equipment.")) \
+		if not node.get("equipment_capabilities_any", []).is_empty() else ""
 
 static func apply_weapon(weapon: ShipWeaponStats, modifiers: Dictionary) -> void:
 	if "laser" in weapon.research_capabilities:

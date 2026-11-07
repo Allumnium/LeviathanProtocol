@@ -156,6 +156,14 @@
 		"retired": {
 			"type": "boolean"
 		},
+		"availability": {
+			"enum": [
+				"ordinary",
+				"research",
+				"unavailable"
+			],
+			"description": "Ordinary equipment needs no research; research equipment needs a grant; unavailable equipment is excluded from player fitting."
+		},
 		"price": {
 			"type": "integer",
 			"minimum": 0
@@ -213,7 +221,8 @@
 			"retired",
 			"price",
 			"hit_points",
-			"research_capabilities"
+			"research_capabilities",
+			"availability"
 		]
 	}
 }

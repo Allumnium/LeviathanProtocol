@@ -1,0 +1,11 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"description": "A research commitment family and its mutually exclusive paths.",
+	"properties": {
+		"label": {"type": "string", "minLength": 1},
+		"paths": {"type": "array", "items": {"$ref": "_common#/$defs/key"}, "minItems": 2, "uniqueItems": true}
+	},
+	"required": ["label", "paths"],
+	"additionalProperties": false
+}

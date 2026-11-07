@@ -1,0 +1,8 @@
+{
+	"def": "story_gate",
+	"defs": [
+		{"id": "boss_i_defeated", "label": "Defeat the Bastion Warden", "flag": "boss_i_defeated"},
+		{"id": "boss_ii_defeated", "label": "Defeat the Brood Architect", "flag": "boss_ii_defeated"},
+		{"id": "boss_iii_defeated", "label": "Defeat the Leviathan", "flag": "boss_iii_defeated"}
+	]
+}

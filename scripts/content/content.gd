@@ -21,7 +21,7 @@ static func db() -> DefDatabase:
 ## Not named reload: Content.reload() would call Script.reload() instead.
 static func load_all(roots: Array = ROOTS, schema_dirs: Array = SCHEMA_DIRS) -> DefDatabase:
 	var loader := PackLoader.new()
-	loader.checks = checks
+	loader.checks.merge(checks, true)
 	_db = loader.load_packs(roots, schema_dirs)
 	for item in _db.problems.items:
 		if item.severity == ContentProblems.ERROR:

@@ -6,10 +6,13 @@
 		"revision": {"$ref": "_common#/$defs/revision"},
 		"display_name": {"type": "string", "minLength": 1},
 		"implemented": {"type": "boolean"},
+		"offered": {"type": "boolean", "description": "Whether this implemented project may be offered as a research card."},
+		"description": {"type": "string", "maxLength": 160, "x-text": true, "description": "One short gameplay sentence shown on the card."},
+		"equipment_requirement": {"type": "string", "x-text": true, "description": "Actionable message when matching deployed equipment is missing."},
 		"cost_rp": {"type": "integer", "minimum": 0},
 		"prerequisite_ids": {"type": "array", "items": {"type": "string", "x-ref": "research"}, "uniqueItems": true},
-		"story_gate_ids": {"$ref": "_common#/$defs/keys"},
-		"family_id": {"$ref": "_common#/$defs/optional_key"},
+		"story_gate_ids": {"type": "array", "items": {"type": "string", "x-ref": "story_gate"}, "uniqueItems": true},
+		"family_id": {"anyOf": [{"const": ""}, {"type": "string", "minLength": 1, "x-ref": "research_family"}]},
 		"path_id": {"$ref": "_common#/$defs/optional_key"},
 		"exclusion_ids": {"type": "array", "items": {"type": "string", "x-ref": "research"}, "uniqueItems": true},
 		"grants": {
@@ -49,7 +52,7 @@
 		"equipment_capabilities_any": {"$ref": "_common#/$defs/keys"}
 	},
 	"required": [
-		"revision", "display_name", "implemented", "cost_rp", "prerequisite_ids", "story_gate_ids", "family_id",
+		"revision", "display_name", "implemented", "offered", "description", "cost_rp", "prerequisite_ids", "story_gate_ids", "family_id",
 		"path_id", "exclusion_ids", "grants"
 	],
 	"additionalProperties": false

@@ -145,9 +145,8 @@ func run() -> void:
 	for node in range(state.campaign_dag.nodes.size()):
 		check(state.equipment_loot(node).get("id") != "gravitic_snare", "Loot never awards inactive equipment")
 	check(not HangarResearch.view_registry().research.any(func(node: Dictionary) -> bool: return node.id == "disruption_ii"), "Inactive research omitted from active tree")
-	# Already-owned inactive equipment can be inspected, removed and sold; it
-	# cannot silently become deployable or be duplicated by fitting another copy.
-	check(state.buy_ship("corsair", "guardian"), "Legacy deferred equipment host")
+	# Unavailable equipment cannot be fitted or smuggled into a current checkpoint.
+	check(state.buy_ship("corsair", "guardian"), "Unavailable equipment rejection host")
 	var host_id: int = state.fleet[-1].id
 	fixture = state.hangar_snapshot()
 	var uid := str(fixture.next_equipment_id)
@@ -157,8 +156,14 @@ func run() -> void:
 	fixture.ships[-1].mounts["fore"] = uid
 	fixture.ships[-1].hull_hp = 1
 	HangarSquadrons.update_override(fixture, host_id)
-	check(state._commit_hangar(fixture) and state.load_run_checkpoint(), "Legacy inactive item remains readable")
-	check(state.deployment_error() == "Unequip deferred equipment", "Inactive loadout cannot depart")
-	check(state.fit_equipment(host_id, "fore", "") and not state.equipment_inventory.has(uid), "Legacy inactive item can be removed (and is scrapped)")
+	var before: Dictionary = state.hangar_snapshot()
+	check(not state._commit_hangar(fixture) and SaveValidation.same(before, state.hangar_snapshot()), "Unavailable equipment cannot enter a current checkpoint")
+	check(not state.swap_part(host_id, "fore", "gravitic_snare")
+		and not state.equipment_inventory.has(uid), "Fitting unavailable equipment cannot create another copy")
+	var host: HangarShip = state.owned_ship(host_id)
+	var original: Dictionary = host.mounts.fore
+	host.mounts.fore = fixture.equipment[uid]
+	check(state.deployment_error() == "Unequip unavailable equipment", "A live unavailable loadout cannot deploy")
+	host.mounts.fore = original
 	print("HANGAR RESEARCH: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

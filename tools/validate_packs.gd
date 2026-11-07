@@ -21,7 +21,7 @@ func run() -> void:
 			roots.append(arg)
 	var started := Time.get_ticks_usec()
 	var loader := PackLoader.new()
-	loader.checks = Content.checks
+	loader.checks.merge(Content.checks, true)
 	var db := loader.load_packs(roots, Content.SCHEMA_DIRS)
 	var elapsed := (Time.get_ticks_usec() - started) / 1000.0
 	for item in db.problems.items:

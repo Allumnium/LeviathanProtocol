@@ -36,6 +36,19 @@
 		"implemented": {
 			"type": "boolean"
 		},
+		"offered": {
+			"type": "boolean",
+			"description": "Whether this implemented project may be offered as a research card."
+		},
+		"description": {
+			"type": "string",
+			"maxLength": 160,
+			"description": "One short gameplay sentence shown on the card."
+		},
+		"equipment_requirement": {
+			"type": "string",
+			"description": "Actionable message when matching deployed equipment is missing."
+		},
 		"cost_rp": {
 			"type": "integer",
 			"minimum": 0
@@ -51,10 +64,28 @@
 			"uniqueItems": true
 		},
 		"story_gate_ids": {
-			"$ref": "_common.schema.json#/$defs/keys"
+			"type": "array",
+			"items": {
+				"type": "string",
+				"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+				"patternErrorMessage": "Use a story_gate ID such as name or pack:name",
+				"description": "ID of a story_gate def."
+			},
+			"uniqueItems": true
 		},
 		"family_id": {
-			"$ref": "_common.schema.json#/$defs/optional_key"
+			"anyOf": [
+				{
+					"const": ""
+				},
+				{
+					"type": "string",
+					"minLength": 1,
+					"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+					"patternErrorMessage": "Use a research_family ID such as name or pack:name",
+					"description": "ID of a research_family def."
+				}
+			]
 		},
 		"path_id": {
 			"$ref": "_common.schema.json#/$defs/optional_key"
@@ -188,6 +219,8 @@
 			"revision",
 			"display_name",
 			"implemented",
+			"offered",
+			"description",
 			"cost_rp",
 			"prerequisite_ids",
 			"story_gate_ids",

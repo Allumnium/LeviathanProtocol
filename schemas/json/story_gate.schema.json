@@ -1,0 +1,66 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "story_gate def",
+	"type": "object",
+	"description": "A named research story gate and the run flag it requires.",
+	"properties": {
+		"def": {
+			"const": "story_gate",
+			"description": "Def type; optional when the file sets it."
+		},
+		"id": {
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"patternErrorMessage": "Use lowercase letters, digits and _, with @ or / for variants"
+		},
+		"parent": {
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9_]{1,63}:)?[a-z][a-z0-9_]*([@/][a-z0-9_]+)*$",
+			"description": "Def to inherit fields from."
+		},
+		"abstract": {
+			"type": "boolean",
+			"description": "A template for other defs; never used directly."
+		},
+		"notes": {
+			"type": "string",
+			"description": "Designer notes; ignored by the game."
+		},
+		"label": {
+			"type": "string",
+			"minLength": 1
+		},
+		"flag": {
+			"$ref": "_common.schema.json#/$defs/flag"
+		}
+	},
+	"additionalProperties": false,
+	"required": [
+		"id"
+	],
+	"if": {
+		"anyOf": [
+			{
+				"required": [
+					"parent"
+				]
+			},
+			{
+				"properties": {
+					"abstract": {
+						"const": true
+					}
+				},
+				"required": [
+					"abstract"
+				]
+			}
+		]
+	},
+	"else": {
+		"required": [
+			"label",
+			"flag"
+		]
+	}
+}

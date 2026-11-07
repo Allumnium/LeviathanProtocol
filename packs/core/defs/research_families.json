@@ -1,0 +1,9 @@
+{
+	"def": "research_family",
+	"defs": [
+		{"id": "energy", "label": "Energy", "paths": ["optics", "disruption"]},
+		{"id": "survival", "label": "Survival", "paths": ["bastion", "renewal"]},
+		{"id": "force_projection", "label": "Force projection", "paths": ["siege", "carrier"]},
+		{"id": "fleet_operations", "label": "Fleet operations", "paths": ["command", "covert"]}
+	]
+}

@@ -39,7 +39,10 @@
 				"material",
 				"part",
 				"research",
+				"research_family",
+				"research_tuning",
 				"run_start",
+				"story_gate",
 				"travel_tuning"
 			],
 			"description": "Def type of the target when its ID is shared."

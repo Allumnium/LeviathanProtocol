@@ -1,0 +1,6 @@
+{
+	"def": "research_tuning",
+	"id": "default",
+	"threshold_step": 20,
+	"base_options": 3
+}

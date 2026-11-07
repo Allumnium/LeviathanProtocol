@@ -1,9 +1,24 @@
 class_name ResearchRules
 extends RefCounted
 
-const STORY_GATES := ["boss_i_defeated", "boss_ii_defeated", "boss_iii_defeated"]
-const FAMILY_PATHS := {"energy": ["optics", "disruption"], "survival": ["bastion", "renewal"],
-	"force_projection": ["siege", "carrier"], "fleet_operations": ["command", "covert"]}
+static func family_key(ref: String) -> String:
+	if ref.is_empty():
+		return ""
+	var qid := Content.db().resolve_id("research_family", ref)
+	if qid.is_empty():
+		return ref
+	var local := str(Content.db().get_def("research_family", qid).id)
+	return local if Content.db().resolve_id("research_family", local) == qid else qid
+
+static func family_paths() -> Dictionary:
+	var result := {}
+	for record: Dictionary in Content.db().records("research_family"):
+		if record.abstract:
+			continue
+		result[record.qid] = record.data.paths
+		if Content.db().resolve_id("research_family", record.id) == record.qid:
+			result[record.id] = record.data.paths
+	return result
 
 
 static func _unique_strings(values: Array) -> bool:
@@ -16,42 +31,7 @@ static func _unique_strings(values: Array) -> bool:
 
 
 static func _modifier_valid(modifier: Variant, materials: Array[String]) -> bool:
-	if not modifier is Dictionary:
-		return false
-	match modifier.get("id", ""):
-		"laser_damage_multiplier", "laser_range_multiplier", "missile_range_multiplier", "fragment_damage_multiplier", "railgun_hull_multiplier", "carrier_launch_multiplier", "carrier_damage_multiplier", "passive_repair_multiplier", "repair_aura_multiplier", "mark_damage_multiplier", "synchronization_multiplier", "research_output_multiplier":
-			return _number(modifier.get("value")) and modifier.value > 1 and modifier.value <= 2
-		"cruise_fuel_multiplier":
-			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value < 1
-		"cruise_speed_multiplier":
-			return _number(modifier.get("value")) and modifier.value > 1 and modifier.value <= 2
-		"travel_credits_per_day":
-			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 100 \
-				and modifier.value == floor(modifier.value)
-		"energy_efficiency":
-			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value <= 0.3 \
-				and modifier.get("ordinary_efficiency_cap") == 0.3 and modifier.get("targets") is Array \
-				and _unique_strings(modifier.targets) and modifier.targets.size() == 2 \
-				and modifier.targets.has("beam") and modifier.targets.has("shield")
-		"cargo_hold_capacity":
-			return _number(modifier.get("value")) and modifier.value > 0 and modifier.value == floor(modifier.value) \
-				and modifier.get("refill_existing") is bool and not modifier.refill_existing
-		"scan_spectroscopy":
-			return modifier.get("value") is bool
-		"prismatic_lasers", "splinter_missiles", "pulse_shields":
-			return modifier.get("value") is bool
-		"extractable_materials":
-			if not modifier.get("values") is Array or modifier.values.is_empty() or not _unique_strings(modifier.values):
-				return false
-			for id: String in modifier.values:
-				if id not in materials:
-					return false
-			return true
-	return false
-
-
-static func _number(value: Variant) -> bool:
-	return (value is int or value is float) and is_finite(float(value))
+	return preload("res://scripts/content/research_modifiers.gd").valid(modifier, materials)
 
 
 static func validate_registry(registry: Dictionary) -> Array[String]:
@@ -60,24 +40,30 @@ static func validate_registry(registry: Dictionary) -> Array[String]:
 	var nodes: Dictionary = {}
 	var equipment: Dictionary = {}
 	var materials: Array[String] = []
+	var families := family_paths()
 	for item: Dictionary in registry.materials:
 		materials.append(item.id)
 	for item: Dictionary in registry.equipment:
 		equipment[item.id] = item
 	for node: Dictionary in registry.research:
+		if not node.get("offered") is bool or not node.get("description") is String \
+				or (node.get("offered", false) and (not node.implemented or (node.id != "foundation" and node.description.is_empty()))):
+			errors.append("Invalid research offer status/description: %s" % node.id)
 		if not node.get("equipment_capabilities_any", []) is Array or not _unique_strings(node.get("equipment_capabilities_any", [])):
 			errors.append("Invalid research equipment capabilities: %s" % node.id)
-		nodes[node.id] = node
+		var canonical := node.duplicate(true)
+		canonical.family_id = family_key(node.family_id)
+		nodes[node.id] = canonical
 		for field in ["prerequisite_ids", "exclusion_ids", "story_gate_ids"]:
 			if not _unique_strings(node[field]):
 				errors.append("Duplicate or invalid research list: %s/%s" % [node.id, field])
 		if node.prerequisite_ids.has(node.id) or node.exclusion_ids.has(node.id):
 			errors.append("Research cannot depend on or exclude itself: %s" % node.id)
 		for gate in node.story_gate_ids:
-			if gate not in STORY_GATES:
+			if not Content.has_def("story_gate", gate):
 				errors.append("Unknown research story gate: %s/%s" % [node.id, str(gate)])
 		if node.family_id.is_empty() != node.path_id.is_empty() or (not node.family_id.is_empty() \
-			and (not FAMILY_PATHS.has(node.family_id) or node.path_id not in FAMILY_PATHS[node.family_id])):
+			and (not families.has(node.family_id) or node.path_id not in families[node.family_id])):
 			errors.append("Unknown research family/path: %s" % node.id)
 		var grant_count := 0
 		for field in ["equipment_ids", "ability_ids"]:
@@ -85,10 +71,10 @@ static func validate_registry(registry: Dictionary) -> Array[String]:
 				errors.append("Duplicate research grants: %s/%s" % [node.id, field])
 		for field in ["equipment_ids", "ability_ids", "ranks", "modifiers"]:
 			grant_count += node.grants[field].size()
-		if grant_count == 0:
+		if node.implemented and grant_count == 0 and node.id != "foundation":
 			errors.append("Research must grant an effect: %s" % node.id)
-		if node.id != "foundation" and (node.cost_rp <= 0 or node.prerequisite_ids.is_empty()):
-			errors.append("Purchasable research needs a positive cost and prerequisites: %s" % node.id)
+		if node.id != "foundation" and node.prerequisite_ids.is_empty():
+			errors.append("Research needs prerequisites: %s" % node.id)
 		var rank_keys: Dictionary = {}
 		for rank: Dictionary in node.grants.ranks:
 			var key := "%s/%d" % [rank.equipment_id, int(rank.rank)]
@@ -169,28 +155,29 @@ static func validate_registry(registry: Dictionary) -> Array[String]:
 			available_equipment.append_array(nodes[parent].grants.equipment_ids)
 		for ability_id: String in node.grants.ability_ids:
 			for ability: Dictionary in registry.abilities:
-				if ability.id == ability_id and not available_equipment.has(ability.source_equipment_id):
+				if ability.id == ability_id and not available_equipment.has(ability.source_equipment_id) \
+						and Content.get_def("equipment", ability.source_equipment_id).get("availability", "unavailable") != "ordinary":
 					errors.append("Ability research requires its source equipment: %s/%s" % [id, ability_id])
-	for domain in ["equipment", "abilities"]:
-		var grant_field := "equipment_ids" if domain == "equipment" else "ability_ids"
-		for item: Dictionary in registry[domain]:
-			var owners := 0
-			for node: Dictionary in registry.research:
-				owners += 1 if node.grants[grant_field].has(item.id) else 0
-			if owners != 1:
-				errors.append("Each %s definition needs exactly one research grant source: %s" % [domain, item.id])
 	return errors
 
 
 static func selection_error(research_ids: Array, story_flags: Dictionary, branches: Dictionary, definitions: Array[Dictionary] = []) -> String:
 	if not _unique_strings(research_ids) or not research_ids.has("foundation"):
 		return "Current-run research must contain Foundation and unique known IDs."
+	var families := family_paths()
+	var canonical_branches := {}
 	for family in branches:
-		if not FAMILY_PATHS.has(family) or branches[family] not in FAMILY_PATHS[family]:
+		if not families.has(family) or branches[family] not in families[family]:
 			return "Unknown current-run branch commitment."
+		var key := family_key(family)
+		if key != family:
+			return "Current-run branch commitment needs its canonical family ID."
+		if canonical_branches.has(key):
+			return "Duplicate current-run branch commitment."
+		canonical_branches[key] = branches[family]
 	var catalog := definitions if not definitions.is_empty() else GameDefinitions.entries("research")
 	for id: String in research_ids:
-		var required := requirements(id, research_ids, story_flags, branches, catalog)
+		var required := requirements(id, research_ids, story_flags, canonical_branches, catalog)
 		if not required.known:
 			return "Unknown current-run research."
 		if not required.missing_prerequisites.is_empty():
@@ -199,8 +186,12 @@ static func selection_error(research_ids: Array, story_flags: Dictionary, branch
 			return "Missing current-run research story gate."
 		if not required.conflicts.is_empty() or required.branch_conflict:
 			return "Current-run research conflicts with a branch commitment."
-		var node := GameDefinitions.find("research", id)
-		if not node.family_id.is_empty() and branches.get(node.family_id, "") != node.path_id:
+		var node := {}
+		for definition: Dictionary in catalog:
+			if definition.id == id:
+				node = definition
+				break
+		if not node.family_id.is_empty() and canonical_branches.get(family_key(node.family_id), "") != node.path_id:
 			return "Current-run research is missing its branch commitment."
 	return ""
 
@@ -263,11 +254,15 @@ static func requirements(id: String, research_ids: Array, story_flags: Dictionar
 		if not research_ids.has(prerequisite):
 			result.missing_prerequisites.append(prerequisite)
 	for gate: String in node.story_gate_ids:
-		if not story_flags.get(gate, false):
+		var flag := str(Content.get_def("story_gate", gate).get("flag", gate))
+		if not story_flags.get(flag, false):
 			result.missing_story_gates.append(gate)
 	for prior: String in research_ids:
 		var selected: Dictionary = by_id.get(prior, {})
 		if node.exclusion_ids.has(prior) or selected.get("exclusion_ids", []).has(id):
 			result.conflicts.append(prior)
-	result.branch_conflict = not node.family_id.is_empty() and branches.has(node.family_id) and branches[node.family_id] != node.path_id
+	var family := family_key(node.family_id)
+	for key: String in branches:
+		if not family.is_empty() and family_key(key) == family and branches[key] != node.path_id:
+			result.branch_conflict = true
 	return result
