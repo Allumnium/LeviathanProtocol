@@ -384,68 +384,13 @@ func _apply_squadron_orders() -> void:
 		owned.stance = str(group.get("stance", "seek"))
 
 func set_squadron_stance(group_id: int, stance: String) -> bool:
-	if not _can_refit() or stance not in HangarSquadrons.STANCES:
-		last_save_error = "Squadron orders are unavailable."
-		return false
-	var data := hangar_snapshot()
-	var group := HangarSquadrons.find(data.squadrons, group_id)
-	if group.is_empty():
-		last_save_error = "Unknown squadron."
-		return false
-	group.stance = stance
-	return _commit_hangar(data)
+	return _run_operation("fleet.orders", FleetSystem.set_stance.bind(group_id, stance))
 
 func assign_squadron(ship_id: int, group_id := 0) -> bool:
-	if not _can_refit():
-		last_save_error = "Squadron assignments are unavailable."
-		return false
-	var owned := owned_ship(ship_id)
-	var data := hangar_snapshot()
-	var target := HangarSquadrons.find(data.squadrons, group_id)
-	if owned == null or (group_id != 0 and (target.is_empty() or target.chassis != owned.chassis_id)):
-		last_save_error = "Choose a squadron of the same ship class."
-		return false
-	var previous := HangarSquadrons.for_ship(data.squadrons, ship_id)
-	if previous.id == group_id or (group_id == 0 and previous.members.size() == 1):
-		last_save_error = "Already assigned."
-		return false
-	previous.members.erase(ship_id)
-	previous.overrides.erase(ship_id)
-	if group_id == 0:
-		var id := 1
-		for group: Dictionary in data.squadrons:
-			id = maxi(id, int(group.id) + 1)
-		target = previous.duplicate(true)
-		target.id = id
-		target.members = []
-		target.overrides = []
-		data.squadrons.append(target)
-	for entry: Dictionary in data.ships:
-		if int(entry.id) == ship_id:
-			HangarSquadrons.add_ship(data, entry, int(target.id))
-			break
-	return _commit_hangar(data)
+	return _run_operation("fleet.assignment", FleetSystem.assign.bind(ship_id, group_id))
 
 func refit_squadron(group_id: int, loadout_id: String, reset_overrides := false) -> bool:
-	if not _require_shipyard():
-		return false
-	var data := hangar_snapshot()
-	var group := HangarSquadrons.find(data.squadrons, group_id)
-	var loadout := ShipLoadouts.find(str(group.get("chassis", "")), loadout_id)
-	if group.is_empty() or loadout.is_empty():
-		last_save_error = "Unknown squadron loadout."
-		return false
-	if not ShipLoadouts.available(loadout, current_research_ids):
-		last_save_error = "Research this loadout's equipment first."
-		return false
-	var overrides: Array = group.overrides.duplicate()
-	group.loadout = loadout_id
-	for id: int in group.members:
-		if reset_overrides or id not in overrides:
-			if not _stage_refit(data, id, loadout.mounts, true):
-				return false
-		HangarSquadrons.update_override(data, id)
-	return _commit_hangar(data)
+	return _run_operation("fleet.refit_squadron", FleetSystem.refit_squadron.bind(group_id, loadout_id, reset_overrides))
 
 func squadron_repair_cost(group_id: int) -> int:
 	var cost := 0
@@ -456,24 +401,11 @@ func squadron_repair_cost(group_id: int) -> int:
 	return cost
 
 func repair_squadron(group_id: int) -> bool:
-	if not _require_shipyard():
-		return false
-	var data := hangar_snapshot()
-	var group := HangarSquadrons.find(data.squadrons, group_id)
+	var group := HangarSquadrons.find(squadrons, group_id)
 	if group.is_empty():
 		last_save_error = "Unknown squadron."
 		return false
-	var cost := squadron_repair_cost(group_id)
-	if cost <= 0 or credits < cost:
-		last_save_error = "No repairs needed." if cost <= 0 else "Not enough credits. Cost: %d." % cost
-		return false
-	for entry: Dictionary in data.ships:
-		if int(entry.id) in group.members:
-			var owned := owned_ship(int(entry.id))
-			if owned.is_alive():
-				entry.hull_hp = owned.hull_max
-	data.credits -= cost
-	return _commit_hangar(data)
+	return _run_operation("fleet.repair", FleetSystem.repair.bind(group.members))
 
 func load_run_checkpoint() -> bool:
 	var loaded := _run_repository.load_run(run_save_path)
@@ -518,49 +450,34 @@ func refuel_cost() -> int:
 	return ceili(maxf(0, travel.fuel_capacity - travel.fuel) * float(HangarTrade.economy().fuel_unit_price))
 
 func refuel_expedition() -> bool:
-	if expedition_simulation == null or expedition_simulation.state == null:
-		last_save_error = "No active expedition state."
-		return false
-	last_save_error = station_service_error("refuel")
-	if not last_save_error.is_empty():
-		return false
-	var expedition_state = expedition_simulation.state
-	var missing: float = expedition_state.fuel_capacity - expedition_state.fuel
-	if missing <= 0.000001:
-		last_save_error = "The expedition fuel tanks are already full."
-		return false
-	var price := refuel_cost()
-	if credits < price:
-		last_save_error = "Not enough credits to refuel. Cost: %d." % price
-		return false
-	var proposal := hangar_snapshot()
-	proposal.credits = credits - price
-	proposal.expedition.fuel = expedition_state.fuel_capacity
-	if not _save_hangar(proposal):
-		return false
-	credits = int(proposal.credits)
-	expedition_state.fuel = expedition_state.fuel_capacity
-	credits_changed.emit()
-	return true
+	return _run_operation("trade.refuel", TradeSystem.refuel)
 
 func missile_quote() -> Dictionary:
 	return TradeSystem.ammunition_quote(run_session.content if run_session != null else Content.db())
 
 func buy_missiles() -> bool:
-	last_save_error = station_service_error("ammunition")
-	if not last_save_error.is_empty():
-		return false
+	return _run_operation("trade.ammunition", TradeSystem.buy_ammunition)
+
+# Transitional boundary: capture lightweight travel/live combat projections once.
+# Extracted systems only mutate the transaction; publish the projection after commit.
+func _run_operation(reason: String, operation: Callable) -> bool:
 	if run_session == null:
 		last_save_error = "No active run."
 		return false
+	if hangar_generation != run_session.generation:
+		last_save_error = "Run changed since it was loaded."
+		return false
 	var doc := RunDocument.from_hangar(hangar_snapshot(), run_session.frozen, _run_scenario, run_session.snapshot())
-	var tx := run_session.begin("trade.ammunition", doc)
+	var tx := run_session.begin(reason, doc)
 	tx.path = run_save_path
-	if not TradeSystem.buy_ammunition(tx, run_session.content) or not tx.commit():
+	if not operation.call(tx, run_session.content) or not tx.commit():
 		last_save_error = tx.error
 		return false
 	hangar_generation = run_session.generation
-	_apply_hangar(RunDocument.to_hangar(run_session.snapshot()), false, true)
+	var committed := run_session.snapshot()
+	_apply_hangar(RunDocument.to_hangar(committed), false, true)
+	if expedition_simulation != null and not committed.travel.is_empty():
+		expedition_simulation.state.restore(committed.travel)
 	last_save_error = ""
 	_notify_hangar()
 	return true
@@ -958,49 +875,7 @@ func equipment_location(uid: String) -> Dictionary:
 # Moves an existing instance to a mount (internal primitive). There is no
 # stock: a displaced or removed part is scrapped.
 func fit_equipment(ship_id: int, slot_id: String, uid: String) -> bool:
-	if not _require_shipyard():
-		return false
-	var target := owned_ship(ship_id)
-	if target == null:
-		return false
-	var slot := ShipLoadouts.slot_by_id(target.chassis, slot_id)
-	if slot.is_empty():
-		return false
-	if not uid.is_empty():
-		if not equipment_inventory.has(uid):
-			return false
-		var instance: Dictionary = equipment_inventory[uid]
-		var item := SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank))
-		if not SlotCatalog.compatible(slot, item) or not ShipLoadouts.obtainable(item):
-			return false
-		if not ShipLoadouts.equipment_available(item, current_research_ids):
-			last_save_error = "Research this equipment first."
-			return false
-	var data := hangar_snapshot()
-	for entry: Dictionary in data.ships:
-		var armor_before := _fitted_integrity(entry, data.equipment)
-		for key in entry.mounts.keys():
-			if entry.mounts[key] == uid or (int(entry.id) == ship_id and key == slot_id):
-				if HangarTrade.has_load(data.equipment[entry.mounts[key]]):
-					last_save_error = "Deliver passengers/cargo first"
-					return false # Deliver occupied cabins/holds before removing them.
-				if entry.mounts[key] != uid:
-					data.equipment.erase(entry.mounts[key])
-				entry.mounts.erase(key)
-		if int(entry.id) == ship_id and not uid.is_empty():
-			entry.mounts[slot_id] = uid
-		entry.hull_hp += _fitted_integrity(entry, data.equipment) - armor_before
-		if entry.hull_hp < 0:
-			return false
-		HangarSquadrons.update_override(data, int(entry.id))
-	return _commit_hangar(data)
-
-func _fitted_integrity(entry: Dictionary, inventory: Dictionary) -> float:
-	var total := 0.0
-	for uid in entry.mounts.values():
-		var instance: Dictionary = inventory[uid]
-		total += SlotCatalog.stats_for(instance.equipment_id, int(instance.rank)).integrity
-	return total
+	return _run_operation("fleet.equipment", FleetSystem.fit_equipment.bind(ship_id, slot_id, uid))
 
 func ship_loadout_id(ship_id: int) -> String:
 	var owned := owned_ship(ship_id)
@@ -1011,139 +886,19 @@ func refit_quote(ship_id: int, target: Dictionary) -> int:
 	return 0 if owned == null else ShipLoadouts.refit_fee(ShipLoadouts.current_keys(owned.mounts), target)
 
 func refit_ship(ship_id: int, loadout_id: String) -> bool:
-	var owned := owned_ship(ship_id)
-	var loadout: Dictionary = {} if owned == null else ShipLoadouts.find(owned.chassis_id, loadout_id)
-	if loadout.is_empty():
-		last_save_error = "Unknown loadout."
-		return false
-	if not ShipLoadouts.available(loadout, current_research_ids):
-		last_save_error = "Research this loadout's equipment first."
-		return false
-	return _refit(ship_id, loadout.mounts)
+	return _run_operation("fleet.refit", FleetSystem.refit_ship.bind(ship_id, loadout_id))
 
-# Swaps one mount to `key` ("id" or "id@rank"); an empty key strips the mount.
 func swap_part(ship_id: int, slot_id: String, key: String) -> bool:
-	var owned := owned_ship(ship_id)
-	if owned == null:
-		return false
-	var target := ShipLoadouts.current_keys(owned.mounts)
-	if key.is_empty():
-		target.erase(slot_id)
-	else:
-		target[slot_id] = key
-	return _refit(ship_id, target)
+	return _run_operation("fleet.refit", FleetSystem.swap_part.bind(ship_id, slot_id, key))
 
-# Atomic, free shipyard refit to the given mount keys.
-func _refit(ship_id: int, target: Dictionary) -> bool:
-	if not _require_shipyard():
-		return false
-	var data := hangar_snapshot()
-	if not _stage_refit(data, ship_id, target):
-		return false
-	HangarSquadrons.update_override(data, ship_id)
-	return _commit_hangar(data)
-
-func _stage_refit(data: Dictionary, ship_id: int, target: Dictionary, allow_unchanged := false) -> bool:
-	var owned := owned_ship(ship_id)
-	if not _can_refit() or owned == null:
-		last_save_error = "Refits are unavailable right now."
-		return false
-	var current := ShipLoadouts.current_keys(owned.mounts)
-	for slot_id: String in target:
-		var item := ShipLoadouts.item_for(str(target[slot_id]))
-		if not SlotCatalog.compatible(ShipLoadouts.slot_by_id(owned.chassis, slot_id), item) or not ShipLoadouts.obtainable(item):
-			last_save_error = "That part does not fit this mount."
-			return false
-		if str(current.get(slot_id, "")) != str(target[slot_id]) and not ShipLoadouts.equipment_available(item, current_research_ids):
-			last_save_error = "Research this equipment first."
-			return false
-	if SaveValidation.same(current, target):
-		if allow_unchanged:
-			return true
-		last_save_error = "Already fitted."
-		return false
-	var entry: Dictionary = {}
-	for candidate: Dictionary in data.ships:
-		if int(candidate.id) == ship_id:
-			entry = candidate
-	var armor_before := _fitted_integrity(entry, data.equipment)
-	var slots := current.keys()
-	for slot_id: String in target:
-		if slot_id not in slots:
-			slots.append(slot_id)
-	for slot_id: String in slots:
-		if str(current.get(slot_id, "")) == str(target.get(slot_id, "")):
-			continue
-		if entry.mounts.has(slot_id):
-			var old_uid: String = entry.mounts[slot_id]
-			if HangarTrade.has_load(data.equipment[old_uid]):
-				last_save_error = "Deliver passengers/cargo first"
-				return false
-			data.equipment.erase(old_uid)
-			entry.mounts.erase(slot_id)
-		if target.has(slot_id):
-			var parsed := ShipLoadouts.parse_key(str(target[slot_id]))
-			var uid := str(data.next_equipment_id)
-			data.next_equipment_id += 1
-			data.equipment[uid] = {"uid": uid, "equipment_id": parsed.id, "rank": int(parsed.rank)}
-			entry.mounts[slot_id] = uid
-	var fitted := _fitted_integrity(entry, data.equipment)
-	entry.hull_hp = clampf(float(entry.hull_hp) + fitted - armor_before, 0.0, float(owned.chassis.integrity) + fitted)
-	return true
-
-# Ships are sold fully fitted; an unspecified loadout uses the chassis default.
 func buy_ship(key: String, loadout_id := "") -> bool:
 	return buy_ships(key, 1, 0, loadout_id)
 
 func buy_ships(key: String, count: Variant, group_id := 0, loadout_id := "") -> bool:
-	if not _require_shipyard():
-		return false
-	if not SaveValidation.integer(count) or count <= 0:
-		last_save_error = "Choose a positive whole number of ships."
-		return false
-	var group := HangarSquadrons.find(squadrons, group_id)
-	if group_id != 0:
-		if group.is_empty() or group.chassis != key:
-			last_save_error = "Choose a squadron of the same ship class."
-			return false
-		loadout_id = group.loadout
-	var chassis := SlotCatalog.find_chassis(key)
-	var loadout := ShipLoadouts.purchase_for(key, current_research_ids) if loadout_id.is_empty() else ShipLoadouts.find(key, loadout_id)
-	var price := ShipLoadouts.ship_price(key, loadout)
-	if not _can_refit() or chassis.is_empty() or chassis.flagship or loadout.is_empty():
-		last_save_error = "Ships are unavailable."
-		return false
-	if not ShipLoadouts.available(loadout, current_research_ids):
-		last_save_error = "Research this loadout's equipment first."
-		return false
-	# Bound the batch by its real price before multiplying or allocating ships.
-	if int(count) > credits / maxi(1, price):
-		last_save_error = "Not enough credits."
-		return false
-	price *= int(count)
-	if credits < price:
-		last_save_error = "Not enough credits. Cost: %d." % price
-		return false
-	var data := hangar_snapshot()
-	for index in range(int(count)):
-		ShipLoadouts.append_ship(data, key, loadout)
-		HangarSquadrons.add_ship(data, data.ships.back(), group_id, loadout.id)
-	data.credits -= price
-	return _commit_hangar(data)
+	return _run_operation("trade.ships", TradeSystem.buy_ships.bind(key, count, group_id, loadout_id))
 
 func salvage_hangar_ship(ship_id: int) -> bool:
-	if not _require_shipyard():
-		return false
-	var target := owned_ship(ship_id)
-	if not _can_refit() or target == null or target.flagship:
-		return false
-	var data := hangar_snapshot()
-	HangarTrade.settle_losses(data, [ship_id])
-	data.ships = data.ships.filter(func(entry: Dictionary) -> bool: return int(entry.id) != ship_id)
-	HangarSquadrons.sync(data)
-	RunScore.earn_credits(data, floori(float(target.chassis.price) * 0.5 * maxf(0, target.hull_hp) / target.hull_max))
-	# Equipment is returned to stock, retaining its instance identity.
-	return _commit_hangar(data)
+	return _run_operation("trade.salvage", TradeSystem.salvage_ship.bind(ship_id))
 
 func owned_ship(ship_id: int) -> HangarShip:
 	for owned: HangarShip in fleet:
@@ -1155,36 +910,16 @@ func _can_refit() -> bool:
 	return not run_id.is_empty() and not battle_pending and not run_ended and not completed
 
 func station_service_error(service: String) -> String:
-	if not _can_refit():
-		return "Station services are unavailable during combat or after the run ends."
 	if expedition_simulation == null:
+		if not _can_refit():
+			return "Station services are unavailable during combat or after the run ends."
 		return "" if campaign_node(current_node_id).get("inhabited", false) else "Dock at a shipyard to use this service."
-	var state = expedition_simulation.state
-	if state == null:
-		return "No active expedition state."
-	if ExpeditionSimulationScript.State.PauseReason.SAVE_ERROR in state.pause_reasons:
-		return "Retry the failed save before using station services."
-	if state.travel_state != ExpeditionSimulationScript.State.TravelState.DOCKED:
-		if service == "ammunition":
-			return "Dock at a station to buy missiles."
-		return "Dock at a shipyard to refit, sell, salvage or repair." if service == "shipyard" \
-			else "Dock at a refueling station to refuel."
-	var location: Dictionary = expedition_simulation.locations.get(state.docked_location_id, {})
-	if location.is_empty() or location.get("kind") != "station" \
-			or state.position_nu.distance_to(Vector2(location.position[0], location.position[1])) > 0.000001:
-		return "The fleet is not docked at a valid station."
-	if expedition_simulation.services_for(location).is_empty():
-		return "This port is abandoned; use another station."
-	if service != "ammunition" and service not in expedition_simulation.services_for(location):
-		return "This station has no shipyard." if service == "shipyard" else "This station does not offer refueling."
-	return ""
+	return FactView.station_service_error(_can_refit(),
+		{} if expedition_simulation.state == null else expedition_simulation.state.snapshot(),
+		expedition_simulation.locations, service)
 
 func can_use_shipyard() -> bool:
 	return station_service_error("shipyard").is_empty()
-
-func _require_shipyard() -> bool:
-	last_save_error = station_service_error("shipyard")
-	return last_save_error.is_empty()
 
 func get_deployed_fleet() -> Array[FleetShip]:
 	return fleet.filter(func(owned: FleetShip) -> bool: return owned.is_alive())
@@ -1209,18 +944,9 @@ func is_run_lost() -> bool:
 	return run_ended
 
 func repair_ship(owned: FleetShip) -> bool:
-	if not _require_shipyard():
+	if not fleet.has(owned):
 		return false
-	if not _can_refit() or not fleet.has(owned) or not owned.is_alive() or not owned.needs_repair() or credits < owned.repair_cost():
-		return false
-	var before := hangar_snapshot()
-	credits -= owned.repair_cost()
-	owned.repair()
-	if not save_run_checkpoint():
-		_apply_hangar(before)
-		return false
-	_notify_hangar()
-	return true
+	return _run_operation("fleet.repair", FleetSystem.repair.bind([owned.id]))
 
 func move_ship(owned: FleetShip, position: Vector2) -> void:
 	if not fleet.has(owned) or not position.is_finite():
@@ -1230,45 +956,10 @@ func move_ship(owned: FleetShip, position: Vector2) -> void:
 	move_ships({owned.id: position.clamp(area.position + radius, area.end - radius)})
 
 func move_ships(positions: Dictionary) -> bool:
-	if not _can_refit() or positions.is_empty():
-		return false
-	var data := hangar_snapshot()
-	for id: int in positions:
-		if owned_ship(id) == null or not positions[id] is Vector2 or not positions[id].is_finite():
-			return false
-		var position: Vector2 = positions[id]
-		var area := BattleSimulation.formation_area()
-		var radius := Vector2.ONE * owned_ship(id).get_stats().collision_radius / BattleSimulation.DEPLOYMENT_SCALE
-		if position != position.clamp(area.position + radius, area.end - radius):
-			last_save_error = "Place every ship inside the deployment area."
-			return false
-		for entry: Dictionary in data.ships:
-			if entry.id == id:
-				entry.formation = [position.x, position.y]
-	HangarSquadrons.sync(data)
-	return _commit_hangar(data)
+	return _run_operation("fleet.formation", FleetSystem.move.bind(positions))
 
 func save_battle_deployment(positions: Dictionary) -> bool:
-	if not battle_pending or run_ended or completed or positions.size() != get_deployed_fleet().size():
-		last_save_error = "Battle deployment is unavailable."
-		return false
-	var area := BattleSimulation.deployment_area(pending_encounter)
-	var data := hangar_snapshot()
-	for ship: HangarShip in get_deployed_fleet():
-		var position: Variant = positions.get(ship.id)
-		if not position is Vector2 or not position.is_finite() or not area.has_point(position):
-			last_save_error = "Place every ship inside the deployment area."
-			return false
-		var radius := Vector2.ONE * ship.get_stats().collision_radius
-		if position != position.clamp(area.position + radius, area.end - radius):
-			last_save_error = "Place every ship inside the deployment area."
-			return false
-		var formation: Vector2 = (position - BattleSimulation.PLAYER_FORMATION_CENTER) / BattleSimulation.DEPLOYMENT_SCALE
-		for entry: Dictionary in data.ships:
-			if int(entry.id) == ship.id:
-				entry.formation = [formation.x, formation.y]
-	HangarSquadrons.sync(data)
-	return _commit_hangar(data)
+	return _run_operation("fleet.deployment", FleetSystem.move.bind(positions, true))
 
 func fleet_repair_cost() -> int:
 	var cost := 0
@@ -1278,21 +969,10 @@ func fleet_repair_cost() -> int:
 	return cost
 
 func repair_all_ships() -> bool:
-	if not _require_shipyard():
-		return false
-	var cost := fleet_repair_cost()
-	if not _can_refit() or cost <= 0 or credits < cost:
-		return false
-	var before := hangar_snapshot()
-	credits -= cost
+	var ids := []
 	for owned: HangarShip in fleet:
-		if owned.is_alive():
-			owned.repair()
-	if not save_run_checkpoint():
-		_apply_hangar(before)
-		return false
-	_notify_hangar()
-	return true
+		ids.append(owned.id)
+	return _run_operation("fleet.repair", FleetSystem.repair.bind(ids))
 
 func research_choice_ready() -> bool:
 	return not research_offer.is_empty() and research_points >= HangarResearch.threshold(run_progress_snapshot())

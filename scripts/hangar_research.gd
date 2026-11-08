@@ -1,8 +1,8 @@
 class_name HangarResearch
 extends RefCounted
 
-static func registry() -> Dictionary:
-	var result := GameDefinitions.snapshot()
+static func registry(content: DefDatabase = null) -> Dictionary:
+	var result := GameDefinitions.snapshot(content)
 	result.research = result.research.filter(func(node: Dictionary) -> bool: return node.implemented)
 	return result
 
@@ -11,9 +11,9 @@ static func view_registry() -> Dictionary:
 	result.research = result.research.filter(func(node: Dictionary) -> bool: return node.offered)
 	return result
 
-static func catalog() -> Array[Dictionary]:
+static func catalog(content: DefDatabase = null) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	result.assign(registry().research)
+	result.assign(registry(content).research)
 	return result
 
 static func eligible(key: String, progress: Dictionary) -> bool:

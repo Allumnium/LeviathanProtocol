@@ -1,8 +1,8 @@
 class_name HangarTrade
 extends RefCounted
 
-static func economy() -> Dictionary:
-	return Content.get_def("economy", "core:default")
+static func economy(content: DefDatabase = null) -> Dictionary:
+	return Content.get_def("economy", "core:default", "", content)
 
 static func load_spec(instance: Dictionary) -> Dictionary:
 	var item := SlotCatalog.find_equipment(str(instance.equipment_id), int(instance.get("rank", 1)))
@@ -56,7 +56,7 @@ static func arrive(data: Dictionary, node: Dictionary, skip_origin := -1) -> voi
 				* float(chassis.get("delivery_income_multiplier", 1.0))))
 			instance["load"] = {}
 
-static func settle_losses(data: Dictionary, lost_ships: Array[int]) -> void:
+static func settle_losses(data: Dictionary, lost_ships: Array[int], content: DefDatabase = null) -> void:
 	for ship: Dictionary in data.ships:
 		for uid: String in ship.mounts.values():
 			var instance: Dictionary = data.equipment[uid]
@@ -64,7 +64,7 @@ static func settle_losses(data: Dictionary, lost_ships: Array[int]) -> void:
 				continue
 			var contents: Dictionary = instance.get("load", {})
 			if contents.get("kind") == "passengers":
-				data.credits -= int(contents.quantity) * int(economy().passenger_death_fee)
+				data.credits -= int(contents.quantity) * int(economy(content).passenger_death_fee)
 			instance["load"] = {}
 
 static func has_load(instance: Dictionary) -> bool:

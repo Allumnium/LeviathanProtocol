@@ -37,15 +37,16 @@ static var _registry: Dictionary = {}
 static var _database: DefDatabase
 
 
-static func _data() -> Dictionary:
-	if _database != Content.db():
-		_database = Content.db()
+static func _data(content: DefDatabase = null) -> Dictionary:
+	content = Content.db() if content == null else content
+	if _database != content:
+		_database = content
 		_registry.clear()
 	if not _registry.is_empty():
 		return _registry
-	var registry := {"schema_version": SCHEMA_VERSION, "content_revision": Content.db().content_hash}
+	var registry := {"schema_version": SCHEMA_VERSION, "content_revision": content.content_hash}
 	for domain: String in DOMAINS:
-		var entries := Content.copies(DEF_TYPES[domain])
+		var entries := Content.copies(DEF_TYPES[domain], content)
 		for entry: Dictionary in entries:
 			for field: String in NULLABLE_FIELDS.get(domain, []):
 				if not entry.has(field):
@@ -59,8 +60,8 @@ static func _data() -> Dictionary:
 	return _registry
 
 
-static func snapshot() -> Dictionary:
-	return _data().duplicate(true)
+static func snapshot(content: DefDatabase = null) -> Dictionary:
+	return _data(content).duplicate(true)
 
 
 static func entries(domain: String, implemented_only := false) -> Array[Dictionary]:
@@ -71,9 +72,9 @@ static func entries(domain: String, implemented_only := false) -> Array[Dictiona
 	return result
 
 
-static func find(domain: String, id: String) -> Dictionary:
-	var canonical := Content.runtime_id(DEF_TYPES[domain], id)
-	for entry: Dictionary in _data().get(domain, []):
+static func find(domain: String, id: String, content: DefDatabase = null) -> Dictionary:
+	var canonical := Content.runtime_id(DEF_TYPES[domain], id, "", content)
+	for entry: Dictionary in _data(content).get(domain, []):
 		if entry.id == canonical:
 			return entry.duplicate(true)
 	return {}

@@ -24,7 +24,7 @@ static func find(groups: Array, id: int) -> Dictionary:
 			return group
 	return {}
 
-static func add_ship(data: Dictionary, entry: Dictionary, group_id := 0, loadout_id := "") -> void:
+static func add_ship(data: Dictionary, entry: Dictionary, group_id := 0, loadout_id := "", content: DefDatabase = null) -> void:
 	if not data.has("squadrons"):
 		data.squadrons = []
 	var group := find(data.squadrons, group_id)
@@ -37,13 +37,13 @@ static func add_ship(data: Dictionary, entry: Dictionary, group_id := 0, loadout
 		var id := 1
 		for candidate: Dictionary in data.squadrons:
 			id = maxi(id, int(candidate.id) + 1)
-		group = {"id": id, "name": SlotCatalog.find_chassis(entry.chassis).name,
+		group = {"id": id, "name": SlotCatalog.find_chassis(entry.chassis, content).name,
 			"chassis": entry.chassis, "stance": "seek",
 			"formation": entry.formation.duplicate(),
-			"loadout": Loadouts.default_for(entry.chassis).id if loadout_id.is_empty() else loadout_id, "members": [], "overrides": []}
+			"loadout": Loadouts.default_for(entry.chassis, content).id if loadout_id.is_empty() else loadout_id, "members": [], "overrides": []}
 		data.squadrons.append(group)
 	group.members.append(int(entry.id))
-	update_override(data, int(entry.id))
+	update_override(data, int(entry.id), content)
 	sync(data)
 
 static func initial(data: Dictionary) -> Array:
@@ -53,14 +53,14 @@ static func initial(data: Dictionary) -> Array:
 		add_ship(staged, entry)
 	return staged.squadrons
 
-static func update_override(data: Dictionary, ship_id: int) -> void:
+static func update_override(data: Dictionary, ship_id: int, content: DefDatabase = null) -> void:
 	var group := for_ship(data.get("squadrons", []), ship_id)
 	if group.is_empty():
 		return
 	group.overrides = group.overrides.filter(func(id: Variant) -> bool: return int(id) != ship_id)
 	for entry: Dictionary in data.ships:
 		if int(entry.id) == ship_id and not SaveValidation.same(Loadouts.current_keys(entry.mounts, data.equipment),
-				Loadouts.find(group.chassis, group.loadout).mounts):
+				Loadouts.find(group.chassis, group.loadout, content).mounts):
 			group.overrides.append(ship_id)
 
 static func sync(data: Dictionary) -> void:

@@ -59,25 +59,28 @@ static func set_database(database: DefDatabase) -> void:
 	_run_db = null # Explicit tool/fixture replacement, unlike an installed reload.
 
 
-static func qualified_id(def_type: String, ref: String, from_pack := "") -> String:
+static func qualified_id(def_type: String, ref: String, from_pack := "", content: DefDatabase = null) -> String:
+	content = db() if content == null else content
 	var scope := str(DEFAULT_PACKS.get(def_type, "core")) if from_pack.is_empty() else from_pack
-	var qid := db().resolve_id(def_type, ref, scope)
+	var qid := content.resolve_id(def_type, ref, scope)
 	# Unique names remain convenient at tool/API boundaries; stored runtime
 	# identities use runtime_id, so a later installed pack cannot rebind them.
-	return db().resolve_id(def_type, ref) if qid.is_empty() and from_pack.is_empty() else qid
+	return content.resolve_id(def_type, ref) if qid.is_empty() and from_pack.is_empty() else qid
 
 
-static func runtime_id(def_type: String, ref: String, from_pack := "") -> String:
-	var qid := qualified_id(def_type, ref, from_pack)
+static func runtime_id(def_type: String, ref: String, from_pack := "", content: DefDatabase = null) -> String:
+	content = db() if content == null else content
+	var qid := qualified_id(def_type, ref, from_pack, content)
 	if qid.is_empty():
 		return ""
-	var record := db().record(def_type, qid)
+	var record := content.record(def_type, qid)
 	return str(record.id) if record.pack == DEFAULT_PACKS.get(def_type, "core") else qid
 
 
-static func get_def(def_type: String, id: String, from_pack := "") -> Dictionary:
-	var qid := qualified_id(def_type, id, from_pack)
-	return {} if qid.is_empty() else db().get_def(def_type, qid)
+static func get_def(def_type: String, id: String, from_pack := "", content: DefDatabase = null) -> Dictionary:
+	content = db() if content == null else content
+	var qid := qualified_id(def_type, id, from_pack, content)
+	return {} if qid.is_empty() else content.get_def(def_type, qid)
 
 
 static func has_def(def_type: String, id: String) -> bool:
@@ -89,37 +92,39 @@ static func all(def_type: String) -> Array[Dictionary]:
 
 
 ## Writable runtime projections of every concrete def in load order.
-static func copies(def_type: String) -> Array:
+static func copies(def_type: String, content: DefDatabase = null) -> Array:
+	content = db() if content == null else content
 	var result := []
-	for record: Dictionary in db().records(def_type):
+	for record: Dictionary in content.records(def_type):
 		if not record.abstract:
-			result.append(view(def_type, record.qid))
+			result.append(view(def_type, record.qid, "", content))
 	return result
 
 
 ## A writable runtime projection: scoped references, identity and asset paths
 ## are resolved once per database. Authored/frozen pack data stays untouched.
-static func view(def_type: String, id: String, from_pack := "") -> Dictionary:
-	if _view_db != db():
-		_view_db = db()
+static func view(def_type: String, id: String, from_pack := "", content: DefDatabase = null) -> Dictionary:
+	content = db() if content == null else content
+	if _view_db != content:
+		_view_db = content
 		_views.clear()
-	var qid := qualified_id(def_type, id, from_pack)
+	var qid := qualified_id(def_type, id, from_pack, content)
 	if qid.is_empty():
 		return {}
 	var key := def_type + "|" + qid
 	if _views.has(key):
 		return _views[key].duplicate(true)
-	var record := db().record(def_type, qid)
+	var record := content.record(def_type, qid)
 	if record.is_empty() or record.abstract:
 		return {}
 	var result: Dictionary = record.data.duplicate(true)
 	result.erase("id")
-	var collected := db().schemas.validate(def_type, result)
+	var collected := content.schemas.validate(def_type, result)
 	for ref: Dictionary in collected.refs:
-		_replace(result, ref.path, runtime_id(ref.type, ref.value, record.pack))
+		_replace(result, ref.path, runtime_id(ref.type, ref.value, record.pack, content))
 	for asset: Dictionary in collected.assets:
-		_replace(result, asset.path, PackLoader.asset_path(db(), asset.value, record.pack))
-	result["id"] = runtime_id(def_type, qid)
+		_replace(result, asset.path, PackLoader.asset_path(content, asset.value, record.pack))
+	result["id"] = runtime_id(def_type, qid, "", content)
 	_views[key] = result
 	return result.duplicate(true)
 

@@ -23,6 +23,13 @@ func emit_hook(name: String, data: Dictionary = {}) -> void:
 	if (not closed or _processing) and not name.is_empty():
 		hooks.append({"name": name, "data": data.duplicate(true)})
 
+func record(name: String, data: Dictionary = {}) -> void:
+	if (closed and not _processing) or name.is_empty():
+		return
+	doc.chronicle.append({"id": doc.chronicle.size() + 1, "type": name,
+		"seconds": doc.clock.seconds, "data": data.duplicate(true)})
+	emit_hook(name, data)
+
 func rng(stream: String, scope := "") -> StableRng:
 	var streams := RngStreams.new()
 	streams.restore(doc.rng)

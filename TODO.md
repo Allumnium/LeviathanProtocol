@@ -10,10 +10,10 @@ Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases)
 
 P2 is complete: definitions control runtime behavior; generation uses stable named streams and explicit identities; scoped references support independent packs; audited legacy readers and ignored research metadata are removed. Focused verification is recorded in [COMPLETED.md](COMPLETED.md).
 
-P3a/b foundation and the first gameplay transaction are delivered in [COMPLETED.md](COMPLETED.md). P3 remains open below.
+P3a/b foundation and P3c1 Fleet/shipyard transactions are delivered in [COMPLETED.md](COMPLETED.md). P3 remains open below.
 
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
-  - [ ] P3c extract remaining Fleet/Trade/Research/Travel/battle-settlement operations, FactView and registered effects; make the document authoritative and remove the temporary hangar adapter. Preserve lightweight movement between durable boundaries and exactly-once outcomes.
+  - [ ] P3c finish Research/Travel, trade loading/delivery and battle-settlement extraction, including fleet initialization/ongoing healing; extend FactView and add registered effects. Make the document authoritative and remove the temporary hangar adapter. Preserve lightweight movement between durable boundaries and exactly-once outcomes. Fleet/shipyard commands are extracted; their UI projection bridge remains temporary.
   - [ ] P3d migrate score/stat formulas, Swarm pressure and chronicle recording; retire HangarCheckpoint, CampaignGraph/CampaignContent, SwarmNavigation and RunScore after their callers move.
   - [ ] P3e expose the run browser with remembered last selection, clear damaged-content handling and focused native interactions; finish current-loop/replay/failure acceptance and remove replaced paths. Full quest/rule execution remains P4, and the director remains P7.
 - [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.

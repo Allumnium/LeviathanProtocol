@@ -10,26 +10,27 @@ static var _equipment: Array[Dictionary] = []
 static var _equipment_textures: Dictionary[String, Texture2D] = {}
 static var _database: DefDatabase
 
-static func _ensure_database() -> void:
-	if _database != Content.db():
-		_database = Content.db()
+static func _ensure_database(content: DefDatabase = null) -> void:
+	content = Content.db() if content == null else content
+	if _database != content:
+		_database = content
 		_chassis.clear()
 		_equipment.clear()
 		_equipment_textures.clear()
 
-static func chassis() -> Array[Dictionary]:
-	_ensure_database()
+static func chassis(content: DefDatabase = null) -> Array[Dictionary]:
+	_ensure_database(content)
 	if _chassis.is_empty():
-		var data := {"version": 1, "chassis": Content.copies("chassis")}
-		if not valid_chassis(data):
+		var data := {"version": 1, "chassis": Content.copies("chassis", content)}
+		if not valid_chassis(data, content):
 			push_error("Invalid slot chassis catalog.")
 			return []
 		_chassis.assign(data.chassis)
 	return _chassis.duplicate(true)
 
-static func find_chassis(id: String) -> Dictionary:
-	var canonical := Content.runtime_id("chassis", id)
-	for entry in chassis():
+static func find_chassis(id: String, content: DefDatabase = null) -> Dictionary:
+	var canonical := Content.runtime_id("chassis", id, "", content)
+	for entry in chassis(content):
 		if entry.id == canonical:
 			return entry
 	return {}
@@ -55,11 +56,11 @@ static func chassis_bonuses(entry: Dictionary) -> String:
 		lines.append("%.0f%% weapon-hit dodge" % (entry.dodge_chance * 100))
 	return "\n".join(lines) if not lines.is_empty() else "No special bonuses"
 
-static func equipment(include_retired := false) -> Array[Dictionary]:
-	_ensure_database()
+static func equipment(include_retired := false, content: DefDatabase = null) -> Array[Dictionary]:
+	_ensure_database(content)
 	if _equipment.is_empty():
 		var data := {"version": 1, "equipment": []}
-		for entry: Dictionary in Content.copies("equipment"):
+		for entry: Dictionary in Content.copies("equipment", content):
 			# Rank variants use the def id <part>@<rank>; the catalog keys by part id and rank.
 			var def_id := str(entry.id)
 			entry.id = def_id.get_slice("@", 0)
@@ -67,7 +68,7 @@ static func equipment(include_retired := false) -> Array[Dictionary]:
 				push_error("Equipment id %s does not match its rank." % def_id)
 				return []
 			data.equipment.append(entry)
-		if not valid_equipment(data):
+		if not valid_equipment(data, content):
 			push_error("Invalid slot equipment catalog.")
 			return []
 		_equipment.assign(data.equipment)
@@ -82,9 +83,9 @@ static func equipment(include_retired := false) -> Array[Dictionary]:
 static func equipment_key(id: String, rank: int) -> String:
 	return id if rank == 1 else "%s@%d" % [id, rank]
 
-static func find_equipment(id: String, rank := 1) -> Dictionary:
-	var canonical := Content.runtime_id("equipment", equipment_key(id, rank)).get_slice("@", 0)
-	for item in equipment(true):
+static func find_equipment(id: String, rank := 1, content: DefDatabase = null) -> Dictionary:
+	var canonical := Content.runtime_id("equipment", equipment_key(id, rank), "", content).get_slice("@", 0)
+	for item in equipment(true, content):
 		if item.id == canonical and item.rank == rank:
 			return item
 	return {}
@@ -144,8 +145,8 @@ static func unlocked(item: Dictionary, grants: Dictionary) -> bool:
 			and item.rank <= int(grants.get("ranks", {}).get(item.id, 0))
 	return false
 
-static func stats_for(id: String, rank := 1) -> ShipPartStats:
-	var item := find_equipment(id, rank)
+static func stats_for(id: String, rank := 1, content: DefDatabase = null) -> ShipPartStats:
+	var item := find_equipment(id, rank, content)
 	if item.is_empty():
 		return null
 	var values: Dictionary = item.stats
@@ -161,7 +162,7 @@ static func stats_for(id: String, rank := 1) -> ShipPartStats:
 		stats.weapons.append(copy)
 	return stats
 
-static func valid_equipment(data: Variant) -> bool:
+static func valid_equipment(data: Variant, content: DefDatabase = null) -> bool:
 	if not data is Dictionary or data.get("version") != 1 or not data.get("equipment") is Array or data.equipment.is_empty():
 		return false
 	var seen := {}
@@ -177,7 +178,7 @@ static func valid_equipment(data: Variant) -> bool:
 			capabilities_seen[capability] = true
 		if not item is Dictionary or not item.get("id") is String or not item.get("name") is String or not _integer(item.get("rank")) or not _integer(item.get("revision")) or not _integer(item.get("part_type"), 0) or item.get("size") not in SIZES or item.get("type") not in TYPES or not item.get("stats") is Dictionary or not item.get("retired", false) is bool:
 			return false
-		var definition := GameDefinitions.find("equipment", item.id)
+		var definition := GameDefinitions.find("equipment", item.id, content)
 		if item.has("load_kind") or item.has("load_capacity"):
 			if item.get("load_kind") not in ["cargo", "passengers"] or not _integer(item.get("load_capacity")):
 				return false
@@ -227,7 +228,7 @@ static func _nonnegative(value: Variant) -> bool:
 static func _integer(value: Variant, minimum := 1) -> bool:
 	return _nonnegative(value) and value >= minimum and value <= 2147483647 and value == floor(value)
 
-static func valid_chassis(data: Variant) -> bool:
+static func valid_chassis(data: Variant, content: DefDatabase = null) -> bool:
 	if not data is Dictionary or data.get("version") != 1 or not data.get("chassis") is Array or data.chassis.is_empty():
 		return false
 	var ids := {}
@@ -256,7 +257,7 @@ static func valid_chassis(data: Variant) -> bool:
 				return false
 		if entry.has("description") and not entry.description is String:
 			return false
-		if entry.has("builtin_shield") and Content.runtime_id("equipment", entry.builtin_shield) != "shield_generator":
+		if entry.has("builtin_shield") and Content.runtime_id("equipment", entry.builtin_shield, "", content) != "shield_generator":
 			return false
 		if entry.has("builtin_shield_count") and (not entry.has("builtin_shield") \
 			or not SaveValidation.integer(entry.builtin_shield_count) or entry.builtin_shield_count < 1):

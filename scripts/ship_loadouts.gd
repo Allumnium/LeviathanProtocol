@@ -7,9 +7,10 @@ const SHIP_PARTS_RATE := 0.5
 static var _loadouts: Dictionary = {}
 static var _database: DefDatabase
 
-static func _ensure_database() -> void:
-	if _database != Content.db():
-		_database = Content.db()
+static func _ensure_database(content: DefDatabase = null) -> void:
+	content = Content.db() if content == null else content
+	if _database != content:
+		_database = content
 		_loadouts.clear()
 
 static func parse_key(key: String) -> Dictionary:
@@ -19,28 +20,28 @@ static func parse_key(key: String) -> Dictionary:
 static func key_for(item: Dictionary) -> String:
 	return SlotCatalog.equipment_key(str(item.id), int(item.rank))
 
-static func item_for(key: String) -> Dictionary:
+static func item_for(key: String, content: DefDatabase = null) -> Dictionary:
 	if key.is_empty():
 		return {}
 	var parsed := parse_key(key)
-	return SlotCatalog.find_equipment(parsed.id, parsed.rank)
+	return SlotCatalog.find_equipment(parsed.id, parsed.rank, content)
 
 # Catalog eligibility is independent of a run's earned research.
 static func obtainable(item: Dictionary) -> bool:
 	return not item.is_empty() and not item.get("retired", false) and item.get("availability", "unavailable") in ["ordinary", "research"]
 
-static func all() -> Dictionary:
-	_ensure_database()
+static func all(content: DefDatabase = null) -> Dictionary:
+	_ensure_database(content)
 	if not _loadouts.is_empty():
 		return _loadouts
-	for loadout: Dictionary in Content.copies("loadout"):
+	for loadout: Dictionary in Content.copies("loadout", content):
 		var chassis_id := str(loadout.get("chassis", ""))
 		var def_id := str(loadout.id)
 		loadout.erase("chassis")
 		loadout.definition_id = def_id
 		loadout.id = def_id.trim_prefix(chassis_id + "/") if not def_id.contains(":") else def_id
-		var chassis := SlotCatalog.find_chassis(chassis_id)
-		if chassis.is_empty() or not _valid(chassis, loadout):
+		var chassis := SlotCatalog.find_chassis(chassis_id, content)
+		if chassis.is_empty() or not _valid(chassis, loadout, content):
 			push_error("Invalid loadout %s." % def_id)
 			continue
 		if not _loadouts.has(chassis_id):
@@ -49,7 +50,7 @@ static func all() -> Dictionary:
 		_loadouts[chassis_id].append(loadout)
 	return _loadouts
 
-static func _valid(chassis: Dictionary, loadout: Variant) -> bool:
+static func _valid(chassis: Dictionary, loadout: Variant, content: DefDatabase = null) -> bool:
 	if not loadout is Dictionary or not loadout.get("id") is String or not loadout.get("name") is String \
 			or not loadout.get("mounts") is Dictionary:
 		return false
@@ -62,47 +63,47 @@ static func _valid(chassis: Dictionary, loadout: Variant) -> bool:
 			if not slot_id is String or not mounts[slot_id] is String:
 				return false
 			var slot := slot_by_id(chassis, slot_id)
-			var item := item_for(mounts[slot_id])
+			var item := item_for(mounts[slot_id], content)
 			if slot.is_empty() or not SlotCatalog.compatible(slot, item) or not obtainable(item):
 				return false
 	return true
 
-static func for_chassis(chassis_id: String) -> Array:
-	return all().get(Content.runtime_id("chassis", chassis_id), [])
+static func for_chassis(chassis_id: String, content: DefDatabase = null) -> Array:
+	return all(content).get(Content.runtime_id("chassis", chassis_id, "", content), [])
 
-static func equipment_available(item: Dictionary, research_ids: Array) -> bool:
+static func equipment_available(item: Dictionary, research_ids: Array, content: DefDatabase = null) -> bool:
 	if not obtainable(item):
 		return false
 	if item.availability == "ordinary":
 		return true
-	var grants := ResearchRules.resolve(research_ids, HangarResearch.catalog())
+	var grants := ResearchRules.resolve(research_ids, HangarResearch.catalog(content))
 	return SlotCatalog.unlocked(item, grants)
 
-static func available(loadout: Dictionary, research_ids: Array) -> bool:
+static func available(loadout: Dictionary, research_ids: Array, content: DefDatabase = null) -> bool:
 	return not loadout.is_empty() and loadout.mounts.values().all(func(key: Variant) -> bool:
-		return equipment_available(item_for(str(key)), research_ids))
+		return equipment_available(item_for(str(key), content), research_ids, content))
 
-static func available_for(chassis_id: String, research_ids: Array) -> Array:
-	return for_chassis(chassis_id).filter(func(loadout: Dictionary) -> bool: return available(loadout, research_ids))
+static func available_for(chassis_id: String, research_ids: Array, content: DefDatabase = null) -> Array:
+	return for_chassis(chassis_id, content).filter(func(loadout: Dictionary) -> bool: return available(loadout, research_ids, content))
 
-static func purchase_for(chassis_id: String, research_ids: Array) -> Dictionary:
-	var preferred := default_for(chassis_id)
-	if available(preferred, research_ids):
+static func purchase_for(chassis_id: String, research_ids: Array, content: DefDatabase = null) -> Dictionary:
+	var preferred := default_for(chassis_id, content)
+	if available(preferred, research_ids, content):
 		return preferred
-	var options := available_for(chassis_id, research_ids)
+	var options := available_for(chassis_id, research_ids, content)
 	options.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.id < b.id)
 	return options[0] if not options.is_empty() else {}
 
-static func find(chassis_id: String, loadout_id: String) -> Dictionary:
-	var canonical := Content.runtime_id("loadout", loadout_id)
-	for loadout: Dictionary in for_chassis(chassis_id):
+static func find(chassis_id: String, loadout_id: String, content: DefDatabase = null) -> Dictionary:
+	var canonical := Content.runtime_id("loadout", loadout_id, "", content)
+	for loadout: Dictionary in for_chassis(chassis_id, content):
 		if loadout.id == loadout_id or loadout.definition_id == canonical:
 			return loadout
 	return {}
 
-static func default_for(chassis_id: String) -> Dictionary:
-	var chassis := SlotCatalog.find_chassis(chassis_id)
-	return find(chassis.id, str(chassis.default_loadout)) if not chassis.is_empty() else {}
+static func default_for(chassis_id: String, content: DefDatabase = null) -> Dictionary:
+	var chassis := SlotCatalog.find_chassis(chassis_id, content)
+	return find(chassis.id, str(chassis.default_loadout), content) if not chassis.is_empty() else {}
 
 static func slot_by_id(chassis: Dictionary, slot_id: String) -> Dictionary:
 	for slot: Dictionary in chassis.get("slots", []):
@@ -123,37 +124,36 @@ static func part_options(slot: Dictionary, research_ids: Array) -> Array[Diction
 static func part_fee(_item: Dictionary) -> int:
 	return 0
 
-static func ship_price(chassis_id: String, loadout: Dictionary) -> int:
+static func ship_price(chassis_id: String, loadout: Dictionary, content: DefDatabase = null) -> int:
 	var parts := 0
 	for key: Variant in loadout.get("mounts", {}).values():
-		parts += int(item_for(str(key)).get("price", 0))
-	return int(SlotCatalog.find_chassis(chassis_id).get("price", 0)) + ceili(parts * SHIP_PARTS_RATE)
+		parts += int(item_for(str(key), content).get("price", 0))
+	return int(SlotCatalog.find_chassis(chassis_id, content).get("price", 0)) + ceili(parts * SHIP_PARTS_RATE)
 
-static func append_ship(data: Dictionary, chassis_id: String, loadout: Dictionary) -> void:
-	var ship := HangarShip.new()
-	ship.initialize_chassis(chassis_id, int(data.next_ship_id))
+static func append_ship(data: Dictionary, chassis_id: String, loadout: Dictionary, content: DefDatabase = null) -> void:
+	var chassis := SlotCatalog.find_chassis(chassis_id, content)
+	var formation: Vector2
 	var occupied := {}
 	for entry: Dictionary in data.ships:
 		occupied[Vector2(entry.formation[0], entry.formation[1])] = true
-	ship.formation = Vector2(data.ships.size() % 3 - 1, floori(data.ships.size() / 3.0))
+	formation = Vector2(data.ships.size() % 3 - 1, floori(data.ships.size() / 3.0))
 	for y in range(6):
-		if not occupied.has(ship.formation) and ship.formation.y <= 5:
+		if not occupied.has(formation) and formation.y <= 5:
 			break
 		for x in range(-5, 6):
 			var position := Vector2(x, y)
 			if not occupied.has(position):
-				ship.formation = position
+				formation = position
 				break
-	var entry := ship.to_hangar_data()
+	var entry := {"id": int(data.next_ship_id), "chassis": chassis.id, "flagship": false,
+		"hull_hp": float(chassis.integrity), "mounts": {}, "formation": [formation.x, formation.y]}
 	for slot_id: String in loadout.mounts:
 		var parsed := parse_key(str(loadout.mounts[slot_id]))
 		var uid := str(data.next_equipment_id)
 		data.next_equipment_id += 1
 		data.equipment[uid] = {"uid": uid, "equipment_id": parsed.id, "rank": int(parsed.rank)}
 		entry.mounts[slot_id] = uid
-		ship.mounts[slot_id] = data.equipment[uid]
-	ship.rebuild_units()
-	entry.hull_hp = ship.hull_max
+		entry.hull_hp += float(item_for(str(loadout.mounts[slot_id]), content).stats.integrity)
 	data.ships.append(entry)
 	data.next_ship_id += 1
 

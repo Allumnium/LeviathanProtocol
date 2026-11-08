@@ -2,6 +2,11 @@
 
 Resolved entries moved from [THOUGHTS.md](THOUGHTS.md), preserving their context and outcomes. This is a reference, not an active backlog or authorization to change gameplay. Open follow-ups remain in THOUGHTS.md or [TODO.md](TODO.md).
 
+## 2026-11-07 - Explicit Fleet/shipyard content context (partial resolution)
+
+- **Original refactor opportunity (2026-11-07):** The temporary frozen Content binding protects existing consumers while P3c extracts the remaining systems. Pass the owning run context directly to those systems and remove the hangar projection adapter; avoid treating the mutable GameState fields and committed document as two permanent authorities.
+- **Resolved portion 2026-11-07:** Fleet/shipyard commands now mutate private run transactions and receive the owning frozen database explicitly. Content projections, SlotCatalog, GameDefinitions, loadouts, research catalog lookup and squadron fitting propagate that context without rebinding global content. Ship allocation constructs data directly without loading combat objects or artwork. FactView shares hull/repair/station queries, and one GameState bridge publishes after commit. Focused tests use a deliberately different global database and verify prices/default fits remain owned by the transaction. Remaining systems, semantic validation and adapter removal stay open in THOUGHTS.md and TODO.md.
+
 ## 2026-11-07 - Starter package ownership
 
 - **Original question (2026-11-07):** Keep engine-wide equipment and fleet packages in core, but put the current campaign's selected starter package and resources in leviathan. This lets another scenario reuse the mechanics without inheriting the convoy charter. P2 can introduce a small start definition now; P6 can compose it into scenario recipes.
