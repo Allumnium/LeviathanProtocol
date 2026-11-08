@@ -10,6 +10,7 @@ const SCHEMA_DIRS := ["res://schemas/defs"]
 ## Def type -> Callable used as PackLoader.checks for every load.
 static var checks: Dictionary = {}
 static var _db: DefDatabase
+static var _run_db: DefDatabase
 static var _view_db: DefDatabase
 static var _views: Dictionary = {}
 
@@ -19,9 +20,23 @@ const DEFAULT_PACKS := {"location": "leviathan", "event": "leviathan", "run_star
 
 
 static func db() -> DefDatabase:
+	return _run_db if _run_db != null else installed()
+
+
+static func installed() -> DefDatabase:
 	if _db == null:
 		load_all()
 	return _db
+
+
+## Transitional binding for static runtime readers. Reloading installed packs
+## never changes this run's definitions; systems will receive context directly.
+static func bind_run(database: DefDatabase) -> void:
+	_run_db = database
+
+
+static func run_database() -> DefDatabase:
+	return _run_db
 
 
 ## Not named reload: Content.reload() would call Script.reload() instead.
@@ -41,6 +56,7 @@ static func load_all(roots: Array = ROOTS, schema_dirs: Array = SCHEMA_DIRS) -> 
 ## makes the next call load again.
 static func set_database(database: DefDatabase) -> void:
 	_db = database
+	_run_db = null # Explicit tool/fixture replacement, unlike an installed reload.
 
 
 static func qualified_id(def_type: String, ref: String, from_pack := "") -> String:

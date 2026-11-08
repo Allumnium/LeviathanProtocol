@@ -85,3 +85,31 @@ Resolved entries moved from [THOUGHTS.md](THOUGHTS.md), preserving their context
 ## 2026-11-07 - StableRng helper dispatch
 
 - **Observed and resolved 2026-11-07 (P2e):** StableRng helper calls to unqualified randf/randi_range resolved to Godot globals, so ranged floats, chance, weighted choice, pick and shuffle could consume global randomness. Explicit self calls now keep those draws inside the stable stream. Added five independent reference/global-RNG-isolation checks; all 32 RNG checks pass. Versioned generation streams also have fixed encounter/research reference outputs and order/isolation/Continue checks.
+
+## 2026-11-07 - Publishing new runs
+
+- **Original note (2026-11-07):** **Persistence concern / publishing two files:** New runs require a frozen content file and a state file. Publish verified content first and treat the first durable run generation as the visibility/commit point; an orphan content folder must not appear as a resumable run. A failed new run must preserve the previous live run and its files. Existing AtomicRunStore considers a verified `.next` committed, so interruption after staging is recovery, not a failed transaction to roll back.
+- **Resolved 2026-11-07 (P3a/b):** RunRepository verifies and publishes immutable content before the first AtomicRunStore commit. The durable state generation is the visibility point; content-only folders are ignored. Creation failures restore the previous live run/content binding and leave its files unchanged; verified staged generations remain recoverable committed state. Ordinary commits also verify the immutable content file has not disappeared or changed.
+
+## 2026-11-07 - Installed and frozen rules
+
+- **Original note (2026-11-07):** **Refactor concern / installed versus active content:** Existing static catalogs all read Content. Pack reloads must update the installed catalog without rebinding an active run to new rules. Introduce an explicit active frozen database binding while these callers are extracted, preserve the installed database for New Run, and verify failed loads restore the previous binding. Later run systems should take their context explicitly rather than swap globals during play.
+- **Resolved runtime portion 2026-11-07 (P3a/b):** Content now separates the installed database from an active frozen run binding. New Run freezes installed definitions; installed reloads do not change active mechanics; Continue rebuilds resolved definitions, schemas and formula evaluators without source packs. Failed starts/loads restore the previous binding, and switching runs invalidates the existing catalog caches. The remaining explicit-context extraction stays open in THOUGHTS.md.
+
+## 2026-11-07 - Removed source pack images
+
+- **Original note (2026-11-07):** **Observation / missing pack art:** The architecture deliberately freezes definitions without copying assets. Current chassis/equipment validation and SurfaceArt can reject missing images; removing a source pack could therefore block Continue despite valid frozen rules. Missing files must use the established pink marker while real gameplay/schema errors still fail validation.
+- **Resolved 2026-11-07 (P3a/b):** Chassis/equipment validation accepts absent referenced images while keeping gameplay checks. SurfaceArt loads external images and uses the established pink marker when a diffuse image disappears; available diffuse art still works without removed auxiliary maps. Actual frozen Continue preserves ownership/stats with source pack files removed. Focused native Fleet rendering confirms the markers and living ships.
+
+## 2026-11-07 - Run-frozen tuning authority
+
+- **Original note (2026-11-07):** **Refactor opportunity / run-scoped tuning:** `SharedSupport.parameters` now serves the shared behavior schemas, including enemy roles and research weapon effects. Move this lookup into the run's frozen content view during P3 and keep finite repair operations separate. Enemy roster/geometry/allocation snapshots already resist later tuning edits; full support/ability/art freezing belongs with P3 run content, not a second save system here.
+- **Resolved runtime portion 2026-11-07 (P3a/b):** Active static support/ability/catalog reads now use the frozen run database and existing database-scoped caches. Definitions, references and parameter values remain stable across installed updates/removal and run switches. Assets are deliberately referenced rather than copied, following the architecture; removed images use pink markers. Replacing the temporary static binding with explicit system contexts remains part of P3c.
+
+## 2026-11-07 - Run boundary JSON normalization
+
+- **Observed and resolved 2026-11-07 (P3a/b):** Dictionary dot assignments in generated encounter copies introduced StringName keys, which the strict new run JSON guard rejected at Meridian battle admission. The schema normalizer now converts StringName keys/text and declared whole numbers at transaction/load boundaries. A focused regression covers this; story outcomes/Continue pass again. Ship, equipment-rank and squadron IDs also normalize to integers, preserving readable flag labels after Continue.
+
+## 2026-11-07 - Repeated run validation cost
+
+- **Observed and resolved 2026-11-07 (P3a/b):** Wrapping the existing semantic validator in a run document caused AtomicRunStore to reconstruct the same fleet repeatedly while inspecting main/staged/backup generations. A 33-ship refit exceeded the existing 500 ms limit. RunSession now retains at most eight exact validated-payload hashes within its immutable content context, with full-precision float keys and a regression rejecting a distinct invalid hull value. The focused persistence suite passes; slowest measured refit is 382 ms. No safety threshold was raised.

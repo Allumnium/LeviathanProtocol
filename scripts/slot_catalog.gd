@@ -181,7 +181,7 @@ static func valid_equipment(data: Variant) -> bool:
 		if item.has("load_kind") or item.has("load_capacity"):
 			if item.get("load_kind") not in ["cargo", "passengers"] or not _integer(item.get("load_capacity")):
 				return false
-		if item.has("art") and (not item.art is String or not ResourceLoader.exists(item.art, "Texture2D")):
+		if item.has("art") and not item.art is String:
 			return false
 		if item.has("art_mount"):
 			if not item.art_mount is Array or item.art_mount.size() != 3:
@@ -232,7 +232,7 @@ static func valid_chassis(data: Variant) -> bool:
 		return false
 	var ids := {}
 	for entry: Variant in data.chassis:
-		if not entry is Dictionary or not entry.get("id") is String or ids.has(entry.id) or not entry.get("name") is String or not entry.get("art") is String or not ResourceLoader.exists(entry.art) or not entry.get("slots") is Array or entry.slots.is_empty():
+		if not entry is Dictionary or not entry.get("id") is String or ids.has(entry.id) or not entry.get("name") is String or not entry.get("art") is String or not entry.get("slots") is Array or entry.slots.is_empty():
 			return false
 		if not entry.get("flagship") is bool:
 			return false

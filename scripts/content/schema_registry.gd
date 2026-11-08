@@ -88,6 +88,39 @@ func validate(schema_name: String, value: Variant) -> Collector:
 	return out
 
 
+## Normalize only schema-declared whole numbers after validation. JSON parses
+## numbers as floats; seeds/UIDs deliberately remain strings.
+func normalized(schema_name: String, value: Variant) -> Variant:
+	return _normalize(_schemas[schema_name], value, schema_name)
+
+
+func _normalize(spec: Dictionary, value: Variant, root_name: String) -> Variant:
+	if value is StringName:
+		return str(value)
+	if spec.has("$ref"):
+		var resolved := resolve_ref(spec["$ref"], root_name)
+		return _normalize(resolved[0], value, resolved[1]) if not resolved.is_empty() else value
+	for choice: String in ["oneOf", "anyOf"]:
+		if spec.has(choice):
+			for branch: Dictionary in spec[choice]:
+				var trial := Collector.new()
+				_validate(branch, value, "", root_name, trial)
+				if trial.problems.is_empty():
+					return _normalize(branch, value, root_name)
+	if spec.get("type") == "integer" or (spec.get("const") is float and SaveValidation.integer(spec["const"])) or spec.get("const") is int:
+		return int(value) if SaveValidation.integer(value) else value
+	if value is Dictionary:
+		var result := {}
+		for key: Variant in value:
+			var child: Variant = spec.get("properties", {}).get(key, spec.get("additionalProperties", {}))
+			var normalized_key: Variant = str(key) if key is StringName else key
+			result[normalized_key] = _normalize(child, value[key], root_name) if child is Dictionary else value[key]
+		return result
+	if value is Array:
+		return value.map(func(item: Variant) -> Variant: return _normalize(spec.get("items", {}), item, root_name))
+	return value
+
+
 ## Resolves a $ref relative to `root_name`; returns [schema, root_name] or [].
 func resolve_ref(ref: String, root_name: String) -> Array:
 	var target_root := root_name

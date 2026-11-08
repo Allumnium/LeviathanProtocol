@@ -73,7 +73,7 @@ static func from_def(id: String, rank := 0) -> AlienShip:
 		copy.is_projectile_weapon = weapon.projectile
 		copy.interceptable = weapon.interceptable
 		value.weapons.append(copy)
-	var unit := AlienShip.new(data.display_name, load(data.art), value)
+	var unit := AlienShip.new(data.display_name, SurfaceArt.texture(data.art), value)
 	unit.stats.collision_radius = value.collision_radius
 	unit.definition_id = Content.qualified_id("enemy_unit", id)
 	unit.role_id = data.role

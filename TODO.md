@@ -10,7 +10,12 @@ Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases)
 
 P2 is complete: definitions control runtime behavior; generation uses stable named streams and explicit identities; scoped references support independent packs; audited legacy readers and ignored research metadata are removed. Focused verification is recorded in [COMPLETED.md](COMPLETED.md).
 
+P3a/b foundation and the first gameplay transaction are delivered in [COMPLETED.md](COMPLETED.md). P3 remains open below.
+
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
+  - [ ] P3c extract remaining Fleet/Trade/Research/Travel/battle-settlement operations, FactView and registered effects; make the document authoritative and remove the temporary hangar adapter. Preserve lightweight movement between durable boundaries and exactly-once outcomes.
+  - [ ] P3d migrate score/stat formulas, Swarm pressure and chronicle recording; retire HangarCheckpoint, CampaignGraph/CampaignContent, SwarmNavigation and RunScore after their callers move.
+  - [ ] P3e expose the run browser with remembered last selection, clear damaged-content handling and focused native interactions; finish current-loop/replay/failure acceptance and remove replaced paths. Full quest/rule execution remains P4, and the director remains P7.
 - [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.
 - [ ] P5 Editor v1: shell, schema forms, Quest/Story Lab/Text workspaces, Playtest overlay and main-menu entry.
 - [ ] P6 Galaxy, scenarios and casting: generator stages, pins, spawn casting, knowledge/rumors, `GalaxyView` and scenario browser.

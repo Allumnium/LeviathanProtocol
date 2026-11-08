@@ -7,9 +7,11 @@ const MAX_PROJECTILE_LIGHTS := 16
 static var _textures: Dictionary[String, Texture2D] = {}
 
 static func texture(path: String) -> Texture2D:
+	if not ResourceLoader.exists(path, "Texture2D") and not FileAccess.file_exists(path):
+		return preload("res://scripts/placeholders.gd").art()
 	if _textures.has(path):
 		return _textures[path]
-	var diffuse := load(path) as Texture2D
+	var diffuse := _load_texture(path)
 	if diffuse == null:
 		push_error("Could not load surface diffuse: " + path)
 		return null
@@ -19,12 +21,14 @@ static func texture(path: String) -> Texture2D:
 	var stem := path.trim_suffix("_d.png")
 	for suffix in ["_n.png", "_o.png", "_p.png", "_s.png"]:
 		if not ResourceLoader.exists(stem + suffix, "Texture2D"):
-			push_error("Missing surface map: " + stem + suffix)
-			return null
-	var normal := load(stem + "_n.png") as Texture2D
-	var height := load(stem + "_p.png") as Texture2D
-	var specular := load(stem + "_s.png") as Texture2D
-	var occlusion := load(stem + "_o.png") as Texture2D
+			if not FileAccess.file_exists(stem + suffix):
+				return diffuse # A removed pack's auxiliary maps do not invalidate rules.
+	var normal := _load_texture(stem + "_n.png")
+	var height := _load_texture(stem + "_p.png")
+	var specular := _load_texture(stem + "_s.png")
+	var occlusion := _load_texture(stem + "_o.png")
+	if normal == null or height == null or specular == null or occlusion == null:
+		return diffuse
 	for map in [normal, height, specular, occlusion]:
 		if map.get_size() != diffuse.get_size():
 			push_error("Surface map dimensions do not match: " + stem)
@@ -37,6 +41,12 @@ static func texture(path: String) -> Texture2D:
 	surface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_textures[path] = surface
 	return surface
+
+static func _load_texture(path: String) -> Texture2D:
+	if ResourceLoader.exists(path, "Texture2D"):
+		return load(path) as Texture2D
+	var image := Image.load_from_file(path)
+	return ImageTexture.create_from_image(image) if image != null and not image.is_empty() else null
 
 static func _with_alpha(rgb: Texture2D, alpha: Texture2D) -> ImageTexture:
 	var image := rgb.get_image()

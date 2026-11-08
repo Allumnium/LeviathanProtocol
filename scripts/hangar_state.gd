@@ -44,7 +44,9 @@ var battle_auto_zoom := true
 var tutorials_enabled := true
 var battle_speed := 1
 var destroy_all_neutral_targets := false
-var run_save_path := "user://expedition_run.json"
+var run_save_path := ""
+var run_session: RunSession
+var _run_scenario := "leviathan:charter"
 var last_save_error := ""
 var last_event_result := ""
 # Set by the main menu's New Run flow; the game screen shows the charter briefing once.
@@ -52,7 +54,7 @@ var pending_intro := false
 # UI-only: refresh the arrived location when returning from an arrival battle.
 var arrival_notice := ""
 var research_completion_notices: Array[String] = []
-var _checkpoint_store := AtomicRunStore.new()
+var _run_repository := RunRepository.new()
 
 
 # The active game uses physical equipment and its own checkpoint namespace.
@@ -70,14 +72,55 @@ var run_score: Dictionary = {}
 var expedition_simulation
 
 func _ready() -> void:
-	run_save_path = "user://expedition_run.json"
+	run_save_path = _run_repository.latest_path()
 	run_seed = 1
 
 
 func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int = -1, _use_campaign := true, flagship_id := "flagship_basic", start_id := "leviathan:charter") -> bool:
+	var before := hangar_snapshot()
+	var previous_content := Content.run_database()
+	var previous_session := run_session
+	var previous_path := run_save_path
+	var previous_generation := hangar_generation
+	var previous_scenario := _run_scenario
+	var previous_notices := research_completion_notices.duplicate()
+	var previous_report := last_battle_report.duplicate(true)
+	var previous_loot := last_equipment_loot
+	Content.bind_run(null)
+	if not Content.installed().has_pack("core"):
+		Content.bind_run(previous_content)
+		last_save_error = "Core game content is unavailable."
+		return false
+	var frozen := RunContent.capture(Content.installed())
+	var restored := RunContent.restore(frozen)
+	var started := false
+	if restored.has("database"):
+		Content.bind_run(restored.database)
+		run_session = null
+		_run_scenario = Content.qualified_id("run_start", start_id)
+		started = _start_new_run(selected_difficulty, seed_value, flagship_id, start_id)
+	else:
+		last_save_error = restored.error
+	if not started:
+		Content.bind_run(previous_session.content if previous_session != null else previous_content)
+		run_session = previous_session
+		run_save_path = previous_path
+		_run_scenario = previous_scenario
+		run_seed = int(before.seed)
+		navigation = before.get("navigation", {}).duplicate(true)
+		_build_campaign()
+		_apply_hangar(before, true)
+		hangar_generation = previous_generation
+		research_completion_notices.assign(previous_notices)
+		last_battle_report.assign(previous_report)
+		last_equipment_loot = previous_loot
+		Content.bind_run(previous_content)
+	return started
+
+func _start_new_run(selected_difficulty: int, seed_value: int, flagship_id: String, start_id: String) -> bool:
 	var selected := SlotCatalog.find_chassis(flagship_id)
 	if selected_difficulty not in [0, 1, 2] or seed_value < -1 or selected.is_empty() or not selected.flagship:
-		push_error("Cannot start a run with invalid difficulty, seed or flagship.")
+		last_save_error = "Choose a valid difficulty, seed and flagship."
 		return false
 	var start := Content.view("run_start", start_id)
 	if start.is_empty():
@@ -88,23 +131,15 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	if starting_ships.is_empty():
 		return false
 	var start_location := Content.view("location", start.location)
-	var before := hangar_snapshot()
-	var previous_generation := hangar_generation
 	run_seed = _new_run_seed() if seed_value == -1 else seed_value
 	expedition_simulation = ExpeditionSimulationScript.new()
 	if not expedition_simulation.configure(run_seed, str(start_location.get("id", ""))):
-		var setup_error: String = expedition_simulation.last_error
-		if not before.is_empty():
-			run_seed = int(before.seed)
-			difficulty = int(before.difficulty) as Difficulty
-			navigation = before.get("navigation", {}).duplicate(true)
-			_build_campaign()
-			_apply_hangar(before, true)
-		hangar_generation = previous_generation
-		last_save_error = setup_error
+		last_save_error = expedition_simulation.last_error
 		return false
 	difficulty = selected_difficulty as Difficulty
 	run_id = Crypto.new().generate_random_bytes(16).hex_encode()
+	if run_save_path.is_empty() or run_save_path.begins_with(RunRepository.ROOT + "/"):
+		run_save_path = RunRepository.run_path(run_id)
 	credits = int(start.credits)
 	missiles = int(start.missiles)
 	run_score = RunScore.initial()
@@ -142,13 +177,6 @@ func start_new_run(selected_difficulty: int = Difficulty.MEDIUM, seed_value: int
 	_apply_squadron_orders()
 	hangar_generation = -1
 	if not save_run_checkpoint():
-		if not before.is_empty():
-			run_seed = int(before.seed)
-			difficulty = int(before.difficulty) as Difficulty
-			navigation = before.get("navigation", {}).duplicate(true)
-			_build_campaign()
-			_apply_hangar(before, true)
-		hangar_generation = previous_generation
 		return false
 	_notify_hangar()
 	return true
@@ -311,11 +339,28 @@ func save_run_checkpoint() -> bool:
 	return _save_hangar(hangar_snapshot())
 
 func _save_hangar(data: Dictionary) -> bool:
-	var result := _checkpoint_store.commit(run_save_path, data, HangarCheckpoint.valid, hangar_generation)
-	last_save_error = _checkpoint_store.last_error
-	if not result.ok:
+	if not HangarCheckpoint.valid(data):
+		last_save_error = "Invalid checkpoint."
 		return false
-	hangar_generation = int(result.generation)
+	if run_session == null:
+		var frozen := RunContent.capture(Content.db())
+		var doc := RunDocument.from_hangar(data, frozen, _run_scenario)
+		run_session = _run_repository.create(run_save_path, doc, frozen, Content.db())
+		last_save_error = _run_repository.error
+		if run_session == null:
+			return false
+	else:
+		if hangar_generation != run_session.generation:
+			last_save_error = "Run changed since it was loaded."
+			return false
+		var doc := RunDocument.from_hangar(data, run_session.frozen, _run_scenario, run_session.snapshot())
+		var tx := run_session.begin("game.checkpoint", doc)
+		tx.path = run_save_path
+		if not tx.commit():
+			last_save_error = tx.error
+			return false
+		last_save_error = ""
+	hangar_generation = run_session.generation
 	return true
 
 func _commit_hangar(proposal: Dictionary) -> bool:
@@ -431,25 +476,34 @@ func repair_squadron(group_id: int) -> bool:
 	return _commit_hangar(data)
 
 func load_run_checkpoint() -> bool:
-	var saved := _checkpoint_store.load_latest(run_save_path, HangarCheckpoint.valid)
-	if saved.is_empty():
-		last_save_error = "No hangar checkpoint."
+	var loaded := _run_repository.load_run(run_save_path)
+	if loaded == null:
+		last_save_error = _run_repository.error
 		return false
-	run_seed = int(saved.payload.seed)
+	Content.bind_run(loaded.content)
+	var doc := loaded.snapshot()
+	var data := RunDocument.to_hangar(doc)
+	run_session = loaded
+	_run_scenario = doc.meta.scenario
+	run_seed = int(data.seed)
 	research_completion_notices.clear()
-	difficulty = int(saved.payload.difficulty) as Difficulty
-	navigation = saved.payload.get("navigation", {}).duplicate(true)
+	difficulty = int(data.difficulty) as Difficulty
+	navigation = data.get("navigation", {}).duplicate(true)
 	_build_campaign()
-	_apply_hangar(saved.payload, true)
-	hangar_generation = int(saved.generation)
+	_apply_hangar(data, true)
+	hangar_generation = loaded.generation
+	last_save_error = ""
 	_notify_hangar()
 	return true
 
 func checkpoint_summary() -> Dictionary:
-	var saved := _checkpoint_store.load_latest(run_save_path, HangarCheckpoint.valid)
-	return {} if saved.is_empty() else {"ended": saved.payload.ended or saved.payload.completed,
-		"pending": saved.payload.pending, "node": saved.payload.current,
-		"expedition": saved.payload.has("expedition")}
+	var loaded := _run_repository.load_run(run_save_path)
+	if loaded == null:
+		return {}
+	var doc := loaded.snapshot()
+	return {"ended": doc.fleet.ended or doc.fleet.completed, "pending": doc.fleet.pending,
+		"node": doc.galaxy.campaign.current, "expedition": not doc.travel.is_empty(),
+		"id": doc.meta.id, "scenario": doc.meta.scenario}
 
 func save_expedition_checkpoint() -> bool:
 	if expedition_simulation == null or expedition_simulation.state == null:
@@ -490,24 +544,26 @@ func refuel_expedition() -> bool:
 	return true
 
 func missile_quote() -> Dictionary:
-	var economy := HangarTrade.economy()
-	return {"count": int(economy.missile_pack_size), "price": int(economy.missile_pack_price)}
+	return TradeSystem.ammunition_quote(run_session.content if run_session != null else Content.db())
 
 func buy_missiles() -> bool:
 	last_save_error = station_service_error("ammunition")
 	if not last_save_error.is_empty():
 		return false
-	var quote := missile_quote()
-	if credits < quote.price:
-		last_save_error = "Not enough credits. Cost: %d." % quote.price
+	if run_session == null:
+		last_save_error = "No active run."
 		return false
-	if missiles > 2147483647 - int(quote.count):
-		last_save_error = "Missile storage limit reached."
+	var doc := RunDocument.from_hangar(hangar_snapshot(), run_session.frozen, _run_scenario, run_session.snapshot())
+	var tx := run_session.begin("trade.ammunition", doc)
+	tx.path = run_save_path
+	if not TradeSystem.buy_ammunition(tx, run_session.content) or not tx.commit():
+		last_save_error = tx.error
 		return false
-	var proposal := hangar_snapshot()
-	proposal.credits -= int(quote.price)
-	proposal.missiles += int(quote.count)
-	return _commit_hangar(proposal)
+	hangar_generation = run_session.generation
+	_apply_hangar(RunDocument.to_hangar(run_session.snapshot()), false, true)
+	last_save_error = ""
+	_notify_hangar()
+	return true
 
 func prepare_checkpoint_resume() -> bool:
 	if fleet.is_empty() or run_ended:

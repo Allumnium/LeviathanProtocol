@@ -55,6 +55,7 @@ func actual_story_identity() -> void:
 
 func unaffordable_story() -> void:
 	var shipped := Content.db()
+	var active := Content.run_database()
 	var folder := "user://expensive/patches"
 	DirAccess.make_dir_recursive_absolute(folder + "/defs")
 	FileAccess.open(folder + "/pack.json", FileAccess.WRITE).store_string(JSON.stringify({
@@ -64,6 +65,9 @@ func unaffordable_story() -> void:
 		"def": "patch", "id": "price", "target_def": "enemy_unit", "target": "core:scout", "set": {"cost": 10000}}))
 	var db := Content.load_all(["res://packs", "user://expensive"])
 	check(db.problems.items.is_empty(), "A positive but unaffordable price is structurally valid")
+	# Explicit fixture override probes the allocator error; normal installed
+	# reloads intentionally cannot change a frozen run's required unit prices.
+	Content.set_database(db)
 	var before: Dictionary = state.hangar_snapshot()
 	var bytes := FileAccess.get_file_as_bytes(state.run_save_path)
 	check(not state.resolve_expedition_event("first_contact", "fight")
@@ -71,6 +75,7 @@ func unaffordable_story() -> void:
 		and state.last_save_error.contains("points available"), "Actual story choice explains the unaffordable unit and budget: " + state.last_save_error)
 	check(SaveValidation.same(before, state.hangar_snapshot()) and bytes == FileAccess.get_file_as_bytes(state.run_save_path), "Generation failure preserves pending choice, receipt, resources and save bytes")
 	Content.set_database(shipped)
+	Content.bind_run(active)
 
 func loader_paths_and_errors() -> void:
 	var shipped := PackLoader.new().load_packs(["res://packs"])

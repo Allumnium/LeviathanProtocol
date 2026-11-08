@@ -83,7 +83,7 @@ vertical_alignment = 1
 [node name="CheckpointWarning" type="Label" parent="CenterContainer/SetupModal/Contents"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.824, 0.541, 1)
-text = "Starting replaces the current run."
+text = "Other runs are kept."
 horizontal_alignment = 1
 
 [node name="Buttons" type="HBoxContainer" parent="CenterContainer/SetupModal/Contents" unique_id=1650797096]

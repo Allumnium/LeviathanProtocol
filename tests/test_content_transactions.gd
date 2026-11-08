@@ -34,11 +34,12 @@ func run() -> void:
 	var patched := Content.load_all(["res://packs", "res://tests/fixtures/content/p2"])
 	check(patched.problems.items.is_empty(), "Patch-only tuning pack has zero Problems: " + patched.problems.text())
 	check(patched.content_hash != shipped.content_hash, "Tuning changes the content hash")
-	check(SlotCatalog.find_equipment("cargo_hold").price == 777
-		and GameDefinitions.find("abilities", "ion_pulse").display_name == "Fixture Pulse",
-		"Existing catalog views read the replacement database")
-	check(Loadouts.default_for("fighter").id == "skirmisher", "Patched default uses its ID despite being fourth in the file")
+	check(SlotCatalog.find_equipment("cargo_hold").price == original_price
+		and GameDefinitions.find("abilities", "ion_pulse").display_name == original_ability,
+		"An installed reload leaves the active run's frozen catalog intact")
+	check(Loadouts.default_for("fighter").id == "interceptor", "Installed loadout edits do not rebind an existing run")
 	check(state.start_new_run(1, 7341), "Start the patched convoy through the production entry point")
+	check(Loadouts.default_for("fighter").id == "skirmisher", "New run uses the patched explicit default despite its file position")
 	check(state.credits == 913 and state.missiles == 7 and state.run_score.credits_earned == 0,
 		"Patched starting resources apply without counting as income")
 	check(state.fleet.size() == 5 and state.fleet[0].flagship

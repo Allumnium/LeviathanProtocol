@@ -687,6 +687,8 @@ Acceptance: searches find no gameplay constants listed in the migration map. A p
 
 ### P3 - Run core (L)
 
+P3a/b's first checkpoint is delivered: sectioned run storage, write-once frozen definitions/schemas/pack hashes, isolated transactions/RNG, bounded engine hooks and actual ammunition purchasing. A temporary adapter preserves the current gameplay interfaces and semantic validation while the remaining systems move. The current menu continues the most recent recoverable run; the selection browser, remaining effects/systems, pressure/stat migration and old-path deletion are still open in [TODO.md](../TODO.md). Source assets remain referenced, with missing-image markers after pack removal.
+
 1. Add `RunDocument`, `RunTransaction`, hooks, `FactView`, the effect registry, stats, pressures and the chronicle skeleton.
 2. Add the `user://runs/<id>/` layout with content freezing and a multi-run list.
 3. Split `hangar_state.gd` into a facade plus Fleet, Travel, Trade, Research and Battle-settlement systems that use transactions.

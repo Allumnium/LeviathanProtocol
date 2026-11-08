@@ -22,6 +22,10 @@ var continue_button: Button
 var status_label: Label
 
 
+func _enter_tree() -> void:
+	Content.bind_run(null) # Setup reads installed packs; Continue binds frozen rules.
+
+
 func _ready() -> void:
 	play_button.text = "NEW RUN"
 	continue_button = Button.new()
@@ -43,7 +47,7 @@ func _ready() -> void:
 	var summary := GameState.checkpoint_summary()
 	continue_button.visible = not summary.is_empty()
 	if summary.is_empty() and ["", ".next", ".bak"].any(func(suffix: String) -> bool: return FileAccess.file_exists(GameState.run_save_path + suffix)):
-		status_label.text = "No recoverable checkpoint was found. Older saves are kept separately."
+		status_label.text = "Could not recover this run."
 		status_label.show()
 	continue_button.disabled = summary.get("ended", false)
 	if continue_button.disabled:
