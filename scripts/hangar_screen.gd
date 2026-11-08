@@ -794,7 +794,7 @@ func _update_research_header(update_rate := false) -> void:
 	research_progress.show()
 	research_progress_row.show()
 	if update_rate:
-		research_rate.text = "+%s/day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.get_deployed_fleet())))
+		research_rate.text = "+%s/day" % ScienceRules.format_rp(GameState.research_production_rate())
 
 func _research_signature() -> String:
 	return ",".join(GameState.research_offer) + "/" + str(GameState.current_research_ids.size())
@@ -1474,7 +1474,7 @@ func _show_details() -> void:
 			"DPS %.1f" % totals.dps,
 			"Shield %.0f" % totals.shields,
 			"Hull %.0f / %.0f" % [totals.integrity, totals.integrity_max],
-			"%s RP / day" % ScienceRules.format_rp(ScienceRules.production_rate(ScienceRules.snapshot(GameState.fleet)))]
+			"%s RP / day" % ScienceRules.format_rp(GameState.research_production_rate())]
 		var loads := HangarTrade.summary(GameState.hangar_snapshot())
 		if totals.cargo > 0:
 			lines.append("Cargo %d / %d" % [loads.cargo, totals.cargo])
@@ -2015,7 +2015,7 @@ func _select_destination(id: int) -> void:
 			ScienceRules.format_rp(GameState.navigation.intensity), ScienceRules.format_rp(intensity), enemy_intensity * SwarmNavigation.STRENGTH_PER_POINT * 100]))
 		if GameState.visited_nodes.has(id):
 			map_details.add_child(_label("Visited: no encounter reward"))
-	map_details.add_child(_resource_label("%s RP on arrival" % ScienceRules.format_points(ScienceRules.journey_rp(ScienceRules.snapshot(GameState.get_deployed_fleet()), days))))
+	map_details.add_child(_resource_label("%s RP on arrival" % ScienceRules.format_points(GameState.research_production_rate() * maxf(0, days))))
 	map_details.add_child(_button_with_sound("TRAVEL", func() -> void:
 		_begin_travel(id), &""))
 	_map_event_details()

@@ -2,6 +2,11 @@
 
 Resolved entries moved from [THOUGHTS.md](THOUGHTS.md), preserving their context and outcomes. This is a reference, not an active backlog or authorization to change gameplay. Open follow-ups remain in THOUGHTS.md or [TODO.md](TODO.md).
 
+## 2026-11-07 - Explicit research context and document facts (partial resolution)
+
+- **Original refactor context (2026-11-07):** Pass the owning run context directly to extracted systems and remove the hangar projection adapter; avoid treating mutable GameState fields and the committed document as two permanent authorities. The Fleet/catalog portion was resolved separately below.
+- **Resolved portion 2026-11-07:** Research choices, allocation/offer preparation, grants, family commitments, story gates and registry validation now propagate the owning frozen database. FactView derives matching capabilities, card count and M/XL lab output from run rows, including zero-hull survival, destroyed hosts and chassis/research multipliers. Runtime/UI production no longer builds combat/art objects. Direct tests deliberately bind different global rules and preserve custom gates/families, costs and grants; replay and failure checks cover completion hooks and overflow offers. Travel/settlement staging, checkpoint validation and final projection removal remain open in THOUGHTS.md/TODO.md.
+
 ## 2026-11-07 - Explicit Fleet/shipyard content context (partial resolution)
 
 - **Original refactor opportunity (2026-11-07):** The temporary frozen Content binding protects existing consumers while P3c extracts the remaining systems. Pass the owning run context directly to those systems and remove the hangar projection adapter; avoid treating the mutable GameState fields and committed document as two permanent authorities.

@@ -10,11 +10,11 @@ Phases follow [the plan](docs/SCENARIO_ARCHITECTURE.md#20-implementation-phases)
 
 P2 is complete: definitions control runtime behavior; generation uses stable named streams and explicit identities; scoped references support independent packs; audited legacy readers and ignored research metadata are removed. Focused verification is recorded in [COMPLETED.md](COMPLETED.md).
 
-P3a/b foundation and P3c1 Fleet/shipyard transactions are delivered in [COMPLETED.md](COMPLETED.md). P3 remains open below.
+P3a/b foundation, P3c1 Fleet/shipyard transactions and P3c2 research transactions/facts are delivered in [COMPLETED.md](COMPLETED.md). P3 remains open below.
 
 - [ ] P3 Run core: run document, transactions, hooks, effects, stats, pressures (Swarm), chronicle skeleton, `user://runs/<id>/` with frozen content and a run list; split `hangar_state.gd` into systems.
-  - [ ] P3c finish Research/Travel, trade loading/delivery and battle-settlement extraction, including fleet initialization/ongoing healing; extend FactView and add registered effects. Make the document authoritative and remove the temporary hangar adapter. Preserve lightweight movement between durable boundaries and exactly-once outcomes. Fleet/shipyard commands are extracted; their UI projection bridge remains temporary.
-  - [ ] P3d migrate score/stat formulas, Swarm pressure and chronicle recording; retire HangarCheckpoint, CampaignGraph/CampaignContent, SwarmNavigation and RunScore after their callers move.
+  - [ ] P3c finish Travel, trade loading/delivery and battle-settlement extraction, including fleet initialization/ongoing healing; extend FactView and add registered effects. Make the document authoritative and remove the temporary hangar adapter. Preserve lightweight movement between durable boundaries and exactly-once outcomes. Fleet/shipyard and research choice commands are extracted; travel/settlement still use a research staging adapter and must move awards/receipts into their own transactions.
+  - [ ] P3d migrate score/stat formulas, Swarm pressure and chronicle recording; retire HangarCheckpoint, CampaignGraph/CampaignContent, SwarmNavigation and RunScore after their callers move. Retire the ScienceRules DTO production/validation helpers and their old snapshot-based fixtures once the remaining shared combat/test uses move; runtime lab production now uses document facts.
   - [ ] P3e expose the run browser with remembered last selection, clear damaged-content handling and focused native interactions; finish current-loop/replay/failure acceptance and remove replaced paths. Full quest/rule execution remains P4, and the director remains P7.
 - [ ] P4 Story engine: quests, casting by bind/filter, scenes, templates, grammars, response lines, rules, journal/markers; Act I re-expressed as quests.
 - [ ] P5 Editor v1: shell, schema forms, Quest/Story Lab/Text workspaces, Playtest overlay and main-menu entry.

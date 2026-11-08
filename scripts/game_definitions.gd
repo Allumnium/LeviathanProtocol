@@ -52,7 +52,7 @@ static func _data(content: DefDatabase = null) -> Dictionary:
 				if not entry.has(field):
 					entry[field] = null
 		registry[domain] = entries
-	var errors := validate(registry)
+	var errors := validate(registry, content)
 	if not errors.is_empty():
 		push_error("Invalid game definitions: %s" % "; ".join(errors))
 		return {}
@@ -64,9 +64,9 @@ static func snapshot(content: DefDatabase = null) -> Dictionary:
 	return _data(content).duplicate(true)
 
 
-static func entries(domain: String, implemented_only := false) -> Array[Dictionary]:
+static func entries(domain: String, implemented_only := false, content: DefDatabase = null) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for entry: Dictionary in _data().get(domain, []):
+	for entry: Dictionary in _data(content).get(domain, []):
 		if not implemented_only or entry.implemented:
 			result.append(entry.duplicate(true))
 	return result
@@ -94,7 +94,7 @@ static func material_name(serialized_id: int) -> String:
 	return "Unknown"
 
 
-static func validate(value: Variant) -> Array[String]:
+static func validate(value: Variant, content: DefDatabase = null) -> Array[String]:
 	var errors: Array[String] = []
 	if not value is Dictionary:
 		return ["Registry must be an object."]
@@ -171,7 +171,7 @@ static func validate(value: Variant) -> Array[String]:
 			else:
 				errors.append("Invalid rank grant: %s" % entry.id)
 	if errors.is_empty():
-		errors.append_array(ResearchRules.validate_registry(value))
+		errors.append_array(ResearchRules.validate_registry(value, content))
 	for entry in value.abilities:
 		_check_reference(ids, "equipment", entry.get("source_equipment_id"), errors)
 		if not _nonnegative_integer(entry.get("cooldown_seconds")):

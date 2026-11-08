@@ -27,12 +27,12 @@ static func ship_matches(ship: FleetShip, targets: Array) -> bool:
 				return true
 	return false
 
-static func matches(id: String, deployed: Array[FleetShip]) -> bool:
-	var targets: Array = GameDefinitions.find("research", id).get("equipment_capabilities_any", [])
+static func matches(id: String, deployed: Array[FleetShip], content: DefDatabase = null) -> bool:
+	var targets: Array = GameDefinitions.find("research", id, content).get("equipment_capabilities_any", [])
 	return targets.is_empty() or deployed.any(func(ship: FleetShip) -> bool: return ship_matches(ship, targets))
 
-static func requirement(id: String) -> String:
-	var node := Content.get_def("research", id)
+static func requirement(id: String, content: DefDatabase = null) -> String:
+	var node := Content.get_def("research", id, "", content)
 	return str(node.get("equipment_requirement", "Deploy matching equipment.")) \
 		if not node.get("equipment_capabilities_any", []).is_empty() else ""
 

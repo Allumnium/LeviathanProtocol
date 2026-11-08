@@ -5,6 +5,7 @@ extends RefCounted
 ## Returned ship rows are copies; systems mutate their private transaction.
 var _doc: Dictionary
 var _content: DefDatabase
+var _items := {}
 
 func _init(doc: Dictionary, content: DefDatabase) -> void:
 	_doc = doc
@@ -35,6 +36,62 @@ func repair_cost(ids: Array) -> int:
 		if int(entry.id) in ids and float(entry.hull_hp) >= 0:
 			cost += ceili(maxf(0, hull_max(entry) - float(entry.hull_hp)))
 	return cost
+
+func _equipment(instance: Dictionary) -> Dictionary:
+	var key := SlotCatalog.equipment_key(instance.equipment_id, int(instance.rank))
+	if not _items.has(key):
+		_items[key] = SlotCatalog.find_equipment(instance.equipment_id, int(instance.rank), _content)
+	return _items[key]
+
+func research_grants() -> Dictionary:
+	return ResearchRules.resolve(_doc.fleet.research.research_ids, HangarResearch.catalog(_content), _content)
+
+func research_capabilities() -> Dictionary:
+	var result := {}
+	for entry: Dictionary in _doc.fleet.ships:
+		if float(entry.hull_hp) < 0:
+			continue
+		var chassis := SlotCatalog.find_chassis(entry.chassis, _content)
+		if float(chassis.get("self_repair_hp_per_second", 0)) > 0:
+			result["passive_repair"] = true
+		for uid: String in entry.mounts.values():
+			for capability: String in _equipment(_doc.fleet.equipment[uid]).get("research_capabilities", []):
+				result[capability] = true
+		if chassis.has("builtin_shield"):
+			for capability: String in SlotCatalog.find_equipment(chassis.builtin_shield, 1, _content).get("research_capabilities", []):
+				result[capability] = true
+	return result
+
+func matches_research(id: String) -> bool:
+	var targets: Array = Content.get_def("research", id, "", _content).get("equipment_capabilities_any", [])
+	if targets.is_empty():
+		return true
+	var capabilities := research_capabilities()
+	return targets.any(func(capability: String) -> bool: return capabilities.has(capability))
+
+func research_option_count() -> int:
+	var base := int(_content.get_def("research_tuning", "core:default").base_options)
+	for entry: Dictionary in _doc.fleet.ships:
+		if entry.flagship and float(entry.hull_hp) >= 0:
+			return base + int(SlotCatalog.find_chassis(entry.chassis, _content).get("research_option_bonus", 0))
+	return base
+
+func research_production_rate() -> float:
+	var rate := 0.0
+	var modifiers: Dictionary = research_grants().modifiers
+	for entry: Dictionary in _doc.fleet.ships:
+		if float(entry.hull_hp) < 0:
+			continue
+		var chassis := SlotCatalog.find_chassis(entry.chassis, _content)
+		for uid: String in entry.mounts.values():
+			var item := _equipment(_doc.fleet.equipment[uid])
+			if int(item.part_type) != ShipPart.Type.RESEARCH_LAB:
+				continue
+			var multiplier := float(chassis.get("research_rate_multiplier", 1.0))
+			if "research" in item.get("research_capabilities", []):
+				multiplier *= ResearchUpgrades.value(modifiers, "research_output_multiplier")
+			rate += int(item.rank) * multiplier
+	return rate
 
 func service_error(service: String) -> String:
 	return station_service_error(can_manage(), _doc.travel, _doc.sites, service)

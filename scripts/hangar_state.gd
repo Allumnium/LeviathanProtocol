@@ -790,7 +790,7 @@ func advance_expedition(delta: float, force_save := false) -> Dictionary:
 		return result
 	var days: float = simulation.state.traveled_days - days_before
 	var seconds: float = simulation.state.simulation_seconds - seconds_before
-	var earned_rp := ScienceRules.production_rate(ScienceRules.snapshot(get_deployed_fleet())) * days
+	var earned_rp := research_production_rate() * days
 	var progress := run_progress_snapshot()
 	_allocate_research(progress, earned_rp)
 	var offers_ready: bool = research_offer.is_empty() and not progress.research_offer.is_empty()
@@ -975,36 +975,30 @@ func repair_all_ships() -> bool:
 	return _run_operation("fleet.repair", FleetSystem.repair.bind(ids))
 
 func research_choice_ready() -> bool:
-	return not research_offer.is_empty() and research_points >= HangarResearch.threshold(run_progress_snapshot())
+	return ResearchSystem.ready(run_progress_snapshot(), _run_content())
 
 func choose_research(key: String) -> bool:
-	key = Content.runtime_id("research", key)
-	if battle_pending or run_ended or completed or not research_choice_ready() or key not in research_offer:
-		last_save_error = "Choose one of the offered upgrades."
-		return false
-	var data := hangar_snapshot()
-	if not HangarResearch.eligible(key, data.research):
-		last_save_error = "This upgrade is no longer available."
-		return false
-	if not ResearchUpgrades.matches(key, get_deployed_fleet()):
-		last_save_error = ResearchUpgrades.requirement(key)
-		return false
-	data.research.research_points -= HangarResearch.threshold(data.research)
-	data.research.research_ids.append(key)
-	data.research.research_offer.clear()
-	var definition := GameDefinitions.find("research", key)
-	if not definition.family_id.is_empty():
-		data.research.branch_choices[ResearchRules.family_key(definition.family_id)] = definition.path_id
-	_allocate_research(data.research, 0.0)
-	return _commit_hangar(data)
+	return _run_operation("research.choose", ResearchSystem.choose.bind(key))
 
 func _allocate_research(progress: Dictionary, amount: float) -> void:
-	progress.research_points = float(progress.research_points) + maxf(0, amount)
-	var deployed := get_deployed_fleet()
-	HangarResearch.prepare_offer(progress, run_seed, HangarResearch.option_count(deployed), deployed)
+	ResearchSystem.allocate_progress(progress, amount, run_seed, _research_facts(), _run_content())
+
+func _run_content() -> DefDatabase:
+	return run_session.content if run_session != null else Content.db()
+
+# Temporary live projection for research queries until travel/settlement own the document.
+func _research_facts() -> FactView:
+	var ships := []
+	for owned: HangarShip in fleet:
+		ships.append(owned.to_hangar_data())
+	return FactView.new({"fleet": {"ships": ships, "equipment": equipment_inventory,
+		"research": run_progress_snapshot()}}, _run_content())
+
+func research_production_rate() -> float:
+	return _research_facts().research_production_rate()
 
 func research_grants() -> Dictionary:
-	return ResearchRules.resolve(current_research_ids, HangarResearch.catalog())
+	return ResearchRules.resolve(current_research_ids, HangarResearch.catalog(_run_content()), _run_content())
 
 func set_planned_destination(node_id: int) -> bool:
 	if not _can_refit() or not get_reachable_nodes(current_node_id).has(node_id):
@@ -1036,7 +1030,7 @@ func travel_to(node_id: int) -> bool:
 	if not _can_refit() or not can_deploy() or not get_reachable_nodes(current_node_id).has(node_id):
 		return false
 	var data := hangar_snapshot()
-	var yield_rp := ScienceRules.journey_rp(ScienceRules.snapshot(get_deployed_fleet()), research_travel_time(current_node_id, node_id))
+	var yield_rp := research_production_rate() * maxf(0, research_travel_time(current_node_id, node_id))
 	if not navigation.is_empty():
 		var days := research_travel_time(current_node_id, node_id)
 		data.navigation.days += days
